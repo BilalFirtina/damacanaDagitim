@@ -1,0 +1,6 @@
+{
+  "name": "SuDağıtım Pro",
+  "description": "Damacana su, pet su, soda ve meşrubat dağıtım, araç yükleme, canlı ekip saha koordinasyonu, depozitolu boş damacana takibi ve gün sonu nakit/POS mutabakat sistemi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

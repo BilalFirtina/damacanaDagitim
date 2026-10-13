@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="waterGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="100%" stop-color="#0369a1" />
+    </linearGradient>
+    <linearGradient id="dropGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+  </defs>
+  <!-- Background Rounded Rect -->
+  <rect width="512" height="512" rx="128" fill="url(#waterGrad)" />
+  
+  <!-- Carboy Water Bottle Silhouette -->
+  <g fill="white" opacity="0.95" transform="translate(136, 96)">
+    <!-- Neck & Cap -->
+    <rect x="88" y="0" width="64" height="28" rx="8" fill="#e0f2fe" />
+    <rect x="100" y="28" width="40" height="36" fill="#e0f2fe" />
+    <!-- Shoulder -->
+    <path d="M 100 64 L 40 110 C 24 122 16 142 16 162 L 16 280 C 16 304 36 324 60 324 L 180 324 C 204 324 224 304 224 280 L 224 162 C 224 142 216 122 200 110 L 140 64 Z" fill="white" />
+    <!-- Grooves on carboy bottle -->
+    <line x1="36" y1="160" x2="204" y2="160" stroke="#0284c7" stroke-width="12" stroke-linecap="round" />
+    <line x1="36" y1="210" x2="204" y2="210" stroke="#0284c7" stroke-width="12" stroke-linecap="round" />
+    <line x1="36" y1="260" x2="204" y2="260" stroke="#0284c7" stroke-width="12" stroke-linecap="round" />
+    <!-- Water drop accent -->
+    <path d="M 120 170 C 120 170 144 200 144 214 C 144 228 133 238 120 238 C 107 238 96 228 96 214 C 96 200 120 170 120 170 Z" fill="#38bdf8" />
+  </g>
+</svg>
