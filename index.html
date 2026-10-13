@@ -17,6 +17,56 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <script>
+      // HMR is disabled in preview iframe; prevent Vite client WebSocket errors
+      if (typeof window !== 'undefined' && window.WebSocket) {
+        const OrigWebSocket = window.WebSocket;
+        window.WebSocket = function (url, protocols) {
+          if (
+            typeof url === 'string' &&
+            (url.includes('vite-hmr') ||
+              protocols === 'vite-hmr' ||
+              (Array.isArray(protocols) && protocols.includes('vite-hmr')) ||
+              url.includes('@vite'))
+          ) {
+            return {
+              readyState: 3,
+              addEventListener: () => {},
+              removeEventListener: () => {},
+              send: () => {},
+              close: () => {},
+              onopen: null,
+              onclose: null,
+              onerror: null,
+              onmessage: null,
+              binaryType: 'blob',
+              bufferedAmount: 0,
+              extensions: '',
+              protocol: '',
+              url: String(url),
+            };
+          }
+          return new OrigWebSocket(url, protocols);
+        };
+        window.WebSocket.prototype = OrigWebSocket.prototype;
+        window.WebSocket.CONNECTING = OrigWebSocket.CONNECTING;
+        window.WebSocket.OPEN = OrigWebSocket.OPEN;
+        window.WebSocket.CLOSING = OrigWebSocket.CLOSING;
+        window.WebSocket.CLOSED = OrigWebSocket.CLOSED;
+      }
+      window.addEventListener('error', (e) => {
+        if (e.message && (e.message.includes('WebSocket') || e.filename?.includes('@vite/client'))) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
+      }, true);
+      window.addEventListener('unhandledrejection', (e) => {
+        if (e.reason && (String(e.reason).includes('WebSocket') || String(e.reason?.message).includes('WebSocket'))) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
+      }, true);
+    </script>
   </head>
   <body class="bg-slate-50 text-slate-900 antialiased font-sans selection:bg-sky-500 selection:text-white">
     <div id="root"></div>

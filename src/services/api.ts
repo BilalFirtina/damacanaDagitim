@@ -4,7 +4,8 @@ import {
   Customer,
   Dispatch,
   Delivery,
-  CleanupStatus
+  CleanupStatus,
+  DatabaseStatus,
 } from '../types';
 
 const OFFLINE_QUEUE_KEY = 'sudagitim_offline_deliveries_queue';
@@ -334,5 +335,17 @@ export async function fetchCleanupStatus(): Promise<CleanupStatus> {
 export async function triggerManualCleanup(): Promise<any> {
   const res = await fetch('/api/cleanup/trigger', { method: 'POST' });
   if (!res.ok) throw new Error('Temizleme tetiklenemedi');
+  return res.json();
+}
+
+export async function fetchDatabaseStatus(): Promise<DatabaseStatus> {
+  const res = await fetch('/api/database/status');
+  if (!res.ok) throw new Error('Veritabanı durumu alınamadı');
+  return res.json();
+}
+
+export async function triggerDatabaseSeed(): Promise<any> {
+  const res = await fetch('/api/database/seed', { method: 'POST' });
+  if (!res.ok) throw new Error('Veritabanı başlangıç kurulumu yapılamadı');
   return res.json();
 }

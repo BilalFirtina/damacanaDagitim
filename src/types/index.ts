@@ -135,3 +135,19 @@ export interface CleanupStatus {
   thresholdDate: string;
   purgedCountLastRun: number;
 }
+
+export interface DatabaseStatus {
+  type: 'supabase_api' | 'postgres_direct' | 'local_json';
+  isConnected: boolean;
+  provider: string;
+  url?: string;
+  tables: {
+    users: number;
+    products: number;
+    customers: number;
+    dispatches: number;
+    deliveries: number;
+  };
+  message: string;
+  error?: string | null;
+}

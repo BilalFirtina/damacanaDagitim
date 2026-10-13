@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: sudagitim-pro
+    runtime: node
+    plan: free
+    region: frankfurt # veya oregon
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false

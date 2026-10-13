@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { User } from '../../types';
 import { PWAInstallButton } from './PWAInstallButton';
-import { Truck, ShieldCheck, UserCheck, RefreshCw, Layers, LogOut } from 'lucide-react';
+import { DatabaseStatusModal } from './DatabaseStatusModal';
+import { Truck, ShieldCheck, UserCheck, RefreshCw, Layers, LogOut, Database } from 'lucide-react';
 
 interface HeaderProps {
   currentUser: User;
@@ -24,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   onRefreshData,
   isRefreshing,
 }) => {
+  const [isDbModalOpen, setIsDbModalOpen] = useState(false);
   const isAdmin = currentUser.role === 'admin';
 
   return (
@@ -130,6 +132,17 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Zone 3: Active User & Role Switcher + PWA Button */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <PWAInstallButton />
+
+          <button
+            onClick={() => setIsDbModalOpen(true)}
+            className="p-1.5 text-slate-500 hover:text-sky-600 dark:text-slate-400 dark:hover:text-sky-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1"
+            title="Veritabanı & Supabase Durumu"
+          >
+            <Database className="w-4 h-4" />
+            <span className="hidden sm:inline text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+              Supabase
+            </span>
+          </button>
 
           <button
             onClick={onRefreshData}
@@ -310,6 +323,8 @@ export const Header: React.FC<HeaderProps> = ({
           </>
         )}
       </div>
+
+      <DatabaseStatusModal isOpen={isDbModalOpen} onClose={() => setIsDbModalOpen(false)} />
     </header>
   );
 };
