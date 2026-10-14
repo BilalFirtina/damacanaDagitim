@@ -35,6 +35,7 @@ export interface Customer {
   name: string;
   phone: string;
   address: string;
+  emails?: string[]; // Multiple email addresses for e-invoices, statements and accounting
   district?: string;
   isAccountCustomer: boolean; // Managers decide whether unpaid amounts become customer balance
   currentBalanceTL: number; // Positive = Customer owes us (debt), Negative = Customer prepayment

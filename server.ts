@@ -247,15 +247,20 @@ app.get('/api/customers', async (req, res) => {
 });
 
 app.post('/api/customers', async (req, res) => {
-  const { name, phone, address, district, isAccountCustomer, notes, customPrices } = req.body;
+  const { name, phone, address, emails, isAccountCustomer, notes, customPrices } = req.body;
   if (!name) return res.status(400).json({ error: 'Müşteri adı zorunludur' });
+
+  // Sanitize multiple emails
+  const cleanEmails: string[] = Array.isArray(emails)
+    ? emails.map((e: any) => String(e).trim()).filter((e: string) => e.length > 0)
+    : [];
 
   const newCust: Customer = {
     id: `cust_${Date.now()}`,
     name,
     phone: phone || '',
     address: address || '',
-    district: district || '',
+    emails: cleanEmails,
     isAccountCustomer: !!isAccountCustomer,
     currentBalanceTL: 0,
     emptyDepositBalance: { damacana: 0, tup: 0 },

@@ -286,12 +286,51 @@ function mapProductFromDb(row: any): Product {
 }
 
 function mapCustomerFromDb(row: any): Customer {
+  let emails: string[] = [];
+  if (Array.isArray(row.emails)) {
+    emails = row.emails.filter((e: any) => typeof e === 'string' && e.trim());
+  } else if (typeof row.emails === 'string' && row.emails.trim()) {
+    try {
+      const parsed = JSON.parse(row.emails);
+      if (Array.isArray(parsed)) emails = parsed.filter((e: any) => typeof e === 'string' && e.trim());
+      else emails = [row.emails.trim()];
+    } catch {
+      emails = row.emails.split(/[,;\s]+/).map((s: string) => s.trim()).filter((s: string) => s.includes('@'));
+    }
+  } else if (row.email && typeof row.email === 'string') {
+    emails = [row.email.trim()];
+  }
+
+  // Also check if district column contains emails (as requested: "district yerine mail adresi")
+  if (emails.length === 0 && typeof row.district === 'string' && row.district.trim()) {
+    const dist = row.district.trim();
+    if (dist.startsWith('[') && dist.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(dist);
+        if (Array.isArray(parsed)) emails = parsed.filter((e: any) => typeof e === 'string' && e.trim());
+      } catch {}
+    } else if (dist.includes('@')) {
+      emails = dist.split(/[,;\s]+/).map((s: string) => s.trim()).filter((s: string) => s.includes('@'));
+    }
+  }
+
+  // Merge with local store emails if available for that customer id
+  const localCust = loadLocalDatabase().customers.find((c) => c.id === row.id);
+  if (localCust?.emails && localCust.emails.length > 0) {
+    localCust.emails.forEach((em) => {
+      if (!emails.includes(em)) emails.push(em);
+    });
+  }
+
+  // Deduplicate
+  emails = Array.from(new Set(emails));
+
   return {
     id: row.id,
     name: row.name,
     phone: row.phone || '',
     address: row.address || '',
-    district: row.district || '',
+    emails,
     isAccountCustomer: Boolean(row.is_account_customer),
     currentBalanceTL: Number(row.current_balance_tl) || 0,
     emptyDepositBalance: {
@@ -403,7 +442,8 @@ export async function ensureSupabaseSeeded(): Promise<void> {
             name: c.name,
             phone: c.phone,
             address: c.address,
-            district: c.district,
+            emails: c.emails || [],
+            district: c.district || (c.emails?.[0] || ''),
             is_account_customer: c.isAccountCustomer,
             current_balance_tl: c.currentBalanceTL,
             empty_deposit_damacana: c.emptyDepositBalance?.damacana || 0,
@@ -705,29 +745,41 @@ export async function getCustomers(): Promise<Customer[]> {
 export async function createCustomer(cust: Customer): Promise<Customer> {
   if (isSupabaseOperational() && supabase) {
     try {
-      const { data, error } = await supabase
+      const payload: any = {
+        id: cust.id,
+        name: cust.name,
+        phone: cust.phone,
+        address: cust.address,
+        is_account_customer: cust.isAccountCustomer,
+        current_balance_tl: cust.currentBalanceTL,
+        empty_deposit_damacana: cust.emptyDepositBalance?.damacana || 0,
+        empty_deposit_tup: cust.emptyDepositBalance?.tup || 0,
+        custom_prices: cust.customPrices || {},
+        notes: cust.notes || '',
+        created_date: cust.createdDate,
+      };
+      if (cust.emails !== undefined) {
+        payload.emails = cust.emails;
+        payload.district = JSON.stringify(cust.emails);
+      } else if (cust.district !== undefined) {
+        payload.district = cust.district;
+      }
+
+      let { data, error } = await supabase
         .from('customers')
-        .upsert(
-          {
-            id: cust.id,
-            name: cust.name,
-            phone: cust.phone,
-            address: cust.address,
-            district: cust.district,
-            is_account_customer: cust.isAccountCustomer,
-            current_balance_tl: cust.currentBalanceTL,
-            empty_deposit_damacana: cust.emptyDepositBalance?.damacana || 0,
-            empty_deposit_tup: cust.emptyDepositBalance?.tup || 0,
-            custom_prices: cust.customPrices || {},
-            notes: cust.notes || '',
-            created_date: cust.createdDate,
-          },
-          { onConflict: 'id' }
-        )
+        .upsert(payload, { onConflict: 'id' })
         .select()
         .single();
 
-      if (!error && data) return mapCustomerFromDb(data);
+      // Graceful fallback if remote Supabase doesn't have emails column yet
+      if (error && (error.message?.includes('emails') || error.code === 'PGRST204')) {
+        delete payload.emails;
+        const retry = await supabase.from('customers').upsert(payload, { onConflict: 'id' }).select().single();
+        data = retry.data;
+        error = retry.error;
+      }
+
+      if (!error && data) return mapCustomerFromDb({ ...data, emails: cust.emails });
       console.error('[Supabase createCustomer]', error);
     } catch (e) {
       console.error('[Supabase createCustomer Exception]', e);
@@ -752,7 +804,12 @@ export async function updateCustomer(id: string, updates: Partial<Customer>): Pr
       if (updates.name !== undefined) payload.name = updates.name;
       if (updates.phone !== undefined) payload.phone = updates.phone;
       if (updates.address !== undefined) payload.address = updates.address;
-      if (updates.district !== undefined) payload.district = updates.district;
+      if (updates.emails !== undefined) {
+        payload.emails = updates.emails;
+        payload.district = JSON.stringify(updates.emails);
+      } else if (updates.district !== undefined) {
+        payload.district = updates.district;
+      }
       if (updates.isAccountCustomer !== undefined) payload.is_account_customer = updates.isAccountCustomer;
       if (updates.currentBalanceTL !== undefined) payload.current_balance_tl = updates.currentBalanceTL;
       if (updates.emptyDepositBalance?.damacana !== undefined) {
@@ -764,14 +821,21 @@ export async function updateCustomer(id: string, updates: Partial<Customer>): Pr
       if (updates.customPrices !== undefined) payload.custom_prices = updates.customPrices;
       if (updates.notes !== undefined) payload.notes = updates.notes;
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('customers')
         .update(payload)
         .eq('id', id)
         .select()
         .single();
 
-      if (!error && data) return mapCustomerFromDb(data);
+      if (error && (error.message?.includes('emails') || error.code === 'PGRST204')) {
+        delete payload.emails;
+        const retry = await supabase.from('customers').update(payload).eq('id', id).select().single();
+        data = retry.data;
+        error = retry.error;
+      }
+
+      if (!error && data) return mapCustomerFromDb({ ...data, emails: updates.emails });
       console.error('[Supabase updateCustomer]', error);
     } catch (e) {
       console.error('[Supabase updateCustomer Exception]', e);

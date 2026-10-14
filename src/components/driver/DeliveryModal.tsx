@@ -215,12 +215,15 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
   if (!isOpen) return null;
 
-  const filteredCustomers = customers.filter(
-    (c) =>
-      c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-      c.address.toLowerCase().includes(customerSearch.toLowerCase()) ||
-      c.phone.includes(customerSearch)
-  );
+  const filteredCustomers = customers.filter((c) => {
+    const term = customerSearch.toLowerCase();
+    return (
+      c.name.toLowerCase().includes(term) ||
+      c.address.toLowerCase().includes(term) ||
+      c.phone.includes(term) ||
+      (c.emails && c.emails.some((em) => em.toLowerCase().includes(term)))
+    );
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
