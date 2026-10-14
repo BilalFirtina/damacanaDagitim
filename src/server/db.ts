@@ -443,7 +443,6 @@ export async function ensureSupabaseSeeded(): Promise<void> {
             phone: c.phone,
             address: c.address,
             emails: c.emails || [],
-            district: c.district || (c.emails?.[0] || ''),
             is_account_customer: c.isAccountCustomer,
             current_balance_tl: c.currentBalanceTL,
             empty_deposit_damacana: c.emptyDepositBalance?.damacana || 0,
@@ -760,9 +759,6 @@ export async function createCustomer(cust: Customer): Promise<Customer> {
       };
       if (cust.emails !== undefined) {
         payload.emails = cust.emails;
-        payload.district = JSON.stringify(cust.emails);
-      } else if (cust.district !== undefined) {
-        payload.district = cust.district;
       }
 
       let { data, error } = await supabase
@@ -806,9 +802,6 @@ export async function updateCustomer(id: string, updates: Partial<Customer>): Pr
       if (updates.address !== undefined) payload.address = updates.address;
       if (updates.emails !== undefined) {
         payload.emails = updates.emails;
-        payload.district = JSON.stringify(updates.emails);
-      } else if (updates.district !== undefined) {
-        payload.district = updates.district;
       }
       if (updates.isAccountCustomer !== undefined) payload.is_account_customer = updates.isAccountCustomer;
       if (updates.currentBalanceTL !== undefined) payload.current_balance_tl = updates.currentBalanceTL;

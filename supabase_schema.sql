@@ -36,7 +36,6 @@ CREATE TABLE IF NOT EXISTS public.customers (
   phone TEXT,
   address TEXT,
   emails JSONB DEFAULT '[]'::jsonb, -- Çoklu e-posta adresleri (e-fatura, cari mutabakat bildirimleri)
-  district TEXT, -- Geriye dönük uyumluluk alanı
   is_account_customer BOOLEAN DEFAULT true,
   current_balance_tl NUMERIC DEFAULT 0,
   empty_deposit_damacana INTEGER DEFAULT 0,
@@ -163,14 +162,33 @@ ON CONFLICT (id) DO UPDATE SET
   default_unit_price = EXCLUDED.default_unit_price;
 
 -- Müşteriler
-INSERT INTO public.customers (id, name, phone, address, district, is_account_customer, current_balance_tl, empty_deposit_damacana, empty_deposit_tup, custom_prices, notes, created_date)
+INSERT INTO public.customers (id, name, phone, address, emails, is_account_customer, current_balance_tl, empty_deposit_damacana, empty_deposit_tup, custom_prices, notes, created_date)
 VALUES
-  ('cust_1', 'Yıldız Cafe & Bistro', '0216 450 11 22', 'Moda Cad. No: 42, Kadıköy', 'Kadıköy', true, 0, 4, 0, '{"prod_damacana_19l": 85, "prod_soda_beypazari_24": 165}', 'Arka kapıdan mutfağa bırakılacak. Sabah 10:00 dan önce teslimat.', '2026-09-01'),
-  ('cust_2', 'Boğaziçi Unlu Mamülleri', '0216 340 33 44', 'Hakimiyeti Milliye Cad. No: 18, Üsküdar', 'Üsküdar', true, 350, 6, 1, '{"prod_damacana_19l": 85, "prod_pet_05l_24": 110}', 'Fırın ustası Mehmet Bey teslim alıyor.', '2026-09-10'),
-  ('cust_3', 'Demir Hukuk & Mimarlık', '0216 570 55 66', 'Varyap Meridian B Blok Kat: 12, Ataşehir', 'Ataşehir', true, 285, 3, 0, '{"prod_damacana_19l": 95}', 'Danışma sekreteryaya bırakılıyor.', '2026-09-15'),
-  ('cust_4', 'Marmara Balıkçısı', '0216 380 77 88', 'Sahil Yolu No: 85, Maltepe', 'Maltepe', false, 0, 8, 2, '{"prod_damacana_19l": 90, "prod_soda_kizilay_24": 160}', 'Kasa görevlisi Ayhan Bey peşin ödüyor.', '2026-09-20'),
-  ('cust_5', 'Ayşe Hanım (Ev Abonesi)', '0532 111 22 33', 'Bağdat Cad. Çiçek Apt. D: 5, Bostancı', 'Kadıköy', false, 0, 1, 0, '{}', 'Zil bozuk, gelince cepten aranacak.', '2026-09-25'),
-  ('cust_6', 'Çağdaş Spor Kompleksi', '0216 488 99 00', 'Atalar Mah. Spor Cad. No: 14, Kartal', 'Kartal', true, 600, 12, 0, '{"prod_damacana_19l": 80, "prod_pet_05l_24": 105, "prod_bardak_3000": 290}', 'Giriş resepsiyonu ve spor salonu sebilleri için.', '2026-09-28')
+  ('cust_1', 'Yıldız Cafe & Bistro', '0216 450 11 22', 'Moda Cad. No: 42, Kadıköy', '["yildiz@cafe.com"]'::jsonb, true, 0, 4, 0, '{"prod_damacana_19l": 85, "prod_soda_beypazari_24": 165}', 'Arka kapıdan mutfağa bırakılacak. Sabah 10:00 dan önce teslimat.', '2026-09-01'),
+  ('cust_2', 'Boğaziçi Unlu Mamülleri', '0216 340 33 44', 'Hakimiyeti Milliye Cad. No: 18, Üsküdar', '["bogazici@unlu.com"]'::jsonb, true, 350, 6, 1, '{"prod_damacana_19l": 85, "prod_pet_05l_24": 110}', 'Fırın ustası Mehmet Bey teslim alıyor.', '2026-09-10'),
+  ('cust_3', 'Demir Hukuk & Mimarlık', '0216 570 55 66', 'Varyap Meridian B Blok Kat: 12, Ataşehir', '["info@demirhukuk.com"]'::jsonb, true, 285, 3, 0, '{"prod_damacana_19l": 95}', 'Danışma sekreteryaya bırakılıyor.', '2026-09-15'),
+  ('cust_4', 'Marmara Balıkçısı', '0216 380 77 88', 'Sahil Yolu No: 85, Maltepe', '["marmara@balik.com"]'::jsonb, false, 0, 8, 2, '{"prod_damacana_19l": 90, "prod_soda_kizilay_24": 160}', 'Kasa görevlisi Ayhan Bey peşin ödüyor.', '2026-09-20'),
+  ('cust_5', 'Ayşe Hanım (Ev Abonesi)', '0532 111 22 33', 'Bağdat Cad. Çiçek Apt. D: 5, Bostancı', '["ayse@hanim.com"]'::jsonb, false, 0, 1, 0, '{}', 'Zil bozuk, gelince cepten aranacak.', '2026-09-25'),
+  ('cust_6', 'Çağdaş Spor Kompleksi', '0216 488 99 00', 'Atalar Mah. Spor Cad. No: 14, Kartal', '["cagdas@spor.com"]'::jsonb, true, 600, 12, 0, '{"prod_damacana_19l": 80, "prod_pet_05l_24": 105, "prod_bardak_3000": 290}', 'Giriş resepsiyonu ve spor salonu sebilleri için.', '2026-09-28')
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   phone = EXCLUDED.phone;
+
+-- ==============================================================================
+-- MİGRASYON / GÜNCELLEME NOTU (Eski veritabanlarında district -> emails taşıma)
+-- Eğer veritabanınızda daha önceden district kolonunda e-postalar tutulduysa,
+-- aşağıdaki SQL komutunu çalıştırarak verileri güvenle emails (JSONB) kolonuna taşıyabilir
+-- ve district kolonunu silebilirsiniz:
+-- 
+-- ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS emails JSONB DEFAULT '[]'::jsonb;
+-- 
+-- UPDATE public.customers 
+-- SET emails = jsonb_build_array(district)
+-- WHERE (emails IS NULL or emails = '[]'::jsonb) 
+--   AND district IS NOT NULL 
+--   AND district != '' 
+--   AND district LIKE '%@%';
+-- 
+-- ALTER TABLE public.customers DROP COLUMN IF EXISTS district;
+-- ==============================================================================
+
