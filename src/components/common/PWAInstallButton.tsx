@@ -23,11 +23,11 @@ export const PWAInstallButton: React.FC = () => {
     <>
       <button
         onClick={handleClick}
-        className="flex items-center gap-1.5 rounded-xl bg-sky-600 px-3.5 py-2 text-xs font-bold text-white shadow-md shadow-sky-600/20 hover:bg-sky-700 active:scale-95 transition-all whitespace-nowrap shrink-0"
-        title="Uygulamayı Telefonunuza / Bilgisayarınıza Kurun"
+        className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 to-sky-600 px-5 py-3 text-xs font-black text-white shadow-lg shadow-sky-600/30 hover:from-emerald-700 hover:to-sky-700 active:scale-95 transition-all whitespace-nowrap shrink-0"
+        title="Uygulamayı Telefonunuza / Ana Ekranınıza Kurun"
       >
         <Download className="w-4 h-4 animate-bounce" />
-        <span>Uygulamayı İndir</span>
+        <span>Uygulamayı Telefona İndir</span>
       </button>
 
       {showGuide && (

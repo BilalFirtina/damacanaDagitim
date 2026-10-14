@@ -46,6 +46,19 @@ CREATE TABLE IF NOT EXISTS public.customers (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Var olan veritabanlarında eksik 'emails' kolonunu güvenle ekle, varsa 'district' verilerini taşı ve 'district' kolonunu kaldır
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS emails JSONB DEFAULT '[]'::jsonb;
+
+UPDATE public.customers 
+SET emails = jsonb_build_array(district)
+WHERE (emails IS NULL or emails = '[]'::jsonb) 
+  AND district IS NOT NULL 
+  AND district != '' 
+  AND district LIKE '%@%';
+
+ALTER TABLE public.customers DROP COLUMN IF EXISTS district;
+
+
 -- 4. ARAÇ YÜKLEMELERİ & SEFERLER TABLOSU (dispatches)
 CREATE TABLE IF NOT EXISTS public.dispatches (
   id TEXT PRIMARY KEY,

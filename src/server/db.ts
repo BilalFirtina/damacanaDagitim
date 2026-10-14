@@ -56,12 +56,29 @@ export function saveSupabaseConfig(cfg: SupabaseCustomConfig): void {
 
 let activeConfig = loadSupabaseConfig();
 
-let rawSupabaseUrl =
-  activeConfig.url ||
+const isPlaceholderUrl = (url: string) => {
+  if (!url) return true;
+  const lower = url.toLowerCase();
+  return (
+    lower.includes('xyzcompany') ||
+    lower.includes('ckidigqrofzquhmejzwf') ||
+    lower.includes('yourproject') ||
+    lower.includes('example') ||
+    lower.includes('placeholder')
+  );
+};
+
+let envSupabaseUrl =
   process.env.SUPABASE_URL ||
   process.env.VITE_SUPABASE_URL ||
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
   '';
+
+if (isPlaceholderUrl(envSupabaseUrl) && !activeConfig.url) {
+  envSupabaseUrl = '';
+}
+
+let rawSupabaseUrl = activeConfig.url || envSupabaseUrl;
 
 let rawSupabaseKey =
   activeConfig.key ||
@@ -73,6 +90,10 @@ let rawSupabaseKey =
   process.env.VITE_SUPABASE_ANON_KEY ||
   '';
 
+if (isPlaceholderUrl(rawSupabaseUrl)) {
+  rawSupabaseKey = '';
+}
+
 const rawDatabaseUrl =
   process.env.DATABASE_URL ||
   process.env.POSTGRES_URL ||
@@ -82,7 +103,8 @@ const rawDatabaseUrl =
 export let isSupabaseApiConfigured = Boolean(
   rawSupabaseUrl &&
   rawSupabaseKey &&
-  rawSupabaseUrl.startsWith('http')
+  rawSupabaseUrl.startsWith('http') &&
+  !isPlaceholderUrl(rawSupabaseUrl)
 );
 
 export const isPostgresDirectConfigured = Boolean(
