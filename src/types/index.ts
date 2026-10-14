@@ -139,6 +139,9 @@ export interface CleanupStatus {
   retentionDays: number;
   thresholdDate: string;
   purgedCountLastRun: number;
+  purgedCountTotal?: number;
+  lastCleanupDate?: string | null;
+  nextScheduledRun?: string;
 }
 
 export interface DatabaseStatus {

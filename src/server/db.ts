@@ -985,37 +985,78 @@ export async function createDeliveryRecord(
   return { delivery: del, updatedCustomer };
 }
 
-// 6. Retention 60-Day Cleanup Routine
-export async function runRetentionCleanup(): Promise<{ purgedDispatches: number; purgedDeliveries: number }> {
+// 6. Retention 60-Day Cleanup Routine (Every night at 23:00 and manual on-demand)
+let inMemoryLastPurged = 0;
+let inMemoryLastCleanupDate: string | null = null;
+
+export function getNext2300Time(): { nextDate: Date; msUntil: number; formatted: string } {
+  const now = new Date();
+  const target = new Date(now);
+  target.setHours(23, 0, 0, 0);
+  if (now.getTime() >= target.getTime()) {
+    // If past 23:00 today, schedule for tomorrow 23:00
+    target.setDate(target.getDate() + 1);
+  }
+  const msUntil = target.getTime() - now.getTime();
+  const hours = Math.floor(msUntil / (1000 * 60 * 60));
+  const minutes = Math.floor((msUntil % (1000 * 60 * 60)) / (1000 * 60));
+  const formatted = `${target.toISOString().split('T')[0]} 23:00 (${hours} saat ${minutes} dk sonra)`;
+  return { nextDate: target, msUntil, formatted };
+}
+
+export async function runRetentionCleanup(): Promise<{
+  purgedDispatches: number;
+  purgedDeliveries: number;
+  lastCleanupDate: string;
+  thresholdDate: string;
+}> {
   const RETENTION_DAYS = 60;
   const thresholdMs = Date.now() - RETENTION_DAYS * 24 * 3600 * 1000;
   const thresholdDateStr = new Date(thresholdMs).toISOString().split('T')[0];
+  const nowIso = new Date().toISOString();
 
+  let purgedDispatches = 0;
+  let purgedDeliveries = 0;
+
+  // 1. Supabase Cleanup (if connected)
   if (isSupabaseOperational() && supabase) {
     try {
-      const { data: delData } = await supabase
+      // First delete deliveries older than 60 days
+      const { data: delData, error: delErr } = await supabase
         .from('deliveries')
         .delete()
         .lt('timestamp', `${thresholdDateStr}T00:00:00Z`)
         .select();
 
-      const { data: dispData } = await supabase
+      // Second delete dispatches older than 60 days
+      const { data: dispData, error: dispErr } = await supabase
         .from('dispatches')
         .delete()
         .lt('date', thresholdDateStr)
         .select();
 
-      const purgedDeliveries = delData ? delData.length : 0;
-      const purgedDispatches = dispData ? dispData.length : 0;
+      if (delData) purgedDeliveries = delData.length;
+      if (dispData) purgedDispatches = dispData.length;
 
-      console.log(`[Supabase Cleanup] Purged ${purgedDispatches} dispatches and ${purgedDeliveries} deliveries older than ${thresholdDateStr}.`);
-      return { purgedDispatches, purgedDeliveries };
+      if (delErr) console.error('[Supabase Retention Deliveries Error]', delErr);
+      if (dispErr) console.error('[Supabase Retention Dispatches Error]', dispErr);
+
+      console.log(`[Supabase 60-Day Cleanup] Purged ${purgedDispatches} dispatches and ${purgedDeliveries} deliveries older than ${thresholdDateStr}.`);
     } catch (e) {
-      console.error('[Supabase runRetentionCleanup]', e);
+      console.error('[Supabase runRetentionCleanup Exception]', e);
+    }
+  } else if (pgPool) {
+    try {
+      const resDel = await pgPool.query('DELETE FROM public.deliveries WHERE timestamp < $1 RETURNING id', [`${thresholdDateStr}T00:00:00Z`]);
+      const resDisp = await pgPool.query('DELETE FROM public.dispatches WHERE date < $1 RETURNING id', [thresholdDateStr]);
+      purgedDeliveries = resDel.rowCount || 0;
+      purgedDispatches = resDisp.rowCount || 0;
+    } catch (e) {
+      console.error('[Postgres runRetentionCleanup Exception]', e);
     }
   }
 
-  // Local fallback
+  // 2. Local Fallback Database Cleanup (always kept in sync)
   const db = loadLocalDatabase();
   const initDispatches = db.dispatches.length;
   const initDeliveries = db.deliveries.length;
@@ -1024,14 +1065,30 @@ export async function runRetentionCleanup(): Promise<{ purgedDispatches: number;
   const retainedIds = new Set(db.dispatches.map((d) => d.id));
   db.deliveries = db.deliveries.filter((del) => del.timestamp.split('T')[0] >= thresholdDateStr && retainedIds.has(del.dispatchId));
 
-  const purgedDispatches = initDispatches - db.dispatches.length;
-  const purgedDeliveries = initDeliveries - db.deliveries.length;
+  const localPurgedDispatches = initDispatches - db.dispatches.length;
+  const localPurgedDeliveries = initDeliveries - db.deliveries.length;
 
-  if (purgedDispatches > 0 || purgedDeliveries > 0) {
-    db.purgedCountTotal = (db.purgedCountTotal || 0) + purgedDispatches + purgedDeliveries;
-    saveLocalDatabase(db);
-  }
-  return { purgedDispatches, purgedDeliveries };
+  // Use the greater count between remote and local for reporting
+  if (purgedDispatches === 0 && localPurgedDispatches > 0) purgedDispatches = localPurgedDispatches;
+  if (purgedDeliveries === 0 && localPurgedDeliveries > 0) purgedDeliveries = localPurgedDeliveries;
+
+  const totalThisRun = purgedDispatches + purgedDeliveries;
+  inMemoryLastPurged = totalThisRun;
+  inMemoryLastCleanupDate = nowIso;
+
+  db.lastCleanupDate = nowIso;
+  db.purgedCountTotal = (db.purgedCountTotal || 0) + totalThisRun;
+  saveLocalDatabase(db);
+
+  // NOTE: Customer profiles, active debts (currentBalanceTL), and deposit bottle counts
+  // are deliberately 100% untouched and preserved.
+
+  return {
+    purgedDispatches,
+    purgedDeliveries,
+    lastCleanupDate: nowIso,
+    thresholdDate: thresholdDateStr,
+  };
 }
 
 export async function getCleanupStats(): Promise<CleanupStatus> {
@@ -1041,12 +1098,18 @@ export async function getCleanupStats(): Promise<CleanupStatus> {
 
   const allDispatches = await getDispatches();
   const allDeliveries = await getDeliveries();
+  const db = loadLocalDatabase();
 
   let oldestRecordDate: string | null = null;
   if (allDispatches.length > 0) {
     const dates = allDispatches.map((d) => d.date).sort();
     oldestRecordDate = dates[0];
+  } else if (allDeliveries.length > 0) {
+    const dates = allDeliveries.map((d) => d.timestamp.split('T')[0]).sort();
+    oldestRecordDate = dates[0];
   }
+
+  const { formatted: nextScheduledRun } = getNext2300Time();
 
   return {
     totalDispatches: allDispatches.length,
@@ -1054,7 +1117,10 @@ export async function getCleanupStats(): Promise<CleanupStatus> {
     oldestRecordDate,
     retentionDays: RETENTION_DAYS,
     thresholdDate: thresholdDateStr,
-    purgedCountLastRun: 0,
+    purgedCountLastRun: inMemoryLastPurged,
+    purgedCountTotal: db.purgedCountTotal || 0,
+    lastCleanupDate: inMemoryLastCleanupDate || db.lastCleanupDate || null,
+    nextScheduledRun,
   };
 }
 

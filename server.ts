@@ -28,6 +28,7 @@ import {
   createDeliveryRecord,
   runRetentionCleanup,
   getCleanupStats,
+  getNext2300Time,
   isSupabaseConfigured,
   getDatabaseStatus,
   ensureSupabaseSeeded,
@@ -48,6 +49,28 @@ const getTodayDateStr = () => new Date().toISOString().split('T')[0];
 // Safe boot-time cleanup and Supabase initialization
 runRetentionCleanup().catch((err) => console.error('Initial cleanup error', err));
 ensureSupabaseSeeded().catch((err) => console.error('Initial Supabase seed error', err));
+
+// Schedule recurring daily 60-day cleanup at exactly 23:00:00 every night
+function setupDailyRetentionJob() {
+  const { msUntil, formatted } = getNext2300Time();
+  console.log(`[Retention Scheduler] 60-Day cleanup scheduled for: ${formatted}`);
+
+  setTimeout(async () => {
+    console.log('[Retention Scheduler] Executing daily 23:00 60-day data retention cleanup...');
+    try {
+      const res = await runRetentionCleanup();
+      console.log(
+        `[Retention Scheduler] 23:00 cleanup completed: ${res.purgedDispatches} dispatches and ${res.purgedDeliveries} deliveries older than 60 days purged.`
+      );
+    } catch (err) {
+      console.error('[Retention Scheduler] Error during scheduled 23:00 cleanup:', err);
+    }
+    // Re-schedule for the next 23:00
+    setupDailyRetentionJob();
+  }, msUntil);
+}
+
+setupDailyRetentionJob();
 
 // -------------------------------------------------------------
 // REST API ENDPOINTS
