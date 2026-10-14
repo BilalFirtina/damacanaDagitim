@@ -242,12 +242,12 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full min-w-0">
       {/* Top Banner & Search */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 w-full max-w-full">
         <div>
           <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-sky-600" />
+            <Building2 className="w-5 h-5 text-sky-600 shrink-0" />
             <span>Müşteri Rehberi & Çoklu E-Posta Yönetimi</span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -269,7 +269,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
           <button
             onClick={handleOpenCreateModal}
-            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all whitespace-nowrap"
+            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all whitespace-nowrap shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>Yeni Müşteri Ekle</span>
@@ -278,7 +278,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none text-xs">
+      <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none text-xs w-full max-w-full">
         <button
           onClick={() => setFilterType('all')}
           className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors ${

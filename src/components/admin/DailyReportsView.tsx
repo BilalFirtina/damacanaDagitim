@@ -145,7 +145,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
   const driversList = users.filter((u) => u.role === 'driver');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full min-w-0">
       {/* Top Controls Filter Bar */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -271,7 +271,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
       </div>
 
       {/* Deliveries Data Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-3 sm:p-5 shadow-xs space-y-4 w-full max-w-full min-w-0 overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
           <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
             Müşteri Bazlı Teslim Edilen Ürün & Tahsilat Dökümü ({filteredDeliveries.length} Kayıt)
@@ -294,8 +294,8 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
             Seçilen tarih ve kriterlere uygun teslimat kaydı bulunamadı.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+          <div className="overflow-x-auto w-full max-w-full">
+            <table className="w-full text-left text-xs border-collapse min-w-[700px]">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold bg-slate-50/50 dark:bg-slate-800/50">
                   <th className="py-2.5 px-3">Saat</th>

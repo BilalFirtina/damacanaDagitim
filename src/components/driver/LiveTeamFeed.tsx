@@ -155,7 +155,7 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full max-w-full min-w-0">
       {/* Top Banner & Control Bar */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -329,12 +329,14 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
                 <div className="mt-3 flex flex-col md:flex-row md:items-start justify-between gap-4">
                   {/* Left: Customer & Delivered Items */}
                   <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-2">
-                      <Building2 className={`w-4 h-4 shrink-0 ${pal.textClass}`} />
-                      <span className="text-sm font-bold text-slate-900 dark:text-white">
+                    <div className="flex items-baseline gap-1.5 flex-wrap min-w-0">
+                      <Building2 className={`w-4 h-4 shrink-0 translate-y-0.5 ${pal.textClass}`} />
+                      <span className="text-sm font-bold text-slate-900 dark:text-white break-words">
                         {item.customerName}
                       </span>
-                      <span className="text-xs text-slate-400">· {item.customerAddress}</span>
+                      {item.customerAddress && (
+                        <span className="text-xs text-slate-400 break-words">· {item.customerAddress}</span>
+                      )}
                     </div>
 
                     {/* Delivered Products Badges */}

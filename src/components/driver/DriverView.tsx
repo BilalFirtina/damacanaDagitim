@@ -74,7 +74,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
   const isShiftReady = activeDispatch && activeDispatch.status === 'in_transit';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full min-w-0">
       {/* Depo Yöneticisi Quick Monitor Bar */}
       {currentUser.role === 'admin' && (
         <div className="bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
@@ -203,10 +203,10 @@ export const DriverView: React.FC<DriverViewProps> = ({
               });
 
               return (
-                <div key={del.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-xs text-slate-900 dark:text-white">
+                <div key={del.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full min-w-0">
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-xs text-slate-900 dark:text-white break-words">
                         {del.customerName}
                       </span>
                       <span className="text-[10px] text-slate-400 font-mono">
@@ -226,7 +226,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
 
                       {del.emptyContainersReceived.damacana > 0 && (
                         <span className="text-[11px] font-semibold text-orange-600 flex items-center gap-0.5">
-                          <RotateCcw className="w-3 back-3" />
+                          <RotateCcw className="w-3 h-3" />
                           {del.emptyContainersReceived.damacana} Boş Alındı
                         </span>
                       )}

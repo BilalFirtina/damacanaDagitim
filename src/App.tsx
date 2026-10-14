@@ -179,7 +179,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/80 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-50/80 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans">
       {/* Top Bar Header with 3-Zone Contract */}
       <Header
         currentUser={currentUser}
@@ -193,7 +193,7 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 pb-20">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 pb-20 min-w-0 overflow-x-hidden">
         {activeTab === 'delivery' && (
           <DriverView
             currentUser={currentUser}

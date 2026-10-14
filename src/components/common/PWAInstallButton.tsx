@@ -16,11 +16,11 @@ export const PWAInstallButton: React.FC = () => {
     return (
       <button
         onClick={install}
-        className="flex items-center gap-1.5 rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-sky-700 active:scale-95 transition-all whitespace-nowrap"
+        className="flex items-center gap-1 rounded-lg bg-sky-600 p-1.5 sm:px-3 sm:py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-sky-700 active:scale-95 transition-all whitespace-nowrap shrink-0"
         title="Uygulamayı Android veya Bilgisayarınıza Kurun"
       >
         <Download className="w-3.5 h-3.5" />
-        <span>Uygulamayı Yükle</span>
+        <span className="hidden sm:inline">Uygulamayı Yükle</span>
       </button>
     );
   }
@@ -31,10 +31,11 @@ export const PWAInstallButton: React.FC = () => {
       <>
         <button
           onClick={() => setShowIOSGuide(true)}
-          className="flex items-center gap-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white/80 dark:bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors whitespace-nowrap"
+          className="flex items-center gap-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white/80 dark:bg-slate-800 p-1.5 sm:px-2.5 sm:py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors whitespace-nowrap shrink-0"
+          title="Ana Ekrana Ekle"
         >
           <Smartphone className="w-3.5 h-3.5 text-sky-600" />
-          <span>Ana Ekrana Ekle</span>
+          <span className="hidden sm:inline">Ana Ekrana Ekle</span>
         </button>
 
         {showIOSGuide && (

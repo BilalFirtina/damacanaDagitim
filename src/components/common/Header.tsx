@@ -29,16 +29,16 @@ export const Header: React.FC<HeaderProps> = ({
   const isAdmin = currentUser.role === 'admin';
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-4 md:gap-8 h-16">
+    <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs w-full max-w-full overflow-hidden">
+      <div className="max-w-7xl mx-auto px-2.5 sm:px-6 flex items-center justify-between gap-1.5 sm:gap-4 md:gap-8 h-14 sm:h-16 w-full max-w-full">
         
         {/* Zone 1: Brand Wordmark (Single text element wordmark + icon) */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-600 to-sky-400 flex items-center justify-center text-white shadow-md shadow-sky-500/20">
-            <Truck className="w-5 h-5" />
+        <div className="flex items-center gap-2 shrink-0 min-w-0">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-sky-600 to-sky-400 flex items-center justify-center text-white shadow-md shadow-sky-500/20 shrink-0">
+            <Truck className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div>
-            <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
+          <div className="min-w-0">
+            <span className="text-sm sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
               Dağıtım <span className="text-sky-600 font-extrabold ml-0.5">& Mutabakat</span>
             </span>
           </div>
@@ -141,16 +141,16 @@ export const Header: React.FC<HeaderProps> = ({
         </nav>
 
         {/* Zone 3: Active User & Role Switcher + PWA Button */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
           <PWAInstallButton />
 
           <button
             onClick={() => setIsDbModalOpen(true)}
-            className="p-1.5 text-slate-500 hover:text-sky-600 dark:text-slate-400 dark:hover:text-sky-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1"
+            className="p-1.5 text-slate-500 hover:text-sky-600 dark:text-slate-400 dark:hover:text-sky-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1 shrink-0"
             title="Veritabanı & Supabase Durumu"
           >
-            <Database className="w-4 h-4" />
-            <span className="hidden sm:inline text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+            <Database className="w-4 h-4 shrink-0" />
+            <span className="hidden md:inline text-[11px] font-semibold text-slate-600 dark:text-slate-300">
               Supabase
             </span>
           </button>
@@ -158,18 +158,21 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onRefreshData}
             disabled={isRefreshing}
-            className="p-1.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="p-1.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
             title="Verileri Yenile"
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-sky-600' : ''}`} />
           </button>
 
-          {/* Active User Badge & Logout */}
-          <div className="flex items-center gap-2 py-1 px-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80">
-            <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 text-xs font-bold shrink-0">
+          {/* Active User Badge */}
+          <div
+            className="flex items-center gap-1.5 py-1 px-1.5 sm:px-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80 shrink-0"
+            title={`${currentUser.name} (${currentUser.title || (currentUser.role === 'admin' ? 'Depo Yöneticisi' : 'Şoför')})`}
+          >
+            <div className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 flex items-center justify-center text-xs font-bold shrink-0">
               {currentUser.name.charAt(0)}
             </div>
-            <div className="flex flex-col text-left">
+            <div className="hidden md:flex flex-col text-left">
               <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate max-w-[110px] sm:max-w-[140px]">
                 {currentUser.name.split(' ')[0]}
               </span>
@@ -189,17 +192,17 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Explicit Logout Button */}
           <button
             onClick={onLogout}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl border border-red-200/60 dark:border-red-900/40 transition-colors"
+            className="flex items-center gap-1 p-1.5 sm:px-2.5 sm:py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl border border-red-200/60 dark:border-red-900/40 transition-colors shrink-0"
             title="Oturumu Kapat (Çıkış Yap)"
           >
-            <LogOut className="w-3.5 h-3.5" />
+            <LogOut className="w-3.5 h-3.5 shrink-0" />
             <span className="hidden sm:inline">Çıkış</span>
           </button>
         </div>
       </div>
 
       {/* Mobile Secondary Tab Navigation Bar */}
-      <div className="lg:hidden flex items-center gap-1 overflow-x-auto px-4 py-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 scrollbar-none">
+      <div className="lg:hidden w-full max-w-full overflow-x-auto px-2.5 py-1.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 scrollbar-none flex items-center gap-1">
         <button
           onClick={() => setActiveTab('delivery')}
           className={`px-3 py-1.5 text-xs font-semibold rounded-lg whitespace-nowrap shrink-0 transition-colors ${

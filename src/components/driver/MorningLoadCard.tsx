@@ -308,7 +308,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
   // Case 1: No dispatch exists for this driver/vehicle today
   if (!currentDispatch) {
     return (
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs mb-6">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-xs mb-6 w-full max-w-full min-w-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
@@ -361,7 +361,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
     const isTargetDriver = currentUser.id === currentDispatch.driverId;
 
     return (
-      <div className="bg-amber-50/70 dark:bg-amber-950/30 rounded-2xl border-2 border-amber-300 dark:border-amber-800 p-5 shadow-sm mb-6">
+      <div className="bg-amber-50/70 dark:bg-amber-950/30 rounded-2xl border-2 border-amber-300 dark:border-amber-800 p-4 sm:p-5 shadow-sm mb-6 w-full max-w-full min-w-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md">
@@ -448,14 +448,14 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
 
   // Case 3: Dispatch is active (in_transit or completed)
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs mb-6">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs mb-6 w-full max-w-full min-w-0 overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center shrink-0">
             <Check className="w-4 h-4" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold text-slate-900 dark:text-white">
                 Aktif Sefer: {currentDispatch.vehiclePlate} ({currentDispatch.driverName})
               </span>
@@ -463,13 +463,13 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                 Saha Dağıtımında
               </span>
             </div>
-            <div className="text-[11px] text-slate-500">
+            <div className="text-[11px] text-slate-500 truncate">
               Yükleyen: {currentDispatch.loadedByUserName} · Teslim Alan: {currentDispatch.driverName}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {canUserLoad && (
             <button
               onClick={handleOpenLoadModal}
@@ -486,7 +486,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
         </div>
       </div>
 
-      <div className="mt-3 flex items-center gap-2 overflow-x-auto py-1 scrollbar-none text-xs">
+      <div className="mt-3 flex items-center gap-2 overflow-x-auto py-1 scrollbar-none text-xs w-full max-w-full">
         <span className="text-slate-400 text-[11px] font-medium whitespace-nowrap">Yüklenenler:</span>
         {currentDispatch.loadedItems.map((item) => {
           const product = products.find((p) => p.id === item.productId);
