@@ -161,7 +161,7 @@ export default function App() {
           💧
         </div>
         <h2 className="mt-4 text-base font-bold text-slate-900 dark:text-white">
-          SuDağıtım Pro Yükleniyor...
+          Dağıtım & Mutabakat Yükleniyor...
         </h2>
         <p className="text-xs text-slate-500 mt-1">Saha ve mutabakat verileri hazırlanıyor</p>
       </div>

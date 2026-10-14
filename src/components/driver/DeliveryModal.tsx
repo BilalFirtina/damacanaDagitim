@@ -10,6 +10,7 @@ import {
   Phone,
   MapPin,
   Building2,
+  Mail,
   X
 } from 'lucide-react';
 import { createDelivery, createCustomer } from '../../services/api';
@@ -42,6 +43,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const [newCustName, setNewCustName] = useState('');
   const [newCustPhone, setNewCustPhone] = useState('');
   const [newCustAddress, setNewCustAddress] = useState('');
+  const [newCustEmails, setNewCustEmails] = useState('');
   const [newCustIsAccount, setNewCustIsAccount] = useState(true);
 
   // Step 2: Product items & quantities
@@ -147,11 +149,17 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     e.preventDefault();
     if (!newCustName.trim()) return;
 
+    const parsedEmails = newCustEmails
+      .split(/[,;\s]+/)
+      .map((s) => s.trim().toLowerCase())
+      .filter((s) => s.length > 0 && s.includes('@'));
+
     try {
       const created = await createCustomer({
         name: newCustName.trim(),
         phone: newCustPhone.trim(),
         address: newCustAddress.trim(),
+        emails: parsedEmails,
         isAccountCustomer: newCustIsAccount,
       });
       setSelectedCustomer(created);
@@ -159,6 +167,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       setNewCustName('');
       setNewCustPhone('');
       setNewCustAddress('');
+      setNewCustEmails('');
     } catch (err: any) {
       alert(err.message || 'Müşteri oluşturulamadı');
     }
@@ -320,6 +329,13 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         onChange={(e) => setNewCustAddress(e.target.value)}
                         className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white sm:col-span-2"
                       />
+                      <input
+                        type="text"
+                        placeholder="E-Posta (İsteğe bağlı, virgülle birden fazla girilebilir)"
+                        value={newCustEmails}
+                        onChange={(e) => setNewCustEmails(e.target.value)}
+                        className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white sm:col-span-2"
+                      />
                     </div>
                     <div className="flex items-center justify-between pt-1">
                       <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
@@ -366,6 +382,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                             )}
                           </div>
                           <div className="text-[11px] text-slate-500 truncate max-w-sm">{c.address}</div>
+                          {c.emails && c.emails.length > 0 && (
+                            <div className="text-[10px] text-sky-600 dark:text-sky-400 font-mono truncate max-w-sm">
+                              ✉ {c.emails.join(', ')}
+                            </div>
+                          )}
                         </div>
 
                         <div className="text-right shrink-0">
@@ -414,6 +435,13 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       </span>
                     )}
                   </div>
+
+                  {selectedCustomer.emails && selectedCustomer.emails.length > 0 && (
+                    <div className="flex items-center gap-1.5 mt-1 text-[11px] text-sky-700 dark:text-sky-300">
+                      <Mail className="w-3 h-3 text-sky-500 shrink-0" />
+                      <span className="font-mono truncate">{selectedCustomer.emails.join(', ')}</span>
+                    </div>
+                  )}
 
                   {/* Customer Badges: Deposit debt & Balance */}
                   <div className="flex flex-wrap items-center gap-2 mt-2">

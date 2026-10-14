@@ -39,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <div>
             <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
-              SuDağıtım<span className="text-sky-600 font-extrabold ml-0.5">Pro</span>
+              Dağıtım <span className="text-sky-600 font-extrabold ml-0.5">& Mutabakat</span>
             </span>
           </div>
         </div>

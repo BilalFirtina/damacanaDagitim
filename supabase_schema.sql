@@ -1,5 +1,5 @@
 -- ==============================================================================
--- SuDağıtım Pro - Supabase PostgreSQL Veritabanı Şeması
+-- Dağıtım & Mutabakat - Supabase PostgreSQL Veritabanı Şeması
 -- Supabase Panelinde "SQL Editor" sekmesine yapıştırıp "Run" butonuna basınız.
 -- ==============================================================================
 
@@ -35,7 +35,8 @@ CREATE TABLE IF NOT EXISTS public.customers (
   name TEXT NOT NULL,
   phone TEXT,
   address TEXT,
-  district TEXT,
+  emails JSONB DEFAULT '[]'::jsonb, -- Çoklu e-posta adresleri (e-fatura, cari mutabakat bildirimleri)
+  district TEXT, -- Geriye dönük uyumluluk alanı
   is_account_customer BOOLEAN DEFAULT true,
   current_balance_tl NUMERIC DEFAULT 0,
   empty_deposit_damacana INTEGER DEFAULT 0,
