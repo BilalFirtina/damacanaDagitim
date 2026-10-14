@@ -817,12 +817,19 @@ export async function createDeliveryRecord(
         .select()
         .single();
 
+      if (!delError && delData) {
+        const savedDel = mapDeliveryFromDb(delData);
+        const db = loadLocalDatabase();
+        db.deliveries.unshift(savedDel);
+        const cIdx = db.customers.findIndex((c) => c.id === updatedCustomer.id);
+        if (cIdx !== -1) db.customers[cIdx] = updatedCustomer;
+        saveLocalDatabase(db);
+        return { delivery: savedDel, updatedCustomer };
+      }
+
       if (delError) {
         console.error('[Supabase createDeliveryRecord]', delError);
       }
-
-      const resultDelivery = delData ? mapDeliveryFromDb(delData) : del;
-      return { delivery: resultDelivery, updatedCustomer };
     } catch (e) {
       console.error('[Supabase createDeliveryRecord Exception]', e);
     }
@@ -922,40 +929,57 @@ export async function getDatabaseStatus(): Promise<DatabaseStatus> {
         supabase.from('deliveries').select('*', { count: 'exact', head: true }),
       ]);
 
-      const hasError = uRes.error || pRes.error || cRes.error || dRes.error || delRes.error;
+      const hasError = Boolean(uRes.error || pRes.error || cRes.error || dRes.error || delRes.error);
+      const firstError = uRes.error || pRes.error || cRes.error || dRes.error || delRes.error;
       const errorMsg = hasError
-        ? (uRes.error?.message || pRes.error?.message || cRes.error?.message || dRes.error?.message || delRes.error?.message)
+        ? (firstError?.message || 'Supabase projesine ulaşılamadı (Proje silinmiş, duraklatılmış veya geçersiz URL)')
         : null;
 
       // Mask URL for security
       const maskedUrl = rawSupabaseUrl.replace(/^(https?:\/\/)([^.]+)(\..+)$/, '$1***$3');
+      const local = loadLocalDatabase();
 
       return {
         type: 'supabase_api',
         isConnected: !hasError,
         provider: 'Supabase (PostgreSQL Bulut API)',
         url: maskedUrl,
-        tables: {
-          users: uRes.count ?? 0,
-          products: pRes.count ?? 0,
-          customers: cRes.count ?? 0,
-          dispatches: dRes.count ?? 0,
-          deliveries: delRes.count ?? 0,
-        },
+        tables: !hasError
+          ? {
+              users: uRes.count ?? 0,
+              products: pRes.count ?? 0,
+              customers: cRes.count ?? 0,
+              dispatches: dRes.count ?? 0,
+              deliveries: delRes.count ?? 0,
+            }
+          : {
+              users: local.users.length,
+              products: local.products.length,
+              customers: local.customers.length,
+              dispatches: local.dispatches.length,
+              deliveries: local.deliveries.length,
+            },
         message: !hasError
           ? 'Supabase PostgreSQL veritabanına başarıyla bağlanıldı ve tablolar aktif.'
-          : 'Supabase bağlandı ancak tablolara erişimde hata oluştu. Lütfen supabase_schema.sql şemasını Supabase SQL Editor üzerinden çalıştırınız.',
+          : `Supabase bağlantısı kurulamadı (${errorMsg}). Sistem kesintisiz çalışabilmesi için yerel güvenli depolama (data_store.json) moduna geçti.`,
         error: errorMsg,
       };
     } catch (e: any) {
+      const local = loadLocalDatabase();
       return {
         type: 'supabase_api',
         isConnected: false,
         provider: 'Supabase (PostgreSQL Bulut API)',
         url: rawSupabaseUrl,
-        tables: { users: 0, products: 0, customers: 0, dispatches: 0, deliveries: 0 },
-        message: 'Supabase sunucusuna bağlanırken bağlantı hatası oluştu.',
-        error: e.message || String(e),
+        tables: {
+          users: local.users.length,
+          products: local.products.length,
+          customers: local.customers.length,
+          dispatches: local.dispatches.length,
+          deliveries: local.deliveries.length,
+        },
+        message: 'Supabase sunucusuna bağlanırken bağlantı/DNS hatası oluştu. Sistem yerel depolama ile çalışıyor.',
+        error: e?.message || String(e),
       };
     }
   }

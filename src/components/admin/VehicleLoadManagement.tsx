@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dispatch, Product, User } from '../../types';
+import { Dispatch, Product, User, AUTHORIZED_VEHICLE_PLATES } from '../../types';
 import {
   Truck,
   Plus,
@@ -32,7 +32,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
 }) => {
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
-  const [customPlate, setCustomPlate] = useState('');
+  const [selectedPlate, setSelectedPlate] = useState<string>(AUTHORIZED_VEHICLE_PLATES[0]);
   const [loadQuantities, setLoadQuantities] = useState<Record<string, number>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -71,7 +71,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
       setErrorMsg(null);
 
       const driver = users.find((u) => u.id === selectedDriverId)!;
-      const plate = customPlate.trim() || driver.assignedPlate || '34 SU 101';
+      const plate = selectedPlate || AUTHORIZED_VEHICLE_PLATES[0];
 
       const created = await createDispatch({
         driverId: driver.id,
@@ -85,7 +85,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
       onDispatchCreated(created);
       setShowLoadModal(false);
       setSelectedDriverId('');
-      setCustomPlate('');
+      setSelectedPlate(AUTHORIZED_VEHICLE_PLATES[0]);
       setLoadQuantities({});
     } catch (err: any) {
       setErrorMsg(err.message || 'Yükleme oluşturulamadı');
@@ -252,7 +252,9 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                   onChange={(e) => {
                     setSelectedDriverId(e.target.value);
                     const d = users.find((u) => u.id === e.target.value);
-                    if (d?.assignedPlate) setCustomPlate(d.assignedPlate);
+                    if (d?.assignedPlate && (AUTHORIZED_VEHICLE_PLATES as readonly string[]).includes(d.assignedPlate)) {
+                      setSelectedPlate(d.assignedPlate);
+                    }
                   }}
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
                 >
@@ -267,15 +269,22 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
 
               <div>
                 <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Araç Plakası
+                  Araç Plakası (Dağıtım Aracı)
                 </label>
-                <input
-                  type="text"
-                  placeholder="34 SU 101"
-                  value={customPlate}
-                  onChange={(e) => setCustomPlate(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono"
-                />
+                <select
+                  value={selectedPlate}
+                  onChange={(e) => setSelectedPlate(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono font-bold text-slate-900 dark:text-white"
+                >
+                  {AUTHORIZED_VEHICLE_PLATES.map((plate) => (
+                    <option key={plate} value={plate}>
+                      {plate}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Günlük araç rotasyonuna göre geçerli dağıtım aracını seçiniz.
+                </p>
               </div>
 
               {/* Products Quantities */}

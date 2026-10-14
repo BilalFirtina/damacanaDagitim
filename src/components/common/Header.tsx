@@ -153,89 +153,34 @@ export const Header: React.FC<HeaderProps> = ({
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-sky-600' : ''}`} />
           </button>
 
-          {/* User selector with role distinction */}
-          <div className="relative group">
-            <div className="flex items-center gap-2 py-1 px-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80 hover:bg-slate-100 transition-colors cursor-pointer">
-              <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 text-xs font-bold">
-                {currentUser.name.charAt(0)}
-              </div>
-              <div className="flex flex-col text-left">
-                <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate max-w-[110px] sm:max-w-[140px]">
-                  {currentUser.name.split(' ')[0]}
-                </span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 leading-none">
-                  {currentUser.role === 'admin'
-                    ? 'Yönetici'
-                    : currentUser.canLoadVehicle
-                    ? 'Yetkili Şoför'
-                    : 'Şoför'}
-                  {currentUser.assignedPlate ? ` · ${currentUser.assignedPlate}` : ''}
-                </span>
-              </div>
+          {/* Active User Badge & Logout */}
+          <div className="flex items-center gap-2 py-1 px-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80">
+            <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 text-xs font-bold shrink-0">
+              {currentUser.name.charAt(0)}
             </div>
-
-            {/* Quick Switch Dropdown */}
-            <div className="hidden group-hover:block absolute right-0 top-full pt-1.5 w-64 z-50">
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-1.5 text-xs">
-                <div className="px-2.5 py-1.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                  Kullanıcı / Rol Değiştir
-                </div>
-                {allUsers.map((u) => (
-                  <button
-                    key={u.id}
-                    onClick={() => onSwitchUser(u)}
-                    className={`w-full flex items-center justify-between p-2 rounded-lg text-left transition-colors ${
-                      u.id === currentUser.id
-                        ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-semibold'
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {u.role === 'admin' ? (
-                        <ShieldCheck className="w-4 h-4 text-purple-600 shrink-0" />
-                      ) : u.canLoadVehicle ? (
-                        <Layers className="w-4 h-4 text-sky-600 shrink-0" />
-                      ) : (
-                        <UserCheck className="w-4 h-4 text-slate-400 shrink-0" />
-                      )}
-                      <div>
-                        <div className="font-medium text-xs">{u.name}</div>
-                        <div className="text-[10px] text-slate-500">
-                          {u.role === 'admin'
-                            ? 'Firma Sahibi'
-                            : u.canLoadVehicle
-                            ? `Yetkili Şoför (${u.assignedPlate})`
-                            : `Standart Şoför (${u.assignedPlate})`}
-                        </div>
-                      </div>
-                    </div>
-                    {u.id === currentUser.id && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-sky-600"></span>
-                    )}
-                  </button>
-                ))}
-
-                {/* Logout Button in Dropdown */}
-                <div className="pt-1.5 mt-1 border-t border-slate-100 dark:border-slate-800">
-                  <button
-                    onClick={onLogout}
-                    className="w-full flex items-center gap-2 p-2 rounded-lg text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 font-semibold text-xs transition-colors"
-                  >
-                    <LogOut className="w-4 h-4 shrink-0" />
-                    <span>Oturumu Kapat (Çıkış Yap)</span>
-                  </button>
-                </div>
-              </div>
+            <div className="flex flex-col text-left">
+              <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate max-w-[110px] sm:max-w-[140px]">
+                {currentUser.name.split(' ')[0]}
+              </span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 leading-none">
+                {currentUser.role === 'admin'
+                  ? 'Yönetici'
+                  : currentUser.canLoadVehicle
+                  ? 'Yetkili Şoför'
+                  : 'Şoför'}
+                {currentUser.assignedPlate ? ` · ${currentUser.assignedPlate}` : ''}
+              </span>
             </div>
           </div>
 
-          {/* Quick Logout Button */}
+          {/* Explicit Logout Button */}
           <button
             onClick={onLogout}
-            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
-            title="Oturumu Kapat"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl border border-red-200/60 dark:border-red-900/40 transition-colors"
+            title="Oturumu Kapat (Çıkış Yap)"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Çıkış</span>
           </button>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dispatch, Product, User } from '../../types';
+import { Dispatch, Product, User, AUTHORIZED_VEHICLE_PLATES } from '../../types';
 import { CheckCircle2, AlertCircle, PackageCheck, Truck, Plus, Check } from 'lucide-react';
 import { confirmDispatch, createDispatch } from '../../services/api';
 
@@ -18,6 +18,11 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
 }) => {
   const [isConfirming, setIsConfirming] = useState(false);
   const [showManualLoadModal, setShowManualLoadModal] = useState(false);
+  const [selectedPlate, setSelectedPlate] = useState<string>(
+    currentUser.assignedPlate && AUTHORIZED_VEHICLE_PLATES.includes(currentUser.assignedPlate as any)
+      ? currentUser.assignedPlate
+      : AUTHORIZED_VEHICLE_PLATES[0]
+  );
   const [loadQuantities, setLoadQuantities] = useState<Record<string, number>>({});
   const [loadingError, setLoadingError] = useState<string | null>(null);
 
@@ -50,7 +55,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
       setLoadingError(null);
       const newDisp = await createDispatch({
         driverId: currentUser.id,
-        vehiclePlate: currentUser.assignedPlate || '34 SU 101',
+        vehiclePlate: selectedPlate || AUTHORIZED_VEHICLE_PLATES[0],
         loadedItems: items,
         loadedByUserId: currentUser.id,
         loadedByUserName: currentUser.name,
@@ -102,7 +107,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">Sabah Depo Yükleme Girişi</h3>
-                  <p className="text-xs text-slate-500">Araç: {currentUser.assignedPlate || '34 SU 101'}</p>
+                  <p className="text-xs text-slate-500">Şoför: {currentUser.name}</p>
                 </div>
                 <button
                   onClick={() => setShowManualLoadModal(false)}
@@ -117,6 +122,28 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                   {loadingError}
                 </div>
               )}
+
+              {/* Vehicle Plate Selection Dropdown */}
+              <div className="mt-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5 flex items-center gap-1.5">
+                  <Truck className="w-4 h-4 text-sky-600" />
+                  <span>Dağıtım Yapılacak Araç Plakası:</span>
+                </label>
+                <select
+                  value={selectedPlate}
+                  onChange={(e) => setSelectedPlate(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500"
+                >
+                  {AUTHORIZED_VEHICLE_PLATES.map((plate) => (
+                    <option key={plate} value={plate}>
+                      {plate}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Bugün sefere çıkacağınız aracı listeden seçiniz.
+                </p>
+              </div>
 
               <div className="mt-4 space-y-3">
                 {products.map((p) => {

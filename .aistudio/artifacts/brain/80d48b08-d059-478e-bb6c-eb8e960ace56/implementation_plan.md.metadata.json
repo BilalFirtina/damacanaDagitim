@@ -1,6 +1,6 @@
 {
-  "summary": "Kullanıcı adı ve şifre ile güvenli oturum açma (Login) ekranı, 'Beni Hatırla' özelliği ve oturumu kapatma (Logout) mekanizmasını içeren güncellenmiş SuDağıtım Pro planı.",
-  "updatedAt": "2026-10-13T11:36:07.451655562Z",
+  "summary": "Giriş ekranındaki hızlı hesap seçimi butonlarının kaldırılması, Supabase üzerinden şoför kullanıcı adı ve şifre yönetimi, dinamik plaka seçimi (01 FV 823, 06 GB 357, 01 AVH 886) ve Ekip Canlı Akışında her şoföre otomatik ayırt edici renk ataması uygulama planı.",
+  "updatedAt": "2026-10-14T07:00:34.603904393Z",
   "requestFeedback": true,
   "userFacing": true
 }

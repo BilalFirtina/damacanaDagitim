@@ -118,18 +118,33 @@ CREATE POLICY "Allow public all access on deliveries" ON public.deliveries FOR A
 -- BAŞLANGIÇ VERİLERİ (SEED DATA - Otomatik olarak eklenir)
 -- ==============================================================================
 
--- Kullanıcılar (Şifre/PIN kodlarıyla birlikte)
+-- Kullanıcılar (Kullanıcı adı ve Şifre/PIN Supabase Tablosundan yönetilebilir)
+-- İzinli Araç Plakaları: 01 FV 823, 06 GB 357, 01 AVH 886
 INSERT INTO public.users (id, name, username, role, can_load_vehicle, assigned_plate, pin, phone)
 VALUES
   ('usr_admin', 'Uğur Fırtına', 'yonetici', 'admin', true, '', '1234', '0532 555 10 00'),
-  ('usr_driver_1', 'Ahmet Yılmaz', 'ahmet', 'driver', true, '34 SU 101', '1010', '0533 555 20 01'),
-  ('usr_driver_2', 'Mehmet Kaya', 'mehmet', 'driver', false, '34 SU 202', '2020', '0535 555 30 02'),
-  ('usr_driver_3', 'Serkan Aydın', 'serkan', 'driver', false, '34 SU 303', '3030', '0536 555 40 03')
+  ('usr_driver_1', 'Ahmet Yılmaz', 'ahmet', 'driver', true, '01 FV 823', '1010', '0533 555 20 01'),
+  ('usr_driver_2', 'Mehmet Kaya', 'mehmet', 'driver', false, '06 GB 357', '2020', '0535 555 30 02'),
+  ('usr_driver_3', 'Serkan Aydın', 'serkan', 'driver', false, '01 AVH 886', '3030', '0536 555 40 03')
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   username = EXCLUDED.username,
   pin = EXCLUDED.pin,
-  role = EXCLUDED.role;
+  role = EXCLUDED.role,
+  assigned_plate = EXCLUDED.assigned_plate;
+
+-- ==============================================================================
+-- ŞOFÖR VE KULLANICI YÖNETİMİ (SUPABASE SQL / TABLO EDİTÖRÜ KULLANIMI)
+-- ==============================================================================
+-- 1. Şoför Şifresini veya Kullanıcı Adını Değiştirmek İçin:
+--    UPDATE public.users SET pin = '9999' WHERE username = 'ahmet';
+--
+-- 2. Yeni Şoför Tanımlamak İçin:
+--    INSERT INTO public.users (id, name, username, role, can_load_vehicle, assigned_plate, pin, phone)
+--    VALUES ('usr_driver_yeni', 'Murat Can', 'murat', 'driver', false, '01 FV 823', '5555', '0532 111 22 33');
+--
+-- 3. Yetkili Şoför Yapmak (Depo yüklemesi girebilen şoför):
+--    UPDATE public.users SET can_load_vehicle = true WHERE username = 'ahmet';
 
 -- Ürünler
 INSERT INTO public.products (id, name, category, default_unit_price, is_deposit, deposit_type, unit, description)

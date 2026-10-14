@@ -17,12 +17,11 @@ import { PWAInstallButton } from '../common/PWAInstallButton';
 
 interface LoginViewProps {
   onLoginSuccess: (user: User, rememberMe: boolean) => void;
-  availableUsers: User[];
+  availableUsers?: User[];
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({
   onLoginSuccess,
-  availableUsers,
 }) => {
   const [username, setUsername] = useState('');
   const [pin, setPin] = useState('');
@@ -48,12 +47,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleQuickLogin = (u: User) => {
-    setUsername(u.username);
-    setPin(u.pin);
-    setErrorMsg(null);
   };
 
   return (
@@ -83,7 +76,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
             Oturum Açın
           </h2>
           <p className="text-xs text-slate-500">
-            Firma sahibi veya şoför hesabınızla giriş yapınız
+            Kullanıcı adı ve şifreniz ile sisteme giriş yapınız
           </p>
         </div>
 
@@ -106,7 +99,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 type="text"
                 required
                 autoComplete="username"
-                placeholder="Örn: yonetici, ahmet, mehmet"
+                placeholder="Kullanıcı adınızı girin"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition"
@@ -125,7 +118,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 type={showPassword ? 'text' : 'password'}
                 required
                 autoComplete="current-password"
-                placeholder="••••"
+                placeholder="Şifrenizi girin"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
                 className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-xs font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition"
@@ -134,6 +127,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                aria-label={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -163,44 +157,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
-
-        {/* Quick Demo Credentials Selector */}
-        <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 text-left">
-            Hızlı Hesap Seçimi (Test & Tanıtım):
-          </div>
-
-          <div className="space-y-1.5">
-            {availableUsers.map((u) => (
-              <button
-                key={u.id}
-                type="button"
-                onClick={() => handleQuickLogin(u)}
-                className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between text-xs transition-colors ${
-                  username === u.username
-                    ? 'border-sky-500 bg-sky-50/50 dark:bg-sky-950/40 text-sky-900 dark:text-sky-200'
-                    : 'border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                }`}
-              >
-                <div>
-                  <div className="font-bold flex items-center gap-1.5">
-                    <span>{u.name}</span>
-                    <span className="text-[10px] font-mono text-slate-400">
-                      ({u.role === 'admin' ? 'Yönetici' : u.assignedPlate || 'Şoför'})
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-slate-400 font-mono">
-                    Kullanıcı: <strong>{u.username}</strong> · Şifre: <strong>{u.pin}</strong>
-                  </div>
-                </div>
-
-                <span className="text-[10px] font-semibold text-sky-600 dark:text-sky-400">
-                  Doldur →
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Footer Info */}
