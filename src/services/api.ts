@@ -349,3 +349,17 @@ export async function triggerDatabaseSeed(): Promise<any> {
   if (!res.ok) throw new Error('Veritabanı başlangıç kurulumu yapılamadı');
   return res.json();
 }
+
+export async function updateDatabaseConfig(cfg: { url?: string; key?: string; enabled?: boolean }): Promise<any> {
+  const res = await fetch('/api/database/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(cfg),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Veritabanı yapılandırması güncellenemedi');
+  }
+  return res.json();
+}
+

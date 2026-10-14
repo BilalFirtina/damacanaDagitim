@@ -30,6 +30,8 @@ import {
   isSupabaseConfigured,
   getDatabaseStatus,
   ensureSupabaseSeeded,
+  configureSupabase,
+  checkSupabaseHealth,
 } from './src/server/db.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -42,7 +44,7 @@ app.use(express.json());
 
 const getTodayDateStr = () => new Date().toISOString().split('T')[0];
 
-// Boot-time cleanup check & Supabase seed check
+// Safe boot-time cleanup and Supabase initialization
 runRetentionCleanup().catch((err) => console.error('Initial cleanup error', err));
 ensureSupabaseSeeded().catch((err) => console.error('Initial Supabase seed error', err));
 
@@ -68,6 +70,16 @@ app.get('/api/database/status', async (req, res) => {
     res.json(status);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/database/config', async (req, res) => {
+  try {
+    const { url, key, enabled } = req.body;
+    const result = await configureSupabase({ url, key, enabled });
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || 'Veritabanı yapılandırması başarısız' });
   }
 });
 

@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+.aistudio/
+supabase_config.json
+data_store.json

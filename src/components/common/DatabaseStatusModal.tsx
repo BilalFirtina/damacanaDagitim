@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Database, CheckCircle2, AlertCircle, RefreshCw, Copy, Check, ExternalLink, HardDrive, Server, ShieldCheck } from 'lucide-react';
+import { Database, CheckCircle2, RefreshCw, Copy, Check, ExternalLink, HardDrive } from 'lucide-react';
 import { DatabaseStatus } from '../../types';
 import { fetchDatabaseStatus, triggerDatabaseSeed } from '../../services/api';
 
@@ -71,7 +71,7 @@ export const DatabaseStatusModal: React.FC<DatabaseStatusModalProps> = ({ isOpen
         <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/40">
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md ${
-              isSupabase ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-amber-600 shadow-amber-500/20'
+              status?.isConnected ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-amber-600 shadow-amber-500/20'
             }`}>
               <Database className="w-5 h-5" />
             </div>
@@ -81,11 +81,11 @@ export const DatabaseStatusModal: React.FC<DatabaseStatusModalProps> = ({ isOpen
                 {status?.isConnected ? (
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Aktif
+                    Supabase Bulut Aktif
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400">
-                    Yerel Mod
+                    Bağlantı Bekleniyor
                   </span>
                 )}
               </h2>
@@ -113,7 +113,7 @@ export const DatabaseStatusModal: React.FC<DatabaseStatusModalProps> = ({ isOpen
                 : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
             }`}
           >
-            Bağlantı ve Tablo İstatistikleri
+            Bağlantı ve Tablo Durumu
           </button>
           <button
             onClick={() => setActiveTab('guide')}
@@ -123,7 +123,7 @@ export const DatabaseStatusModal: React.FC<DatabaseStatusModalProps> = ({ isOpen
                 : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
             }`}
           >
-            Supabase Kurulum Rehberi (3 Adım)
+            SQL Kurulum & Dağıtım Rehberi
           </button>
         </div>
 

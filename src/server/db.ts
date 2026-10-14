@@ -23,16 +23,51 @@ const __dirname = path.dirname(__filename);
 const DB_FILE = path.resolve(__dirname, '../../data_store.json');
 
 // ----------------------------------------------------------------------
-// ENVIRONMENT & CREDENTIAL RESOLUTION
+// ENVIRONMENT & CREDENTIAL RESOLUTION & CONFIG MANAGEMENT
 // ----------------------------------------------------------------------
-const rawSupabaseUrl =
+const CONFIG_FILE = path.resolve(__dirname, '../../supabase_config.json');
+
+export interface SupabaseCustomConfig {
+  url?: string;
+  key?: string;
+  enabled?: boolean;
+  note?: string;
+}
+
+export function loadSupabaseConfig(): SupabaseCustomConfig {
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      const data = fs.readFileSync(CONFIG_FILE, 'utf-8');
+      return JSON.parse(data) as SupabaseCustomConfig;
+    }
+  } catch (err) {
+    console.error('Error reading supabase_config.json', err);
+  }
+  return {};
+}
+
+export function saveSupabaseConfig(cfg: SupabaseCustomConfig): void {
+  try {
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error writing supabase_config.json', err);
+  }
+}
+
+let activeConfig = loadSupabaseConfig();
+
+let rawSupabaseUrl =
+  activeConfig.url ||
   process.env.SUPABASE_URL ||
   process.env.VITE_SUPABASE_URL ||
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
   '';
 
-const rawSupabaseKey =
+let rawSupabaseKey =
+  activeConfig.key ||
+  process.env.SUPABASE_SECRET_KEY ||
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_PUBLISHABLE_KEY ||
   process.env.SUPABASE_ANON_KEY ||
   process.env.SUPABASE_KEY ||
   process.env.VITE_SUPABASE_ANON_KEY ||
@@ -44,11 +79,10 @@ const rawDatabaseUrl =
   process.env.SUPABASE_DB_URL ||
   '';
 
-export const isSupabaseApiConfigured = Boolean(
+export let isSupabaseApiConfigured = Boolean(
   rawSupabaseUrl &&
   rawSupabaseKey &&
-  rawSupabaseUrl.startsWith('http') &&
-  !rawSupabaseUrl.includes('xyzcompany')
+  rawSupabaseUrl.startsWith('http')
 );
 
 export const isPostgresDirectConfigured = Boolean(
@@ -57,14 +91,95 @@ export const isPostgresDirectConfigured = Boolean(
   !rawDatabaseUrl.includes('dummy')
 );
 
-export const isSupabaseConfigured = isSupabaseApiConfigured || isPostgresDirectConfigured;
+export let isSupabaseConfigured = isSupabaseApiConfigured || isPostgresDirectConfigured;
 
-// Clients
-export const supabase: SupabaseClient | null = isSupabaseApiConfigured
+export let supabase: SupabaseClient | null = isSupabaseApiConfigured
   ? createClient(rawSupabaseUrl, rawSupabaseKey, {
       auth: { persistSession: false },
     })
   : null;
+
+export function isSupabaseOperational(): boolean {
+  return Boolean(isSupabaseApiConfigured && supabase);
+}
+
+export async function checkSupabaseHealth(): Promise<boolean> {
+  if (!isSupabaseApiConfigured || !supabase) {
+    return false;
+  }
+  try {
+    const { error } = await supabase.from('users').select('id', { head: true, count: 'exact' });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+export async function configureSupabase(cfg: { url?: string; key?: string; enabled?: boolean }) {
+  if (cfg.enabled === false) {
+    const update = { enabled: false, note: 'Kullanıcı yerel depolama modunu seçti.' };
+    saveSupabaseConfig(update);
+    activeConfig = update;
+    isSupabaseApiConfigured = false;
+    supabase = null;
+    isSupabaseConfigured = isPostgresDirectConfigured;
+    return {
+      success: true,
+      message: 'Supabase bulut bağlantısı devre dışı bırakıldı. Sistem yerel veritabanı (data_store.json) modunda çalışıyor.',
+    };
+  }
+
+  const newUrl = cfg.url?.trim() || '';
+  const newKey = cfg.key?.trim() || '';
+
+  if (!newUrl || !newKey) {
+    throw new Error('Supabase URL ve Anon Key zorunludur.');
+  }
+
+  if (!newUrl.startsWith('https://') && !newUrl.startsWith('http://')) {
+    throw new Error('Geçerli bir Supabase URL giriniz (örn: https://xyzcompany.supabase.co)');
+  }
+
+  // Probe new URL before saving
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3500);
+    const probeUrl = `${newUrl.replace(/\/$/, '')}/rest/v1/?apikey=${newKey}`;
+    const res = await fetch(probeUrl, {
+      method: 'GET',
+      headers: {
+        apikey: newKey,
+        Authorization: `Bearer ${newKey}`,
+      },
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout));
+
+    if (res.status >= 500) {
+      throw new Error(`Supabase sunucusu ${res.status} hatası döndürdü.`);
+    }
+  } catch (err: any) {
+    if (err?.code === 'ENOTFOUND' || err?.message?.includes('ENOTFOUND')) {
+      throw new Error(`DNS Hatası: "${newUrl}" adresi bulunamadı. Lütfen URL'yi kontrol edin.`);
+    }
+    throw new Error(`Supabase bağlantı testi başarısız: ${err?.message || err}`);
+  }
+
+  saveSupabaseConfig({ url: newUrl, key: newKey, enabled: true });
+  activeConfig = { url: newUrl, key: newKey, enabled: true };
+  rawSupabaseUrl = newUrl;
+  rawSupabaseKey = newKey;
+  isSupabaseApiConfigured = true;
+  supabase = createClient(newUrl, newKey, { auth: { persistSession: false } });
+  isSupabaseConfigured = true;
+
+  // Auto-seed if needed
+  await ensureSupabaseSeeded();
+
+  return {
+    success: true,
+    message: 'Yeni Supabase veritabanına başarıyla bağlanıldı ve tablolar hazırlandı!',
+  };
+}
 
 let pgPool: pg.Pool | null = null;
 if (isPostgresDirectConfigured) {
@@ -234,7 +349,7 @@ export async function ensureSupabaseSeeded(): Promise<void> {
   if (hasAttemptedSeed) return;
   hasAttemptedSeed = true;
 
-  if (isSupabaseApiConfigured && supabase) {
+  if (isSupabaseOperational() && supabase) {
     try {
       const { count, error } = await supabase.from('users').select('*', { count: 'exact', head: true });
       if (!error && (count === 0 || count === null)) {
@@ -322,7 +437,7 @@ export async function ensureSupabaseSeeded(): Promise<void> {
 
 // 1. Users
 export async function getUsers(): Promise<User[]> {
-  if (isSupabaseApiConfigured && supabase) {
+  if (isSupabaseOperational() && supabase) {
     try {
       const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: true });
       if (!error && data && data.length > 0) return data.map(mapUserFromDb);
@@ -348,7 +463,7 @@ export async function getUsers(): Promise<User[]> {
 }
 
 export async function createUser(user: User): Promise<User> {
-  if (isSupabaseApiConfigured && supabase) {
+  if (isSupabaseOperational() && supabase) {
     try {
       const { data, error } = await supabase
         .from('users')
@@ -416,7 +531,7 @@ export async function createUser(user: User): Promise<User> {
 }
 
 export async function updateUser(id: string, updates: Partial<User>): Promise<User | null> {
-  if (isSupabaseApiConfigured && supabase) {
+  if (isSupabaseOperational() && supabase) {
     try {
       const payload: any = {};
       if (updates.name !== undefined) payload.name = updates.name;
@@ -451,7 +566,7 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<Us
 
 // 2. Products
 export async function getProducts(): Promise<Product[]> {
-  if (isSupabaseApiConfigured && supabase) {
+  if (isSupabaseOperational() && supabase) {
     try {
       const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: true });
       if (!error && data && data.length > 0) return data.map(mapProductFromDb);
@@ -472,7 +587,7 @@ export async function getProducts(): Promise<Product[]> {
 }
 
 export async function createProduct(product: Product): Promise<Product> {
-  if (isSupabaseApiConfigured && supabase) {
+  if (isSupabaseOperational() && supabase) {
     try {
       const { data, error } = await supabase
         .from('products')
@@ -506,7 +621,7 @@ export async function createProduct(product: Product): Promise<Product> {
 }
 
 export async function updateProduct(id: string, updates: Partial<Product>): Promise<Product | null> {
-  if (isSupabaseApiConfigured && supabase) {
+  if (isSupabaseOperational() && supabase) {
     try {
       const payload: any = {};
       if (updates.name !== undefined) payload.name = updates.name;
@@ -541,7 +656,7 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
 
 // 3. Customers
 export async function getCustomers(): Promise<Customer[]> {
-  if (isSupabaseApiConfigured && supabase) {
+  if (isSupabaseOperational() && supabase) {
     try {
       const { data, error } = await supabase.from('customers').select('*').order('name', { ascending: true });
       if (!error && data && data.length > 0) return data.map(mapCustomerFromDb);
@@ -562,7 +677,7 @@ export async function getCustomers(): Promise<Customer[]> {
 }
 
 export async function createCustomer(cust: Customer): Promise<Customer> {
-  if (isSupabaseApiConfigured && supabase) {
+  if (isSupabaseOperational() && supabase) {
     try {
       const { data, error } = await supabase
         .from('customers')
@@ -605,7 +720,7 @@ export async function createCustomer(cust: Customer): Promise<Customer> {
 }
 
 export async function updateCustomer(id: string, updates: Partial<Customer>): Promise<Customer | null> {
-  if (isSupabaseApiConfigured && supabase) {
+  if (isSupabaseOperational() && supabase) {
     try {
       const payload: any = {};
       if (updates.name !== undefined) payload.name = updates.name;
@@ -647,7 +762,7 @@ export async function updateCustomer(id: string, updates: Partial<Customer>): Pr
 
 // 4. Dispatches
 export async function getDispatches(date?: string): Promise<Dispatch[]> {
-  if (isSupabaseApiConfigured && supabase) {
+  if (isSupabaseOperational() && supabase) {
     try {
       let query = supabase.from('dispatches').select('*').order('created_at', { ascending: false });
       if (date) query = query.eq('date', date);
@@ -679,7 +794,7 @@ export async function getDispatches(date?: string): Promise<Dispatch[]> {
 }
 
 export async function createDispatch(disp: Dispatch): Promise<Dispatch> {
-  if (isSupabaseApiConfigured && supabase) {
+  if (isSupabaseOperational() && supabase) {
     try {
       const { data, error } = await supabase
         .from('dispatches')
@@ -721,7 +836,7 @@ export async function createDispatch(disp: Dispatch): Promise<Dispatch> {
 }
 
 export async function updateDispatch(id: string, updates: Partial<Dispatch>): Promise<Dispatch | null> {
-  if (isSupabaseApiConfigured && supabase) {
+  if (isSupabaseOperational() && supabase) {
     try {
       const payload: any = {};
       if (updates.status !== undefined) payload.status = updates.status;
@@ -753,7 +868,7 @@ export async function updateDispatch(id: string, updates: Partial<Dispatch>): Pr
 
 // 5. Deliveries
 export async function getDeliveries(params?: { dispatchId?: string; driverId?: string; date?: string }): Promise<Delivery[]> {
-  if (isSupabaseApiConfigured && supabase) {
+  if (isSupabaseOperational() && supabase) {
     try {
       let query = supabase.from('deliveries').select('*').order('timestamp', { ascending: false });
       if (params?.dispatchId) query = query.eq('dispatch_id', params.dispatchId);
@@ -784,7 +899,7 @@ export async function createDeliveryRecord(
   del: Delivery,
   updatedCustomer: Customer
 ): Promise<{ delivery: Delivery; updatedCustomer: Customer }> {
-  if (isSupabaseApiConfigured && supabase) {
+  if (isSupabaseOperational() && supabase) {
     try {
       // 1. Upsert customer FIRST to guarantee foreign key integrity
       await createCustomer(updatedCustomer);
@@ -850,7 +965,7 @@ export async function runRetentionCleanup(): Promise<{ purgedDispatches: number;
   const thresholdMs = Date.now() - RETENTION_DAYS * 24 * 3600 * 1000;
   const thresholdDateStr = new Date(thresholdMs).toISOString().split('T')[0];
 
-  if (isSupabaseApiConfigured && supabase) {
+  if (isSupabaseOperational() && supabase) {
     try {
       const { data: delData } = await supabase
         .from('deliveries')
@@ -920,6 +1035,9 @@ export async function getCleanupStats(): Promise<CleanupStatus> {
 // 7. Database Diagnostics & Status Reporter
 export async function getDatabaseStatus(): Promise<DatabaseStatus> {
   if (isSupabaseApiConfigured && supabase) {
+    const maskedUrl = rawSupabaseUrl ? rawSupabaseUrl.replace(/^(https?:\/\/)([^.]+)(\..+)$/, '$1***$3') : '';
+    const local = loadLocalDatabase();
+
     try {
       const [uRes, pRes, cRes, dRes, delRes] = await Promise.all([
         supabase.from('users').select('*', { count: 'exact', head: true }),
@@ -932,12 +1050,8 @@ export async function getDatabaseStatus(): Promise<DatabaseStatus> {
       const hasError = Boolean(uRes.error || pRes.error || cRes.error || dRes.error || delRes.error);
       const firstError = uRes.error || pRes.error || cRes.error || dRes.error || delRes.error;
       const errorMsg = hasError
-        ? (firstError?.message || 'Supabase projesine ulaşılamadı (Proje silinmiş, duraklatılmış veya geçersiz URL)')
+        ? (firstError?.message || 'Supabase tablolarına ulaşılamadı')
         : null;
-
-      // Mask URL for security
-      const maskedUrl = rawSupabaseUrl.replace(/^(https?:\/\/)([^.]+)(\..+)$/, '$1***$3');
-      const local = loadLocalDatabase();
 
       return {
         type: 'supabase_api',
@@ -961,16 +1075,15 @@ export async function getDatabaseStatus(): Promise<DatabaseStatus> {
             },
         message: !hasError
           ? 'Supabase PostgreSQL veritabanına başarıyla bağlanıldı ve tablolar aktif.'
-          : `Supabase bağlantısı kurulamadı (${errorMsg}). Sistem kesintisiz çalışabilmesi için yerel güvenli depolama (data_store.json) moduna geçti.`,
+          : `Supabase bağlantı uyarısı: ${errorMsg}.`,
         error: errorMsg,
       };
     } catch (e: any) {
-      const local = loadLocalDatabase();
       return {
         type: 'supabase_api',
         isConnected: false,
         provider: 'Supabase (PostgreSQL Bulut API)',
-        url: rawSupabaseUrl,
+        url: maskedUrl,
         tables: {
           users: local.users.length,
           products: local.products.length,
@@ -978,7 +1091,7 @@ export async function getDatabaseStatus(): Promise<DatabaseStatus> {
           dispatches: local.dispatches.length,
           deliveries: local.deliveries.length,
         },
-        message: 'Supabase sunucusuna bağlanırken bağlantı/DNS hatası oluştu. Sistem yerel depolama ile çalışıyor.',
+        message: 'Supabase sunucusuna bağlanırken hata oluştu.',
         error: e?.message || String(e),
       };
     }
