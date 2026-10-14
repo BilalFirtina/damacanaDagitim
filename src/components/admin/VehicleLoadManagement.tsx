@@ -255,7 +255,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                   <option value="">Şoför Seçiniz...</option>
                   {drivers.map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.name} {d.isLeadDriver ? '★ (Tek Yetkili Şoför)' : '(Saha Dağıtım)'}
+                      {d.name} {d.isLeadDriver ? '★ (Yetkili Şoför)' : '(Saha Dağıtım)'}
                     </option>
                   ))}
                 </select>

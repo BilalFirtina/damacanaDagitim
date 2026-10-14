@@ -109,7 +109,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
             >
               {drivers.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.name} {d.isLeadDriver ? '★ (Tek Yetkili)' : ''}
+                  {d.name} {d.isLeadDriver ? '★ (Yetkili Şoför)' : ''}
                 </option>
               ))}
             </select>

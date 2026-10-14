@@ -182,7 +182,7 @@ export const Header: React.FC<HeaderProps> = ({
                   : currentUser.role === 'admin'
                   ? 'Depo Yöneticisi'
                   : currentUser.canLoadVehicle
-                  ? 'Tek Yetkili Şoför'
+                  ? 'Yetkili Şoför'
                   : 'Saha Dağıtım Şoförü'}
                 {currentUser.role !== 'admin' && currentUser.assignedPlate ? ` · ${currentUser.assignedPlate}` : ''}
               </span>
