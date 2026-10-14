@@ -17,6 +17,7 @@ import {
   getProducts,
   createProduct,
   updateProduct,
+  deleteProduct,
   getCustomers,
   createCustomer,
   updateCustomer,
@@ -198,6 +199,15 @@ app.put('/api/products/:id', async (req, res) => {
     const updated = await updateProduct(req.params.id, req.body);
     if (!updated) return res.status(404).json({ error: 'Ürün bulunamadı' });
     res.json({ product: updated });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/products/:id', async (req, res) => {
+  try {
+    await deleteProduct(req.params.id);
+    res.json({ success: true, message: 'Ürün başarıyla silindi' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

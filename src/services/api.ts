@@ -125,6 +125,14 @@ export async function createProduct(product: Partial<Product>): Promise<Product>
   return json.product;
 }
 
+export async function deleteProduct(id: string): Promise<boolean> {
+  const res = await fetch(`/api/products/${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Ürün silinemedi');
+  return true;
+}
+
 export async function fetchCustomers(): Promise<Customer[]> {
   try {
     const res = await fetch('/api/customers');

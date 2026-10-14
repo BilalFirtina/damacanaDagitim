@@ -78,7 +78,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
         vehiclePlate: plate,
         loadedItems: items,
         loadedByUserId: currentUser.id,
-        loadedByUserName: currentUser.name,
+        loadedByUserName: `${currentUser.name} (Depo Yöneticisi)`,
         driverConfirmed: false, // Standard driver must inspect & confirm
       });
 
@@ -249,22 +249,19 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                 <select
                   required
                   value={selectedDriverId}
-                  onChange={(e) => {
-                    setSelectedDriverId(e.target.value);
-                    const d = users.find((u) => u.id === e.target.value);
-                    if (d?.assignedPlate && (AUTHORIZED_VEHICLE_PLATES as readonly string[]).includes(d.assignedPlate)) {
-                      setSelectedPlate(d.assignedPlate);
-                    }
-                  }}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                  onChange={(e) => setSelectedDriverId(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">Şoför Seçiniz...</option>
                   {drivers.map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.name} ({d.assignedPlate || 'Plakasız'})
+                      {d.name} {d.isLeadDriver ? '★ (Tek Yetkili Şoför)' : '(Saha Dağıtım)'}
                     </option>
                   ))}
                 </select>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Şoför seçimi araç plakasından bağımsızdır.
+                </p>
               </div>
 
               <div>

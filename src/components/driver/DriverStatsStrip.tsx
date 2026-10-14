@@ -1,24 +1,37 @@
 import React from 'react';
-import { Dispatch, Delivery } from '../../types';
+import { Dispatch, Delivery, Product } from '../../types';
 import { Droplet, RotateCcw, Wallet, CreditCard, Flame } from 'lucide-react';
 
 interface DriverStatsStripProps {
   dispatch: Dispatch | null;
   deliveries: Delivery[];
+  products?: Product[];
 }
 
 export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
   dispatch,
   deliveries,
+  products = [],
 }) => {
   if (!dispatch) return null;
 
   // Filter deliveries belonging to this dispatch
   const currentDeliveries = deliveries.filter((d) => d.dispatchId === dispatch.id);
 
-  // 1. Calculate full items remaining
-  const loadedDamacana =
-    dispatch.loadedItems.find((i) => i.productId === 'prod_damacana_19l')?.quantity || 0;
+  // Set of all product IDs categorized as damacana or with damacana deposit
+  const damacanaIds = new Set(
+    products
+      .filter((p) => p.category === 'damacana' || p.depositType === 'damacana')
+      .map((p) => p.id)
+  );
+  if (damacanaIds.size === 0) {
+    damacanaIds.add('prod_damacana_19l');
+  }
+
+  // 1. Calculate full damacana items remaining
+  const loadedDamacana = dispatch.loadedItems
+    .filter((i) => damacanaIds.has(i.productId))
+    .reduce((sum, i) => sum + i.quantity, 0);
   
   let deliveredDamacana = 0;
   let collectedEmptyDamacana = 0;
@@ -33,7 +46,7 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
     collectedEmptyTup += del.emptyContainersReceived.tup || 0;
 
     del.deliveredItems.forEach((item) => {
-      if (item.productId === 'prod_damacana_19l') {
+      if (damacanaIds.has(item.productId)) {
         deliveredDamacana += item.quantity;
       }
     });

@@ -15,6 +15,7 @@ import { LiveTeamFeed } from './components/driver/LiveTeamFeed';
 import { EndOfDayView } from './components/driver/EndOfDayView';
 import { DailyReportsView } from './components/admin/DailyReportsView';
 import { CustomersManagement } from './components/admin/CustomersManagement';
+import { ProductManagement } from './components/admin/ProductManagement';
 import { VehicleLoadManagement } from './components/admin/VehicleLoadManagement';
 import { DataRetentionView } from './components/admin/DataRetentionView';
 
@@ -29,7 +30,7 @@ export default function App() {
   const [dispatches, setDispatches] = useState<Dispatch[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [activeTab, setActiveTab] = useState<
-    'delivery' | 'team_feed' | 'eod' | 'customers' | 'reports' | 'admin_loads' | 'retention'
+    'delivery' | 'team_feed' | 'eod' | 'customers' | 'products' | 'reports' | 'admin_loads' | 'retention'
   >('delivery');
 
   const [isLoading, setIsLoading] = useState(true);
@@ -196,6 +197,8 @@ export default function App() {
         {activeTab === 'delivery' && (
           <DriverView
             currentUser={currentUser}
+            users={users}
+            dispatches={dispatches}
             currentDispatch={currentDispatch}
             deliveries={deliveries}
             customers={customers}
@@ -230,6 +233,13 @@ export default function App() {
             customers={customers}
             products={products}
             onCustomersUpdated={setCustomers}
+          />
+        )}
+
+        {activeTab === 'products' && (
+          <ProductManagement
+            products={products}
+            onProductsUpdated={setProducts}
           />
         )}
 

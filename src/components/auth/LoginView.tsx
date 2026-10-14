@@ -22,6 +22,7 @@ interface LoginViewProps {
 
 export const LoginView: React.FC<LoginViewProps> = ({
   onLoginSuccess,
+  availableUsers = [],
 }) => {
   const [username, setUsername] = useState('');
   const [pin, setPin] = useState('');
@@ -157,6 +158,61 @@ export const LoginView: React.FC<LoginViewProps> = ({
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
+
+        {/* Quick User Picker Helper for convenience */}
+        {availableUsers && availableUsers.length > 0 && (
+          <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2 text-center">
+              Hızlı Profil Seçimi
+            </span>
+            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+              {availableUsers.map((u) => {
+                const isAdmin = u.role === 'admin';
+                const isLead = u.isLeadDriver || (u.role === 'driver' && u.canLoadVehicle);
+                return (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => {
+                      setUsername(u.username);
+                      setPin(u.pin);
+                    }}
+                    className={`p-2 rounded-xl border text-left transition-colors ${
+                      isAdmin
+                        ? 'border-indigo-200 dark:border-indigo-900 bg-indigo-50/50 dark:bg-indigo-950/30 hover:bg-indigo-100/60'
+                        : isLead
+                        ? 'border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/30 hover:bg-emerald-100/60'
+                        : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div
+                      className={`text-xs font-bold ${
+                        isAdmin
+                          ? 'text-indigo-950 dark:text-indigo-200'
+                          : isLead
+                          ? 'text-emerald-950 dark:text-emerald-200'
+                          : 'text-slate-800 dark:text-slate-200'
+                      }`}
+                    >
+                      {u.name}
+                    </div>
+                    <div
+                      className={`text-[10px] font-medium leading-tight ${
+                        isAdmin
+                          ? 'text-indigo-700 dark:text-indigo-400'
+                          : isLead
+                          ? 'text-emerald-700 dark:text-emerald-400'
+                          : 'text-slate-500'
+                      }`}
+                    >
+                      {u.title || (isAdmin ? 'Depo Yöneticisi' : isLead ? 'Tek Yetkili Şoför' : 'Saha Dağıtım Şoförü')}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Footer Info */}

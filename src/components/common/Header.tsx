@@ -9,7 +9,7 @@ interface HeaderProps {
   allUsers: User[];
   onSwitchUser: (user: User) => void;
   onLogout: () => void;
-  activeTab: 'delivery' | 'team_feed' | 'eod' | 'customers' | 'admin_loads' | 'reports' | 'retention';
+  activeTab: 'delivery' | 'team_feed' | 'eod' | 'customers' | 'products' | 'admin_loads' | 'reports' | 'retention';
   setActiveTab: (tab: any) => void;
   onRefreshData: () => void;
   isRefreshing?: boolean;
@@ -92,6 +92,17 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           <button
+            onClick={() => setActiveTab('products')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 ${
+              activeTab === 'products'
+                ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            Ürünler & Fiyatlar
+          </button>
+
+          <button
             onClick={() => setActiveTab('reports')}
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 ${
               activeTab === 'reports'
@@ -162,13 +173,15 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate max-w-[110px] sm:max-w-[140px]">
                 {currentUser.name.split(' ')[0]}
               </span>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 leading-none">
-                {currentUser.role === 'admin'
-                  ? 'Yönetici'
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 leading-none truncate max-w-[150px]">
+                {currentUser.title
+                  ? currentUser.title
+                  : currentUser.role === 'admin'
+                  ? 'Depo Yöneticisi'
                   : currentUser.canLoadVehicle
-                  ? 'Yetkili Şoför'
-                  : 'Şoför'}
-                {currentUser.assignedPlate ? ` · ${currentUser.assignedPlate}` : ''}
+                  ? 'Tek Yetkili Şoför'
+                  : 'Saha Dağıtım Şoförü'}
+                {currentUser.role !== 'admin' && currentUser.assignedPlate ? ` · ${currentUser.assignedPlate}` : ''}
               </span>
             </div>
           </div>

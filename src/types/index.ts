@@ -9,6 +9,8 @@ export interface User {
   username: string;
   role: UserRole;
   canLoadVehicle: boolean; // Only admin or authorized lead driver can input warehouse vehicle loads
+  isLeadDriver?: boolean; // Tek yetkili şoför (tüm araçlara yükleme girebilen yetkili şoför)
+  title?: string; // e.g. 'İş Yeri Sahibi / Depo Yöneticisi', 'Tek Yetkili Şoför', 'Saha Dağıtım Şoförü'
   assignedPlate?: string;
   pin: string;
   phone?: string;

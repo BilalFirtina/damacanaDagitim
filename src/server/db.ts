@@ -250,12 +250,22 @@ export function saveLocalDatabase(db: LocalDatabaseSchema) {
 // DATA MAPPERS (Supabase snake_case <-> TypeScript camelCase)
 // ----------------------------------------------------------------------
 function mapUserFromDb(row: any): User {
+  const isLead = Boolean(row.is_lead_driver || (row.role === 'driver' && row.can_load_vehicle));
+  const defaultTitle =
+    row.role === 'admin'
+      ? 'İş Yeri Sahibi / Depo Yöneticisi'
+      : isLead
+      ? 'Tek Yetkili Şoför'
+      : 'Saha Dağıtım Şoförü';
+
   return {
     id: row.id,
     name: row.name,
     username: row.username,
     role: row.role,
     canLoadVehicle: Boolean(row.can_load_vehicle),
+    isLeadDriver: isLead,
+    title: row.title || defaultTitle,
     assignedPlate: row.assigned_plate || '',
     pin: row.pin?.toString() || '1234',
     phone: row.phone || '',
@@ -652,6 +662,22 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
   db.products[idx] = { ...db.products[idx], ...updates };
   saveLocalDatabase(db);
   return db.products[idx];
+}
+
+export async function deleteProduct(id: string): Promise<boolean> {
+  if (isSupabaseOperational() && supabase) {
+    try {
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) console.error('[Supabase deleteProduct]', error);
+    } catch (e) {
+      console.error('[Supabase deleteProduct Exception]', e);
+    }
+  }
+
+  const db = loadLocalDatabase();
+  db.products = db.products.filter((p) => p.id !== id);
+  saveLocalDatabase(db);
+  return true;
 }
 
 // 3. Customers

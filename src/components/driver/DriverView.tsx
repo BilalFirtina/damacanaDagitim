@@ -12,11 +12,14 @@ import {
   CreditCard,
   Building2,
   Clock,
-  ArrowRight
+  ArrowRight,
+  UserCheck
 } from 'lucide-react';
 
 interface DriverViewProps {
   currentUser: User;
+  users: User[];
+  dispatches: Dispatch[];
   currentDispatch: Dispatch | null;
   deliveries: Delivery[];
   customers: Customer[];
@@ -28,7 +31,9 @@ interface DriverViewProps {
 
 export const DriverView: React.FC<DriverViewProps> = ({
   currentUser,
-  currentDispatch,
+  users,
+  dispatches,
+  currentDispatch: initialDispatch,
   deliveries,
   customers,
   products,
@@ -38,33 +43,103 @@ export const DriverView: React.FC<DriverViewProps> = ({
 }) => {
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
 
-  // Deliveries made today by this driver
-  const myDeliveries = currentDispatch
-    ? deliveries.filter((d) => d.dispatchId === currentDispatch.id)
+  const drivers = users.filter((u) => u.role === 'driver');
+
+  // If admin (Depo Yöneticisi), allow selecting which driver's vehicle dashboard to inspect
+  const [selectedDriverIdForAdmin, setSelectedDriverIdForAdmin] = useState<string>(() => {
+    if (currentUser.role === 'admin') {
+      return drivers[0]?.id || '';
+    }
+    return currentUser.id;
+  });
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // Active dispatch being viewed
+  const activeDispatch =
+    currentUser.role === 'admin'
+      ? dispatches.find((d) => d.date === todayStr && d.driverId === selectedDriverIdForAdmin) || null
+      : initialDispatch;
+
+  const activeDriver =
+    currentUser.role === 'admin'
+      ? drivers.find((d) => d.id === selectedDriverIdForAdmin)
+      : currentUser;
+
+  // Deliveries made today by this active vehicle
+  const myDeliveries = activeDispatch
+    ? deliveries.filter((d) => d.dispatchId === activeDispatch.id)
     : [];
 
-  const isShiftReady = currentDispatch && currentDispatch.status === 'in_transit';
+  const isShiftReady = activeDispatch && activeDispatch.status === 'in_transit';
 
   return (
     <div className="space-y-6">
+      {/* Depo Yöneticisi Quick Monitor Bar */}
+      {currentUser.role === 'admin' && (
+        <div className="bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-md">
+              DY
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-indigo-950 dark:text-indigo-200">
+                  Depo Yöneticisi Saha Gözetimi
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-200/70 dark:bg-indigo-900 text-indigo-900 dark:text-indigo-200">
+                  Uğur Fırtına
+                </span>
+              </div>
+              <p className="text-[11px] text-indigo-800/80 dark:text-indigo-300 mt-0.5">
+                Şoförlerin canlı araç stok durumlarını izleyebilir, istedikleri araca sabah yüklemesi girebilirsiniz.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <label className="text-xs font-bold text-indigo-900 dark:text-indigo-200 whitespace-nowrap flex items-center gap-1">
+              <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
+              <span>İncelenen Şoför:</span>
+            </label>
+            <select
+              value={selectedDriverIdForAdmin}
+              onChange={(e) => setSelectedDriverIdForAdmin(e.target.value)}
+              className="p-2 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-100 shadow-xs focus:ring-2 focus:ring-indigo-500"
+            >
+              {drivers.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name} {d.isLeadDriver ? '★ (Tek Yetkili)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
+
       {/* Morning Warehouse Vehicle Load Card */}
       <MorningLoadCard
-        currentDispatch={currentDispatch}
+        currentDispatch={activeDispatch}
         currentUser={currentUser}
+        users={users}
         products={products}
         onDispatchUpdated={onDispatchUpdated}
       />
 
       {/* Live Vehicle Counters (Dolu Damacana, Boşlar, Nakit, POS) */}
-      {currentDispatch && (
-        <DriverStatsStrip dispatch={currentDispatch} deliveries={deliveries} />
+      {activeDispatch && (
+        <DriverStatsStrip dispatch={activeDispatch} deliveries={deliveries} products={products} />
       )}
 
       {/* Primary Action CTA Bar for Driver */}
       {isShiftReady && (
         <div className="bg-gradient-to-r from-sky-600 to-sky-700 rounded-2xl p-4 sm:p-5 text-white shadow-lg shadow-sky-600/20 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
-            <h2 className="text-base sm:text-lg font-bold">Müşteri Teslimatı Yapmaya Hazır mısınız?</h2>
+            <h2 className="text-base sm:text-lg font-bold">
+              {currentUser.role === 'admin'
+                ? `${activeDriver?.name || 'Şoför'} için Teslimat Girişi`
+                : 'Müşteri Teslimatı Yapmaya Hazır mısınız?'}
+            </h2>
             <p className="text-xs text-sky-100 mt-0.5">
               Müşteriyi seçin, teslim edilen dolu ürünleri ve alınan boş kapları tek tıkla sisteme kaydedin.
             </p>
@@ -91,11 +166,11 @@ export const DriverView: React.FC<DriverViewProps> = ({
               <span>Günün Yapılan Teslimatları ({myDeliveries.length})</span>
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Bu araç tarafından bugün tamamlanan teslimatlar
+              {activeDispatch?.vehiclePlate || 'Seçili araç'} ({activeDispatch?.driverName || 'Şoför'}) tarafından bugün tamamlanan teslimatlar
             </p>
           </div>
 
-          {currentDispatch && currentDispatch.status === 'in_transit' && (
+          {activeDispatch && activeDispatch.status === 'in_transit' && (
             <button
               onClick={() => onNavigateTab('eod')}
               className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1"
@@ -151,7 +226,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
 
                       {del.emptyContainersReceived.damacana > 0 && (
                         <span className="text-[11px] font-semibold text-orange-600 flex items-center gap-0.5">
-                          <RotateCcw className="w-3 h-3" />
+                          <RotateCcw className="w-3 back-3" />
                           {del.emptyContainersReceived.damacana} Boş Alındı
                         </span>
                       )}
@@ -186,11 +261,11 @@ export const DriverView: React.FC<DriverViewProps> = ({
       </div>
 
       {/* Delivery Entry Modal */}
-      {currentDispatch && (
+      {activeDispatch && (
         <DeliveryModal
           isOpen={showDeliveryModal}
           onClose={() => setShowDeliveryModal(false)}
-          dispatch={currentDispatch}
+          dispatch={activeDispatch}
           currentUser={currentUser}
           customers={customers}
           products={products}
