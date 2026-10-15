@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Product, ProductCategory, DepositType } from '../../types';
+import { Product, ProductCategory, DepositType, User } from '../../types';
 import {
   Package,
   Plus,
@@ -20,12 +20,15 @@ import { createProduct, updateProduct, deleteProduct } from '../../services/api'
 interface ProductManagementProps {
   products: Product[];
   onProductsUpdated: (products: Product[]) => void;
+  currentUser?: User;
 }
 
 export const ProductManagement: React.FC<ProductManagementProps> = ({
   products,
   onProductsUpdated,
+  currentUser,
 }) => {
+  const canManage = currentUser?.role === 'admin' || currentUser?.canLoadVehicle;
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   
@@ -228,13 +231,19 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={openAddModal}
-          className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs transition-colors shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          Yeni Ürün Ekle
-        </button>
+        {canManage ? (
+          <button
+            onClick={openAddModal}
+            className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs transition-colors shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            Yeni Ürün Ekle
+          </button>
+        ) : (
+          <span className="text-[11px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl">
+            Ürün Ekleme / Düzenleme: Depo Yöneticisi ve Yetkili Şoför Yetkisindedir
+          </span>
+        )}
       </div>
 
       {/* Success Banner */}
@@ -328,22 +337,24 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
               <div>
                 <div className="flex items-start justify-between gap-2 mb-2">
                   {getCategoryBadge(p.category)}
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => openEditModal(p)}
-                      className="p-1.5 text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                      title="Düzenle"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setDeletingProduct(p)}
-                      className="p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                      title="Sil"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  {canManage && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => openEditModal(p)}
+                        className="p-1.5 text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        title="Düzenle"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setDeletingProduct(p)}
+                        className="p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        title="Sil"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">

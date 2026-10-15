@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { User } from '../../types';
-import { PWAInstallButton } from './PWAInstallButton';
 import { DatabaseStatusModal } from './DatabaseStatusModal';
 import { Truck, ShieldCheck, UserCheck, RefreshCw, Layers, LogOut, Database } from 'lucide-react';
 
@@ -142,7 +141,6 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Zone 3: Active User & Role Switcher + PWA Button */}
         <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
-          <PWAInstallButton />
 
           <button
             onClick={() => setIsDbModalOpen(true)}
@@ -246,6 +244,17 @@ export const Header: React.FC<HeaderProps> = ({
           }`}
         >
           Müşteriler
+        </button>
+
+        <button
+          onClick={() => setActiveTab('products')}
+          className={`px-3 py-1.5 text-xs font-semibold rounded-lg whitespace-nowrap shrink-0 transition-colors ${
+            activeTab === 'products'
+              ? 'bg-sky-600 text-white shadow-xs'
+              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
+          }`}
+        >
+          Ürünler
         </button>
 
         <button

@@ -249,9 +249,109 @@ export function loadLocalDatabase(): LocalDatabaseSchema {
   }
 
   const emptyDb: LocalDatabaseSchema = {
-    users: [],
-    products: [],
-    customers: [],
+    users: [
+      {
+        id: 'usr_admin',
+        name: 'Uğur Fırtına',
+        username: 'yonetici',
+        role: 'admin',
+        canLoadVehicle: true,
+        assignedPlate: '',
+        pin: '1234',
+        phone: '0532 555 10 00',
+        title: 'İş Yeri Sahibi / Depo Yöneticisi',
+      },
+      {
+        id: 'usr_driver_1',
+        name: 'Ahmet Yılmaz',
+        username: 'ahmet',
+        role: 'driver',
+        canLoadVehicle: true,
+        assignedPlate: '01 FV 823',
+        pin: '1010',
+        phone: '0533 555 20 01',
+        title: 'Tek Yetkili Şoför',
+      },
+      {
+        id: 'usr_driver_2',
+        name: 'Mehmet Kaya',
+        username: 'mehmet',
+        role: 'driver',
+        canLoadVehicle: false,
+        assignedPlate: '06 GB 357',
+        pin: '2020',
+        phone: '0535 555 30 02',
+        title: 'Saha Dağıtım Şoförü',
+      },
+      {
+        id: 'usr_driver_3',
+        name: 'Serkan Aydın',
+        username: 'serkan',
+        role: 'driver',
+        canLoadVehicle: false,
+        assignedPlate: '01 AVH 886',
+        pin: '3030',
+        phone: '0536 555 40 03',
+        title: 'Saha Dağıtım Şoförü',
+      }
+    ],
+    products: [
+      {
+        id: 'prod_damacana_19l',
+        name: '19L Damacana Su (Polikarbon)',
+        category: 'damacana',
+        defaultUnitPrice: 100,
+        isDeposit: true,
+        depositType: 'damacana',
+        unit: 'Adet',
+        description: 'Doğal kaynak damacana su - depozitolu 19 litre'
+      },
+      {
+        id: 'prod_pet_05l',
+        name: "0.5L Su (24'lü Koli)",
+        category: 'pet',
+        defaultUnitPrice: 120,
+        isDeposit: false,
+        depositType: 'none',
+        unit: 'Koli',
+        description: '24 adet 0.5 litre paket su'
+      },
+      {
+        id: 'prod_soda',
+        name: "Doğal Maden Suyu (24'lü Koli)",
+        category: 'soda',
+        defaultUnitPrice: 150,
+        isDeposit: false,
+        depositType: 'none',
+        unit: 'Koli',
+        description: 'Zengin mineralli doğal maden suyu'
+      },
+      {
+        id: 'prod_tup_tugut',
+        name: '12kg Ev Tipi Mutfak Tüpü',
+        category: 'tup',
+        defaultUnitPrice: 650,
+        isDeposit: true,
+        depositType: 'tup',
+        unit: 'Adet',
+        description: '12 kg mutfak tüpü - depozitolu'
+      }
+    ],
+    customers: [
+      {
+        id: 'cust_1',
+        name: 'Örnek Market Ltd. Şti.',
+        phone: '0532 123 45 67',
+        address: 'Atatürk Cad. No: 15 Seyhan / Adana',
+        emails: ['info@ornekmarket.com', 'fatura@ornekmarket.com'],
+        isAccountCustomer: true,
+        currentBalanceTL: 450,
+        emptyDepositBalance: { damacana: 5, tup: 2 },
+        customPrices: { 'prod_damacana_19l': 95 },
+        notes: 'Düzenli müşterimiz.',
+        createdDate: '2026-01-01',
+      }
+    ],
     dispatches: [],
     deliveries: [],
     purgedCountTotal: 0,

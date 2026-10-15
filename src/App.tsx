@@ -240,6 +240,7 @@ export default function App() {
           <ProductManagement
             products={products}
             onProductsUpdated={setProducts}
+            currentUser={currentUser}
           />
         )}
 
