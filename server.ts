@@ -46,6 +46,19 @@ app.use(express.json());
 
 const getTodayDateStr = () => new Date().toISOString().split('T')[0];
 
+// PWA Manifest and Service Worker static serving with proper headers
+app.get(['/manifest.json', '/manifest.webmanifest'], (req, res) => {
+  res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+  res.sendFile(path.resolve(__dirname, 'public', 'manifest.json'));
+});
+
+app.get('/sw.js', (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.sendFile(path.resolve(__dirname, 'public', 'sw.js'));
+});
+
 // Safe boot-time cleanup and Supabase initialization
 runRetentionCleanup().catch((err) => console.error('Initial cleanup error', err));
 ensureSupabaseSeeded().catch((err) => console.error('Initial Supabase seed error', err));

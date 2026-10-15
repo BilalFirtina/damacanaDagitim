@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -28,9 +28,8 @@ export function usePWAInstall() {
     setIsIOS(isIOSDevice);
 
     const handleBeforeInstallPrompt = (e: Event) => {
-      // Prevent default mini-infobar or browser default prompt
+      // Prevent browser mini-infobar so our button can trigger it on click
       e.preventDefault();
-      // Store event for immediate manual trigger
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
 
@@ -48,8 +47,8 @@ export function usePWAInstall() {
     };
   }, []);
 
-  const install = async (): Promise<'prompted' | 'accepted' | 'ios' | 'unsupported'> => {
-    // If prompt is available (Android / Chrome / Edge), trigger it directly
+  const install = useCallback(async (): Promise<'accepted' | 'dismissed' | 'ios' | 'unsupported'> => {
+    // 1. If native beforeinstallprompt is ready (Android Chrome, Edge, Chromium)
     if (deferredPrompt) {
       try {
         await deferredPrompt.prompt();
@@ -59,18 +58,20 @@ export function usePWAInstall() {
           setDeferredPrompt(null);
           return 'accepted';
         }
-        return 'prompted';
+        return 'dismissed';
       } catch (err) {
         console.error('PWA prompt error:', err);
       }
     }
 
+    // 2. iOS devices (Safari does not support beforeinstallprompt)
     if (isIOS) {
       return 'ios';
     }
 
+    // 3. Fallback / unsupported / no prompt available
     return 'unsupported';
-  };
+  }, [deferredPrompt, isIOS]);
 
   return {
     isInstallable: !!deferredPrompt,
@@ -79,4 +80,3 @@ export function usePWAInstall() {
     install,
   };
 }
-

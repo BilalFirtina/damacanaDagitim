@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User } from '../../types';
 import { DatabaseStatusModal } from './DatabaseStatusModal';
+import { PWAInstallButton } from './PWAInstallButton';
 import { Truck, ShieldCheck, UserCheck, RefreshCw, Layers, LogOut, Database } from 'lucide-react';
 
 interface HeaderProps {
@@ -161,6 +162,8 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-sky-600' : ''}`} />
           </button>
+
+          <PWAInstallButton variant="header" />
 
           {/* Active User Badge */}
           <div
