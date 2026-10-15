@@ -8,6 +8,7 @@ interface MorningLoadCardProps {
   currentUser: User;
   users: User[];
   products: Product[];
+  dispatches?: Dispatch[];
   onDispatchUpdated: (updatedDispatch: Dispatch) => void;
 }
 
@@ -16,22 +17,34 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
   currentUser,
   users,
   products,
+  dispatches = [],
   onDispatchUpdated,
 }) => {
   const [isConfirming, setIsConfirming] = useState(false);
   const [showManualLoadModal, setShowManualLoadModal] = useState(false);
 
+  // Active dispatches (not completed)
+  const activeDispatches = dispatches.filter((d) => d.status !== 'completed');
+  const busyPlates = new Set(activeDispatches.map((d) => d.vehiclePlate));
+  const busyDriverIds = new Set(activeDispatches.map((d) => d.driverId));
+
+  // Vehicle plates currently available (not in active distribution)
+  const availablePlates = AUTHORIZED_VEHICLE_PLATES.filter((plate) => !busyPlates.has(plate));
+
   // List of actual drivers (excludes Depo Yöneticisi / Admin)
   const drivers = users.filter((u) => u.role === 'driver');
 
-  // Initial driver selection: currentUser if driver, else first driver
+  // Initial driver selection: currentUser if driver, else first available driver
   const [selectedDriverId, setSelectedDriverId] = useState<string>(() => {
     if (currentUser.role === 'driver') return currentUser.id;
-    return drivers[0]?.id || '';
+    const availableDriver = drivers.find((d) => !busyDriverIds.has(d.id));
+    return availableDriver?.id || drivers[0]?.id || '';
   });
 
-  // Independent vehicle plate selection
-  const [selectedPlate, setSelectedPlate] = useState<string>(AUTHORIZED_VEHICLE_PLATES[0]);
+  // Independent vehicle plate selection (default to first available plate)
+  const [selectedPlate, setSelectedPlate] = useState<string>(() => {
+    return availablePlates[0] || AUTHORIZED_VEHICLE_PLATES[0];
+  });
 
   const [loadQuantities, setLoadQuantities] = useState<Record<string, number>>({});
   const [loadingError, setLoadingError] = useState<string | null>(null);
@@ -44,8 +57,17 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
     // Set appropriate initial driver
     if (currentUser.role === 'driver') {
       setSelectedDriverId(currentUser.id);
-    } else if (drivers.length > 0 && !selectedDriverId) {
-      setSelectedDriverId(drivers[0].id);
+    } else {
+      const firstAvailable = drivers.find((d) => !busyDriverIds.has(d.id));
+      if (firstAvailable) {
+        setSelectedDriverId(firstAvailable.id);
+      } else if (drivers.length > 0 && !selectedDriverId) {
+        setSelectedDriverId(drivers[0].id);
+      }
+    }
+    // Set available plate
+    if (availablePlates.length > 0 && (!selectedPlate || busyPlates.has(selectedPlate))) {
+      setSelectedPlate(availablePlates[0]);
     }
     setLoadingError(null);
     setShowManualLoadModal(true);
@@ -72,6 +94,16 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
 
     if (!selectedPlate) {
       setLoadingError('Lütfen araç plakasını seçiniz.');
+      return;
+    }
+
+    if (busyPlates.has(selectedPlate)) {
+      setLoadingError(`Seçilen araç (${selectedPlate}) halen aktif bir dağıtımda kullanılmaktadır. Önceki seferin bitiş raporu alınmadan bu araç seçilemez.`);
+      return;
+    }
+
+    if (busyDriverIds.has(selectedDriverId)) {
+      setLoadingError('Seçilen şoför halen aktif bir dağıtım seferindedir. Önceki sefer tamamlanmadan yeni sefer açılamaz.');
       return;
     }
 
@@ -170,36 +202,54 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                   onChange={(e) => setSelectedDriverId(e.target.value)}
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-semibold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500"
                 >
-                  {drivers.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name} {d.isLeadDriver ? '★ (Tek Yetkili)' : ''}
-                    </option>
-                  ))}
+                  {drivers.map((d) => {
+                    const isBusy = busyDriverIds.has(d.id);
+                    return (
+                      <option
+                        key={d.id}
+                        value={d.id}
+                        disabled={isBusy}
+                        className={isBusy ? 'text-slate-400 dark:text-slate-500' : ''}
+                      >
+                        {d.name} {d.isLeadDriver ? '★ (Yetkili)' : ''}{' '}
+                        {isBusy ? '(Aktif Dağıtımda - Seçilemez)' : '(Müsait)'}
+                      </option>
+                    );
+                  })}
                 </select>
                 <p className="text-[10px] text-slate-400 mt-1">
                   İş yeri sahibi şoför değildir; sadece saha şoförleri listelenir.
                 </p>
               </div>
 
-              {/* 2. Vehicle Plate Selection (Completely Independent) */}
+              {/* 2. Vehicle Plate Selection (Excludes vehicles currently in active distribution) */}
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
                   <Truck className="w-4 h-4 text-emerald-600" />
-                  <span>Araç Plakası (Bağımsız)</span>
+                  <span>Araç Plakası</span>
                 </label>
                 <select
                   value={selectedPlate}
                   onChange={(e) => setSelectedPlate(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500"
+                  disabled={availablePlates.length === 0}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
                 >
-                  {AUTHORIZED_VEHICLE_PLATES.map((plate) => (
-                    <option key={plate} value={plate}>
-                      {plate}
+                  {availablePlates.length === 0 ? (
+                    <option value="" disabled>
+                      Tüm araçlar şu anda aktif dağıtımdadır
                     </option>
-                  ))}
+                  ) : (
+                    availablePlates.map((plate) => (
+                      <option key={plate} value={plate}>
+                        {plate} (Müsait)
+                      </option>
+                    ))
+                  )}
                 </select>
                 <p className="text-[10px] text-slate-400 mt-1">
-                  Şoförden tamamen bağımsız olarak istediğiniz aracı seçebilirsiniz.
+                  {availablePlates.length === 0
+                    ? 'Tüm araçlar dağıtımdadır; bitiş raporu verilmeden seçilemez.'
+                    : 'Aktif dağıtımdaki araçlar listede görünmez; yalnızca müsait araçlar seçilebilir.'}
                 </p>
               </div>
             </div>

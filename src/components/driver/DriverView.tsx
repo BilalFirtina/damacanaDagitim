@@ -123,6 +123,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
         currentUser={currentUser}
         users={users}
         products={products}
+        dispatches={dispatches}
         onDispatchUpdated={onDispatchUpdated}
       />
 

@@ -10,6 +10,7 @@
   "orientation": "portrait-primary",
   "background_color": "#f8fafc",
   "theme_color": "#0284c7",
+  "handle_links": "preferred",
   "launch_handler": {
     "client_mode": "focus-existing"
   },
