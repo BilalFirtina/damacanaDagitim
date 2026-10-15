@@ -105,11 +105,11 @@ export const DriverView: React.FC<DriverViewProps> = ({
             <select
               value={selectedDriverIdForAdmin}
               onChange={(e) => setSelectedDriverIdForAdmin(e.target.value)}
-              className="p-2 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-100 shadow-xs focus:ring-2 focus:ring-indigo-500"
+              className="w-full min-w-0 max-w-full box-border p-2 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-100 shadow-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             >
               {drivers.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.name} {d.isLeadDriver ? '★ (Yetkili Şoför)' : ''}
+                  {d.name} {d.isLeadDriver ? '★ (Yetkili)' : ''}
                 </option>
               ))}
             </select>

@@ -188,64 +188,69 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto pr-1 mt-4 space-y-4">
+          <div className="flex-1 overflow-y-auto pr-1 mt-4 space-y-4 min-w-0 max-w-full box-border">
             {/* Independent Driver & Plate Selectors */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 sm:p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 w-full max-w-full min-w-0 box-border">
               {/* 1. Driver Selection (Independent) */}
-              <div>
+              <div className="w-full max-w-full min-w-0 box-border">
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                  <UserCheck className="w-4 h-4 text-sky-600" />
+                  <UserCheck className="w-4 h-4 text-sky-600 shrink-0" />
                   <span>Şoför Seçimi</span>
                 </label>
-                <select
-                  value={selectedDriverId}
-                  onChange={(e) => setSelectedDriverId(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-semibold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500"
-                >
-                  {drivers.map((d) => {
-                    const isBusy = busyDriverIds.has(d.id);
-                    return (
-                      <option
-                        key={d.id}
-                        value={d.id}
-                        disabled={isBusy}
-                        className={isBusy ? 'text-slate-400 dark:text-slate-500' : ''}
-                      >
-                        {d.name} {d.isLeadDriver ? '★ (Yetkili)' : ''}{' '}
-                        {isBusy ? '(Aktif Dağıtımda - Seçilemez)' : '(Müsait)'}
-                      </option>
-                    );
-                  })}
-                </select>
+                <div className="w-full max-w-full min-w-0 box-border">
+                  <select
+                    value={selectedDriverId}
+                    onChange={(e) => setSelectedDriverId(e.target.value)}
+                    className="w-full max-w-full min-w-0 box-border p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-semibold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 truncate"
+                    style={{ minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
+                  >
+                    {drivers.map((d) => {
+                      const isBusy = busyDriverIds.has(d.id);
+                      return (
+                        <option
+                          key={d.id}
+                          value={d.id}
+                          disabled={isBusy}
+                          className={isBusy ? 'text-slate-400 dark:text-slate-500' : ''}
+                        >
+                          {d.name} {d.isLeadDriver ? '★' : ''} {isBusy ? '(Dağıtımda)' : '(Müsait)'}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
                 <p className="text-[10px] text-slate-400 mt-1">
                   İş yeri sahibi şoför değildir; sadece saha şoförleri listelenir.
                 </p>
               </div>
 
               {/* 2. Vehicle Plate Selection (Excludes vehicles currently in active distribution) */}
-              <div>
+              <div className="w-full max-w-full min-w-0 box-border">
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                  <Truck className="w-4 h-4 text-emerald-600" />
+                  <Truck className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>Araç Plakası</span>
                 </label>
-                <select
-                  value={selectedPlate}
-                  onChange={(e) => setSelectedPlate(e.target.value)}
-                  disabled={availablePlates.length === 0}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
-                >
-                  {availablePlates.length === 0 ? (
-                    <option value="" disabled>
-                      Tüm araçlar şu anda aktif dağıtımdadır
-                    </option>
-                  ) : (
-                    availablePlates.map((plate) => (
-                      <option key={plate} value={plate}>
-                        {plate} (Müsait)
+                <div className="w-full max-w-full min-w-0 box-border">
+                  <select
+                    value={selectedPlate}
+                    onChange={(e) => setSelectedPlate(e.target.value)}
+                    disabled={availablePlates.length === 0}
+                    className="w-full max-w-full min-w-0 box-border p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 truncate"
+                    style={{ minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
+                  >
+                    {availablePlates.length === 0 ? (
+                      <option value="" disabled>
+                        Tüm araçlar şu anda aktif dağıtımdadır
                       </option>
-                    ))
-                  )}
-                </select>
+                    ) : (
+                      availablePlates.map((plate) => (
+                        <option key={plate} value={plate}>
+                          {plate} (Müsait)
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
                 <p className="text-[10px] text-slate-400 mt-1">
                   {availablePlates.length === 0
                     ? 'Tüm araçlar dağıtımdadır; bitiş raporu verilmeden seçilemez.'
@@ -536,7 +541,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
         </div>
       </div>
 
-      <div className="mt-3 flex items-center gap-2 overflow-x-auto py-1 scrollbar-none text-xs w-full max-w-full">
+      <div className="mt-3 flex flex-wrap items-center gap-2 py-1 text-xs w-full max-w-full">
         <span className="text-slate-400 text-[11px] font-medium whitespace-nowrap">Yüklenenler:</span>
         {currentDispatch.loadedItems.map((item) => {
           const product = products.find((p) => p.id === item.productId);

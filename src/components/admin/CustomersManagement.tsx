@@ -278,7 +278,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none text-xs w-full max-w-full">
+      <div className="flex flex-wrap items-center gap-2 py-1 text-xs w-full max-w-full">
         <button
           onClick={() => setFilterType('all')}
           className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors ${

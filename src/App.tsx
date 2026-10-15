@@ -24,7 +24,17 @@ const SESSION_USER_KEY = 'sudagitim_session_user';
 
 export default function App() {
   const [users, setUsers] = useState<User[]>([]);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    try {
+      const savedUserRaw =
+        localStorage.getItem(REMEMBERED_USER_KEY) ||
+        sessionStorage.getItem(SESSION_USER_KEY);
+      if (savedUserRaw) {
+        return JSON.parse(savedUserRaw);
+      }
+    } catch {}
+    return null;
+  });
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [dispatches, setDispatches] = useState<Dispatch[]>([]);
@@ -54,21 +64,25 @@ export default function App() {
       setDispatches(dList);
       setDeliveries(delList);
 
-      // Check if there is an active session
-      if (!currentUser) {
-        let savedUserRaw = localStorage.getItem(REMEMBERED_USER_KEY);
-        if (!savedUserRaw) {
-          savedUserRaw = sessionStorage.getItem(SESSION_USER_KEY);
-        }
+      // Verify and sync active session against freshly retrieved users list
+      const savedUserRaw =
+        localStorage.getItem(REMEMBERED_USER_KEY) ||
+        sessionStorage.getItem(SESSION_USER_KEY);
 
-        if (savedUserRaw) {
-          try {
-            const parsed = JSON.parse(savedUserRaw);
-            const found = uList.find((u) => u.id === parsed.id);
-            if (found) {
-              setCurrentUser(found);
-            }
-          } catch {}
+      if (savedUserRaw) {
+        try {
+          const parsed = JSON.parse(savedUserRaw);
+          const found = uList.find((u) => u.id === parsed.id);
+          if (found) {
+            setCurrentUser(found);
+          } else {
+            // User revoked or removed
+            localStorage.removeItem(REMEMBERED_USER_KEY);
+            sessionStorage.removeItem(SESSION_USER_KEY);
+            setCurrentUser(null);
+          }
+        } catch {
+          setCurrentUser(null);
         }
       }
     } catch (err) {

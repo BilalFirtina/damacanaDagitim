@@ -290,7 +290,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
       {/* Filter and Search Bar */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
         {/* Category Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-none text-xs">
+        <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto pb-1 md:pb-0 text-xs">
           {[
             { id: 'all', label: 'Tüm Ürünler' },
             { id: 'damacana', label: '💧 Damacana' },

@@ -1,28 +1,29 @@
 import React from 'react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
-import { Download, Check } from 'lucide-react';
+import { Download } from 'lucide-react';
 
 interface PWAInstallButtonProps {
   className?: string;
   variant?: 'primary' | 'header';
 }
 
+const REMEMBERED_USER_KEY = 'sudagitim_remembered_user';
+const SESSION_USER_KEY = 'sudagitim_session_user';
+
 export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ className = '', variant = 'primary' }) => {
   const { isInstalled, isInstallable, install, openApp } = usePWAInstall();
 
-  // If already running in standalone/installed mode, show that it is installed
+  // 1. Strict Requirement: Do NOT show the button if the PWA is already installed or running in standalone mode
   if (isInstalled) {
-    return (
-      <button
-        type="button"
-        onClick={openApp}
-        className={`inline-flex items-center gap-2 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-3.5 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-300 shadow-xs cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors ${className}`}
-        title="Uygulama telefonunuzda kurulu modda. Dokunarak açabilirsiniz."
-      >
-        <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-        <span>Uygulama Yüklü</span>
-      </button>
-    );
+    return null;
+  }
+
+  // 2. Strict Requirement: Do NOT show the button if user is authenticated
+  if (typeof window !== 'undefined') {
+    const hasAuth = !!(localStorage.getItem(REMEMBERED_USER_KEY) || sessionStorage.getItem(SESSION_USER_KEY));
+    if (hasAuth) {
+      return null;
+    }
   }
 
   const handleClick = async () => {

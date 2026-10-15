@@ -266,33 +266,36 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
             )}
 
             <form onSubmit={handleCreateLoad} className="space-y-4 text-xs">
-              <div>
+              <div className="w-full max-w-full min-w-0 box-border">
                 <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
                   Teslim Edilecek Şoför *
                 </label>
-                <select
-                  required
-                  value={selectedDriverId}
-                  onChange={(e) => setSelectedDriverId(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Şoför Seçiniz...</option>
-                  {drivers.map((d) => {
-                    const isBusy = busyDriverIds.has(d.id);
-                    const activeRun = activeDispatches.find((disp) => disp.driverId === d.id);
-                    return (
-                      <option key={d.id} value={d.id} disabled={isBusy}>
-                        {d.name} {isBusy ? `(Dağıtımda - ${activeRun?.vehiclePlate} - Seçilemez)` : '(Müsait)'}
-                      </option>
-                    );
-                  })}
-                </select>
+                <div className="w-full max-w-full min-w-0 box-border">
+                  <select
+                    required
+                    value={selectedDriverId}
+                    onChange={(e) => setSelectedDriverId(e.target.value)}
+                    className="w-full max-w-full min-w-0 box-border p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 truncate"
+                    style={{ minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
+                  >
+                    <option value="">Şoför Seçiniz...</option>
+                    {drivers.map((d) => {
+                      const isBusy = busyDriverIds.has(d.id);
+                      const activeRun = activeDispatches.find((disp) => disp.driverId === d.id);
+                      return (
+                        <option key={d.id} value={d.id} disabled={isBusy}>
+                          {d.name} {isBusy ? `(Dağıtımda - ${activeRun?.vehiclePlate || 'Seçilemez'})` : '(Müsait)'}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
                 <p className="text-[10px] text-slate-400 mt-1">
                   Aktif seferde olan şoförler önceki sefer bitiş raporunu kapatmadan yeni sefere atanamaz.
                 </p>
               </div>
 
-              <div>
+              <div className="w-full max-w-full min-w-0 box-border">
                 <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
                   Araç Plakası (Dağıtım Aracı) *
                 </label>
@@ -302,18 +305,21 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                   </div>
                 ) : (
                   <>
-                    <select
-                      required
-                      value={selectedPlate || availablePlates[0]}
-                      onChange={(e) => setSelectedPlate(e.target.value)}
-                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono font-bold text-slate-900 dark:text-white"
-                    >
-                      {availablePlates.map((plate) => (
-                        <option key={plate} value={plate}>
-                          {plate} (Müsait)
-                        </option>
-                      ))}
-                    </select>
+                    <div className="w-full max-w-full min-w-0 box-border">
+                      <select
+                        required
+                        value={selectedPlate || availablePlates[0]}
+                        onChange={(e) => setSelectedPlate(e.target.value)}
+                        className="w-full max-w-full min-w-0 box-border p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono font-bold text-slate-900 dark:text-white truncate"
+                        style={{ minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
+                      >
+                        {availablePlates.map((plate) => (
+                          <option key={plate} value={plate}>
+                            {plate} (Müsait)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <p className="text-[11px] text-slate-400 mt-1">
                       Aktif dağıtımda olan araçlar listede görüntülenmez; yalnızca seferini tamamlayıp bitiş raporu alınan araçlar seçilebilir.
                     </p>
