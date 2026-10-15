@@ -313,6 +313,27 @@ app.post('/api/dispatches', async (req, res) => {
     const driver = users.find((u) => u.id === driverId);
     if (!driver) return res.status(404).json({ error: 'Şoför bulunamadı' });
 
+    // Önceki rapor/sefer tamamlanmadan şoför veya araç tekrar atanamaz
+    const allDispatches = await getDispatches();
+    const activeDriverDispatch = allDispatches.find(
+      (d) => d.driverId === driverId && d.status !== 'completed'
+    );
+    if (activeDriverDispatch) {
+      return res.status(400).json({
+        error: `Bu şoför (${driver.name}) halen aktif bir dağıtım seferindedir (${activeDriverDispatch.vehiclePlate}). Önceki sefer raporu tamamlanmadan yeni sefer açılamaz.`,
+      });
+    }
+
+    const selectedPlate = vehiclePlate || driver.assignedPlate || '34 SU 101';
+    const activePlateDispatch = allDispatches.find(
+      (d) => d.vehiclePlate === selectedPlate && d.status !== 'completed'
+    );
+    if (activePlateDispatch) {
+      return res.status(400).json({
+        error: `Bu araç plakası (${selectedPlate}) halen aktif bir dağıtımda kullanılmaktadır (${activePlateDispatch.driverName}). Önceki seferin bitiş raporu onaylanmadan bu araç seçilemez.`,
+      });
+    }
+
     const todayStr = getTodayDateStr();
     const isConfirmed = !!driverConfirmed;
 
@@ -321,7 +342,7 @@ app.post('/api/dispatches', async (req, res) => {
       date: todayStr,
       driverId,
       driverName: driver.name,
-      vehiclePlate: vehiclePlate || driver.assignedPlate || '34 SU 101',
+      vehiclePlate: selectedPlate,
       loadedByUserId: loadedByUserId || 'usr_admin',
       loadedByUserName: loadedByUserName || 'Yönetici',
       driverConfirmedAt: isConfirmed ? new Date().toISOString() : null,

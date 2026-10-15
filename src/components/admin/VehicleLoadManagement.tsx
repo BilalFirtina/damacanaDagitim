@@ -32,12 +32,22 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
 }) => {
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
-  const [selectedPlate, setSelectedPlate] = useState<string>(AUTHORIZED_VEHICLE_PLATES[0]);
+  const [selectedPlate, setSelectedPlate] = useState<string>('');
   const [loadQuantities, setLoadQuantities] = useState<Record<string, number>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const drivers = users.filter((u) => u.role === 'driver');
+
+  // Aktif (henüz tamamlanmamış / bitiş raporu onaylanmamış) seferler
+  const activeDispatches = dispatches.filter((d) => d.status !== 'completed');
+  const busyDriverIds = new Set(activeDispatches.map((d) => d.driverId));
+  const busyPlates = new Set(activeDispatches.map((d) => d.vehiclePlate));
+
+  // Müsait araç plakaları: Aktif dağıtımda olanlar LİSTEDE GÖRÜNTÜLENMEZ!
+  const availablePlates = AUTHORIZED_VEHICLE_PLATES.filter((plate) => !busyPlates.has(plate));
+  // Müsait şoförler
+  const availableDrivers = drivers.filter((d) => !busyDriverIds.has(d.id));
 
   const handleToggleLoadPermission = async (driver: User) => {
     try {
@@ -131,42 +141,56 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {drivers.map((driver) => (
-            <div
-              key={driver.id}
-              className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between"
-            >
-              <div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <span>{driver.name}</span>
-                </div>
-                <div className="text-[11px] text-slate-400 font-mono">
-                  {driver.assignedPlate || 'Araçsız'} · {driver.phone || 'Tel yok'}
-                </div>
-                <div className="text-[11px] font-semibold mt-1">
-                  {driver.canLoadVehicle ? (
-                    <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                      <ShieldCheck className="w-3 h-3" /> Yükleme Yetkisi Var
-                    </span>
-                  ) : (
-                    <span className="text-slate-400">Yükleme Yetkisi Yok (Onaycı)</span>
-                  )}
-                </div>
-              </div>
+          {drivers.map((driver) => {
+            const isBusy = busyDriverIds.has(driver.id);
+            const activeRun = activeDispatches.find((d) => d.driverId === driver.id);
 
-              <button
-                type="button"
-                onClick={() => handleToggleLoadPermission(driver)}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0 ${
-                  driver.canLoadVehicle
-                    ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
-                    : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200'
-                }`}
+            return (
+              <div
+                key={driver.id}
+                className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between"
               >
-                {driver.canLoadVehicle ? 'Yetkiyi Kaldır' : 'Yetki Ver'}
-              </button>
-            </div>
-          ))}
+                <div>
+                  <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <span>{driver.name}</span>
+                    {isBusy ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                        Dağıtımda ({activeRun?.vehiclePlate})
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                        Müsait
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-slate-400 font-mono">
+                    {driver.assignedPlate || 'Araçsız'} · {driver.phone || 'Tel yok'}
+                  </div>
+                  <div className="text-[11px] font-semibold mt-1">
+                    {driver.canLoadVehicle ? (
+                      <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                        <ShieldCheck className="w-3 h-3" /> Yükleme Yetkisi Var
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">Yükleme Yetkisi Yok (Onaycı)</span>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleToggleLoadPermission(driver)}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0 ${
+                    driver.canLoadVehicle
+                      ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
+                      : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200'
+                  }`}
+                >
+                  {driver.canLoadVehicle ? 'Yetkiyi Kaldır' : 'Yetki Ver'}
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -187,15 +211,15 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                   <span className="font-bold text-slate-800 dark:text-slate-200">{disp.driverName}</span>
                   {disp.status === 'in_transit' ? (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                      Şoför Onayladı (Sahada)
+                      Şoför Onayladı (Sahada / Dağıtımda)
                     </span>
                   ) : disp.status === 'pending_confirmation' ? (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">
-                      Şoför Sayım Onayı Bekliyor
+                      Şoför Sayım Onayı Bekliyor (Dağıtımda)
                     </span>
                   ) : (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-800">
-                      Günü Kapatıldı
+                      Bitiş Raporu Tamamlandı (Kapatıldı / Müsait)
                     </span>
                   )}
                 </div>
@@ -232,7 +256,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
               Araca Sabah Yüklemesi Gir
             </h3>
             <p className="text-xs text-slate-500 mb-4">
-              Şoförü seçin ve depodan yüklenen ürün miktarlarını girin
+              Müsait şoförü ve aracı seçin, depodan yüklenen ürün miktarlarını girin
             </p>
 
             {errorMsg && (
@@ -253,35 +277,48 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">Şoför Seçiniz...</option>
-                  {drivers.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name} {d.isLeadDriver ? '★ (Yetkili Şoför)' : '(Saha Dağıtım)'}
-                    </option>
-                  ))}
+                  {drivers.map((d) => {
+                    const isBusy = busyDriverIds.has(d.id);
+                    const activeRun = activeDispatches.find((disp) => disp.driverId === d.id);
+                    return (
+                      <option key={d.id} value={d.id} disabled={isBusy}>
+                        {d.name} {isBusy ? `(Dağıtımda - ${activeRun?.vehiclePlate} - Seçilemez)` : '(Müsait)'}
+                      </option>
+                    );
+                  })}
                 </select>
                 <p className="text-[10px] text-slate-400 mt-1">
-                  Şoför seçimi araç plakasından bağımsızdır.
+                  Aktif seferde olan şoförler önceki sefer bitiş raporunu kapatmadan yeni sefere atanamaz.
                 </p>
               </div>
 
               <div>
                 <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Araç Plakası (Dağıtım Aracı)
+                  Araç Plakası (Dağıtım Aracı) *
                 </label>
-                <select
-                  value={selectedPlate}
-                  onChange={(e) => setSelectedPlate(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono font-bold text-slate-900 dark:text-white"
-                >
-                  {AUTHORIZED_VEHICLE_PLATES.map((plate) => (
-                    <option key={plate} value={plate}>
-                      {plate}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Günlük araç rotasyonuna göre geçerli dağıtım aracını seçiniz.
-                </p>
+                {availablePlates.length === 0 ? (
+                  <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-semibold">
+                    Tüm araçlar şu anda aktif dağıtımdadır. Yeni sefer açabilmek için önceki dağıtımın bitiş raporunun tamamlanması gerekir.
+                  </div>
+                ) : (
+                  <>
+                    <select
+                      required
+                      value={selectedPlate || availablePlates[0]}
+                      onChange={(e) => setSelectedPlate(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono font-bold text-slate-900 dark:text-white"
+                    >
+                      {availablePlates.map((plate) => (
+                        <option key={plate} value={plate}>
+                          {plate} (Müsait)
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Aktif dağıtımda olan araçlar listede görüntülenmez; yalnızca seferini tamamlayıp bitiş raporu alınan araçlar seçilebilir.
+                    </p>
+                  </>
+                )}
               </div>
 
               {/* Products Quantities */}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Customer, Product, Dispatch, User } from '../../types';
+import { Customer, Product, Dispatch, User, ProductCategory } from '../../types';
 import {
   Search,
   Plus,
@@ -11,9 +11,14 @@ import {
   MapPin,
   Building2,
   Mail,
-  X
+  X,
+  Package,
+  ShoppingBag,
+  CreditCard,
+  Banknote,
+  Info
 } from 'lucide-react';
-import { createDelivery, createCustomer } from '../../services/api';
+import { createDelivery, createCustomer, createProduct } from '../../services/api';
 
 interface DeliveryModalProps {
   isOpen: boolean;
@@ -34,6 +39,13 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   products,
   onDeliveryCreated,
 }) => {
+  // Local products list so newly created products are immediately selectable
+  const [allProducts, setAllProducts] = useState<Product[]>(products);
+
+  useEffect(() => {
+    setAllProducts(products);
+  }, [products]);
+
   // Step 1: Customer selection
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerSearch, setCustomerSearch] = useState('');
@@ -46,7 +58,17 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const [newCustEmails, setNewCustEmails] = useState('');
   const [newCustIsAccount, setNewCustIsAccount] = useState(true);
 
-  // Step 2: Product items & quantities
+  // Step 2: Product search & selection
+  const [productSearch, setProductSearch] = useState('');
+  const [showNewProductForm, setShowNewProductForm] = useState(false);
+  const [newProdName, setNewProdName] = useState('');
+  const [newProdCategory, setNewProdCategory] = useState<ProductCategory>('damacana');
+  const [newProdPrice, setNewProdPrice] = useState('120');
+  const [newProdUnit, setNewProdUnit] = useState('Adet');
+  const [newProdIsDeposit, setNewProdIsDeposit] = useState(true);
+  const [newProdDepositType, setNewProdDepositType] = useState<'none' | 'damacana' | 'tup'>('damacana');
+
+  // Quantities & Unit prices
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [unitPrices, setUnitPrices] = useState<Record<string, number>>({});
   const [editingPriceProductId, setEditingPriceProductId] = useState<string | null>(null);
@@ -55,7 +77,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const [emptyDamacanaReturned, setEmptyDamacanaReturned] = useState<number>(0);
   const [emptyTupReturned, setEmptyTupReturned] = useState<number>(0);
 
-  // Step 4: Payment
+  // Payment
   const [paymentType, setPaymentType] = useState<'full' | 'unpaid' | 'custom'>('full');
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'POS' | 'MIXED'>('CASH');
   const [cashAmountInput, setCashAmountInput] = useState<string>('0');
@@ -64,27 +86,27 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // When customer is selected, initialize prices with customer's memory
+  // When customer is selected, initialize prices with customer's custom prices or product defaults
   useEffect(() => {
     if (selectedCustomer) {
       const initialPrices: Record<string, number> = {};
-      products.forEach((p) => {
+      allProducts.forEach((p) => {
         initialPrices[p.id] =
           selectedCustomer.customPrices?.[p.id] ?? p.defaultUnitPrice;
       });
       setUnitPrices(initialPrices);
     }
-  }, [selectedCustomer, products]);
+  }, [selectedCustomer, allProducts]);
 
-  // Calculate totals
+  // Delivered items calculation
   const deliveredItems = Object.entries(quantities)
     .filter(([_, q]) => q > 0)
     .map(([productId, quantity]) => {
-      const p = products.find((prod) => prod.id === productId)!;
-      const unitPrice = unitPrices[productId] ?? p.defaultUnitPrice;
+      const p = allProducts.find((prod) => prod.id === productId)!;
+      const unitPrice = unitPrices[productId] ?? p?.defaultUnitPrice ?? 100;
       return {
         productId,
-        productName: p.name,
+        productName: p?.name || 'Ürün',
         quantity,
         unitPrice,
         lineTotal: quantity * unitPrice,
@@ -97,21 +119,19 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   let deliveredDepositDamacana = 0;
   let deliveredDepositTup = 0;
   deliveredItems.forEach((item) => {
-    const p = products.find((prod) => prod.id === item.productId);
+    const p = allProducts.find((prod) => prod.id === item.productId);
     if (p?.depositType === 'damacana') deliveredDepositDamacana += item.quantity;
     if (p?.depositType === 'tup') deliveredDepositTup += item.quantity;
   });
 
-  // Automatically sync default empties count when delivered deposit items change
   const handleQuantityChange = (productId: string, newQty: number) => {
     setQuantities((prev) => {
       const updated = { ...prev, [productId]: Math.max(0, newQty) };
-      // Auto suggest empties if empty field wasn't manually altered yet
-      const p = products.find((prod) => prod.id === productId);
+      const p = allProducts.find((prod) => prod.id === productId);
       if (p?.depositType === 'damacana') {
         let totalDam = 0;
         Object.entries(updated).forEach(([pId, q]) => {
-          if (products.find((x) => x.id === pId)?.depositType === 'damacana') totalDam += q;
+          if (allProducts.find((x) => x.id === pId)?.depositType === 'damacana') totalDam += q;
         });
         setEmptyDamacanaReturned(totalDam);
       }
@@ -129,7 +149,6 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         setCashAmountInput('0');
         setPosAmountInput(grandTotal.toString());
       } else {
-        // Mixed default
         const half = Math.floor(grandTotal / 2);
         setCashAmountInput(half.toString());
         setPosAmountInput((grandTotal - half).toString());
@@ -145,9 +164,13 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const totalCollectedVal = cashVal + posVal;
   const uncollectedDiff = grandTotal - totalCollectedVal;
 
+  // New Customer submit
   const handleCreateNewCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCustName.trim()) return;
+    if (!newCustName.trim()) {
+      setErrorMsg('Lütfen müşteri adını giriniz');
+      return;
+    }
 
     const parsedEmails = newCustEmails
       .split(/[,;\s]+/)
@@ -155,6 +178,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       .filter((s) => s.length > 0 && s.includes('@'));
 
     try {
+      setErrorMsg(null);
       const created = await createCustomer({
         name: newCustName.trim(),
         phone: newCustPhone.trim(),
@@ -162,6 +186,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         emails: parsedEmails,
         isAccountCustomer: newCustIsAccount,
       });
+      // Automatically select created customer and proceed to product selection
       setSelectedCustomer(created);
       setShowNewCustomerForm(false);
       setNewCustName('');
@@ -169,17 +194,49 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       setNewCustAddress('');
       setNewCustEmails('');
     } catch (err: any) {
-      alert(err.message || 'Müşteri oluşturulamadı');
+      setErrorMsg(err.message || 'Müşteri oluşturulamadı');
     }
   };
 
+  // New Product submit
+  const handleCreateNewProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProdName.trim()) {
+      setErrorMsg('Lütfen ürün adını giriniz');
+      return;
+    }
+
+    try {
+      setErrorMsg(null);
+      const created = await createProduct({
+        name: newProdName.trim(),
+        category: newProdCategory,
+        defaultUnitPrice: Number(newProdPrice) || 100,
+        unit: newProdUnit.trim() || 'Adet',
+        isDeposit: newProdIsDeposit,
+        depositType: newProdIsDeposit ? newProdDepositType : 'none',
+      });
+
+      // Update local product list and auto-select product with quantity 1
+      setAllProducts((prev) => [...prev, created]);
+      setQuantities((prev) => ({ ...prev, [created.id]: 1 }));
+      setUnitPrices((prev) => ({ ...prev, [created.id]: created.defaultUnitPrice }));
+      setShowNewProductForm(false);
+      setNewProdName('');
+      setProductSearch('');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Ürün oluşturulamadı');
+    }
+  };
+
+  // Submit Delivery
   const handleSubmitDelivery = async () => {
     if (!selectedCustomer) {
       setErrorMsg('Lütfen önce bir müşteri seçiniz');
       return;
     }
     if (deliveredItems.length === 0) {
-      setErrorMsg('En az bir ürün teslim etmelisiniz');
+      setErrorMsg('Lütfen teslim edilecek en az bir ürün seçiniz ve adedini giriniz');
       return;
     }
 
@@ -224,8 +281,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
   if (!isOpen) return null;
 
+  // Filter customers
   const filteredCustomers = customers.filter((c) => {
-    const term = customerSearch.toLowerCase();
+    const term = customerSearch.toLowerCase().trim();
+    if (!term) return true;
     return (
       c.name.toLowerCase().includes(term) ||
       c.address.toLowerCase().includes(term) ||
@@ -234,20 +293,53 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     );
   });
 
+  // Filter products for Step 2
+  const filteredProducts = allProducts.filter((p) => {
+    const term = productSearch.toLowerCase().trim();
+    if (!term) return true;
+    return (
+      p.name.toLowerCase().includes(term) ||
+      p.category.toLowerCase().includes(term)
+    );
+  });
+
+  // Stock check helper: find loaded qty on vehicle
+  const getVehicleStock = (productId: string) => {
+    const item = dispatch.loadedItems.find((i) => i.productId === productId);
+    return item ? item.quantity : 0;
+  };
+
+  // Check if any product quantity exceeds vehicle loaded stock
+  const stockWarnings = deliveredItems
+    .map((item) => {
+      const vehicleQty = getVehicleStock(item.productId);
+      if (item.quantity > vehicleQty) {
+        return {
+          productName: item.productName,
+          qty: item.quantity,
+          vehicleQty,
+        };
+      }
+      return null;
+    })
+    .filter(Boolean) as { productName: string; qty: number; vehicleQty: number }[];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
-      <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 my-auto max-h-[92vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto">
+      <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 my-auto max-h-[94vh] flex flex-col">
         
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
           <div>
             <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <span>Hızlı Teslimat & Tahsilat Girişi</span>
-              <span className="text-xs px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-mono">
+              <span>Yeni Teslimat Girişi</span>
+              <span className="text-xs px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-mono font-bold">
                 {dispatch.vehiclePlate}
               </span>
             </h2>
-            <p className="text-xs text-slate-500">Müşteri seçin, teslim edilenleri ve tahsilatı girin</p>
+            <p className="text-xs text-slate-500">
+              {selectedCustomer ? 'Müşteri seçildi, teslim edilecek ürünleri belirleyiniz' : 'Adım 1: Önce teslimat yapılacak müşteriyi seçiniz'}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -266,75 +358,85 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
             </div>
           )}
 
-          {/* Section 1: Customer Selection */}
-          <div>
-            <label className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider block mb-2">
-              1. Müşteri Seçimi
-            </label>
+          {/* ============================================================== */}
+          {/* STEP 1: CUSTOMER SELECTION (ALWAYS FIRST)                     */}
+          {/* ============================================================== */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] flex items-center justify-center font-bold">1</span>
+                <span>Müşteri Seçimi</span>
+              </label>
+              {selectedCustomer && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedCustomer(null)}
+                  className="text-xs font-semibold text-sky-600 hover:text-sky-800 dark:text-sky-400 hover:underline"
+                >
+                  Müşteriyi Değiştir
+                </button>
+              )}
+            </div>
 
             {!selectedCustomer ? (
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 <div className="flex items-center gap-2">
                   <div className="relative flex-1">
                     <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
-                      placeholder="Müşteri adı, adres veya telefon ile ara..."
+                      autoFocus
+                      placeholder="Müşteri adı veya telefon ile ara..."
                       value={customerSearch}
                       onChange={(e) => setCustomerSearch(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
                     />
                   </div>
                   <button
                     type="button"
-                    onClick={() => setShowNewCustomerForm(true)}
-                    className="px-3 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold flex items-center gap-1 shrink-0"
+                    onClick={() => setShowNewCustomerForm(!showNewCustomerForm)}
+                    className="px-3 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold flex items-center gap-1 shrink-0 active:scale-95 transition-all shadow-sm"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Yeni Müşteri</span>
+                    <span>Yeni Müşteri Ekle</span>
                   </button>
                 </div>
 
                 {/* Inline New Customer Form */}
                 {showNewCustomerForm && (
-                  <div className="p-4 rounded-xl border border-sky-200 dark:border-sky-800 bg-sky-50/50 dark:bg-sky-950/20 space-y-3">
+                  <form onSubmit={handleCreateNewCustomer} className="p-3.5 rounded-xl border border-sky-200 dark:border-sky-800 bg-sky-50/50 dark:bg-sky-950/20 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-sky-900 dark:text-sky-300">Anında Yeni Müşteri Ekle</span>
+                      <span className="text-xs font-bold text-sky-900 dark:text-sky-300">Yeni Müşteri Kaydı</span>
                       <button
+                        type="button"
                         onClick={() => setShowNewCustomerForm(false)}
                         className="text-xs text-slate-400 hover:text-slate-600"
                       >
-                        Vazgeç
+                        Kapat
                       </button>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                       <input
                         type="text"
+                        required
                         placeholder="Müşteri / İşletme Adı *"
                         value={newCustName}
                         onChange={(e) => setNewCustName(e.target.value)}
-                        className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                        className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-semibold"
                       />
                       <input
                         type="text"
                         placeholder="Telefon Numarası"
                         value={newCustPhone}
                         onChange={(e) => setNewCustPhone(e.target.value)}
-                        className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                        className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                       />
                       <input
                         type="text"
-                        placeholder="Adres / Kat / Daire"
+                        placeholder="Adres / Cadde / Kat"
                         value={newCustAddress}
                         onChange={(e) => setNewCustAddress(e.target.value)}
-                        className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white sm:col-span-2"
-                      />
-                      <input
-                        type="text"
-                        placeholder="E-Posta (İsteğe bağlı, virgülle birden fazla girilebilir)"
-                        value={newCustEmails}
-                        onChange={(e) => setNewCustEmails(e.target.value)}
-                        className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white sm:col-span-2"
+                        className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white sm:col-span-2"
                       />
                     </div>
                     <div className="flex items-center justify-between pt-1">
@@ -345,32 +447,42 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                           onChange={(e) => setNewCustIsAccount(e.target.checked)}
                           className="rounded text-sky-600 focus:ring-sky-500 w-4 h-4"
                         />
-                        <span>Cari / Açık Hesap Müşterisi (Veresiye Takibi Yapılsın)</span>
+                        <span>Cari / Açık Hesap Müşterisi</span>
                       </label>
                       <button
-                        type="button"
-                        onClick={handleCreateNewCustomer}
-                        className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs"
+                        type="submit"
+                        className="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs shadow-sm"
                       >
                         Kaydet & Seç
                       </button>
                     </div>
-                  </div>
+                  </form>
                 )}
 
                 {/* Customer search list */}
-                <div className="max-h-48 overflow-y-auto space-y-1.5 border border-slate-100 dark:border-slate-800 rounded-xl p-1 bg-slate-50/50 dark:bg-slate-800/30">
+                <div className="max-h-52 overflow-y-auto space-y-1.5 border border-slate-100 dark:border-slate-800 rounded-xl p-1 bg-slate-50/50 dark:bg-slate-800/30">
                   {filteredCustomers.length === 0 ? (
-                    <div className="p-3 text-center text-xs text-slate-400">
-                      Müşteri bulunamadı. "Yeni Müşteri" butonundan hemen ekleyebilirsiniz.
+                    <div className="p-4 text-center text-xs text-slate-400 space-y-2">
+                      <p>Aramaya uygun kayıtlı müşteri bulunamadı.</p>
+                      <button
+                        type="button"
+                        onClick={() => setShowNewCustomerForm(true)}
+                        className="px-3 py-1.5 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-semibold text-xs inline-flex items-center gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>"{customerSearch}" Adıyla Yeni Müşteri Ekle</span>
+                      </button>
                     </div>
                   ) : (
                     filteredCustomers.map((c) => (
                       <button
                         key={c.id}
                         type="button"
-                        onClick={() => setSelectedCustomer(c)}
-                        className="w-full text-left p-2.5 rounded-lg hover:bg-white dark:hover:bg-slate-800 transition-colors flex items-center justify-between border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                        onClick={() => {
+                          setSelectedCustomer(c);
+                          setErrorMsg(null);
+                        }}
+                        className="w-full text-left p-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition-colors flex items-center justify-between border border-transparent hover:border-slate-200 dark:hover:border-slate-700 shadow-2xs"
                       >
                         <div className="space-y-0.5">
                           <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
@@ -381,23 +493,23 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] text-slate-500 truncate max-w-sm">{c.address}</div>
-                          {c.emails && c.emails.length > 0 && (
-                            <div className="text-[10px] text-sky-600 dark:text-sky-400 font-mono truncate max-w-sm">
-                              ✉ {c.emails.join(', ')}
+                          <div className="text-[11px] text-slate-500 truncate max-w-sm">{c.address || 'Adres bilgisi yok'}</div>
+                          {c.phone && (
+                            <div className="text-[10px] text-slate-400 font-mono">
+                              📞 {c.phone}
                             </div>
                           )}
                         </div>
 
                         <div className="text-right shrink-0">
-                          {c.emptyDepositBalance?.damacana > 0 && (
-                            <div className="text-[10px] font-semibold text-orange-600">
-                              {c.emptyDepositBalance.damacana} Boş Borcu
-                            </div>
-                          )}
                           {c.currentBalanceTL > 0 && (
                             <div className="text-[11px] font-mono font-bold text-red-600">
                               {c.currentBalanceTL.toLocaleString('tr-TR')} ₺ Borç
+                            </div>
+                          )}
+                          {c.emptyDepositBalance?.damacana > 0 && (
+                            <div className="text-[10px] font-semibold text-orange-600">
+                              {c.emptyDepositBalance.damacana} Boş Borcu
                             </div>
                           )}
                         </div>
@@ -423,35 +535,25 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-600 dark:text-slate-300">
+                  <div className="flex flex-wrap items-center gap-3 mt-1 text-[11px] text-slate-600 dark:text-slate-300">
                     <span className="flex items-center gap-1">
                       <MapPin className="w-3 h-3 text-slate-400" />
-                      {selectedCustomer.address}
+                      {selectedCustomer.address || 'Adres yok'}
                     </span>
                     {selectedCustomer.phone && (
-                      <span className="flex items-center gap-1">
+                      <span className="flex items-center gap-1 font-mono">
                         <Phone className="w-3 h-3 text-slate-400" />
                         {selectedCustomer.phone}
                       </span>
                     )}
                   </div>
 
-                  {selectedCustomer.emails && selectedCustomer.emails.length > 0 && (
-                    <div className="flex items-center gap-1.5 mt-1 text-[11px] text-sky-700 dark:text-sky-300">
-                      <Mail className="w-3 h-3 text-sky-500 shrink-0" />
-                      <span className="font-mono truncate">{selectedCustomer.emails.join(', ')}</span>
-                    </div>
-                  )}
-
-                  {/* Customer Badges: Deposit debt & Balance */}
                   <div className="flex flex-wrap items-center gap-2 mt-2">
                     {(selectedCustomer.emptyDepositBalance?.damacana > 0 ||
                       selectedCustomer.emptyDepositBalance?.tup > 0) && (
                       <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300">
                         Müşteride Kalan Boş: {selectedCustomer.emptyDepositBalance?.damacana || 0} Damacana
-                        {selectedCustomer.emptyDepositBalance?.tup > 0
-                          ? `, ${selectedCustomer.emptyDepositBalance.tup} Tüp`
-                          : ''}
+                        {selectedCustomer.emptyDepositBalance?.tup > 0 ? `, ${selectedCustomer.emptyDepositBalance.tup} Tüp` : ''}
                       </span>
                     )}
 
@@ -474,7 +576,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setSelectedCustomer(null)}
-                  className="text-xs font-semibold text-sky-600 hover:text-sky-800 dark:text-sky-400 hover:underline shrink-0"
+                  className="px-2.5 py-1 rounded-lg border border-sky-300 text-sky-700 hover:bg-sky-100 text-xs font-semibold shrink-0"
                 >
                   Değiştir
                 </button>
@@ -482,388 +584,529 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
             )}
           </div>
 
-          {/* Section 2: Products & Customer-specific Pricing */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                2. Teslim Edilen Ürünler & Birim Fiyatlar
-              </label>
-              <span className="text-[11px] text-slate-500">
-                Fiyat müşteriye göre değiştirilebilir (otomatik hatırlanır)
-              </span>
-            </div>
+          {/* ============================================================== */}
+          {/* STEP 2: PRODUCT SELECTION (ONLY AFTER CUSTOMER IS SELECTED)   */}
+          {/* ============================================================== */}
+          {selectedCustomer && (
+            <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] flex items-center justify-center font-bold">2</span>
+                  <span>Ürün Arama ve Seçimi</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowNewProductForm(!showNewProductForm)}
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Yeni Ürün Ekle</span>
+                </button>
+              </div>
 
-            <div className="space-y-2">
-              {products.map((p) => {
-                const qty = quantities[p.id] || 0;
-                const unitPrice = unitPrices[p.id] ?? p.defaultUnitPrice;
-                const lineTotal = qty * unitPrice;
-                const isEditingPrice = editingPriceProductId === p.id;
-                const isCustomerSpecific =
-                  selectedCustomer?.customPrices?.[p.id] !== undefined;
+              {/* Product search box */}
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Ürün adı ile ara (Damacana, Tüp, Pet su vb.)..."
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+                />
+              </div>
 
-                return (
-                  <div
-                    key={p.id}
-                    className={`p-3 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
-                      qty > 0
-                        ? 'border-sky-300 bg-sky-50/20 dark:border-sky-800 dark:bg-sky-950/20 shadow-xs'
-                        : 'border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20'
-                    }`}
-                  >
-                    <div>
-                      <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        <span>{p.name}</span>
-                        {isCustomerSpecific && (
-                          <span className="text-[10px] text-sky-700 font-normal bg-sky-100 dark:bg-sky-900 px-1 py-0.2 rounded">
-                            Özel Fiyat
-                          </span>
-                        )}
-                      </div>
+              {/* Inline New Product Form */}
+              {showNewProductForm && (
+                <form onSubmit={handleCreateNewProduct} className="p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-indigo-900 dark:text-indigo-300">Hızlı Yeni Ürün Tanımla</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowNewProductForm(false)}
+                      className="text-xs text-slate-400 hover:text-slate-600"
+                    >
+                      Kapat
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ürün Adı *"
+                      value={newProdName}
+                      onChange={(e) => setNewProdName(e.target.value)}
+                      className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white sm:col-span-2"
+                    />
+                    <select
+                      value={newProdCategory}
+                      onChange={(e) => setNewProdCategory(e.target.value as ProductCategory)}
+                      className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                    >
+                      <option value="damacana">Damacana Su</option>
+                      <option value="tup">Tüp</option>
+                      <option value="pet">Pet Su</option>
+                      <option value="bardak">Bardak</option>
+                      <option value="soda">Soda / Gazoz</option>
+                    </select>
+                    <input
+                      type="number"
+                      required
+                      placeholder="Birim Fiyat (₺) *"
+                      value={newProdPrice}
+                      onChange={(e) => setNewProdPrice(e.target.value)}
+                      className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Birim (Örn: Adet, Koli)"
+                      value={newProdUnit}
+                      onChange={(e) => setNewProdUnit(e.target.value)}
+                      className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                    />
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={newProdIsDeposit}
+                          onChange={(e) => setNewProdIsDeposit(e.target.checked)}
+                          className="rounded text-indigo-600 w-4 h-4"
+                        />
+                        <span>İadeli Boş Kap</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-sm"
+                    >
+                      Ürünü Kaydet & Teslimata Ekle
+                    </button>
+                  </div>
+                </form>
+              )}
 
-                      {/* Price display & inline edit */}
-                      <div className="flex items-center gap-2 mt-0.5 text-xs">
-                        <span className="text-slate-500">Birim:</span>
-                        {isEditingPrice ? (
-                          <div className="flex items-center gap-1">
+              {/* Product selection cards */}
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                {filteredProducts.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-slate-400 space-y-2">
+                    <p>Aranan isimde ürün bulunamadı.</p>
+                    <button
+                      type="button"
+                      onClick={() => setShowNewProductForm(true)}
+                      className="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-semibold text-xs inline-flex items-center gap-1"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>"{productSearch}" Ürününü Şimdi Ekle</span>
+                    </button>
+                  </div>
+                ) : (
+                  filteredProducts.map((p) => {
+                    const qty = quantities[p.id] || 0;
+                    const unitPrice = unitPrices[p.id] ?? p.defaultUnitPrice;
+                    const lineTotal = qty * unitPrice;
+                    const vehicleStock = getVehicleStock(p.id);
+                    const isEditingPrice = editingPriceProductId === p.id;
+                    const isCustomerSpecific = selectedCustomer?.customPrices?.[p.id] !== undefined;
+
+                    return (
+                      <div
+                        key={p.id}
+                        className={`p-3 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
+                          qty > 0
+                            ? 'border-sky-400 bg-sky-50/30 dark:border-sky-800 dark:bg-sky-950/20 shadow-2xs'
+                            : 'border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20'
+                        }`}
+                      >
+                        <div>
+                          <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                            <span>{p.name}</span>
+                            {isCustomerSpecific && (
+                              <span className="text-[10px] text-sky-700 font-medium bg-sky-100 dark:bg-sky-900 px-1 py-0.2 rounded">
+                                Müşteriye Özel Fiyat
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-3 mt-1 text-xs">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-slate-500">Birim Fiyat:</span>
+                              {isEditingPrice ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    value={unitPrice}
+                                    onChange={(e) =>
+                                      setUnitPrices((prev) => ({
+                                        ...prev,
+                                        [p.id]: Math.max(0, parseFloat(e.target.value) || 0),
+                                      }))
+                                    }
+                                    className="w-16 h-6 rounded border border-sky-400 font-mono font-bold text-center text-xs bg-white dark:bg-slate-800"
+                                    autoFocus
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingPriceProductId(null)}
+                                    className="p-1 rounded bg-sky-600 text-white"
+                                  >
+                                    <Check className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingPriceProductId(p.id)}
+                                  className="flex items-center gap-1 font-mono font-bold text-slate-800 dark:text-slate-200 hover:text-sky-600"
+                                  title="Fiyatı Düzenle"
+                                >
+                                  <span>{unitPrice} ₺</span>
+                                  <Edit2 className="w-2.5 h-2.5 text-slate-400" />
+                                </button>
+                              )}
+                            </div>
+
+                            <span className="text-slate-400">· {p.unit}</span>
+
+                            <span className="text-[11px] font-medium text-slate-500 font-mono">
+                              (Araçta: {vehicleStock})
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Quantity selection */}
+                        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleQuantityChange(p.id, qty - 1)}
+                              className="w-8 h-8 rounded-lg bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center text-sm active:scale-95"
+                            >
+                              -
+                            </button>
                             <input
                               type="number"
-                              value={unitPrice}
+                              value={qty === 0 ? '' : qty}
                               onChange={(e) =>
-                                setUnitPrices((prev) => ({
-                                  ...prev,
-                                  [p.id]: Math.max(0, parseFloat(e.target.value) || 0),
-                                }))
+                                handleQuantityChange(p.id, parseInt(e.target.value) || 0)
                               }
-                              className="w-16 h-7 rounded border border-sky-400 font-mono font-bold text-center text-xs bg-white dark:bg-slate-800"
-                              autoFocus
+                              placeholder="0"
+                              className="w-12 h-8 rounded-lg border border-slate-200 dark:border-slate-700 text-center font-bold font-mono text-xs dark:bg-slate-800 dark:text-white"
                             />
                             <button
                               type="button"
-                              onClick={() => setEditingPriceProductId(null)}
-                              className="p-1 rounded bg-sky-600 text-white"
+                              onClick={() => handleQuantityChange(p.id, qty + 1)}
+                              className="w-8 h-8 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-600 font-bold flex items-center justify-center text-sm active:scale-95"
                             >
-                              <Check className="w-3 h-3" />
+                              +
                             </button>
                           </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setEditingPriceProductId(p.id)}
-                            className="flex items-center gap-1 font-mono font-bold text-slate-800 dark:text-slate-200 hover:text-sky-600 group"
-                            title="Müşteriye özel birim fiyatı değiştir"
-                          >
-                            <span>{unitPrice} ₺</span>
-                            <Edit2 className="w-2.5 h-2.5 text-slate-400 group-hover:text-sky-600" />
-                          </button>
-                        )}
-                        <span className="text-slate-400">· {p.unit}</span>
+
+                          <div className="w-20 text-right">
+                            <span className="font-mono font-bold text-xs tabular-nums text-slate-900 dark:text-white">
+                              {lineTotal > 0 ? `${lineTotal.toLocaleString('tr-TR')} ₺` : '-'}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-
-                    {/* Quantity selectors & line total */}
-                    <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleQuantityChange(p.id, qty - 1)}
-                          className="w-8 h-8 rounded-lg bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center text-sm active:scale-95"
-                        >
-                          -
-                        </button>
-                        <input
-                          type="number"
-                          value={qty === 0 ? '' : qty}
-                          onChange={(e) =>
-                            handleQuantityChange(p.id, parseInt(e.target.value) || 0)
-                          }
-                          placeholder="0"
-                          className="w-12 h-8 rounded-lg border border-slate-200 dark:border-slate-700 text-center font-bold font-mono text-xs dark:bg-slate-800 dark:text-white"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleQuantityChange(p.id, qty + 1)}
-                          className="w-8 h-8 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-600 font-bold flex items-center justify-center text-sm active:scale-95"
-                        >
-                          +
-                        </button>
-                      </div>
-
-                      <div className="w-20 text-right">
-                        <span className="font-mono font-bold text-xs tabular-nums text-slate-900 dark:text-white">
-                          {lineTotal > 0 ? `${lineTotal.toLocaleString('tr-TR')} ₺` : '-'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Section 3: Deposit Empties Returned */}
-          {(deliveredDepositDamacana > 0 || deliveredDepositTup > 0) && (
-            <div className="p-3.5 rounded-xl border border-orange-200 dark:border-orange-900/60 bg-orange-50/40 dark:bg-orange-950/20 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-orange-900 dark:text-orange-300 flex items-center gap-1.5">
-                  <RotateCcw className="w-4 h-4 text-orange-600" />
-                  <span>3. Müşteriden Alınan Boş Kap Sayısı</span>
-                </span>
-                <span className="text-[11px] text-orange-700 dark:text-orange-400">
-                  Verilen Dolu: {deliveredDepositDamacana} Damacana {deliveredDepositTup > 0 ? `, ${deliveredDepositTup} Tüp` : ''}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {deliveredDepositDamacana > 0 && (
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-orange-100 dark:border-orange-800">
-                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                      Alınan Boş Damacana
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setEmptyDamacanaReturned((prev) => Math.max(0, prev - 1))}
-                        className="w-7 h-7 rounded bg-slate-100 dark:bg-slate-700 text-xs font-bold"
-                      >
-                        -
-                      </button>
-                      <input
-                        type="number"
-                        value={emptyDamacanaReturned}
-                        onChange={(e) => setEmptyDamacanaReturned(parseInt(e.target.value) || 0)}
-                        className="w-12 h-7 rounded border border-orange-200 text-center font-mono font-bold text-xs"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setEmptyDamacanaReturned((prev) => prev + 1)}
-                        className="w-7 h-7 rounded bg-orange-50 text-orange-600 text-xs font-bold"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {deliveredDepositTup > 0 && (
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-orange-100 dark:border-orange-800">
-                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                      Alınan Boş Tüp
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setEmptyTupReturned((prev) => Math.max(0, prev - 1))}
-                        className="w-7 h-7 rounded bg-slate-100 dark:bg-slate-700 text-xs font-bold"
-                      >
-                        -
-                      </button>
-                      <input
-                        type="number"
-                        value={emptyTupReturned}
-                        onChange={(e) => setEmptyTupReturned(parseInt(e.target.value) || 0)}
-                        className="w-12 h-7 rounded border border-orange-200 text-center font-mono font-bold text-xs"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setEmptyTupReturned((prev) => prev + 1)}
-                        className="w-7 h-7 rounded bg-orange-50 text-orange-600 text-xs font-bold"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
+                    );
+                  })
                 )}
               </div>
-
-              {deliveredDepositDamacana - emptyDamacanaReturned !== 0 && (
-                <div className="text-[11px] text-orange-800 dark:text-orange-300">
-                  {deliveredDepositDamacana - emptyDamacanaReturned > 0 ? (
-                    <span>
-                      ⚠️ <strong>{deliveredDepositDamacana - emptyDamacanaReturned} adet boş eksik alındı.</strong> Müşterinin boş damacana borcuna işlenecektir.
-                    </span>
-                  ) : (
-                    <span>
-                      ℹ️ Müşteri fazladan <strong>{emptyDamacanaReturned - deliveredDepositDamacana} adet boş teslim etti.</strong> Emanet borcundan düşülecektir.
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
           )}
 
-          {/* Section 4: Flexible Collection & Payment */}
-          <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                4. Tahsilat & Ödeme Girişi
+          {/* ============================================================== */}
+          {/* STEP 3: DELIVERY DETAILS, STOCK WARNING & PAYMENT              */}
+          {/* ============================================================== */}
+          {selectedCustomer && deliveredItems.length > 0 && (
+            <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <label className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] flex items-center justify-center font-bold">3</span>
+                <span>Teslimat & Tahsilat Detayları</span>
               </label>
-              <div className="text-right">
-                <span className="text-[11px] text-slate-500">Teslimat Tutarı:</span>
-                <span className="font-mono font-extrabold text-base text-slate-900 dark:text-white ml-1.5 tabular-nums">
-                  {grandTotal.toLocaleString('tr-TR')} ₺
-                </span>
-              </div>
-            </div>
 
-            {/* Quick Collection Type Buttons */}
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => setPaymentType('full')}
-                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                  paymentType === 'full'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
-                }`}
-              >
-                Tam Tahsilat ({grandTotal} ₺)
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPaymentType('unpaid')}
-                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                  paymentType === 'unpaid'
-                    ? 'bg-amber-600 text-white shadow-xs'
-                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
-                }`}
-              >
-                Tahsilat Alınmadı (0 ₺)
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPaymentType('custom')}
-                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                  paymentType === 'custom'
-                    ? 'bg-sky-600 text-white shadow-xs'
-                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
-                }`}
-              >
-                Kısmi / Farklı Tutar
-              </button>
-            </div>
-
-            {/* Payment Method Selector (Nakit / POS / Karma) */}
-            {paymentType !== 'unpaid' && (
-              <div className="pt-2">
-                <span className="text-[11px] font-semibold text-slate-500 block mb-1.5">Ödeme Yöntemi:</span>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('CASH')}
-                    className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
-                      paymentMethod === 'CASH'
-                        ? 'bg-emerald-100 text-emerald-800 border-2 border-emerald-500'
-                        : 'bg-white dark:bg-slate-800 text-slate-700 border border-slate-200'
-                    }`}
-                  >
-                    Nakit
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('POS')}
-                    className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
-                      paymentMethod === 'POS'
-                        ? 'bg-indigo-100 text-indigo-800 border-2 border-indigo-500'
-                        : 'bg-white dark:bg-slate-800 text-slate-700 border border-slate-200'
-                    }`}
-                  >
-                    POS (Kredi Kartı)
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('MIXED')}
-                    className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
-                      paymentMethod === 'MIXED'
-                        ? 'bg-sky-100 text-sky-800 border-2 border-sky-500'
-                        : 'bg-white dark:bg-slate-800 text-slate-700 border border-slate-200'
-                    }`}
-                  >
-                    Karma (Nakit + POS)
-                  </button>
+              {/* Stock Overflow Non-blocking Warning (Kullanıcı: "aşımı engellemeye gerek yok ama uyarı verebilir") */}
+              {stockWarnings.length > 0 && (
+                <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-xs space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Araç Stok Aşımı Uyarısı</span>
+                  </div>
+                  {stockWarnings.map((w, idx) => (
+                    <p key={idx} className="text-[11px]">
+                      ⚠️ <strong>{w.productName}</strong> için girilen miktar ({w.qty}), araçtaki yüklü stoğu ({w.vehicleQty}) aşıyor. Teslimat kaydedilebilir ancak gün sonu sayımında dikkate alınacaktır.
+                    </p>
+                  ))}
                 </div>
+              )}
 
-                {/* Amount Inputs */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                  {(paymentMethod === 'CASH' || paymentMethod === 'MIXED') && (
-                    <div>
-                      <label className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 block mb-1">
-                        Fiilen Alınan Nakit (₺)
-                      </label>
-                      <input
-                        type="number"
-                        value={cashAmountInput}
-                        onChange={(e) => {
-                          setPaymentType('custom');
-                          setCashAmountInput(e.target.value);
-                        }}
-                        className="w-full p-2 rounded-lg border border-emerald-300 font-mono font-bold text-sm bg-white dark:bg-slate-800"
-                      />
-                    </div>
-                  )}
-
-                  {(paymentMethod === 'POS' || paymentMethod === 'MIXED') && (
-                    <div>
-                      <label className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-400 block mb-1">
-                        POS Cihazından Çekilen (₺)
-                      </label>
-                      <input
-                        type="number"
-                        value={posAmountInput}
-                        onChange={(e) => {
-                          setPaymentType('custom');
-                          setPosAmountInput(e.target.value);
-                        }}
-                        className="w-full p-2 rounded-lg border border-indigo-300 font-mono font-bold text-sm bg-white dark:bg-slate-800"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Financial Reconciliation Summary Note */}
-            <div className="pt-2 border-t border-slate-200 dark:border-slate-700 text-xs">
-              <div className="flex items-center justify-between font-semibold">
-                <span>Fiilen Tahsil Edilen Toplam:</span>
-                <span className="font-mono text-emerald-600 font-bold tabular-nums">
-                  {totalCollectedVal.toLocaleString('tr-TR')} ₺
-                </span>
-              </div>
-
-              {uncollectedDiff !== 0 && selectedCustomer?.isAccountCustomer && (
-                <div className="mt-1 text-[11px] text-sky-800 dark:text-sky-300">
-                  {uncollectedDiff > 0 ? (
-                    <span>
-                      📋 Tahsil edilmeyen <strong>{uncollectedDiff.toLocaleString('tr-TR')} ₺</strong>, müşterinin cari borç bakiyesine eklenecektir.
+              {/* Deposit Empties Returned */}
+              {(deliveredDepositDamacana > 0 || deliveredDepositTup > 0) && (
+                <div className="p-3.5 rounded-xl border border-orange-200 dark:border-orange-900/60 bg-orange-50/40 dark:bg-orange-950/20 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-orange-900 dark:text-orange-300 flex items-center gap-1.5">
+                      <RotateCcw className="w-4 h-4 text-orange-600" />
+                      <span>Müşteriden Alınan Boş Emanet Kaplar</span>
                     </span>
-                  ) : (
-                    <span>
-                      ℹ️ Fazla alınan <strong>{Math.abs(uncollectedDiff).toLocaleString('tr-TR')} ₺</strong>, müşterinin cari hesabından düşülecektir.
+                    <span className="text-[11px] text-orange-700 dark:text-orange-400">
+                      Bırakılan Dolu: {deliveredDepositDamacana} Damacana {deliveredDepositTup > 0 ? `, ${deliveredDepositTup} Tüp` : ''}
                     </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {deliveredDepositDamacana > 0 && (
+                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-orange-100 dark:border-orange-800">
+                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                          Alınan Boş Damacana
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setEmptyDamacanaReturned((prev) => Math.max(0, prev - 1))}
+                            className="w-7 h-7 rounded bg-slate-100 dark:bg-slate-700 text-xs font-bold"
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            value={emptyDamacanaReturned}
+                            onChange={(e) => setEmptyDamacanaReturned(parseInt(e.target.value) || 0)}
+                            className="w-12 h-7 rounded border border-orange-200 text-center font-mono font-bold text-xs"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setEmptyDamacanaReturned((prev) => prev + 1)}
+                            className="w-7 h-7 rounded bg-orange-50 text-orange-600 text-xs font-bold"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {deliveredDepositTup > 0 && (
+                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-orange-100 dark:border-orange-800">
+                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                          Alınan Boş Tüp
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setEmptyTupReturned((prev) => Math.max(0, prev - 1))}
+                            className="w-7 h-7 rounded bg-slate-100 dark:bg-slate-700 text-xs font-bold"
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            value={emptyTupReturned}
+                            onChange={(e) => setEmptyTupReturned(parseInt(e.target.value) || 0)}
+                            className="w-12 h-7 rounded border border-orange-200 text-center font-mono font-bold text-xs"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setEmptyTupReturned((prev) => prev + 1)}
+                            className="w-7 h-7 rounded bg-orange-50 text-orange-600 text-xs font-bold"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {deliveredDepositDamacana - emptyDamacanaReturned !== 0 && (
+                    <div className="text-[11px] text-orange-800 dark:text-orange-300">
+                      {deliveredDepositDamacana - emptyDamacanaReturned > 0 ? (
+                        <span>
+                          ⚠️ <strong>{deliveredDepositDamacana - emptyDamacanaReturned} adet boş eksik alındı.</strong> Müşterinin emanet boş borcuna işlenecektir.
+                        </span>
+                      ) : (
+                        <span>
+                          ℹ️ Müşteri fazladan <strong>{emptyDamacanaReturned - deliveredDepositDamacana} adet boş teslim etti.</strong> Emanet borcundan düşülecektir.
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
-            </div>
-          </div>
 
-          {/* Notes */}
-          <div>
-            <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">
-              Teslimat Notu (İsteğe bağlı):
-            </label>
-            <input
-              type="text"
-              placeholder="Örn: Mutfak personeline teslim edildi, pos slipi zımbalandı..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs bg-slate-50 dark:bg-slate-800"
-            />
-          </div>
+              {/* Payment Section */}
+              <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                    Tahsilat & Ödeme Durumu
+                  </label>
+                  <div className="text-right">
+                    <span className="text-[11px] text-slate-500">Teslimat Tutarı:</span>
+                    <span className="font-mono font-extrabold text-base text-slate-900 dark:text-white ml-1.5 tabular-nums">
+                      {grandTotal.toLocaleString('tr-TR')} ₺
+                    </span>
+                  </div>
+                </div>
+
+                {/* Quick Payment Type Buttons */}
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentType('full')}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                      paymentType === 'full'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    Tam Tahsilat ({grandTotal} ₺)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentType('unpaid')}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                      paymentType === 'unpaid'
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    Tahsil Edilmedi (Borç / 0 ₺)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentType('custom')}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                      paymentType === 'custom'
+                        ? 'bg-sky-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    Kısmi / Farklı Tutar
+                  </button>
+                </div>
+
+                {/* Payment Method Selector */}
+                {paymentType !== 'unpaid' && (
+                  <div className="pt-2">
+                    <span className="text-[11px] font-semibold text-slate-500 block mb-1.5">Ödeme Yöntemi:</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('CASH')}
+                        className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+                          paymentMethod === 'CASH'
+                            ? 'bg-emerald-100 text-emerald-800 border-2 border-emerald-500'
+                            : 'bg-white dark:bg-slate-800 text-slate-700 border border-slate-200'
+                        }`}
+                      >
+                        Nakit
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('POS')}
+                        className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+                          paymentMethod === 'POS'
+                            ? 'bg-indigo-100 text-indigo-800 border-2 border-indigo-500'
+                            : 'bg-white dark:bg-slate-800 text-slate-700 border border-slate-200'
+                        }`}
+                      >
+                        POS (Kart)
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('MIXED')}
+                        className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+                          paymentMethod === 'MIXED'
+                            ? 'bg-sky-100 text-sky-800 border-2 border-sky-500'
+                            : 'bg-white dark:bg-slate-800 text-slate-700 border border-slate-200'
+                        }`}
+                      >
+                        Karma (Nakit+POS)
+                      </button>
+                    </div>
+
+                    {/* Amount Inputs */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                      {(paymentMethod === 'CASH' || paymentMethod === 'MIXED') && (
+                        <div>
+                          <label className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 block mb-1">
+                            Alınan Nakit (₺)
+                          </label>
+                          <input
+                            type="number"
+                            value={cashAmountInput}
+                            onChange={(e) => {
+                              setPaymentType('custom');
+                              setCashAmountInput(e.target.value);
+                            }}
+                            className="w-full p-2 rounded-lg border border-emerald-300 font-mono font-bold text-sm bg-white dark:bg-slate-800"
+                          />
+                        </div>
+                      )}
+
+                      {(paymentMethod === 'POS' || paymentMethod === 'MIXED') && (
+                        <div>
+                          <label className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-400 block mb-1">
+                            POS Cihazından Çekilen (₺)
+                          </label>
+                          <input
+                            type="number"
+                            value={posAmountInput}
+                            onChange={(e) => {
+                              setPaymentType('custom');
+                              setPosAmountInput(e.target.value);
+                            }}
+                            className="w-full p-2 rounded-lg border border-indigo-300 font-mono font-bold text-sm bg-white dark:bg-slate-800"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Balance impact summary */}
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-700 text-xs">
+                  <div className="flex items-center justify-between font-semibold">
+                    <span>Fiilen Tahsil Edilen Toplam:</span>
+                    <span className="font-mono text-emerald-600 font-bold tabular-nums">
+                      {totalCollectedVal.toLocaleString('tr-TR')} ₺
+                    </span>
+                  </div>
+
+                  {uncollectedDiff !== 0 && selectedCustomer?.isAccountCustomer && (
+                    <div className="mt-1 text-[11px] text-sky-800 dark:text-sky-300">
+                      {uncollectedDiff > 0 ? (
+                        <span>
+                          📋 Kalan <strong>{uncollectedDiff.toLocaleString('tr-TR')} ₺</strong>, müşterinin cari hesabına borç kaydedilecektir.
+                        </span>
+                      ) : (
+                        <span>
+                          ℹ️ Fazla alınan <strong>{Math.abs(uncollectedDiff).toLocaleString('tr-TR')} ₺</strong>, müşterinin cari bakiyesinden düşülecektir.
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">
+                  Teslimat Notu (İsteğe bağlı):
+                </label>
+                <input
+                  type="text"
+                  placeholder="Örn: 3. kat mutfağa bırakıldı, slip eklendi..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs bg-slate-50 dark:bg-slate-800"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer Actions */}
@@ -871,7 +1114,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold text-xs hover:bg-slate-100"
+            className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             İptal
           </button>
@@ -880,13 +1123,17 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
             type="button"
             onClick={handleSubmitDelivery}
             disabled={isSubmitting || !selectedCustomer || deliveredItems.length === 0}
-            className="flex-1 sm:flex-initial px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-sky-600/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+            className="flex-1 sm:flex-initial px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-sky-600/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <Check className="w-4 h-4" />
             <span>
               {isSubmitting
                 ? 'Kaydediliyor...'
-                : `Teslimatı Kaydet (${totalCollectedVal.toLocaleString('tr-TR')} ₺ Tahsilat)`}
+                : !selectedCustomer
+                ? 'Önce Müşteri Seçiniz'
+                : deliveredItems.length === 0
+                ? 'Ürün Seçiniz'
+                : `Teslimatı Kaydet (${totalCollectedVal.toLocaleString('tr-TR')} ₺)`}
             </span>
           </button>
         </div>
