@@ -11,19 +11,26 @@ export function usePWAInstall() {
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
-    // Detect standalone mode (already installed on mobile or desktop)
-    const isStandalone =
-      window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as unknown as { standalone?: boolean }).standalone === true;
-    setIsInstalled(isStandalone);
+    // Check if app is opened in standalone/installed mode
+    const checkIsInstalled = () => {
+      const isStandalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
+        document.referrer.includes('android-app://');
+      setIsInstalled(isStandalone);
+    };
 
-    // Detect iOS devices
+    checkIsInstalled();
+
+    // Detect iOS
     const userAgent = window.navigator.userAgent.toLowerCase();
-    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
+    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
 
     const handleBeforeInstallPrompt = (e: Event) => {
+      // Prevent default mini-infobar or browser default prompt
       e.preventDefault();
+      // Store event for immediate manual trigger
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
 
@@ -41,16 +48,28 @@ export function usePWAInstall() {
     };
   }, []);
 
-  const install = async () => {
-    if (!deferredPrompt) return false;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setIsInstalled(true);
-      setDeferredPrompt(null);
-      return true;
+  const install = async (): Promise<'prompted' | 'accepted' | 'ios' | 'unsupported'> => {
+    // If prompt is available (Android / Chrome / Edge), trigger it directly
+    if (deferredPrompt) {
+      try {
+        await deferredPrompt.prompt();
+        const choice = await deferredPrompt.userChoice;
+        if (choice && choice.outcome === 'accepted') {
+          setIsInstalled(true);
+          setDeferredPrompt(null);
+          return 'accepted';
+        }
+        return 'prompted';
+      } catch (err) {
+        console.error('PWA prompt error:', err);
+      }
     }
-    return false;
+
+    if (isIOS) {
+      return 'ios';
+    }
+
+    return 'unsupported';
   };
 
   return {
@@ -60,3 +79,4 @@ export function usePWAInstall() {
     install,
   };
 }
+
