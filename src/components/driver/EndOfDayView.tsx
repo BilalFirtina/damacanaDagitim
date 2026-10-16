@@ -10,35 +10,91 @@ import {
   Printer,
   FileCheck,
   Building2,
-  Clock
+  Clock,
+  ArrowRight,
+  Truck,
+  Plus
 } from 'lucide-react';
 import { closeDispatch } from '../../services/api';
 
 interface EndOfDayViewProps {
   dispatch: Dispatch | null;
+  dispatches?: Dispatch[];
   deliveries: Delivery[];
   products: Product[];
   currentUser: User;
   onDispatchUpdated: (updated: Dispatch) => void;
+  onNavigateTab?: (tab: any) => void;
+  onRefreshData?: () => Promise<void> | void;
 }
 
 export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
-  dispatch,
+  dispatch: activeDispatchProp,
+  dispatches = [],
   deliveries,
   products,
   currentUser,
   onDispatchUpdated,
+  onNavigateTab,
+  onRefreshData,
 }) => {
-  if (!dispatch) {
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // Dispatches belonging to this driver/user or all for admin
+  const candidateDispatches = dispatches.filter((d) => {
+    if (d.date !== todayStr) return false;
+    if (currentUser.role === 'admin') return true;
+    return d.driverId === currentUser.id;
+  });
+
+  // Selected dispatch ID state
+  const [selectedDispatchId, setSelectedDispatchId] = useState<string>(() => {
+    if (activeDispatchProp) return activeDispatchProp.id;
+    // Prefer open dispatch if any
+    const openDispatch = candidateDispatches.find((d) => d.status !== 'completed');
+    if (openDispatch) return openDispatch.id;
+    // Else most recent completed dispatch
+    return candidateDispatches[0]?.id || '';
+  });
+
+  // Resolve currently viewed dispatch
+  const currentViewDispatch =
+    candidateDispatches.find((d) => d.id === selectedDispatchId) ||
+    activeDispatchProp ||
+    candidateDispatches[0] ||
+    null;
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMsg, setSuccessMsg] = useState(false);
+  const [closureNotes, setClosureNotes] = useState('');
+
+  if (!currentViewDispatch) {
     return (
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center text-slate-400 text-xs">
-        Bugün için aktif bir araç seferi bulunmuyor.
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center text-slate-400 text-xs space-y-3">
+        <Truck className="w-10 h-10 text-slate-300 mx-auto" />
+        <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+          Bugün için tamamlanmış veya aktif bir araç seferi bulunmuyor.
+        </p>
+        <p className="text-xs text-slate-400">
+          Dağıtıma başlamak için önce araç yüklemesi yapılmalı ve sefer başlatılmalıdır.
+        </p>
+        {onNavigateTab && (
+          <button
+            onClick={() => onNavigateTab('delivery')}
+            className="mt-3 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs inline-flex items-center gap-1.5"
+          >
+            <span>Dağıtım & Yükleme Ekranına Git</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        )}
       </div>
     );
   }
 
   // Filter deliveries belonging to this dispatch
-  const dispatchDeliveries = deliveries.filter((d) => d.dispatchId === dispatch.id);
+  const dispatchDeliveries = deliveries.filter(
+    (d) => d.dispatchId === currentViewDispatch.id
+  );
 
   // Delivered quantities by product
   const deliveredTotals: Record<string, number> = {};
@@ -60,62 +116,58 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
     totalEmptyTupCollected += del.emptyContainersReceived.tup || 0;
 
     del.deliveredItems.forEach((item) => {
-      deliveredTotals[item.productId] = (deliveredTotals[item.productId] || 0) + item.quantity;
+      deliveredTotals[item.productId] =
+        (deliveredTotals[item.productId] || 0) + item.quantity;
     });
   });
 
   // Calculate expected remaining full items
   const expectedRemainingFull: Record<string, number> = {};
-  dispatch.loadedItems.forEach((loaded) => {
+  currentViewDispatch.loadedItems.forEach((loaded) => {
     const deliveredCount = deliveredTotals[loaded.productId] || 0;
-    expectedRemainingFull[loaded.productId] = Math.max(0, loaded.quantity - deliveredCount);
+    expectedRemainingFull[loaded.productId] = Math.max(
+      0,
+      loaded.quantity - deliveredCount
+    );
   });
 
-  // Local state for driver's physical counts
-  const [countedFull, setCountedFull] = useState<Record<string, number>>(() => {
-    if (dispatch.endOfDayReconciliation) {
-      return dispatch.endOfDayReconciliation.remainingFullCounted;
-    }
-    // Initialize default with expected
-    return { ...expectedRemainingFull };
-  });
+  // Counted full items state
+  const isAlreadyClosed = currentViewDispatch.status === 'completed';
 
-  const [actualCashInput, setActualCashInput] = useState<string>(() =>
-    dispatch.endOfDayReconciliation
-      ? dispatch.endOfDayReconciliation.actualCashInPocket.toString()
-      : totalCashCollected.toString()
-  );
+  const countedFull =
+    currentViewDispatch.endOfDayReconciliation?.remainingFullCounted ||
+    expectedRemainingFull;
 
-  const [actualPosInput, setActualPosInput] = useState<string>(() =>
-    dispatch.endOfDayReconciliation
-      ? dispatch.endOfDayReconciliation.actualPosSlipsTotal.toString()
-      : totalPosCollected.toString()
-  );
+  const actualCashInPocket =
+    currentViewDispatch.endOfDayReconciliation?.actualCashInPocket ??
+    totalCashCollected;
 
-  const [closureNotes, setClosureNotes] = useState(
-    dispatch.endOfDayReconciliation?.notes || ''
-  );
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successMsg, setSuccessMsg] = useState(false);
-
-  const isAlreadyClosed = dispatch.status === 'completed';
+  const actualPosSlipsTotal =
+    currentViewDispatch.endOfDayReconciliation?.actualPosSlipsTotal ??
+    totalPosCollected;
 
   const handleCloseShift = async () => {
     try {
       setIsSubmitting(true);
-      const updated = await closeDispatch(dispatch.id, {
+      const updated = await closeDispatch(currentViewDispatch.id, {
         closedByUserId: currentUser.id,
         closedByUserName: currentUser.name,
         remainingFullCounted: countedFull,
         collectedEmptyDamacana: totalEmptyDamacanaCollected,
         collectedEmptyTup: totalEmptyTupCollected,
-        actualCashInPocket: Number(actualCashInput) || 0,
-        actualPosSlipsTotal: Number(actualPosInput) || 0,
-        notes: closureNotes,
+        actualCashInPocket: Number(actualCashInPocket) || 0,
+        actualPosSlipsTotal: Number(actualPosSlipsTotal) || 0,
+        notes: closureNotes || currentViewDispatch.endOfDayReconciliation?.notes || '',
       });
 
       onDispatchUpdated(updated);
+      if (onRefreshData) {
+        try {
+          await onRefreshData();
+        } catch (e) {
+          console.error('Refresh after shift close failed', e);
+        }
+      }
       setSuccessMsg(true);
     } catch (err: any) {
       alert(err.message || 'Kapatma işlemi başarısız');
@@ -130,6 +182,79 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
 
   return (
     <div className="space-y-6 w-full max-w-full min-w-0">
+      {/* Trip Switcher if Multiple Dispatches exist today */}
+      {candidateDispatches.length > 1 && (
+        <div className="bg-slate-100 dark:bg-slate-800/80 p-2.5 rounded-2xl flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
+            <Truck className="w-4 h-4 text-sky-600" />
+            <span>Bugünkü Seferler ({candidateDispatches.length}):</span>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {candidateDispatches.map((disp, idx) => (
+              <button
+                key={disp.id}
+                onClick={() => {
+                  setSelectedDispatchId(disp.id);
+                  setSuccessMsg(false);
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  disp.id === currentViewDispatch.id
+                    ? 'bg-sky-600 text-white shadow-xs'
+                    : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <span>
+                  Sefer #{idx + 1} ({disp.vehiclePlate})
+                </span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
+                    disp.status === 'completed'
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'
+                      : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200'
+                  }`}
+                >
+                  {disp.status === 'completed' ? 'Kapatıldı' : 'Açık'}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Completion & Readiness Success Banner */}
+      {(isAlreadyClosed || successMsg) && (
+        <div className="bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-md">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-emerald-950 dark:text-emerald-200">
+                  Sefer Başarıyla Tamamlandı & Kalan Ürünler Depoya Boşaltıldı
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200">
+                  Yeni Sefere Hazır
+                </span>
+              </div>
+              <p className="text-xs text-emerald-800/90 dark:text-emerald-300 mt-1">
+                Bu seferin mutabakatı tamamlandı ve araç depoya boşaltıldı. Şoför ve araç sisteme serbest bırakıldı, yeni bir sefer yüklemesi yapılabilir.
+              </p>
+            </div>
+          </div>
+
+          {onNavigateTab && (
+            <button
+              onClick={() => onNavigateTab('delivery')}
+              className="px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center gap-2 shadow-md shrink-0 active:scale-95 transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Yeni Sefer Yükleme Ekranına Git</span>
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Title & Status Banner */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -143,12 +268,12 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
               </span>
             ) : (
               <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                Açık Sefer
+                Açık Dağıtım Seferi
               </span>
             )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Araç: <strong>{dispatch.vehiclePlate}</strong> · Şoför: <strong>{dispatch.driverName}</strong> · Toplam Teslimat: <strong>{dispatchDeliveries.length} Adet</strong>
+            Araç: <strong>{currentViewDispatch.vehiclePlate}</strong> · Şoför: <strong>{currentViewDispatch.driverName}</strong> · Toplam Teslimat: <strong>{dispatchDeliveries.length} Adet</strong>
           </p>
         </div>
 
@@ -169,10 +294,10 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
           <div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <Droplet className="w-4 h-4 text-sky-600" />
-              <span>A. Arabada Kalması Gereken Dolu Ürünler</span>
+              <span>A. Depoya İndirilecek Kalan Dolu Ürünler</span>
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Yüklenen - Teslim Edilen = Arabada Bulunması Gereken Sayı
+              Yüklenen - Teslim Edilen = Depoya İndirilmesi Gereken Sayı
             </p>
           </div>
         </div>
@@ -184,58 +309,31 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                 <th className="pb-2.5">Ürün Adı</th>
                 <th className="pb-2.5 text-center">Yüklenen</th>
                 <th className="pb-2.5 text-center">Teslim Edilen</th>
-                <th className="pb-2.5 text-center text-sky-600">Olması Gereken</th>
-                <th className="pb-2.5 text-center">Fiziki Sayılan</th>
-                <th className="pb-2.5 text-right">Durum / Fark</th>
+                <th className="pb-2.5 text-center text-sky-600">Depoya İndirilen</th>
+                <th className="pb-2.5 text-right">Durum</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {dispatch.loadedItems.map((loaded) => {
+              {currentViewDispatch.loadedItems.map((loaded) => {
                 const p = products.find((prod) => prod.id === loaded.productId);
                 const delivered = deliveredTotals[loaded.productId] || 0;
                 const expected = expectedRemainingFull[loaded.productId] || 0;
                 const counted = countedFull[loaded.productId] ?? expected;
-                const diff = counted - expected;
 
                 return (
-                  <tr key={loaded.productId} className="hover:bg-slate-50/50">
-                    <td className="py-3 font-semibold text-slate-900 dark:text-white">
+                  <tr key={loaded.productId} className="py-2.5">
+                    <td className="py-3 font-medium text-slate-900 dark:text-white">
                       {p?.name || loaded.productId}
                     </td>
-                    <td className="py-3 text-center font-mono font-medium text-slate-600 dark:text-slate-400">
-                      {loaded.quantity}
-                    </td>
+                    <td className="py-3 text-center font-mono font-bold">{loaded.quantity}</td>
+                    <td className="py-3 text-center font-mono text-emerald-600 font-bold">{delivered}</td>
                     <td className="py-3 text-center font-mono font-bold text-sky-600">
-                      {delivered}
+                      {counted} {p?.unit || 'Adet'}
                     </td>
-                    <td className="py-3 text-center font-mono font-extrabold text-sm text-sky-700 dark:text-sky-400">
-                      {expected}
-                    </td>
-                    <td className="py-3 text-center">
-                      {isAlreadyClosed ? (
-                        <span className="font-mono font-bold">{counted}</span>
-                      ) : (
-                        <input
-                          type="number"
-                          value={counted}
-                          onChange={(e) =>
-                            setCountedFull((prev) => ({
-                              ...prev,
-                              [loaded.productId]: parseInt(e.target.value) || 0,
-                            }))
-                          }
-                          className="w-16 h-8 rounded-lg border border-slate-200 dark:border-slate-700 text-center font-mono font-bold text-xs"
-                        />
-                      )}
-                    </td>
-                    <td className="py-3 text-right font-mono font-bold">
-                      {diff === 0 ? (
-                        <span className="text-emerald-600">Tam (0)</span>
-                      ) : diff > 0 ? (
-                        <span className="text-sky-600">+{diff} Fazla</span>
-                      ) : (
-                        <span className="text-red-600">{diff} Eksik</span>
-                      )}
+                    <td className="py-3 text-right">
+                      <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-md">
+                        Mutabık
+                      </span>
                     </td>
                   </tr>
                 );
@@ -243,153 +341,61 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
             </tbody>
           </table>
         </div>
-
-        {/* Depoya İnecek Boş Kaplar Bölümü */}
-        <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-          <h3 className="text-sm font-bold text-orange-900 dark:text-orange-300 flex items-center gap-2 mb-2">
-            <RotateCcw className="w-4 h-4 text-orange-600" />
-            <span>B. Toplanıp Depoya İndirilecek Boş Kaplar</span>
-          </h3>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="p-3.5 rounded-xl border border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 flex items-center justify-between">
-              <div>
-                <span className="text-xs text-slate-600 dark:text-slate-400">
-                  Müşterilerden Toplanan Boş Damacana
-                </span>
-                <div className="text-xl font-extrabold font-mono text-orange-600 tabular-nums mt-0.5">
-                  {totalEmptyDamacanaCollected} Adet
-                </div>
-              </div>
-              <span className="text-xs font-semibold px-2 py-1 rounded bg-orange-100 text-orange-800">
-                Depoya Teslim Edilecek
-              </span>
-            </div>
-
-            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 dark:bg-slate-800 flex items-center justify-between">
-              <div>
-                <span className="text-xs text-slate-600 dark:text-slate-400">
-                  Müşterilerden Toplanan Boş Tüp
-                </span>
-                <div className="text-xl font-extrabold font-mono text-slate-800 dark:text-slate-200 tabular-nums mt-0.5">
-                  {totalEmptyTupCollected} Adet
-                </div>
-              </div>
-              <span className="text-xs font-semibold px-2 py-1 rounded bg-slate-200 text-slate-800">
-                Depoya Teslim Edilecek
-              </span>
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* Grid 2: Fiili Nakit ve POS Kasa Mutabakatı */}
+      {/* Grid 2: Boş Kap & Tahsilat Mutabakatı */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Wallet className="w-4 h-4 text-emerald-600" />
-              <span>C. Fiili Kasa & Tahsilat Mutabakatı</span>
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Şoförün teslim etmesi gereken fiili nakit ve POS slipleri toplamı
-            </p>
-          </div>
-        </div>
+        <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <Wallet className="w-4 h-4 text-emerald-600" />
+          <span>B. Boş Kap & Kasa Tahsilat Mutabakatı</span>
+        </h3>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Nakit Kasa */}
-          <div className="p-4 rounded-xl border border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5">
-                <Wallet className="w-4 h-4 text-emerald-600" />
-                Fiili Nakit Kasa
-              </span>
-              <span className="text-[11px] text-emerald-700">Sistem: {totalCashCollected} ₺</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase">Toplanan Boş Damacana</span>
+            <div className="text-xl font-bold font-mono text-slate-900 dark:text-white mt-1">
+              {totalEmptyDamacanaCollected} Adet
             </div>
-            <div>
-              <label className="text-[11px] text-slate-500 block mb-1">
-                Sayılıp Teslim Edilen Nakit (₺):
-              </label>
-              {isAlreadyClosed ? (
-                <div className="text-2xl font-extrabold font-mono text-emerald-600">
-                  {Number(actualCashInput).toLocaleString('tr-TR')} ₺
-                </div>
-              ) : (
-                <input
-                  type="number"
-                  value={actualCashInput}
-                  onChange={(e) => setActualCashInput(e.target.value)}
-                  className="w-full p-2.5 rounded-lg border border-emerald-300 font-mono font-extrabold text-lg text-emerald-700 bg-white dark:bg-slate-800"
-                />
-              )}
-            </div>
+            <span className="text-[10px] text-slate-400">Depoya teslim edilecek boşlar</span>
           </div>
 
-          {/* POS Kasa */}
-          <div className="p-4 rounded-xl border border-indigo-200 dark:border-indigo-900 bg-indigo-50/50 dark:bg-indigo-950/20 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-indigo-900 dark:text-indigo-300 flex items-center gap-1.5">
-                <CreditCard className="w-4 h-4 text-indigo-600" />
-                POS Slip Toplamı
-              </span>
-              <span className="text-[11px] text-indigo-700">Sistem: {totalPosCollected} ₺</span>
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase">Toplanan Boş Tüp</span>
+            <div className="text-xl font-bold font-mono text-slate-900 dark:text-white mt-1">
+              {totalEmptyTupCollected} Adet
             </div>
-            <div>
-              <label className="text-[11px] text-slate-500 block mb-1">
-                POS Cihazı Gün Sonu Raporu (₺):
-              </label>
-              {isAlreadyClosed ? (
-                <div className="text-2xl font-extrabold font-mono text-indigo-600">
-                  {Number(actualPosInput).toLocaleString('tr-TR')} ₺
-                </div>
-              ) : (
-                <input
-                  type="number"
-                  value={actualPosInput}
-                  onChange={(e) => setActualPosInput(e.target.value)}
-                  className="w-full p-2.5 rounded-lg border border-indigo-300 font-mono font-extrabold text-lg text-indigo-700 bg-white dark:bg-slate-800"
-                />
-              )}
-            </div>
+            <span className="text-[10px] text-slate-400">Depoya teslim edilecek tüpler</span>
           </div>
 
-          {/* Genel Finansal Toplam */}
-          <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 space-y-2">
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-              Günün Ciro Özeti
-            </span>
-            <div className="space-y-1 text-xs">
-              <div className="flex justify-between text-slate-500">
-                <span>Teslim Edilen Mal:</span>
-                <span className="font-mono font-semibold">{totalDeliveredValue.toLocaleString('tr-TR')} ₺</span>
-              </div>
-              <div className="flex justify-between text-slate-500">
-                <span>Cari / Veresiye:</span>
-                <span className="font-mono font-semibold text-amber-600">+{totalCreditAdded.toLocaleString('tr-TR')} ₺</span>
-              </div>
-              <div className="flex justify-between font-bold text-slate-900 dark:text-white pt-1 border-t border-slate-200 dark:border-slate-700">
-                <span>Toplam Tahsilat:</span>
-                <span className="font-mono text-sm text-emerald-600">
-                  {(Number(actualCashInput) + Number(actualPosInput)).toLocaleString('tr-TR')} ₺
-                </span>
-              </div>
+          <div className="p-3.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800">
+            <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase">Nakit Kasa</span>
+            <div className="text-xl font-bold font-mono text-emerald-600 mt-1">
+              {actualCashInPocket.toLocaleString('tr-TR')} ₺
             </div>
+            <span className="text-[10px] text-emerald-600/80">Teslim edilecek nakit para</span>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800">
+            <span className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-400 uppercase">POS Slipleri</span>
+            <div className="text-xl font-bold font-mono text-indigo-600 mt-1">
+              {actualPosSlipsTotal.toLocaleString('tr-TR')} ₺
+            </div>
+            <span className="text-[10px] text-indigo-600/80">Banka slip toplamı</span>
           </div>
         </div>
 
         {/* Closure Note Input */}
         {!isAlreadyClosed && (
           <div className="pt-2">
-            <label className="text-xs font-medium text-slate-600 block mb-1">
-              Mutabakat / Gün Sonu Kapatma Notu:
+            <label className="text-xs font-medium text-slate-600 dark:text-slate-300 block mb-1">
+              Depoya Teslim & Gün Sonu Kapatma Notu:
             </label>
             <input
               type="text"
-              placeholder="Örn: 2 adet damacana arızalı kapak tespit edildi, depoya sağlam teslim edildi..."
+              placeholder="Örn: Tüm ürünler depoya eksiksiz indirildi, kasa teslim edildi..."
               value={closureNotes}
               onChange={(e) => setClosureNotes(e.target.value)}
-              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs bg-slate-50 dark:bg-slate-800"
+              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
             />
           </div>
         )}
@@ -400,10 +406,14 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
             <button
               onClick={handleCloseShift}
               disabled={isSubmitting}
-              className="w-full sm:w-auto px-8 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all"
+              className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all"
             >
               <FileCheck className="w-4 h-4" />
-              <span>{isSubmitting ? 'Kapatılıyor...' : 'Günü Kapat & Mutabakatı İmzala'}</span>
+              <span>
+                {isSubmitting
+                  ? 'Kapatılıyor & Depoya Boşaltılıyor...'
+                  : 'Aracı Depoya Boşalt, Raporu Onayla & Seferi Kapat'}
+              </span>
             </button>
           </div>
         )}
@@ -413,12 +423,12 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-3">
         <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
           <Building2 className="w-4 h-4 text-sky-600" />
-          <span>Günün Müşteri Teslimat Karnesi ({dispatchDeliveries.length} Müşteri)</span>
+          <span>Bu Seferdeki Müşteri Teslimatları ({dispatchDeliveries.length} Müşteri)</span>
         </h3>
 
         <div className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
           {dispatchDeliveries.length === 0 ? (
-            <div className="p-4 text-center text-slate-400">Bugün henüz teslimat yapılmadı.</div>
+            <div className="p-4 text-center text-slate-400">Bu seferde henüz teslimat yapılmadı.</div>
           ) : (
             dispatchDeliveries.map((del, index) => (
               <div key={del.id} className="py-2.5 flex items-center justify-between">
@@ -437,11 +447,11 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
 
                 <div className="text-right">
                   <div className="font-mono font-bold text-slate-900 dark:text-white">
-                    {del.deliveredGrandTotal} ₺
+                    {del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺
                   </div>
                   <div className="text-[10px] text-emerald-600 font-semibold">
-                    {del.collectedPayment.cashAmount > 0 && `${del.collectedPayment.cashAmount} ₺ Nakit `}
-                    {del.collectedPayment.posAmount > 0 && `${del.collectedPayment.posAmount} ₺ POS `}
+                    {del.collectedPayment.cashAmount > 0 && `${del.collectedPayment.cashAmount.toLocaleString('tr-TR')} ₺ Nakit `}
+                    {del.collectedPayment.posAmount > 0 && `${del.collectedPayment.posAmount.toLocaleString('tr-TR')} ₺ POS `}
                     {del.collectedPayment.totalCollected === 0 && '0 ₺ Veresiye'}
                   </div>
                 </div>

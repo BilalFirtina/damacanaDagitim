@@ -23,8 +23,10 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
   const [isConfirming, setIsConfirming] = useState(false);
   const [showManualLoadModal, setShowManualLoadModal] = useState(false);
 
-  // Active dispatches (not completed)
-  const activeDispatches = dispatches.filter((d) => d.status !== 'completed');
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // Active dispatches today (not completed)
+  const activeDispatches = dispatches.filter((d) => d.date === todayStr && d.status !== 'completed');
   const busyPlates = new Set(activeDispatches.map((d) => d.vehiclePlate));
   const busyDriverIds = new Set(activeDispatches.map((d) => d.driverId));
 
@@ -206,6 +208,9 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                   >
                     {drivers.map((d) => {
                       const isBusy = busyDriverIds.has(d.id);
+                      const completedRuns = dispatches.filter(
+                        (disp) => disp.date === todayStr && disp.driverId === d.id && disp.status === 'completed'
+                      );
                       return (
                         <option
                           key={d.id}
@@ -213,7 +218,12 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                           disabled={isBusy}
                           className={isBusy ? 'text-slate-400 dark:text-slate-500' : ''}
                         >
-                          {d.name} {d.isLeadDriver ? '★' : ''} {isBusy ? '(Dağıtımda)' : '(Müsait)'}
+                          {d.name} {d.isLeadDriver ? '★' : ''}{' '}
+                          {isBusy
+                            ? '(Dağıtımda)'
+                            : completedRuns.length > 0
+                            ? `(Müsait - #${completedRuns.length + 1}. Sefer İçin Hazır)`
+                            : '(Müsait - Yüklemeye Hazır)'}
                         </option>
                       );
                     })}
@@ -360,8 +370,9 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
     );
   };
 
-  // Case 1: No dispatch exists for this driver/vehicle today
-  if (!currentDispatch) {
+  // Case 1: No active dispatch exists for this driver/vehicle (ready for loading/trip)
+  if (!currentDispatch || currentDispatch.status === 'completed') {
+    const isNextTrip = currentDispatch?.status === 'completed';
     return (
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-xs mb-6 w-full max-w-full min-w-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -372,8 +383,13 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  Sabah Depo Yüklemesi Bekleniyor
+                  {isNextTrip ? 'Yeni Sefer Depo Yüklemesi Bekleniyor' : 'Sabah Depo Yüklemesi Bekleniyor'}
                 </h3>
+                {isNextTrip && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                    Araç Boş & Sefer Hazır
+                  </span>
+                )}
                 {currentUser.role === 'admin' && (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">
                     Depo Yöneticisi Paneli
@@ -386,7 +402,9 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                 )}
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                {currentUser.role === 'admin'
+                {isNextTrip
+                  ? 'Önceki sefer tamamlandı, kalan ürünler depoya indirildi. Yeni dağıtım seferi için yükleme adetlerini girebilirsiniz.'
+                  : currentUser.role === 'admin'
                   ? 'Depo Yöneticisi olarak bağımsız şoför ve plaka seçerek araç yüklemelerini sisteme girebilirsiniz.'
                   : currentUser.canLoadVehicle
                   ? 'Tek Yetkili Şoför yetkiniz bulunuyor. Kendi aracınız veya diğer şoförlerin araçları için yükleme girebilirsiniz.'
@@ -401,7 +419,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
               className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 whitespace-nowrap"
             >
               <Plus className="w-4 h-4" />
-              <span>Yükleme Adetlerini Gir</span>
+              <span>{isNextTrip ? 'Yeni Sefer Yüklemesi Gir' : 'Yükleme Adetlerini Gir'}</span>
             </button>
           )}
         </div>

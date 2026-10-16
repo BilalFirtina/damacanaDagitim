@@ -326,10 +326,12 @@ app.post('/api/dispatches', async (req, res) => {
     const driver = users.find((u) => u.id === driverId);
     if (!driver) return res.status(404).json({ error: 'Şoför bulunamadı' });
 
+    const todayStr = getTodayDateStr();
+
     // Önceki rapor/sefer tamamlanmadan şoför veya araç tekrar atanamaz
     const allDispatches = await getDispatches();
     const activeDriverDispatch = allDispatches.find(
-      (d) => d.driverId === driverId && d.status !== 'completed'
+      (d) => d.driverId === driverId && d.status !== 'completed' && d.date === todayStr
     );
     if (activeDriverDispatch) {
       return res.status(400).json({
@@ -339,7 +341,7 @@ app.post('/api/dispatches', async (req, res) => {
 
     const selectedPlate = vehiclePlate || driver.assignedPlate || '34 SU 101';
     const activePlateDispatch = allDispatches.find(
-      (d) => d.vehiclePlate === selectedPlate && d.status !== 'completed'
+      (d) => d.vehiclePlate === selectedPlate && d.status !== 'completed' && d.date === todayStr
     );
     if (activePlateDispatch) {
       return res.status(400).json({
@@ -347,7 +349,6 @@ app.post('/api/dispatches', async (req, res) => {
       });
     }
 
-    const todayStr = getTodayDateStr();
     const isConfirmed = !!driverConfirmed;
 
     const newDispatch: Dispatch = {
@@ -459,6 +460,17 @@ app.post('/api/dispatches/:id/close', async (req, res) => {
       endOfDayReconciliation: reconciliation,
       status: 'completed',
     });
+
+    // Sürücünün önceki takılı kalmış açık seferleri varsa onları da tamamlandı işaretle
+    for (const other of allDispatches) {
+      if (
+        other.id !== dispatch.id &&
+        other.driverId === dispatch.driverId &&
+        other.status !== 'completed'
+      ) {
+        await updateDispatch(other.id, { status: 'completed' });
+      }
+    }
 
     res.json({ dispatch: updated });
   } catch (err: any) {
@@ -610,9 +622,11 @@ app.get('/api/reports/daily', async (req, res) => {
       dispatches = dispatches.filter((d) => d.driverId === driverId);
     }
 
-    const dispatchIds = new Set(dispatches.map((d) => d.id));
     const allDeliveries = await getDeliveries({ date });
-    const deliveries = allDeliveries.filter((del) => dispatchIds.has(del.dispatchId));
+    let deliveries = allDeliveries;
+    if (driverId && driverId !== 'all') {
+      deliveries = deliveries.filter((del) => del.driverId === driverId);
+    }
 
     let totalDeliveries = deliveries.length;
     let totalCustomersVisited = new Set(deliveries.map((d) => d.customerId)).size;

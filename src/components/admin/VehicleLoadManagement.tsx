@@ -37,10 +37,13 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // List of actual drivers
   const drivers = users.filter((u) => u.role === 'driver');
 
-  // Aktif (henüz tamamlanmamış / bitiş raporu onaylanmamış) seferler
-  const activeDispatches = dispatches.filter((d) => d.status !== 'completed');
+  // Aktif (henüz tamamlanmamış / bitiş raporu onaylanmamış) seferler: sadece bugünkü açık seferler
+  const activeDispatches = dispatches.filter((d) => d.date === todayStr && d.status !== 'completed');
   const busyDriverIds = new Set(activeDispatches.map((d) => d.driverId));
   const busyPlates = new Set(activeDispatches.map((d) => d.vehiclePlate));
 
@@ -48,6 +51,21 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
   const availablePlates = AUTHORIZED_VEHICLE_PLATES.filter((plate) => !busyPlates.has(plate));
   // Müsait şoförler
   const availableDrivers = drivers.filter((d) => !busyDriverIds.has(d.id));
+
+  const handleOpenLoadModal = () => {
+    const firstFreeDriver = drivers.find((d) => !busyDriverIds.has(d.id));
+    if (firstFreeDriver) {
+      setSelectedDriverId(firstFreeDriver.id);
+    } else {
+      setSelectedDriverId('');
+    }
+    const freePlates = AUTHORIZED_VEHICLE_PLATES.filter((plate) => !busyPlates.has(plate));
+    if (freePlates.length > 0) {
+      setSelectedPlate(freePlates[0]);
+    }
+    setErrorMsg(null);
+    setShowLoadModal(true);
+  };
 
   const handleToggleLoadPermission = async (driver: User) => {
     try {
@@ -119,7 +137,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
         </div>
 
         <button
-          onClick={() => setShowLoadModal(true)}
+          onClick={handleOpenLoadModal}
           className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all whitespace-nowrap"
         >
           <Plus className="w-4 h-4" />
@@ -144,6 +162,9 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
           {drivers.map((driver) => {
             const isBusy = busyDriverIds.has(driver.id);
             const activeRun = activeDispatches.find((d) => d.driverId === driver.id);
+            const completedRuns = dispatches.filter(
+              (d) => d.date === todayStr && d.driverId === driver.id && d.status === 'completed'
+            );
 
             return (
               <div
@@ -157,9 +178,13 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                         Dağıtımda ({activeRun?.vehiclePlate})
                       </span>
+                    ) : completedRuns.length > 0 ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                        Müsait (#{completedRuns.length + 1}. Sefer İçin Hazır)
+                      </span>
                     ) : (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                        Müsait
+                        Müsait (Yüklemeye Hazır)
                       </span>
                     )}
                   </div>
@@ -282,9 +307,17 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                     {drivers.map((d) => {
                       const isBusy = busyDriverIds.has(d.id);
                       const activeRun = activeDispatches.find((disp) => disp.driverId === d.id);
+                      const completedRuns = dispatches.filter(
+                        (disp) => disp.date === todayStr && disp.driverId === d.id && disp.status === 'completed'
+                      );
                       return (
                         <option key={d.id} value={d.id} disabled={isBusy}>
-                          {d.name} {isBusy ? `(Dağıtımda - ${activeRun?.vehiclePlate || 'Seçilemez'})` : '(Müsait)'}
+                          {d.name} {d.isLeadDriver ? '★' : ''}{' '}
+                          {isBusy
+                            ? `(Dağıtımda - ${activeRun?.vehiclePlate || 'Seçilemez'})`
+                            : completedRuns.length > 0
+                            ? `(Müsait - #${completedRuns.length + 1}. Sefer İçin Hazır)`
+                            : '(Müsait - Yüklemeye Hazır)'}
                         </option>
                       );
                     })}

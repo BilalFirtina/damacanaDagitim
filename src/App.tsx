@@ -140,23 +140,31 @@ export default function App() {
 
   // Find active dispatch for the current user (if driver) or first active dispatch for admin
   const todayStr = new Date().toISOString().split('T')[0];
-  const currentDispatch = dispatches.find((d) => {
-    if (d.date !== todayStr) return false;
-    if (currentUser?.role === 'driver') {
-      return d.driverId === currentUser.id;
-    }
-    // If admin, show first active dispatch
-    return true;
-  }) || null;
+  const currentDispatch =
+    dispatches.find((d) => {
+      if (d.date !== todayStr) return false;
+      if (d.status === 'completed') return false;
+      if (currentUser?.role === 'driver') {
+        return d.driverId === currentUser.id;
+      }
+      // If admin, show first active dispatch
+      return true;
+    }) || null;
 
   const handleDispatchUpdated = (updated: Dispatch) => {
-    setDispatches((prev) =>
-      prev.map((d) => (d.id === updated.id ? updated : d))
-    );
+    setDispatches((prev) => {
+      const exists = prev.some((d) => d.id === updated.id);
+      if (exists) {
+        return prev.map((d) => (d.id === updated.id ? updated : d));
+      }
+      return [updated, ...prev];
+    });
+    loadData();
   };
 
   const handleDispatchCreated = (created: Dispatch) => {
     setDispatches((prev) => [created, ...prev]);
+    loadData();
   };
 
   const handleDeliveryCreated = (newDelivery: Delivery, updatedCustomer?: Customer) => {
@@ -235,10 +243,13 @@ export default function App() {
         {activeTab === 'eod' && (
           <EndOfDayView
             dispatch={currentDispatch}
+            dispatches={dispatches}
             deliveries={deliveries}
             products={products}
             currentUser={currentUser}
             onDispatchUpdated={handleDispatchUpdated}
+            onNavigateTab={setActiveTab}
+            onRefreshData={loadData}
           />
         )}
 
@@ -262,6 +273,7 @@ export default function App() {
           <DailyReportsView
             users={users}
             products={products}
+            currentUser={currentUser}
           />
         )}
 

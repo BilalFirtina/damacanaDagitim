@@ -55,11 +55,29 @@ export const DriverView: React.FC<DriverViewProps> = ({
 
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // Active dispatch being viewed
+  // Active dispatch being viewed: only open dispatches (not completed)
   const activeDispatch =
     currentUser.role === 'admin'
-      ? dispatches.find((d) => d.date === todayStr && d.driverId === selectedDriverIdForAdmin) || null
-      : initialDispatch;
+      ? dispatches.find(
+          (d) =>
+            d.date === todayStr &&
+            d.driverId === selectedDriverIdForAdmin &&
+            d.status !== 'completed'
+        ) || null
+      : initialDispatch && initialDispatch.status !== 'completed'
+      ? initialDispatch
+      : null;
+
+  const inspectedDriverId =
+    currentUser.role === 'admin' ? selectedDriverIdForAdmin : currentUser.id;
+
+  // Completed dispatches for this driver today
+  const completedDispatchesToday = dispatches.filter(
+    (d) =>
+      d.date === todayStr &&
+      d.driverId === inspectedDriverId &&
+      d.status === 'completed'
+  );
 
   const activeDriver =
     currentUser.role === 'admin'
@@ -114,6 +132,37 @@ export const DriverView: React.FC<DriverViewProps> = ({
               ))}
             </select>
           </div>
+        </div>
+      )}
+
+      {/* Driver & Vehicle Ready for New Trip Notice (Shown if previous runs are closed) */}
+      {!activeDispatch && completedDispatchesToday.length > 0 && (
+        <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-md">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-emerald-950 dark:text-emerald-200">
+                  Önceki Sefer Tamamlandı & Kalan Ürünler Depoya Boşaltıldı
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-200/70 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200">
+                  Bugün {completedDispatchesToday.length} Sefer Kapandı
+                </span>
+              </div>
+              <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300 mt-0.5">
+                Şoför ve araç yeni bir dağıtım seferi için yükleme almaya tamamen hazırdır. Aşağıdan yeni sefer yüklemesi girebilirsiniz.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => onNavigateTab('eod')}
+            className="text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:underline flex items-center gap-1 shrink-0"
+          >
+            <span>Kapanan Sefer Raporunu İncele</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
