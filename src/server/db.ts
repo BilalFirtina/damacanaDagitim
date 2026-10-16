@@ -573,8 +573,8 @@ function mapDeliveryFromDb(row: any): Delivery {
       status: 'unpaid',
       diffUncollected: 0,
     },
-    emptyContainersReceived: row.empty_containers_received || { damacana: 0, tup: 0 },
-    emptyContainersDiff: row.empty_containers_diff || { damacana: 0, tup: 0 },
+    emptyContainersReceived: row.empty_containers_received || { damacana: 0, camDamacana: 0, tup: 0 },
+    emptyContainersDiff: row.empty_containers_diff || { damacana: 0, camDamacana: 0, tup: 0 },
     notes: row.notes || '',
     isOfflineSync: Boolean(row.is_offline_sync),
   };

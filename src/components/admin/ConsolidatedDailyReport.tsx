@@ -76,6 +76,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
   let grandPosCollected = 0;
   let grandCreditAdded = 0;
   let grandDamacanaEmpty = 0;
+  let grandCamDamacanaEmpty = 0;
   let grandTupEmpty = 0;
 
   const grandProductQuantities: Record<string, { name: string; quantity: number; unit: string }> = {};
@@ -88,6 +89,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
       grandCreditAdded += del.collectedPayment.diffUncollected;
     }
     grandDamacanaEmpty += del.emptyContainersReceived.damacana || 0;
+    grandCamDamacanaEmpty += Number(del.emptyContainersReceived.camDamacana || del.emptyContainersReceived.cam_damacana) || 0;
     grandTupEmpty += del.emptyContainersReceived.tup || 0;
 
     del.deliveredItems.forEach((item) => {
@@ -240,7 +242,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                 <td className="p-2 font-mono font-bold tabular-nums">{grandCreditAdded.toLocaleString('tr-TR')} ₺</td>
                 <td className="p-2 font-bold bg-white border-r border-l border-black">Toplanan Boş Kaplar:</td>
                 <td className="p-2 font-mono font-bold tabular-nums">
-                  {grandDamacanaEmpty} Damacana / {grandTupEmpty} Boş Tüp
+                  {grandDamacanaEmpty} Damacana / {grandCamDamacanaEmpty} Cam Damacana / {grandTupEmpty} Boş Tüp
                 </td>
               </tr>
             </tbody>
@@ -325,6 +327,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
               let dPos = 0;
               let dCredit = 0;
               let dDamacana = 0;
+              let dCamDamacana = 0;
               let dTup = 0;
 
               driverDeliveries.forEach((del) => {
@@ -335,6 +338,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                   dCredit += del.collectedPayment.diffUncollected;
                 }
                 dDamacana += del.emptyContainersReceived.damacana || 0;
+                dCamDamacana += Number(del.emptyContainersReceived.camDamacana || del.emptyContainersReceived.cam_damacana) || 0;
                 dTup += del.emptyContainersReceived.tup || 0;
               });
 
@@ -401,6 +405,9 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                             const emptyListStr = [
                               del.emptyContainersReceived.damacana > 0
                                 ? `${del.emptyContainersReceived.damacana} Boş D.`
+                                : null,
+                              Number(del.emptyContainersReceived.camDamacana || 0) > 0
+                                ? `${del.emptyContainersReceived.camDamacana} Boş Cam D.`
                                 : null,
                               del.emptyContainersReceived.tup > 0
                                 ? `${del.emptyContainersReceived.tup} Boş T.`
@@ -472,7 +479,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                             {dCredit.toLocaleString('tr-TR')} ₺
                           </td>
                           <td className="p-2 text-center font-mono border-r border-black tabular-nums">
-                            {dDamacana} D. / {dTup} T.
+                            {dDamacana} D. / {dCamDamacana} Cam D. / {dTup} T.
                           </td>
                           <td className="p-2"></td>
                         </tr>

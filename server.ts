@@ -528,6 +528,7 @@ app.post('/api/dispatches/:id/close', async (req, res) => {
       closedByUserName,
       remainingFullCounted,
       collectedEmptyDamacana,
+      collectedEmptyCamDamacana,
       collectedEmptyTup,
       actualCashInPocket,
       actualPosSlipsTotal,
@@ -568,6 +569,7 @@ app.post('/api/dispatches/:id/close', async (req, res) => {
       remainingFullCounted: remainingFullCounted || {},
       remainingFullExpected,
       collectedEmptyDamacana: Number(collectedEmptyDamacana) || 0,
+      collectedEmptyCamDamacana: Number(collectedEmptyCamDamacana) || 0,
       collectedEmptyTup: Number(collectedEmptyTup) || 0,
       actualCashInPocket: Number(actualCashInPocket) || 0,
       actualPosSlipsTotal: Number(actualPosSlipsTotal) || 0,
@@ -771,6 +773,7 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
     let totalPosCollected = 0;
     let totalCreditAdded = 0;
     let totalEmptyDamacanaCollected = 0;
+    let totalEmptyCamDamacanaCollected = 0;
     let totalEmptyTupCollected = 0;
 
     const deliveredProductQuantities: Record<string, { name: string; quantity: number }> = {};
@@ -783,6 +786,8 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
         totalCreditAdded += del.collectedPayment.diffUncollected;
       }
       totalEmptyDamacanaCollected += del.emptyContainersReceived.damacana || 0;
+      totalEmptyCamDamacanaCollected +=
+        Number(del.emptyContainersReceived.camDamacana || del.emptyContainersReceived.cam_damacana) || 0;
       totalEmptyTupCollected += del.emptyContainersReceived.tup || 0;
 
       del.deliveredItems.forEach((item) => {
@@ -807,6 +812,7 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
         totalCreditAdded,
         totalGrandCollected: totalCashCollected + totalPosCollected,
         totalEmptyDamacanaCollected,
+        totalEmptyCamDamacanaCollected,
         totalEmptyTupCollected,
         deliveredProductQuantities,
       },

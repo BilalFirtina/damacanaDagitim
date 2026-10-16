@@ -89,6 +89,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
       'Toplam Tahsil Edilen (TL)',
       'Cariye Kalan Borç (TL)',
       'Alınan Boş Damacana',
+      'Alınan Boş Cam Damacana',
       'Alınan Boş Tüp',
       'Notlar',
     ];
@@ -117,6 +118,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
         del.collectedPayment.totalCollected,
         del.collectedPayment.diffUncollected,
         del.emptyContainersReceived.damacana || 0,
+        Number(del.emptyContainersReceived.camDamacana || del.emptyContainersReceived.cam_damacana) || 0,
         del.emptyContainersReceived.tup || 0,
         `"${(del.notes || '').replace(/"/g, '""')}"`,
       ].join(';');
@@ -149,6 +151,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
     totalGrandCollected: 0,
     totalCreditAdded: 0,
     totalEmptyDamacanaCollected: 0,
+    totalEmptyCamDamacanaCollected: 0,
     totalEmptyTupCollected: 0,
   };
 
@@ -156,6 +159,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
   let driverCashCollected = 0;
   let driverPosCollected = 0;
   let driverEmptyDamacana = 0;
+  let driverEmptyCamDamacana = 0;
   let driverEmptyTup = 0;
   let driverUncollected = 0;
 
@@ -164,6 +168,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
     driverPosCollected += Number(d.collectedPayment?.posAmount) || 0;
     driverUncollected += Number(d.collectedPayment?.diffUncollected) || 0;
     driverEmptyDamacana += Number(d.emptyContainersReceived?.damacana) || 0;
+    driverEmptyCamDamacana += Number(d.emptyContainersReceived?.camDamacana || d.emptyContainersReceived?.cam_damacana) || 0;
     driverEmptyTup += Number(d.emptyContainersReceived?.tup) || 0;
   });
 
@@ -274,6 +279,17 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
               {driverEmptyDamacana} Adet
             </div>
             <p className="text-[11px] text-slate-400">Depoya teslim edilecek boşlar</p>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
+            <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+              <span>Toplanan Boş Cam Damacana</span>
+              <RotateCcw className="w-4 h-4 text-amber-600" />
+            </div>
+            <div className="text-2xl font-black font-mono text-slate-900 dark:text-white tabular-nums">
+              {driverEmptyCamDamacana} Adet
+            </div>
+            <p className="text-[11px] text-slate-400">Depoya teslim edilecek boş cam damacanalar</p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
@@ -457,6 +473,16 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
           </div>
           <span className="text-[10px] text-orange-600/80 font-medium">Depoya İnecek Boş</span>
         </div>
+
+        <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50/20 shadow-xs">
+          <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">
+            Toplanan Boş Cam Damacana
+          </span>
+          <div className="text-xl font-extrabold font-mono text-amber-600 mt-1 tabular-nums">
+            {summary.totalEmptyCamDamacanaCollected} Adet
+          </div>
+          <span className="text-[10px] text-amber-600/80 font-medium">Depoya İnecek Boş Cam</span>
+        </div>
       </div>
 
       {/* Deliveries Data Table */}
@@ -540,10 +566,26 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                         </div>
                       </td>
                       <td className="py-3 px-3 text-center whitespace-nowrap">
-                        {del.emptyContainersReceived.damacana > 0 ? (
-                          <span className="font-mono font-bold text-orange-600">
-                            {del.emptyContainersReceived.damacana} Boş
-                          </span>
+                        {del.emptyContainersReceived.damacana > 0 ||
+                        (del.emptyContainersReceived.camDamacana || 0) > 0 ||
+                        del.emptyContainersReceived.tup > 0 ? (
+                          <div className="flex flex-col items-center gap-0.5">
+                            {del.emptyContainersReceived.damacana > 0 && (
+                              <span className="font-mono font-bold text-orange-600">
+                                {del.emptyContainersReceived.damacana} Boş
+                              </span>
+                            )}
+                            {(del.emptyContainersReceived.camDamacana || 0) > 0 && (
+                              <span className="font-mono font-bold text-amber-600">
+                                {del.emptyContainersReceived.camDamacana} Boş Cam
+                              </span>
+                            )}
+                            {del.emptyContainersReceived.tup > 0 && (
+                              <span className="font-mono font-bold text-slate-600">
+                                {del.emptyContainersReceived.tup} Boş Tüp
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-slate-300">-</span>
                         )}

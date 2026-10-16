@@ -97,8 +97,8 @@ CREATE TABLE IF NOT EXISTS public.deliveries (
   delivered_items JSONB DEFAULT '[]'::jsonb,
   delivered_grand_total NUMERIC DEFAULT 0,
   collected_payment JSONB DEFAULT '{}'::jsonb,
-  empty_containers_received JSONB DEFAULT '{"damacana": 0, "tup": 0}'::jsonb,
-  empty_containers_diff JSONB DEFAULT '{"damacana": 0, "tup": 0}'::jsonb,
+  empty_containers_received JSONB DEFAULT '{"damacana": 0, "camDamacana": 0, "tup": 0}'::jsonb,
+  empty_containers_diff JSONB DEFAULT '{"damacana": 0, "camDamacana": 0, "tup": 0}'::jsonb,
   notes TEXT,
   is_offline_sync BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now()
@@ -170,6 +170,7 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO public.products (id, name, category, default_unit_price, is_deposit, deposit_type, unit, description)
 VALUES
   ('prod_damacana_19l', '19L Damacana Su (Polikarbon)', 'damacana', 100, true, 'damacana', 'Adet', 'Doğal kaynak damacana su - depozitolu 19 litre'),
+  ('prod_cam_damacana', 'Hayat Cam Damacana', 'damacana', 110, true, 'cam_damacana', 'Adet', 'Cam damacana su - boş cam damacana iadesi zorunlu'),
   ('prod_pet_05l_24', '0.5L Pet Su (24''lü Koli)', 'pet', 120, false, 'none', 'Koli', '24 adet 500ml pet şişe doğal kaynak suyu'),
   ('prod_pet_15l_12', '1.5L Pet Su (12''li Koli)', 'pet', 110, false, 'none', 'Koli', '12 adet 1.5 litre pet şişe su'),
   ('prod_soda_beypazari_24', 'Beypazarı Maden Suyu (24''lü Koli)', 'soda', 180, false, 'none', 'Koli', 'Doğal maden suyu 200ml cam şişe'),

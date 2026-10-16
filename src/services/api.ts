@@ -311,7 +311,7 @@ export function normalizeDelivery(deliveryData: any, forceOffline = false): Deli
     status = 'partial';
   }
 
-  const emptyRecv = deliveryData.emptyContainersReceived || { damacana: 0, tup: 0 };
+  const emptyRecv = deliveryData.emptyContainersReceived || { damacana: 0, camDamacana: 0, tup: 0 };
 
   return {
     id: deliveryData.id || `offline_${Date.now()}`,

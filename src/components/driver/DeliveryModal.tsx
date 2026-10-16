@@ -66,7 +66,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const [newProdPrice, setNewProdPrice] = useState('120');
   const [newProdUnit, setNewProdUnit] = useState('Adet');
   const [newProdIsDeposit, setNewProdIsDeposit] = useState(true);
-  const [newProdDepositType, setNewProdDepositType] = useState<'none' | 'damacana' | 'tup'>('damacana');
+  const [newProdDepositType, setNewProdDepositType] = useState<'none' | 'damacana' | 'cam_damacana' | 'tup'>('damacana');
 
   // Quantities & Unit prices
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -75,6 +75,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
   // Step 3: Empty containers returned
   const [emptyDamacanaReturned, setEmptyDamacanaReturned] = useState<number>(0);
+  const [emptyCamDamacanaReturned, setEmptyCamDamacanaReturned] = useState<number>(0);
   const [emptyTupReturned, setEmptyTupReturned] = useState<number>(0);
 
   // Payment
@@ -117,10 +118,12 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
   // Calculate delivered deposit items
   let deliveredDepositDamacana = 0;
+  let deliveredDepositCamDamacana = 0;
   let deliveredDepositTup = 0;
   deliveredItems.forEach((item) => {
     const p = allProducts.find((prod) => prod.id === item.productId);
     if (p?.depositType === 'damacana') deliveredDepositDamacana += item.quantity;
+    if (p?.depositType === 'cam_damacana') deliveredDepositCamDamacana += item.quantity;
     if (p?.depositType === 'tup') deliveredDepositTup += item.quantity;
   });
 
@@ -134,6 +137,13 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
           if (allProducts.find((x) => x.id === pId)?.depositType === 'damacana') totalDam += q;
         });
         setEmptyDamacanaReturned(totalDam);
+      }
+      if (p?.depositType === 'cam_damacana') {
+        let totalCam = 0;
+        Object.entries(updated).forEach(([pId, q]) => {
+          if (allProducts.find((x) => x.id === pId)?.depositType === 'cam_damacana') totalCam += q;
+        });
+        setEmptyCamDamacanaReturned(totalCam);
       }
       return updated;
     });
@@ -269,6 +279,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         },
         emptyContainersReceived: {
           damacana: emptyDamacanaReturned,
+          camDamacana: emptyCamDamacanaReturned,
           tup: emptyTupReturned,
         },
         notes: notes.trim(),
@@ -517,6 +528,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                               {c.emptyDepositBalance.damacana} Boş Borcu
                             </div>
                           )}
+                          {c.emptyDepositBalance?.camDamacana > 0 && (
+                            <div className="text-[10px] font-semibold text-amber-700">
+                              {c.emptyDepositBalance.camDamacana} Boş Cam Borcu
+                            </div>
+                          )}
                         </div>
                       </button>
                     ))
@@ -555,9 +571,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
                   <div className="flex flex-wrap items-center gap-2 mt-2">
                     {(selectedCustomer.emptyDepositBalance?.damacana > 0 ||
+                      selectedCustomer.emptyDepositBalance?.camDamacana > 0 ||
                       selectedCustomer.emptyDepositBalance?.tup > 0) && (
                       <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300">
                         Müşteride Kalan Boş: {selectedCustomer.emptyDepositBalance?.damacana || 0} Damacana
+                        {selectedCustomer.emptyDepositBalance?.camDamacana > 0 ? `, ${selectedCustomer.emptyDepositBalance.camDamacana} Cam Damacana` : ''}
                         {selectedCustomer.emptyDepositBalance?.tup > 0 ? `, ${selectedCustomer.emptyDepositBalance.tup} Tüp` : ''}
                       </span>
                     )}
@@ -680,6 +698,19 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         <span>İadeli Boş Kap</span>
                       </label>
                     </div>
+                    {newProdIsDeposit && (
+                      <select
+                        value={newProdDepositType}
+                        onChange={(e) =>
+                          setNewProdDepositType(e.target.value as 'none' | 'damacana' | 'cam_damacana' | 'tup')
+                        }
+                        className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white sm:col-span-3"
+                      >
+                        <option value="damacana">🔄 Boş Damacana İadesi Zorunlu</option>
+                        <option value="cam_damacana">🔄 Boş Cam Damacana İadesi Zorunlu</option>
+                        <option value="tup">🔥 Boş Tüp İadesi Zorunlu</option>
+                      </select>
+                    )}
                   </div>
                   <div className="flex justify-end pt-1">
                     <button
@@ -848,7 +879,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
               )}
 
               {/* Deposit Empties Returned */}
-              {(deliveredDepositDamacana > 0 || deliveredDepositTup > 0) && (
+              {(deliveredDepositDamacana > 0 || deliveredDepositCamDamacana > 0 || deliveredDepositTup > 0) && (
                 <div className="p-3.5 rounded-xl border border-orange-200 dark:border-orange-900/60 bg-orange-50/40 dark:bg-orange-950/20 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-orange-900 dark:text-orange-300 flex items-center gap-1.5">
@@ -856,7 +887,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       <span>Müşteriden Alınan Boş Emanet Kaplar</span>
                     </span>
                     <span className="text-[11px] text-orange-700 dark:text-orange-400">
-                      Bırakılan Dolu: {deliveredDepositDamacana} Damacana {deliveredDepositTup > 0 ? `, ${deliveredDepositTup} Tüp` : ''}
+                      Bırakılan Dolu: {deliveredDepositDamacana} Damacana{deliveredDepositCamDamacana > 0 ? `, ${deliveredDepositCamDamacana} Cam Damacana` : ''}{deliveredDepositTup > 0 ? `, ${deliveredDepositTup} Tüp` : ''}
                     </span>
                   </div>
 
@@ -884,6 +915,36 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                             type="button"
                             onClick={() => setEmptyDamacanaReturned((prev) => prev + 1)}
                             className="w-7 h-7 rounded bg-orange-50 text-orange-600 text-xs font-bold"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {deliveredDepositCamDamacana > 0 && (
+                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-amber-100 dark:border-amber-800">
+                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                          Alınan Boş Cam Damacana
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setEmptyCamDamacanaReturned((prev) => Math.max(0, prev - 1))}
+                            className="w-7 h-7 rounded bg-slate-100 dark:bg-slate-700 text-xs font-bold"
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            value={emptyCamDamacanaReturned}
+                            onChange={(e) => setEmptyCamDamacanaReturned(parseInt(e.target.value) || 0)}
+                            className="w-12 h-7 rounded border border-amber-200 text-center font-mono font-bold text-xs"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setEmptyCamDamacanaReturned((prev) => prev + 1)}
+                            className="w-7 h-7 rounded bg-amber-50 text-amber-600 text-xs font-bold"
                           >
                             +
                           </button>
@@ -926,11 +987,25 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     <div className="text-[11px] text-orange-800 dark:text-orange-300">
                       {deliveredDepositDamacana - emptyDamacanaReturned > 0 ? (
                         <span>
-                          ⚠️ <strong>{deliveredDepositDamacana - emptyDamacanaReturned} adet boş eksik alındı.</strong> Müşterinin emanet boş borcuna işlenecektir.
+                          ⚠️ <strong>{deliveredDepositDamacana - emptyDamacanaReturned} adet boş damacana eksik alındı.</strong> Müşterinin emanet boş borcuna işlenecektir.
                         </span>
                       ) : (
                         <span>
-                          ℹ️ Müşteri fazladan <strong>{emptyDamacanaReturned - deliveredDepositDamacana} adet boş teslim etti.</strong> Emanet borcundan düşülecektir.
+                          ℹ️ Müşteri fazladan <strong>{emptyDamacanaReturned - deliveredDepositDamacana} adet boş damacana teslim etti.</strong> Emanet borcundan düşülecektir.
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {deliveredDepositCamDamacana - emptyCamDamacanaReturned !== 0 && (
+                    <div className="text-[11px] text-amber-800 dark:text-amber-300">
+                      {deliveredDepositCamDamacana - emptyCamDamacanaReturned > 0 ? (
+                        <span>
+                          ⚠️ <strong>{deliveredDepositCamDamacana - emptyCamDamacanaReturned} adet boş cam damacana eksik alındı.</strong> Müşterinin emanet boş cam damacana borcuna işlenecektir.
+                        </span>
+                      ) : (
+                        <span>
+                          ℹ️ Müşteri fazladan <strong>{emptyCamDamacanaReturned - deliveredDepositCamDamacana} adet boş cam damacana teslim etti.</strong> Emanet borcundan düşülecektir.
                         </span>
                       )}
                     </div>

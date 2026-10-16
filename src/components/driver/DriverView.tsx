@@ -280,6 +280,20 @@ export const DriverView: React.FC<DriverViewProps> = ({
                           {del.emptyContainersReceived.damacana} Boş Alındı
                         </span>
                       )}
+
+                      {(del.emptyContainersReceived.camDamacana || 0) > 0 && (
+                        <span className="text-[11px] font-semibold text-amber-600 flex items-center gap-0.5">
+                          <RotateCcw className="w-3 h-3" />
+                          {del.emptyContainersReceived.camDamacana} Boş Cam Alındı
+                        </span>
+                      )}
+
+                      {del.emptyContainersReceived.tup > 0 && (
+                        <span className="text-[11px] font-semibold text-slate-600 flex items-center gap-0.5">
+                          <RotateCcw className="w-3 h-3" />
+                          {del.emptyContainersReceived.tup} Boş Tüp Alındı
+                        </span>
+                      )}
                     </div>
                   </div>
 

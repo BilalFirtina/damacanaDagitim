@@ -236,7 +236,12 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
     if (!matchesSearch) return false;
     if (filterType === 'account') return c.isAccountCustomer;
-    if (filterType === 'deposit_debt') return c.emptyDepositBalance?.damacana > 0;
+    if (filterType === 'deposit_debt')
+      return (
+        (c.emptyDepositBalance?.damacana || 0) > 0 ||
+        (c.emptyDepositBalance?.camDamacana || 0) > 0 ||
+        (c.emptyDepositBalance?.tup || 0) > 0
+      );
     if (filterType === 'cash_debt') return c.currentBalanceTL > 0;
     return true;
   });
@@ -309,7 +314,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
               : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
           }`}
         >
-          Boş Damacana Borcu Olanlar ({customers.filter((c) => (c.emptyDepositBalance?.damacana || 0) > 0).length})
+          Boş Kap Borcu Olanlar ({customers.filter((c) => ((c.emptyDepositBalance?.damacana || 0) + (c.emptyDepositBalance?.camDamacana || 0) + (c.emptyDepositBalance?.tup || 0)) > 0).length})
         </button>
 
         <button
@@ -406,6 +411,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                     <span className="text-[10px] text-slate-400 block">Emanet Boş Kap:</span>
                     <span className="font-mono font-bold text-orange-600">
                       {c.emptyDepositBalance?.damacana || 0} Damacana
+                      {(c.emptyDepositBalance?.camDamacana || 0) > 0 ? `, ${c.emptyDepositBalance.camDamacana} Cam Damacana` : ''}
                       {(c.emptyDepositBalance?.tup || 0) > 0 ? `, ${c.emptyDepositBalance.tup} Tüp` : ''}
                     </span>
                   </div>
@@ -442,7 +448,9 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
               {/* Quick Actions */}
               <div className="mt-4 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
-                {(c.emptyDepositBalance?.damacana || 0) > 0 && (
+                {((c.emptyDepositBalance?.damacana || 0) > 0 ||
+                  (c.emptyDepositBalance?.camDamacana || 0) > 0 ||
+                  (c.emptyDepositBalance?.tup || 0) > 0) && (
                   <button
                     onClick={() => handleClearDeposit(c)}
                     className="text-orange-600 hover:underline"

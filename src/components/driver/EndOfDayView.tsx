@@ -103,6 +103,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
   let totalPosCollected = 0;
   let totalCreditAdded = 0;
   let totalEmptyDamacanaCollected = 0;
+  let totalEmptyCamDamacanaCollected = 0;
   let totalEmptyTupCollected = 0;
 
   dispatchDeliveries.forEach((del) => {
@@ -113,6 +114,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
       totalCreditAdded += del.collectedPayment.diffUncollected;
     }
     totalEmptyDamacanaCollected += del.emptyContainersReceived.damacana || 0;
+    totalEmptyCamDamacanaCollected += Number(del.emptyContainersReceived.camDamacana || del.emptyContainersReceived.cam_damacana) || 0;
     totalEmptyTupCollected += del.emptyContainersReceived.tup || 0;
 
     del.deliveredItems.forEach((item) => {
@@ -154,6 +156,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
         closedByUserName: currentUser.name,
         remainingFullCounted: countedFull,
         collectedEmptyDamacana: totalEmptyDamacanaCollected,
+        collectedEmptyCamDamacana: totalEmptyCamDamacanaCollected,
         collectedEmptyTup: totalEmptyTupCollected,
         actualCashInPocket: Number(actualCashInPocket) || 0,
         actualPosSlipsTotal: Number(actualPosSlipsTotal) || 0,
@@ -350,13 +353,21 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
           <span>B. Boş Kap & Kasa Tahsilat Mutabakatı</span>
         </h3>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
             <span className="text-[11px] font-semibold text-slate-500 uppercase">Toplanan Boş Damacana</span>
             <div className="text-xl font-bold font-mono text-slate-900 dark:text-white mt-1">
               {totalEmptyDamacanaCollected} Adet
             </div>
             <span className="text-[10px] text-slate-400">Depoya teslim edilecek boşlar</span>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+            <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase">Toplanan Boş Cam Damacana</span>
+            <div className="text-xl font-bold font-mono text-amber-700 dark:text-amber-400 mt-1">
+              {totalEmptyCamDamacanaCollected} Adet
+            </div>
+            <span className="text-[10px] text-amber-600/80">Depoya teslim edilecek boş camlar</span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
@@ -442,6 +453,8 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                   <div className="text-[11px] text-slate-500">
                     {del.deliveredItems.map((i) => `${i.quantity} ${i.productName}`).join(' · ')}
                     {del.emptyContainersReceived.damacana > 0 && ` · ${del.emptyContainersReceived.damacana} Boş`}
+                    {(del.emptyContainersReceived.camDamacana || 0) > 0 && ` · ${del.emptyContainersReceived.camDamacana} Boş Cam`}
+                    {del.emptyContainersReceived.tup > 0 && ` · ${del.emptyContainersReceived.tup} Boş Tüp`}
                   </div>
                 </div>
 

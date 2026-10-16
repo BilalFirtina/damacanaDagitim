@@ -386,7 +386,13 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                 <div className="text-right">
                   {p.isDeposit ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 px-2 py-0.5 rounded-md">
-                      {p.depositType === 'damacana' ? '🔄 19L Boş Emanet' : '🔥 Boş Tüp Emanet'}
+                      {p.depositType === 'damacana'
+                        ? '🔄 Boş Damacana Emanet'
+                        : p.depositType === 'cam_damacana'
+                        ? '🔄 Boş Cam Damacana Emanet'
+                        : p.depositType === 'tup'
+                        ? '🔥 Boş Tüp Emanet'
+                        : '🔄 Boş Kap Emanet'}
                     </span>
                   ) : (
                     <span className="text-[11px] font-medium text-slate-400 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded-md">
@@ -533,7 +539,8 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                     className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                   >
                     <option value="none">Depozitosuz (Geri İade Yok)</option>
-                    <option value="damacana">🔄 19L Boş Damacana İadesi Zorunlu</option>
+                    <option value="damacana">🔄 Boş Damacana İadesi Zorunlu</option>
+                    <option value="cam_damacana">🔄 Boş Cam Damacana İadesi Zorunlu</option>
                     <option value="tup">🔥 Boş Tüp İadesi Zorunlu</option>
                   </select>
                 </div>

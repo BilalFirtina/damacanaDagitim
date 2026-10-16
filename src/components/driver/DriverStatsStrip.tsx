@@ -35,6 +35,7 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
   
   let deliveredDamacana = 0;
   let collectedEmptyDamacana = 0;
+  let collectedEmptyCamDamacana = 0;
   let collectedEmptyTup = 0;
   let cashTotal = 0;
   let posTotal = 0;
@@ -43,6 +44,7 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
     cashTotal += del.collectedPayment.cashAmount || 0;
     posTotal += del.collectedPayment.posAmount || 0;
     collectedEmptyDamacana += del.emptyContainersReceived.damacana || 0;
+    collectedEmptyCamDamacana += Number(del.emptyContainersReceived.camDamacana || del.emptyContainersReceived.cam_damacana) || 0;
     collectedEmptyTup += del.emptyContainersReceived.tup || 0;
 
     del.deliveredItems.forEach((item) => {
@@ -55,7 +57,7 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
   const remainingDamacana = Math.max(0, loadedDamacana - deliveredDamacana);
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
       {/* 1. Kalan Dolu Damacana */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
         <div>
@@ -92,7 +94,25 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
         </div>
       </div>
 
-      {/* 3. Toplanan Boş Tüp */}
+      {/* 3. Toplanan Boş Cam Damacana (Depoya Teslim Edilecek) */}
+      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
+        <div>
+          <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">
+            Toplanan Boş Cam Damacana
+          </span>
+          <div className="flex items-baseline gap-1.5 mt-1">
+            <span className="text-2xl font-extrabold font-mono text-amber-600 dark:text-amber-400 tabular-nums">
+              {collectedEmptyCamDamacana}
+            </span>
+            <span className="text-xs text-slate-400">Depoya İnecek</span>
+          </div>
+        </div>
+        <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center shrink-0">
+          <RotateCcw className="w-5 h-5" />
+        </div>
+      </div>
+
+      {/* 4. Toplanan Boş Tüp */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
         <div>
           <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
@@ -110,7 +130,7 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
         </div>
       </div>
 
-      {/* 4. Kasadaki Fiili Nakit */}
+      {/* 5. Kasadaki Fiili Nakit */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
         <div>
           <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
@@ -128,8 +148,8 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
         </div>
       </div>
 
-      {/* 5. Çekilen POS Toplamı */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between col-span-2 lg:col-span-1">
+      {/* 6. Çekilen POS Toplamı */}
+      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
         <div>
           <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block">
             POS Kart Çekimleri
