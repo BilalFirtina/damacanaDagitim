@@ -1,6 +1,8 @@
 import express from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import http from 'http';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import {
@@ -101,7 +103,132 @@ app.get('/api/health', async (req, res) => {
   });
 });
 
-app.get('/api/database/status', async (req, res) => {
+// -------------------------------------------------------------
+// SERVER-SIDE AUTHENTICATION & ROLE-BASED AUTHORIZATION
+// -------------------------------------------------------------
+interface SessionInfo {
+  userId: string;
+  role: 'admin' | 'driver';
+  name: string;
+  canLoadVehicle: boolean;
+  createdAt: number;
+}
+
+const sessions = new Map<string, SessionInfo>();
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 gün
+
+function createSession(user: User): string {
+  const token = crypto.randomBytes(32).toString('hex');
+  sessions.set(token, {
+    userId: user.id,
+    role: user.role,
+    name: user.name,
+    canLoadVehicle: !!user.canLoadVehicle,
+    createdAt: Date.now(),
+  });
+  return token;
+}
+
+function extractToken(req: Request): string | undefined {
+  const auth = req.headers['authorization'];
+  if (typeof auth === 'string' && auth.startsWith('Bearer ')) {
+    return auth.slice(7).trim();
+  }
+  const headerToken = req.headers['x-auth-token'];
+  if (typeof headerToken === 'string' && headerToken.trim()) {
+    return headerToken.trim();
+  }
+  return undefined;
+}
+
+function getSession(req: Request): SessionInfo | null {
+  const token = extractToken(req);
+  if (!token) return null;
+  const session = sessions.get(token);
+  if (!session) return null;
+  if (Date.now() - session.createdAt > SESSION_TTL_MS) {
+    sessions.delete(token);
+    return null;
+  }
+  return session;
+}
+
+function getAuthUser(req: Request): SessionInfo | undefined {
+  return (req as any).authUser as SessionInfo | undefined;
+}
+
+function authenticate(req: Request, res: Response, next: NextFunction) {
+  const session = getSession(req);
+  if (!session) {
+    return res.status(401).json({ error: 'Oturum geçersiz veya süresi doldu. Lütfen tekrar giriş yapın.' });
+  }
+  (req as any).authUser = session;
+  next();
+}
+
+function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  const session = getAuthUser(req);
+  if (!session || session.role !== 'admin') {
+    return res.status(403).json({ error: 'Bu işlem için yönetici yetkisi gereklidir.' });
+  }
+  next();
+}
+
+function requireAdminOrLoader(req: Request, res: Response, next: NextFunction) {
+  const session = getAuthUser(req);
+  if (!session) {
+    return res.status(401).json({ error: 'Oturum geçersiz.' });
+  }
+  if (session.role === 'admin' || session.canLoadVehicle) {
+    return next();
+  }
+  return res.status(403).json({ error: 'Bu işlem için depo yükleme yetkisi gereklidir.' });
+}
+
+function canManageDispatch(req: Request, dispatch: Dispatch): boolean {
+  const session = getAuthUser(req);
+  if (!session) return false;
+  if (session.role === 'admin') return true;
+  return session.userId === dispatch.driverId;
+}
+
+// Giriş: herkese açık
+app.post('/api/auth/login', async (req, res) => {
+  const { username, pin } = req.body;
+  if (!username || !pin) {
+    return res.status(400).json({ error: 'Kullanıcı adı ve şifre/PIN gereklidir' });
+  }
+
+  try {
+    const users = await getUsers();
+    const user = users.find(
+      (u) =>
+        u.username.toLowerCase() === String(username).trim().toLowerCase() &&
+        u.pin.toString() === String(pin).toString().trim()
+    );
+
+    if (!user) {
+      return res.status(401).json({ error: 'Hatalı kullanıcı adı veya şifre!' });
+    }
+
+    const token = createSession(user);
+    res.json({ user: { ...user, pin: '' }, token, message: 'Giriş başarılı' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Çıkış: token geçerliyse oturumu kapat
+app.post('/api/auth/logout', (req, res) => {
+  const token = extractToken(req);
+  if (token) sessions.delete(token);
+  res.json({ success: true, message: 'Oturum kapatıldı.' });
+});
+
+// Bu noktadan sonraki tüm /api uçları kimlik doğrulaması gerektirir
+app.use('/api', authenticate);
+
+app.get('/api/database/status', requireAdmin, async (req, res) => {
   try {
     const status = await getDatabaseStatus();
     res.json(status);
@@ -110,7 +237,7 @@ app.get('/api/database/status', async (req, res) => {
   }
 });
 
-app.post('/api/database/config', async (req, res) => {
+app.post('/api/database/config', requireAdmin, async (req, res) => {
   try {
     const { url, key, enabled } = req.body;
     const result = await configureSupabase({ url, key, enabled });
@@ -120,7 +247,7 @@ app.post('/api/database/config', async (req, res) => {
   }
 });
 
-app.post('/api/database/seed', async (req, res) => {
+app.post('/api/database/seed', requireAdmin, async (req, res) => {
   try {
     await ensureSupabaseSeeded();
     const status = await getDatabaseStatus();
@@ -134,37 +261,17 @@ app.post('/api/database/seed', async (req, res) => {
 app.get('/api/users', async (req, res) => {
   try {
     const users = await getUsers();
-    res.json({ users });
+    const session = getAuthUser(req);
+    // PIN bilgisi yalnızca yöneticiye döndürülür
+    const safeUsers =
+      session?.role === 'admin' ? users : users.map((u) => ({ ...u, pin: '' }));
+    res.json({ users: safeUsers });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
-  const { username, pin } = req.body;
-  if (!username || !pin) {
-    return res.status(400).json({ error: 'Kullanıcı adı ve şifre/PIN gereklidir' });
-  }
-
-  try {
-    const users = await getUsers();
-    const user = users.find(
-      (u) =>
-        u.username.toLowerCase() === username.trim().toLowerCase() &&
-        u.pin.toString() === pin.toString().trim()
-    );
-
-    if (!user) {
-      return res.status(401).json({ error: 'Hatalı kullanıcı adı veya şifre!' });
-    }
-
-    res.json({ user, message: 'Giriş başarılı' });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/api/users', async (req, res) => {
+app.post('/api/users', requireAdmin, async (req, res) => {
   const { name, username, role, canLoadVehicle, assignedPlate, pin, phone } = req.body;
   if (!name || !username || !role) {
     return res.status(400).json({ error: 'İsim, kullanıcı adı ve rol zorunludur' });
@@ -189,7 +296,7 @@ app.post('/api/users', async (req, res) => {
   }
 });
 
-app.put('/api/users/:id', async (req, res) => {
+app.put('/api/users/:id', requireAdmin, async (req, res) => {
   try {
     const updated = await updateUser(req.params.id, req.body);
     if (!updated) return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
@@ -209,7 +316,7 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
-app.post('/api/products', async (req, res) => {
+app.post('/api/products', requireAdmin, async (req, res) => {
   const { name, category, defaultUnitPrice, isDeposit, depositType, unit, description } = req.body;
   const newProduct: Product = {
     id: `prod_${Date.now()}`,
@@ -230,7 +337,7 @@ app.post('/api/products', async (req, res) => {
   }
 });
 
-app.put('/api/products/:id', async (req, res) => {
+app.put('/api/products/:id', requireAdmin, async (req, res) => {
   try {
     const updated = await updateProduct(req.params.id, req.body);
     if (!updated) return res.status(404).json({ error: 'Ürün bulunamadı' });
@@ -240,7 +347,7 @@ app.put('/api/products/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/products/:id', async (req, res) => {
+app.delete('/api/products/:id', requireAdmin, async (req, res) => {
   try {
     await deleteProduct(req.params.id);
     res.json({ success: true, message: 'Ürün başarıyla silindi' });
@@ -259,7 +366,7 @@ app.get('/api/customers', async (req, res) => {
   }
 });
 
-app.post('/api/customers', async (req, res) => {
+app.post('/api/customers', requireAdmin, async (req, res) => {
   const { name, phone, address, emails, isAccountCustomer, notes, customPrices } = req.body;
   if (!name) return res.status(400).json({ error: 'Müşteri adı zorunludur' });
 
@@ -290,7 +397,7 @@ app.post('/api/customers', async (req, res) => {
   }
 });
 
-app.put('/api/customers/:id', async (req, res) => {
+app.put('/api/customers/:id', requireAdmin, async (req, res) => {
   try {
     const updated = await updateCustomer(req.params.id, req.body);
     if (!updated) return res.status(404).json({ error: 'Müşteri bulunamadı' });
@@ -311,7 +418,7 @@ app.get('/api/dispatches', async (req, res) => {
   }
 });
 
-app.post('/api/dispatches', async (req, res) => {
+app.post('/api/dispatches', requireAdminOrLoader, async (req, res) => {
   const {
     driverId,
     vehiclePlate,
@@ -374,6 +481,12 @@ app.post('/api/dispatches', async (req, res) => {
 
 app.put('/api/dispatches/:id', async (req, res) => {
   try {
+    const allDispatches = await getDispatches();
+    const existing = allDispatches.find((d) => d.id === req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Sefer bulunamadı' });
+    if (!canManageDispatch(req, existing)) {
+      return res.status(403).json({ error: 'Bu sefer üzerinde işlem yapma yetkiniz yok.' });
+    }
     const updated = await updateDispatch(req.params.id, req.body);
     if (!updated) return res.status(404).json({ error: 'Sefer bulunamadı' });
     res.json({ dispatch: updated });
@@ -384,6 +497,12 @@ app.put('/api/dispatches/:id', async (req, res) => {
 
 app.post('/api/dispatches/:id/confirm', async (req, res) => {
   try {
+    const allDispatches = await getDispatches();
+    const existing = allDispatches.find((d) => d.id === req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Sefer bulunamadı' });
+    if (!canManageDispatch(req, existing)) {
+      return res.status(403).json({ error: 'Bu seferi teslim alma yetkiniz yok.' });
+    }
     const updated = await updateDispatch(req.params.id, {
       driverConfirmedAt: new Date().toISOString(),
       status: 'in_transit',
@@ -400,6 +519,9 @@ app.post('/api/dispatches/:id/close', async (req, res) => {
     const allDispatches = await getDispatches();
     const dispatch = allDispatches.find((d) => d.id === req.params.id);
     if (!dispatch) return res.status(404).json({ error: 'Sefer bulunamadı' });
+    if (!canManageDispatch(req, dispatch)) {
+      return res.status(403).json({ error: 'Bu seferi kapatma yetkiniz yok.' });
+    }
 
     const {
       closedByUserId,
@@ -520,6 +642,11 @@ app.post('/api/deliveries', async (req, res) => {
       return res.status(400).json({ error: 'Geçersiz sefer, şoför veya müşteri bilgisi' });
     }
 
+    const session = getAuthUser(req);
+    if (session && session.role === 'driver' && session.userId !== driver.id) {
+      return res.status(403).json({ error: 'Yalnızca kendi adınıza teslimat kaydedebilirsiniz.' });
+    }
+
     const items = deliveredItems || [];
     let deliveredGrandTotal = 0;
     let depositDeliveredDamacana = 0;
@@ -620,7 +747,7 @@ app.post('/api/deliveries', async (req, res) => {
 });
 
 // 6. Reports & Analytics
-app.get('/api/reports/daily', async (req, res) => {
+app.get('/api/reports/daily', requireAdmin, async (req, res) => {
   try {
     const date = (req.query.date as string) || getTodayDateStr();
     const driverId = req.query.driverId as string;
@@ -690,7 +817,7 @@ app.get('/api/reports/daily', async (req, res) => {
 });
 
 // 7. Retention Status & Trigger
-app.get('/api/cleanup/status', async (req, res) => {
+app.get('/api/cleanup/status', requireAdmin, async (req, res) => {
   try {
     const status = await getCleanupStats();
     res.json(status);
@@ -699,7 +826,7 @@ app.get('/api/cleanup/status', async (req, res) => {
   }
 });
 
-app.post('/api/cleanup/trigger', async (req, res) => {
+app.post('/api/cleanup/trigger', requireAdmin, async (req, res) => {
   try {
     const result = await runRetentionCleanup();
     res.json({

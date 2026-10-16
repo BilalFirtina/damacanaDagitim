@@ -6,10 +6,45 @@ import {
   Delivery,
   CleanupStatus,
   DatabaseStatus,
+  PaymentStatus,
 } from '../types';
 
 const OFFLINE_QUEUE_KEY = 'sudagitim_offline_deliveries_queue';
 const CACHED_DATA_KEY = 'sudagitim_cached_local_data';
+const AUTH_TOKEN_KEY = 'sudagitim_auth_token';
+
+export function getAuthToken(): string | null {
+  try {
+    return localStorage.getItem(AUTH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setAuthToken(token: string | null) {
+  try {
+    if (token) localStorage.setItem(AUTH_TOKEN_KEY, token);
+    else localStorage.removeItem(AUTH_TOKEN_KEY);
+  } catch {}
+}
+
+const nativeFetch = window.fetch.bind(window);
+
+async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const token = getAuthToken();
+  const headers = new Headers(init.headers || {});
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const res = await nativeFetch(input, { ...init, headers });
+
+  if (res.status === 401 && token) {
+    setAuthToken(null);
+    try {
+      window.dispatchEvent(new CustomEvent('auth_expired'));
+    } catch {}
+  }
+  return res;
+}
 
 // Helper to manage offline queue
 export function getOfflineQueue(): any[] {
@@ -51,7 +86,7 @@ export function getCache(key: string): any | null {
 
 // REST API Methods
 export async function loginUser(username: string, pin: string): Promise<User> {
-  const res = await fetch('/api/auth/login', {
+  const res = await apiFetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, pin }),
@@ -61,12 +96,20 @@ export async function loginUser(username: string, pin: string): Promise<User> {
     throw new Error(errData.error || 'Hatalı kullanıcı adı veya şifre');
   }
   const json = await res.json();
+  if (json.token) setAuthToken(json.token);
   return json.user;
+}
+
+export async function logoutUser(): Promise<void> {
+  try {
+    await apiFetch('/api/auth/logout', { method: 'POST' });
+  } catch {}
+  setAuthToken(null);
 }
 
 export async function fetchUsers(): Promise<User[]> {
   try {
-    const res = await fetch('/api/users');
+    const res = await apiFetch('/api/users');
     if (!res.ok) throw new Error('Kullanıcılar alınamadı');
     const json = await res.json();
     saveCache('users', json.users);
@@ -79,7 +122,7 @@ export async function fetchUsers(): Promise<User[]> {
 }
 
 export async function updateUser(id: string, updates: Partial<User>): Promise<User> {
-  const res = await fetch(`/api/users/${id}`, {
+  const res = await apiFetch(`/api/users/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
@@ -91,7 +134,7 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<Us
 
 export async function fetchProducts(): Promise<Product[]> {
   try {
-    const res = await fetch('/api/products');
+    const res = await apiFetch('/api/products');
     if (!res.ok) throw new Error('Ürünler alınamadı');
     const json = await res.json();
     saveCache('products', json.products);
@@ -104,7 +147,7 @@ export async function fetchProducts(): Promise<Product[]> {
 }
 
 export async function updateProduct(id: string, updates: Partial<Product>): Promise<Product> {
-  const res = await fetch(`/api/products/${id}`, {
+  const res = await apiFetch(`/api/products/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
@@ -115,7 +158,7 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
 }
 
 export async function createProduct(product: Partial<Product>): Promise<Product> {
-  const res = await fetch('/api/products', {
+  const res = await apiFetch('/api/products', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(product),
@@ -126,7 +169,7 @@ export async function createProduct(product: Partial<Product>): Promise<Product>
 }
 
 export async function deleteProduct(id: string): Promise<boolean> {
-  const res = await fetch(`/api/products/${id}`, {
+  const res = await apiFetch(`/api/products/${id}`, {
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Ürün silinemedi');
@@ -135,7 +178,7 @@ export async function deleteProduct(id: string): Promise<boolean> {
 
 export async function fetchCustomers(): Promise<Customer[]> {
   try {
-    const res = await fetch('/api/customers');
+    const res = await apiFetch('/api/customers');
     if (!res.ok) throw new Error('Müşteriler alınamadı');
     const json = await res.json();
     saveCache('customers', json.customers);
@@ -148,7 +191,7 @@ export async function fetchCustomers(): Promise<Customer[]> {
 }
 
 export async function createCustomer(customer: Partial<Customer>): Promise<Customer> {
-  const res = await fetch('/api/customers', {
+  const res = await apiFetch('/api/customers', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(customer),
@@ -159,7 +202,7 @@ export async function createCustomer(customer: Partial<Customer>): Promise<Custo
 }
 
 export async function updateCustomer(id: string, updates: Partial<Customer>): Promise<Customer> {
-  const res = await fetch(`/api/customers/${id}`, {
+  const res = await apiFetch(`/api/customers/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
@@ -172,7 +215,7 @@ export async function updateCustomer(id: string, updates: Partial<Customer>): Pr
 export async function fetchDispatches(date?: string): Promise<Dispatch[]> {
   try {
     const url = date ? `/api/dispatches?date=${encodeURIComponent(date)}` : '/api/dispatches';
-    const res = await fetch(url);
+    const res = await apiFetch(url);
     if (!res.ok) throw new Error('Seferler alınamadı');
     const json = await res.json();
     saveCache(`dispatches_${date || 'all'}`, json.dispatches);
@@ -185,7 +228,7 @@ export async function fetchDispatches(date?: string): Promise<Dispatch[]> {
 }
 
 export async function createDispatch(dispatch: Partial<Dispatch> & { loadedByUserId: string; loadedByUserName: string; driverConfirmed?: boolean }): Promise<Dispatch> {
-  const res = await fetch('/api/dispatches', {
+  const res = await apiFetch('/api/dispatches', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(dispatch),
@@ -196,7 +239,7 @@ export async function createDispatch(dispatch: Partial<Dispatch> & { loadedByUse
 }
 
 export async function updateDispatch(id: string, updates: Partial<Dispatch>): Promise<Dispatch> {
-  const res = await fetch(`/api/dispatches/${id}`, {
+  const res = await apiFetch(`/api/dispatches/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
@@ -207,7 +250,7 @@ export async function updateDispatch(id: string, updates: Partial<Dispatch>): Pr
 }
 
 export async function confirmDispatch(id: string): Promise<Dispatch> {
-  const res = await fetch(`/api/dispatches/${id}/confirm`, {
+  const res = await apiFetch(`/api/dispatches/${id}/confirm`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
@@ -217,7 +260,7 @@ export async function confirmDispatch(id: string): Promise<Dispatch> {
 }
 
 export async function closeDispatch(id: string, reconciliationData: any): Promise<Dispatch> {
-  const res = await fetch(`/api/dispatches/${id}/close`, {
+  const res = await apiFetch(`/api/dispatches/${id}/close`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(reconciliationData),
@@ -234,7 +277,7 @@ export async function fetchDeliveries(params?: { dispatchId?: string; driverId?:
     if (params?.driverId) query.set('driverId', params.driverId);
     if (params?.date) query.set('date', params.date);
 
-    const res = await fetch(`/api/deliveries?${query.toString()}`);
+    const res = await apiFetch(`/api/deliveries?${query.toString()}`);
     if (!res.ok) throw new Error('Teslimatlar alınamadı');
     const json = await res.json();
     saveCache('deliveries_latest', json.deliveries);
@@ -246,16 +289,69 @@ export async function fetchDeliveries(params?: { dispatchId?: string; driverId?:
   }
 }
 
+// Build a complete Delivery shape from full or partial input so every UI
+// component can safely read totals/payments without crashing.
+export function normalizeDelivery(deliveryData: any, forceOffline = false): Delivery {
+  const items = Array.isArray(deliveryData.deliveredItems) ? deliveryData.deliveredItems : [];
+  const deliveredGrandTotal =
+    typeof deliveryData.deliveredGrandTotal === 'number'
+      ? deliveryData.deliveredGrandTotal
+      : items.reduce((sum: number, it: any) => sum + (Number(it?.lineTotal) || 0), 0);
+
+  const cp = deliveryData.collectedPayment || {};
+  const cashAmount = Number(cp.cashAmount) || 0;
+  const posAmount = Number(cp.posAmount) || 0;
+  const totalCollected = Number(cp.totalCollected) || cashAmount + posAmount;
+  const diffUncollected = deliveredGrandTotal - totalCollected;
+
+  let status: PaymentStatus = 'unpaid';
+  if (totalCollected >= deliveredGrandTotal && deliveredGrandTotal > 0) {
+    status = totalCollected > deliveredGrandTotal ? 'overpaid' : 'paid_full';
+  } else if (totalCollected > 0) {
+    status = 'partial';
+  }
+
+  const emptyRecv = deliveryData.emptyContainersReceived || { damacana: 0, tup: 0 };
+
+  return {
+    id: deliveryData.id || `offline_${Date.now()}`,
+    dispatchId: deliveryData.dispatchId,
+    driverId: deliveryData.driverId,
+    driverName: deliveryData.driverName || '',
+    vehiclePlate: deliveryData.vehiclePlate || '',
+    customerId: deliveryData.customerId,
+    customerName: deliveryData.customerName || 'Bilinmeyen Müşteri',
+    customerAddress: deliveryData.customerAddress || '',
+    customerPhone: deliveryData.customerPhone || '',
+    timestamp: deliveryData.timestamp || new Date().toISOString(),
+    deliveredItems: items,
+    deliveredGrandTotal,
+    collectedPayment: {
+      method:
+        cp.method ||
+        (cashAmount > 0 && posAmount > 0 ? 'MIXED' : posAmount > 0 ? 'POS' : cashAmount > 0 ? 'CASH' : 'UNPAID'),
+      cashAmount,
+      posAmount,
+      totalCollected,
+      status,
+      diffUncollected,
+    },
+    emptyContainersReceived: {
+      damacana: Number(emptyRecv.damacana) || 0,
+      camDamacana: Number(emptyRecv.camDamacana) || 0,
+      tup: Number(emptyRecv.tup) || 0,
+    },
+    emptyContainersDiff: deliveryData.emptyContainersDiff || { damacana: 0, camDamacana: 0, tup: 0 },
+    notes: deliveryData.notes || '',
+    isOfflineSync: forceOffline || Boolean(deliveryData.isOfflineSync),
+  };
+}
+
 export async function createDelivery(deliveryData: any): Promise<{ delivery: Delivery; updatedCustomer: Customer }> {
   // If browser is offline, queue locally
   if (!navigator.onLine) {
     const queue = getOfflineQueue();
-    const offlineDelivery: any = {
-      ...deliveryData,
-      id: `offline_${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      isOfflineSync: true,
-    };
+    const offlineDelivery = normalizeDelivery(deliveryData, true);
     queue.push(offlineDelivery);
     saveOfflineQueue(queue);
 
@@ -267,23 +363,26 @@ export async function createDelivery(deliveryData: any): Promise<{ delivery: Del
   }
 
   try {
-    const res = await fetch('/api/deliveries', {
+    const res = await apiFetch('/api/deliveries', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(deliveryData),
     });
-    if (!res.ok) throw new Error('Teslimat kaydedilemedi');
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      const httpErr: any = new Error(errData.error || 'Teslimat kaydedilemedi');
+      httpErr.isHttpError = true;
+      throw httpErr;
+    }
     const json = await res.json();
     return json;
-  } catch (err) {
-    // If request failed due to connectivity, fallback to queue
+  } catch (err: any) {
+    // Sunucu kaydı reddettiyse (doğrulama/yetki) kuyruğa alma, hatayı göster
+    if (err?.isHttpError) throw err;
+
+    // Yalnızca ağ hatasında çevrimdışı kuyruğa al
     const queue = getOfflineQueue();
-    const offlineDelivery: any = {
-      ...deliveryData,
-      id: `offline_${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      isOfflineSync: true,
-    };
+    const offlineDelivery = normalizeDelivery(deliveryData, true);
     queue.push(offlineDelivery);
     saveOfflineQueue(queue);
 
@@ -305,7 +404,7 @@ export async function syncOfflineDeliveries(): Promise<number> {
 
   for (const item of queue) {
     try {
-      const res = await fetch('/api/deliveries', {
+      const res = await apiFetch('/api/deliveries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...item, isOfflineSync: true }),
@@ -329,37 +428,37 @@ export async function fetchDailyReport(date?: string, driverId?: string): Promis
   if (date) query.set('date', date);
   if (driverId && driverId !== 'all') query.set('driverId', driverId);
 
-  const res = await fetch(`/api/reports/daily?${query.toString()}`);
+  const res = await apiFetch(`/api/reports/daily?${query.toString()}`);
   if (!res.ok) throw new Error('Günlük rapor alınamadı');
   return res.json();
 }
 
 export async function fetchCleanupStatus(): Promise<CleanupStatus> {
-  const res = await fetch('/api/cleanup/status');
+  const res = await apiFetch('/api/cleanup/status');
   if (!res.ok) throw new Error('Temizlik durumu alınamadı');
   return res.json();
 }
 
 export async function triggerManualCleanup(): Promise<any> {
-  const res = await fetch('/api/cleanup/trigger', { method: 'POST' });
+  const res = await apiFetch('/api/cleanup/trigger', { method: 'POST' });
   if (!res.ok) throw new Error('Temizleme tetiklenemedi');
   return res.json();
 }
 
 export async function fetchDatabaseStatus(): Promise<DatabaseStatus> {
-  const res = await fetch('/api/database/status');
+  const res = await apiFetch('/api/database/status');
   if (!res.ok) throw new Error('Veritabanı durumu alınamadı');
   return res.json();
 }
 
 export async function triggerDatabaseSeed(): Promise<any> {
-  const res = await fetch('/api/database/seed', { method: 'POST' });
+  const res = await apiFetch('/api/database/seed', { method: 'POST' });
   if (!res.ok) throw new Error('Veritabanı başlangıç kurulumu yapılamadı');
   return res.json();
 }
 
 export async function updateDatabaseConfig(cfg: { url?: string; key?: string; enabled?: boolean }): Promise<any> {
-  const res = await fetch('/api/database/config', {
+  const res = await apiFetch('/api/database/config', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(cfg),

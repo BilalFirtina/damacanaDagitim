@@ -6,6 +6,8 @@ import {
   fetchCustomers,
   fetchDispatches,
   fetchDeliveries,
+  logoutUser,
+  normalizeDelivery,
 } from './services/api';
 import { LoginView } from './components/auth/LoginView';
 import { Header } from './components/common/Header';
@@ -62,7 +64,7 @@ export default function App() {
       setProducts(pList);
       setCustomers(cList);
       setDispatches(dList);
-      setDeliveries(delList);
+      setDeliveries(delList.map((d) => normalizeDelivery(d)));
 
       // Verify and sync active session against freshly retrieved users list
       const savedUserRaw =
@@ -103,12 +105,22 @@ export default function App() {
           fetchDeliveries(),
           fetchDispatches(),
         ]);
-        setDeliveries(latestDeliveries);
+        setDeliveries(latestDeliveries.map((d) => normalizeDelivery(d)));
         setDispatches(latestDispatches);
       } catch {}
     }, 8000);
 
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const onAuthExpired = () => {
+      localStorage.removeItem(REMEMBERED_USER_KEY);
+      sessionStorage.removeItem(SESSION_USER_KEY);
+      setCurrentUser(null);
+    };
+    window.addEventListener('auth_expired', onAuthExpired);
+    return () => window.removeEventListener('auth_expired', onAuthExpired);
   }, []);
 
   const handleLoginSuccess = (user: User, rememberMe: boolean) => {
@@ -120,12 +132,14 @@ export default function App() {
       sessionStorage.setItem(SESSION_USER_KEY, JSON.stringify(user));
       localStorage.removeItem(REMEMBERED_USER_KEY);
     }
+    loadData();
   };
 
   const handleLogout = () => {
     localStorage.removeItem(REMEMBERED_USER_KEY);
     sessionStorage.removeItem(SESSION_USER_KEY);
     setCurrentUser(null);
+    logoutUser();
   };
 
   const handleSwitchUser = (user: User) => {
@@ -168,7 +182,7 @@ export default function App() {
   };
 
   const handleDeliveryCreated = (newDelivery: Delivery, updatedCustomer?: Customer) => {
-    setDeliveries((prev) => [newDelivery, ...prev]);
+    setDeliveries((prev) => [normalizeDelivery(newDelivery, newDelivery.isOfflineSync), ...prev]);
     if (updatedCustomer) {
       setCustomers((prev) =>
         prev.map((c) => (c.id === updatedCustomer.id ? updatedCustomer : c))

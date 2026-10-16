@@ -61,7 +61,9 @@ export default defineConfig(() => {
           ],
         },
         devOptions: {
-          enabled: true,
+          // Geliştirmede service worker KAPALI: Vite kaynak modüllerini
+          // önbelleğe alıp eski istemci kodunun sunulmasına yol açıyordu.
+          enabled: false,
         },
       }),
     ],

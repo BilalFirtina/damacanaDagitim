@@ -1,5 +1,5 @@
 // SuDağıtım Pro Service Worker
-const CACHE_NAME = 'sudagitim-cache-v1';
+const CACHE_NAME = 'sudagitim-cache-v2';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
@@ -13,21 +13,21 @@ const PRECACHE_ASSETS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(PRECACHE_ASSETS);
-    }).then(() => self.skipWaiting())
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.addAll(PRECACHE_ASSETS))
+      .then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
-      );
-    }).then(() => self.clients.claim())
+    caches
+      .keys()
+      .then((cacheNames) =>
+        Promise.all(cacheNames.filter((name) => name !== CACHE_NAME).map((name) => caches.delete(name)))
+      )
+      .then(() => self.clients.claim())
   );
 });
 
@@ -35,12 +35,25 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip API requests and non-GET requests - NEVER cache dynamic financial or backend data
-  if (url.pathname.startsWith('/api/') || request.method !== 'GET') {
+  // Yalnızca aynı kaynaklı GET istekleri ele alınır
+  if (request.method !== 'GET' || url.origin !== self.location.origin) {
     return;
   }
 
-  // Network first with cache fallback for HTML navigation
+  // Backend/API, kimlik doğrulama ve geliştirme kaynak modülleri ASLA önbelleğe alınmaz.
+  // (Aksi halde eski istemci kodu servis edilir ve 401 hataları oluşur.)
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/src/') ||
+    url.pathname.startsWith('/@') ||
+    url.pathname.startsWith('/node_modules/') ||
+    url.pathname.endsWith('.ts') ||
+    url.pathname.endsWith('.tsx')
+  ) {
+    return;
+  }
+
+  // HTML gezinmeleri: önce ağ, çevrimdışıysa önbellek
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
@@ -51,27 +64,31 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => {
-          return caches.match('/index.html') || caches.match('/');
-        })
+        .catch(() => caches.match('/index.html') || caches.match('/'))
     );
     return;
   }
 
-  // Stale-while-revalidate for static assets
-  event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      const fetchPromise = fetch(request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseToCache));
-          }
-          return networkResponse;
-        })
-        .catch(() => cachedResponse);
+  // Yalnızca üretim (hashed) varlıkları ve önceden tanımlı kabuk dosyaları önbelleğe alınır
+  const isBuildAsset = url.pathname.startsWith('/assets/');
+  const isPrecached = PRECACHE_ASSETS.includes(url.pathname);
 
-      return cachedResponse || fetchPromise;
-    })
-  );
+  if (isBuildAsset || isPrecached) {
+    event.respondWith(
+      caches.match(request).then((cachedResponse) => {
+        const fetchPromise = fetch(request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+              const responseToCache = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, responseToCache));
+            }
+            return networkResponse;
+          })
+          .catch(() => cachedResponse);
+        return cachedResponse || fetchPromise;
+      })
+    );
+  }
+
+  // Diğer tüm istekler: ağ üzerinden, önbelleğe alınmaz
 });

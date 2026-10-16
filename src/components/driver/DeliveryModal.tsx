@@ -247,7 +247,12 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       const payload = {
         dispatchId: dispatch.id,
         driverId: currentUser.id,
+        driverName: currentUser.name,
+        vehiclePlate: dispatch.vehiclePlate,
         customerId: selectedCustomer.id,
+        customerName: selectedCustomer.name,
+        customerAddress: selectedCustomer.address,
+        customerPhone: selectedCustomer.phone,
         deliveredItems,
         collectedPayment: {
           method:

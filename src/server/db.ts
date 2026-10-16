@@ -467,7 +467,15 @@ function mapProductFromDb(row: any): Product {
   };
 }
 
-function mapCustomerFromDb(row: any): Customer {
+function getLocalCustomerMap(): Map<string, Customer> {
+  const map = new Map<string, Customer>();
+  for (const c of loadLocalDatabase().customers) {
+    map.set(c.id, c);
+  }
+  return map;
+}
+
+function mapCustomerFromDb(row: any, localCustomerById?: Map<string, Customer>): Customer {
   let emails: string[] = [];
   if (Array.isArray(row.emails)) {
     emails = row.emails.filter((e: any) => typeof e === 'string' && e.trim());
@@ -497,7 +505,7 @@ function mapCustomerFromDb(row: any): Customer {
   }
 
   // Merge with local store emails if available for that customer id
-  const localCust = loadLocalDatabase().customers.find((c) => c.id === row.id);
+  const localCust = localCustomerById?.get(row.id);
   if (localCust?.emails && localCust.emails.length > 0) {
     localCust.emails.forEach((em) => {
       if (!emails.includes(em)) emails.push(em);
@@ -889,6 +897,35 @@ export async function createProduct(product: Product): Promise<Product> {
     } catch (e) {
       console.error('[Supabase createProduct Exception]', e);
     }
+  } else if (pgPool) {
+    try {
+      const res = await pgPool.query(
+        `INSERT INTO public.products (id, name, category, default_unit_price, is_deposit, deposit_type, unit, description)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT (id) DO UPDATE SET
+           name = EXCLUDED.name,
+           category = EXCLUDED.category,
+           default_unit_price = EXCLUDED.default_unit_price,
+           is_deposit = EXCLUDED.is_deposit,
+           deposit_type = EXCLUDED.deposit_type,
+           unit = EXCLUDED.unit,
+           description = EXCLUDED.description
+         RETURNING *;`,
+        [
+          product.id,
+          product.name,
+          product.category,
+          product.defaultUnitPrice,
+          product.isDeposit,
+          product.depositType,
+          product.unit,
+          product.description || '',
+        ]
+      );
+      if (res.rows[0]) return mapProductFromDb(res.rows[0]);
+    } catch (e) {
+      console.error('[Postgres createProduct]', e);
+    }
   }
 
   const db = loadLocalDatabase();
@@ -921,6 +958,37 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
     } catch (e) {
       console.error('[Supabase updateProduct Exception]', e);
     }
+  } else if (pgPool) {
+    try {
+      const fieldMap: Record<string, string> = {
+        name: 'name',
+        category: 'category',
+        defaultUnitPrice: 'default_unit_price',
+        isDeposit: 'is_deposit',
+        depositType: 'deposit_type',
+        unit: 'unit',
+        description: 'description',
+      };
+      const sets: string[] = [];
+      const values: any[] = [];
+      let i = 1;
+      for (const [key, col] of Object.entries(fieldMap)) {
+        if ((updates as any)[key] !== undefined) {
+          sets.push(`${col} = $${i++}`);
+          values.push((updates as any)[key]);
+        }
+      }
+      if (sets.length === 0) return null;
+      values.push(id);
+      const res = await pgPool.query(
+        `UPDATE public.products SET ${sets.join(', ')} WHERE id = $${i} RETURNING *;`,
+        values
+      );
+      if (res.rows[0]) return mapProductFromDb(res.rows[0]);
+      return null;
+    } catch (e) {
+      console.error('[Postgres updateProduct]', e);
+    }
   }
 
   const db = loadLocalDatabase();
@@ -939,6 +1007,12 @@ export async function deleteProduct(id: string): Promise<boolean> {
     } catch (e) {
       console.error('[Supabase deleteProduct Exception]', e);
     }
+  } else if (pgPool) {
+    try {
+      await pgPool.query('DELETE FROM public.products WHERE id = $1', [id]);
+    } catch (e) {
+      console.error('[Postgres deleteProduct]', e);
+    }
   }
 
   const db = loadLocalDatabase();
@@ -952,7 +1026,10 @@ export async function getCustomers(): Promise<Customer[]> {
   if (isSupabaseOperational() && supabase) {
     try {
       const { data, error } = await supabase.from('customers').select('*').order('name', { ascending: true });
-      if (!error && data && data.length > 0) return data.map(mapCustomerFromDb);
+      if (!error && data && data.length > 0) {
+        const localMap = getLocalCustomerMap();
+        return data.map((row) => mapCustomerFromDb(row, localMap));
+      }
       if (error) console.error('[Supabase getCustomers]', error);
     } catch (e) {
       console.error('[Supabase getCustomers Exception]', e);
@@ -960,7 +1037,10 @@ export async function getCustomers(): Promise<Customer[]> {
   } else if (pgPool) {
     try {
       const res = await pgPool.query('SELECT * FROM public.customers ORDER BY name ASC');
-      if (res.rows.length > 0) return res.rows.map(mapCustomerFromDb);
+      if (res.rows.length > 0) {
+        const localMap = getLocalCustomerMap();
+        return res.rows.map((row) => mapCustomerFromDb(row, localMap));
+      }
     } catch (e) {
       console.error('[Postgres getCustomers]', e);
     }
@@ -1008,6 +1088,45 @@ export async function createCustomer(cust: Customer): Promise<Customer> {
       console.error('[Supabase createCustomer]', error);
     } catch (e) {
       console.error('[Supabase createCustomer Exception]', e);
+    }
+  } else if (pgPool) {
+    try {
+      const res = await pgPool.query(
+        `INSERT INTO public.customers (id, name, phone, address, emails, is_account_customer, current_balance_tl, empty_deposit_damacana, empty_deposit_cam_damacana, empty_deposit_tup, custom_prices, notes, created_date)
+         VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11::jsonb, $12, $13)
+         ON CONFLICT (id) DO UPDATE SET
+           name = EXCLUDED.name,
+           phone = EXCLUDED.phone,
+           address = EXCLUDED.address,
+           emails = EXCLUDED.emails,
+           is_account_customer = EXCLUDED.is_account_customer,
+           current_balance_tl = EXCLUDED.current_balance_tl,
+           empty_deposit_damacana = EXCLUDED.empty_deposit_damacana,
+           empty_deposit_cam_damacana = EXCLUDED.empty_deposit_cam_damacana,
+           empty_deposit_tup = EXCLUDED.empty_deposit_tup,
+           custom_prices = EXCLUDED.custom_prices,
+           notes = EXCLUDED.notes,
+           created_date = EXCLUDED.created_date
+         RETURNING *;`,
+        [
+          cust.id,
+          cust.name,
+          cust.phone,
+          cust.address,
+          JSON.stringify(cust.emails || []),
+          cust.isAccountCustomer,
+          cust.currentBalanceTL,
+          cust.emptyDepositBalance?.damacana || 0,
+          cust.emptyDepositBalance?.camDamacana || 0,
+          cust.emptyDepositBalance?.tup || 0,
+          JSON.stringify(cust.customPrices || {}),
+          cust.notes || '',
+          cust.createdDate,
+        ]
+      );
+      if (res.rows[0]) return mapCustomerFromDb(res.rows[0]);
+    } catch (e) {
+      console.error('[Postgres createCustomer]', e);
     }
   }
 
@@ -1064,6 +1183,37 @@ export async function updateCustomer(id: string, updates: Partial<Customer>): Pr
       console.error('[Supabase updateCustomer]', error);
     } catch (e) {
       console.error('[Supabase updateCustomer Exception]', e);
+    }
+  } else if (pgPool) {
+    try {
+      const sets: string[] = [];
+      const values: any[] = [];
+      let i = 1;
+      const add = (col: string, val: any, cast = '') => {
+        sets.push(`${col} = $${i++}${cast}`);
+        values.push(val);
+      };
+      if (updates.name !== undefined) add('name', updates.name);
+      if (updates.phone !== undefined) add('phone', updates.phone);
+      if (updates.address !== undefined) add('address', updates.address);
+      if (updates.emails !== undefined) add('emails', JSON.stringify(updates.emails), '::jsonb');
+      if (updates.isAccountCustomer !== undefined) add('is_account_customer', updates.isAccountCustomer);
+      if (updates.currentBalanceTL !== undefined) add('current_balance_tl', updates.currentBalanceTL);
+      if (updates.emptyDepositBalance?.damacana !== undefined) add('empty_deposit_damacana', updates.emptyDepositBalance.damacana);
+      if (updates.emptyDepositBalance?.camDamacana !== undefined) add('empty_deposit_cam_damacana', updates.emptyDepositBalance.camDamacana);
+      if (updates.emptyDepositBalance?.tup !== undefined) add('empty_deposit_tup', updates.emptyDepositBalance.tup);
+      if (updates.customPrices !== undefined) add('custom_prices', JSON.stringify(updates.customPrices), '::jsonb');
+      if (updates.notes !== undefined) add('notes', updates.notes);
+      if (sets.length === 0) return null;
+      values.push(id);
+      const res = await pgPool.query(
+        `UPDATE public.customers SET ${sets.join(', ')} WHERE id = $${i} RETURNING *;`,
+        values
+      );
+      if (res.rows[0]) return mapCustomerFromDb(res.rows[0]);
+      return null;
+    } catch (e) {
+      console.error('[Postgres updateCustomer]', e);
     }
   }
 
@@ -1137,6 +1287,41 @@ export async function createDispatch(disp: Dispatch): Promise<Dispatch> {
     } catch (e) {
       console.error('[Supabase createDispatch Exception]', e);
     }
+  } else if (pgPool) {
+    try {
+      const res = await pgPool.query(
+        `INSERT INTO public.dispatches (id, date, driver_id, driver_name, vehicle_plate, loaded_by_user_id, loaded_by_user_name, driver_confirmed_at, status, loaded_items, end_of_day_reconciliation)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::jsonb)
+         ON CONFLICT (id) DO UPDATE SET
+           date = EXCLUDED.date,
+           driver_id = EXCLUDED.driver_id,
+           driver_name = EXCLUDED.driver_name,
+           vehicle_plate = EXCLUDED.vehicle_plate,
+           loaded_by_user_id = EXCLUDED.loaded_by_user_id,
+           loaded_by_user_name = EXCLUDED.loaded_by_user_name,
+           driver_confirmed_at = EXCLUDED.driver_confirmed_at,
+           status = EXCLUDED.status,
+           loaded_items = EXCLUDED.loaded_items,
+           end_of_day_reconciliation = EXCLUDED.end_of_day_reconciliation
+         RETURNING *;`,
+        [
+          disp.id,
+          disp.date,
+          disp.driverId,
+          disp.driverName,
+          disp.vehiclePlate,
+          disp.loadedByUserId,
+          disp.loadedByUserName,
+          disp.driverConfirmedAt,
+          disp.status,
+          JSON.stringify(disp.loadedItems || []),
+          disp.endOfDayReconciliation ? JSON.stringify(disp.endOfDayReconciliation) : null,
+        ]
+      );
+      if (res.rows[0]) return mapDispatchFromDb(res.rows[0]);
+    } catch (e) {
+      console.error('[Postgres createDispatch]', e);
+    }
   }
 
   const db = loadLocalDatabase();
@@ -1170,6 +1355,38 @@ export async function updateDispatch(id: string, updates: Partial<Dispatch>): Pr
       console.error('[Supabase updateDispatch]', error);
     } catch (e) {
       console.error('[Supabase updateDispatch Exception]', e);
+    }
+  } else if (pgPool) {
+    try {
+      const sets: string[] = [];
+      const values: any[] = [];
+      let i = 1;
+      if (updates.status !== undefined) {
+        sets.push(`status = $${i++}`);
+        values.push(updates.status);
+      }
+      if (updates.driverConfirmedAt !== undefined) {
+        sets.push(`driver_confirmed_at = $${i++}`);
+        values.push(updates.driverConfirmedAt);
+      }
+      if (updates.loadedItems !== undefined) {
+        sets.push(`loaded_items = $${i++}::jsonb`);
+        values.push(JSON.stringify(updates.loadedItems));
+      }
+      if (updates.endOfDayReconciliation !== undefined) {
+        sets.push(`end_of_day_reconciliation = $${i++}::jsonb`);
+        values.push(updates.endOfDayReconciliation ? JSON.stringify(updates.endOfDayReconciliation) : null);
+      }
+      if (sets.length === 0) return null;
+      values.push(id);
+      const res = await pgPool.query(
+        `UPDATE public.dispatches SET ${sets.join(', ')} WHERE id = $${i} RETURNING *;`,
+        values
+      );
+      if (res.rows[0]) return mapDispatchFromDb(res.rows[0]);
+      return null;
+    } catch (e) {
+      console.error('[Postgres updateDispatch]', e);
     }
   }
 
@@ -1262,6 +1479,95 @@ export async function createDeliveryRecord(
       }
     } catch (e) {
       console.error('[Supabase createDeliveryRecord Exception]', e);
+    }
+  } else if (pgPool) {
+    const pool = pgPool;
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // 1. Upsert customer FIRST inside the same transaction
+      await client.query(
+        `INSERT INTO public.customers (id, name, phone, address, emails, is_account_customer, current_balance_tl, empty_deposit_damacana, empty_deposit_cam_damacana, empty_deposit_tup, custom_prices, notes, created_date)
+         VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11::jsonb, $12, $13)
+         ON CONFLICT (id) DO UPDATE SET
+           name = EXCLUDED.name,
+           phone = EXCLUDED.phone,
+           address = EXCLUDED.address,
+           emails = EXCLUDED.emails,
+           is_account_customer = EXCLUDED.is_account_customer,
+           current_balance_tl = EXCLUDED.current_balance_tl,
+           empty_deposit_damacana = EXCLUDED.empty_deposit_damacana,
+           empty_deposit_cam_damacana = EXCLUDED.empty_deposit_cam_damacana,
+           empty_deposit_tup = EXCLUDED.empty_deposit_tup,
+           custom_prices = EXCLUDED.custom_prices,
+           notes = EXCLUDED.notes;`,
+        [
+          updatedCustomer.id,
+          updatedCustomer.name,
+          updatedCustomer.phone,
+          updatedCustomer.address,
+          JSON.stringify(updatedCustomer.emails || []),
+          updatedCustomer.isAccountCustomer,
+          updatedCustomer.currentBalanceTL,
+          updatedCustomer.emptyDepositBalance?.damacana || 0,
+          updatedCustomer.emptyDepositBalance?.camDamacana || 0,
+          updatedCustomer.emptyDepositBalance?.tup || 0,
+          JSON.stringify(updatedCustomer.customPrices || {}),
+          updatedCustomer.notes || '',
+          updatedCustomer.createdDate,
+        ]
+      );
+
+      // 2. Insert delivery record
+      const res = await client.query(
+        `INSERT INTO public.deliveries (id, dispatch_id, driver_id, driver_name, vehicle_plate, customer_id, customer_name, customer_address, customer_phone, timestamp, delivered_items, delivered_grand_total, collected_payment, empty_containers_received, empty_containers_diff, notes, is_offline_sync)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13::jsonb, $14::jsonb, $15::jsonb, $16, $17)
+         ON CONFLICT (id) DO UPDATE SET
+           delivered_items = EXCLUDED.delivered_items,
+           delivered_grand_total = EXCLUDED.delivered_grand_total,
+           collected_payment = EXCLUDED.collected_payment,
+           empty_containers_received = EXCLUDED.empty_containers_received,
+           empty_containers_diff = EXCLUDED.empty_containers_diff,
+           notes = EXCLUDED.notes
+         RETURNING *;`,
+        [
+          del.id,
+          del.dispatchId,
+          del.driverId,
+          del.driverName,
+          del.vehiclePlate,
+          del.customerId,
+          del.customerName,
+          del.customerAddress,
+          del.customerPhone,
+          del.timestamp,
+          JSON.stringify(del.deliveredItems || []),
+          del.deliveredGrandTotal,
+          JSON.stringify(del.collectedPayment || {}),
+          JSON.stringify(del.emptyContainersReceived || {}),
+          JSON.stringify(del.emptyContainersDiff || {}),
+          del.notes || '',
+          !!del.isOfflineSync,
+        ]
+      );
+
+      await client.query('COMMIT');
+
+      if (res.rows[0]) {
+        const savedDel = mapDeliveryFromDb(res.rows[0]);
+        const db = loadLocalDatabase();
+        db.deliveries.unshift(savedDel);
+        const cIdx = db.customers.findIndex((c) => c.id === updatedCustomer.id);
+        if (cIdx !== -1) db.customers[cIdx] = updatedCustomer;
+        saveLocalDatabase(db);
+        return { delivery: savedDel, updatedCustomer };
+      }
+    } catch (e) {
+      await client.query('ROLLBACK').catch(() => {});
+      console.error('[Postgres createDeliveryRecord]', e);
+    } finally {
+      client.release();
     }
   }
 
