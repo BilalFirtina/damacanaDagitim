@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Product, ProductCategory, DepositType, User } from '../../types';
+import { Product, ProductCategory, DepositType, User, sortProductsByCategory } from '../../types';
 import {
   Package,
   Plus,
@@ -160,8 +160,8 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
     }
   };
 
-  // Filtering
-  const filteredProducts = products.filter((p) => {
+  // Filtering and Sorting
+  const filteredProducts = sortProductsByCategory(products).filter((p) => {
     const matchesSearch =
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||

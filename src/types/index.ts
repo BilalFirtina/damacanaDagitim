@@ -17,7 +17,32 @@ export interface User {
 }
 
 export type ProductCategory = 'damacana' | 'pet' | 'soda' | 'tup' | 'bardak';
-export type DepositType = 'damacana' | 'tup' | 'none';
+export type DepositType = 'damacana' | 'cam_damacana' | 'tup' | 'none';
+
+export const PRODUCT_CATEGORY_ORDER: Record<ProductCategory, number> = {
+  damacana: 1,
+  pet: 2,
+  tup: 3,
+  soda: 4,
+  bardak: 5,
+};
+
+export const PRODUCT_CATEGORY_TITLES: Record<ProductCategory, string> = {
+  damacana: 'Damacana Su',
+  pet: 'Pet Su',
+  tup: 'Tüp',
+  soda: 'Maden Suyu / İçecek',
+  bardak: 'Bardak & Sarf Malzeme',
+};
+
+export function sortProductsByCategory<T extends { category: ProductCategory; name: string }>(items: T[]): T[] {
+  return [...items].sort((a, b) => {
+    const orderA = PRODUCT_CATEGORY_ORDER[a.category] ?? 99;
+    const orderB = PRODUCT_CATEGORY_ORDER[b.category] ?? 99;
+    if (orderA !== orderB) return orderA - orderB;
+    return a.name.localeCompare(b.name, 'tr');
+  });
+}
 
 export interface Product {
   id: string;
@@ -39,8 +64,10 @@ export interface Customer {
   isAccountCustomer: boolean; // Managers decide whether unpaid amounts become customer balance
   currentBalanceTL: number; // Positive = Customer owes us (debt), Negative = Customer prepayment
   emptyDepositBalance: {
-    damacana: number;
-    tup: number;
+    damacana: number; // Plastik / polikarbon damacana
+    camDamacana: number; // Cam damacana
+    tup: number; // Gaz tüpü
+    cam_damacana?: number;
   };
   customPrices: Record<string, number>; // Product ID -> agreed custom unit price
   notes?: string;
@@ -60,7 +87,8 @@ export interface EndOfDayReconciliation {
   closedByUserName: string;
   remainingFullCounted: Record<string, number>; // Product ID -> physically counted count
   remainingFullExpected: Record<string, number>; // Product ID -> (loaded - delivered)
-  collectedEmptyDamacana: number; // Empty 19L carboys to drop at warehouse
+  collectedEmptyDamacana: number; // Empty standard carboys to drop at warehouse
+  collectedEmptyCamDamacana?: number; // Empty glass jugs to drop at warehouse
   collectedEmptyTup: number; // Empty gas cylinders to drop at warehouse
   actualCashInPocket: number; // Actual physical cash driver turns in
   actualPosSlipsTotal: number; // Total sum of credit card slips
@@ -122,10 +150,14 @@ export interface Delivery {
   collectedPayment: CollectedPayment;
   emptyContainersReceived: {
     damacana: number;
+    camDamacana?: number;
+    cam_damacana?: number;
     tup: number;
   };
   emptyContainersDiff: {
     damacana: number; // delivered deposit items - received empty containers
+    camDamacana?: number;
+    cam_damacana?: number;
     tup: number;
   };
   notes?: string;

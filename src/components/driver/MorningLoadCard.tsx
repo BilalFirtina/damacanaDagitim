@@ -25,8 +25,8 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
 
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // Active dispatches today (not completed)
-  const activeDispatches = dispatches.filter((d) => d.date === todayStr && d.status !== 'completed');
+  // Active dispatches across system (not completed)
+  const activeDispatches = dispatches.filter((d) => d.status !== 'completed');
   const busyPlates = new Set(activeDispatches.map((d) => d.vehiclePlate));
   const busyDriverIds = new Set(activeDispatches.map((d) => d.driverId));
 
@@ -35,17 +35,19 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
 
   // List of actual drivers (excludes Depo Yöneticisi / Admin)
   const drivers = users.filter((u) => u.role === 'driver');
+  const availableDrivers = drivers.filter((d) => !busyDriverIds.has(d.id));
 
-  // Initial driver selection: currentUser if driver, else first available driver
+  // Initial driver selection: currentUser if driver and not busy, else first available driver
   const [selectedDriverId, setSelectedDriverId] = useState<string>(() => {
-    if (currentUser.role === 'driver') return currentUser.id;
-    const availableDriver = drivers.find((d) => !busyDriverIds.has(d.id));
-    return availableDriver?.id || drivers[0]?.id || '';
+    if (currentUser.role === 'driver') {
+      return !busyDriverIds.has(currentUser.id) ? currentUser.id : '';
+    }
+    return availableDrivers[0]?.id || '';
   });
 
   // Independent vehicle plate selection (default to first available plate)
   const [selectedPlate, setSelectedPlate] = useState<string>(() => {
-    return availablePlates[0] || AUTHORIZED_VEHICLE_PLATES[0];
+    return availablePlates[0] || '';
   });
 
   const [loadQuantities, setLoadQuantities] = useState<Record<string, number>>({});
@@ -58,18 +60,23 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
   const handleOpenLoadModal = () => {
     // Set appropriate initial driver
     if (currentUser.role === 'driver') {
-      setSelectedDriverId(currentUser.id);
+      if (!busyDriverIds.has(currentUser.id)) {
+        setSelectedDriverId(currentUser.id);
+      } else {
+        setSelectedDriverId('');
+      }
     } else {
-      const firstAvailable = drivers.find((d) => !busyDriverIds.has(d.id));
+      const firstAvailable = availableDrivers[0];
       if (firstAvailable) {
         setSelectedDriverId(firstAvailable.id);
-      } else if (drivers.length > 0 && !selectedDriverId) {
-        setSelectedDriverId(drivers[0].id);
+      } else {
+        setSelectedDriverId('');
       }
     }
     // Set available plate
-    if (availablePlates.length > 0 && (!selectedPlate || busyPlates.has(selectedPlate))) {
-      setSelectedPlate(availablePlates[0]);
+    const freePlates = AUTHORIZED_VEHICLE_PLATES.filter((plate) => !busyPlates.has(plate));
+    if (freePlates.length > 0) {
+      setSelectedPlate(freePlates[0]);
     }
     setLoadingError(null);
     setShowManualLoadModal(true);
@@ -164,7 +171,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-base font-bold text-slate-900 dark:text-white">
-                  Sabah Depo Yükleme Girişi
+                  Depo Yükleme Girişi
                 </span>
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
                   {currentUser.role === 'admin' ? 'Depo Yöneticisi' : 'Tek Yetkili Şoför'}
@@ -195,76 +202,126 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 sm:p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 w-full max-w-full min-w-0 box-border">
               {/* 1. Driver Selection (Independent) */}
               <div className="w-full max-w-full min-w-0 box-border">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                  <UserCheck className="w-4 h-4 text-sky-600 shrink-0" />
-                  <span>Şoför Seçimi</span>
-                </label>
-                <div className="w-full max-w-full min-w-0 box-border">
-                  <select
-                    value={selectedDriverId}
-                    onChange={(e) => setSelectedDriverId(e.target.value)}
-                    className="w-full max-w-full min-w-0 box-border p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-semibold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 truncate"
-                    style={{ minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
-                  >
-                    {drivers.map((d) => {
-                      const isBusy = busyDriverIds.has(d.id);
-                      const completedRuns = dispatches.filter(
-                        (disp) => disp.date === todayStr && disp.driverId === d.id && disp.status === 'completed'
-                      );
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <UserCheck className="w-4 h-4 text-sky-600 shrink-0" />
+                    <span>Şoför Seçimi</span>
+                  </label>
+                  <span className="text-[10px] text-slate-400">
+                    {selectedDriverId ? '1 seçildi' : 'Seçiniz'}
+                  </span>
+                </div>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto p-0.5 w-full max-w-full min-w-0 box-border">
+                  {drivers.map((d) => {
+                    const isBusy = busyDriverIds.has(d.id);
+                    const isAuthorized = d.isLeadDriver || d.canLoadVehicle;
+                    const isSelected = selectedDriverId === d.id;
+
+                    if (isBusy) {
                       return (
-                        <option
+                        <button
                           key={d.id}
-                          value={d.id}
-                          disabled={isBusy}
-                          className={isBusy ? 'text-slate-400 dark:text-slate-500' : ''}
+                          type="button"
+                          disabled
+                          className="w-full max-w-full min-w-0 flex items-center justify-between p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/70 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500 cursor-not-allowed text-xs font-semibold text-left select-none"
                         >
-                          {d.name} {d.isLeadDriver ? '★' : ''}{' '}
-                          {isBusy
-                            ? '(Dağıtımda)'
-                            : completedRuns.length > 0
-                            ? `(Müsait - #${completedRuns.length + 1}. Sefer İçin Hazır)`
-                            : '(Müsait - Yüklemeye Hazır)'}
-                        </option>
+                          <div className="flex items-center gap-1.5 truncate min-w-0">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
+                            <span className="truncate">{d.name}{isAuthorized ? ' (Yetkili)' : ''}</span>
+                          </div>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-slate-700/80 text-slate-500 dark:text-slate-400 shrink-0 ml-1.5">
+                            Dağıtımda
+                          </span>
+                        </button>
                       );
-                    })}
-                  </select>
+                    }
+
+                    return (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => setSelectedDriverId(d.id)}
+                        className={`w-full max-w-full min-w-0 flex items-center justify-between p-2 rounded-xl border text-xs font-semibold text-left transition-all ${
+                          isSelected
+                            ? 'border-sky-600 bg-sky-50/90 text-sky-950 dark:border-sky-500 dark:bg-sky-950/60 dark:text-white shadow-xs ring-1 ring-sky-600 dark:ring-sky-500'
+                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 truncate min-w-0">
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? 'bg-sky-600 dark:bg-sky-400 ring-2 ring-sky-200 dark:ring-sky-800' : 'bg-emerald-500'}`} />
+                          <span className="truncate">{d.name}{isAuthorized ? ' (Yetkili)' : ''}</span>
+                        </div>
+                        {isSelected && (
+                          <Check className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0 ml-1.5" />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">
                   İş yeri sahibi şoför değildir; sadece saha şoförleri listelenir.
                 </p>
               </div>
 
-              {/* 2. Vehicle Plate Selection (Excludes vehicles currently in active distribution) */}
+              {/* 2. Vehicle Plate Selection */}
               <div className="w-full max-w-full min-w-0 box-border">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                  <Truck className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Araç Plakası</span>
-                </label>
-                <div className="w-full max-w-full min-w-0 box-border">
-                  <select
-                    value={selectedPlate}
-                    onChange={(e) => setSelectedPlate(e.target.value)}
-                    disabled={availablePlates.length === 0}
-                    className="w-full max-w-full min-w-0 box-border p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 truncate"
-                    style={{ minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
-                  >
-                    {availablePlates.length === 0 ? (
-                      <option value="" disabled>
-                        Tüm araçlar şu anda aktif dağıtımdadır
-                      </option>
-                    ) : (
-                      availablePlates.map((plate) => (
-                        <option key={plate} value={plate}>
-                          {plate} (Müsait)
-                        </option>
-                      ))
-                    )}
-                  </select>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Truck className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Araç Plakası</span>
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {selectedPlate || 'Seçiniz'}
+                  </span>
+                </div>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto p-0.5 w-full max-w-full min-w-0 box-border">
+                  {AUTHORIZED_VEHICLE_PLATES.map((plate) => {
+                    const isBusy = busyPlates.has(plate);
+                    const isSelected = selectedPlate === plate;
+
+                    if (isBusy) {
+                      return (
+                        <button
+                          key={plate}
+                          type="button"
+                          disabled
+                          className="w-full max-w-full min-w-0 flex items-center justify-between p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/70 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500 cursor-not-allowed text-xs font-mono font-bold text-left select-none"
+                        >
+                          <div className="flex items-center gap-1.5 truncate min-w-0">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
+                            <span className="truncate">{plate}</span>
+                          </div>
+                          <span className="text-[9px] font-sans font-bold px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-slate-700/80 text-slate-500 dark:text-slate-400 shrink-0 ml-1.5">
+                            Dağıtımda
+                          </span>
+                        </button>
+                      );
+                    }
+
+                    return (
+                      <button
+                        key={plate}
+                        type="button"
+                        onClick={() => setSelectedPlate(plate)}
+                        className={`w-full max-w-full min-w-0 flex items-center justify-between p-2 rounded-xl border font-mono font-bold text-xs text-left transition-all ${
+                          isSelected
+                            ? 'border-emerald-600 bg-emerald-50/90 text-emerald-950 dark:border-emerald-500 dark:bg-emerald-950/60 dark:text-white shadow-xs ring-1 ring-emerald-600 dark:ring-emerald-500'
+                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 truncate min-w-0">
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? 'bg-emerald-600 dark:bg-emerald-400 ring-2 ring-emerald-200 dark:ring-emerald-800' : 'bg-emerald-500'}`} />
+                          <span className="truncate">{plate}</span>
+                        </div>
+                        {isSelected && (
+                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 ml-1.5" />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">
-                  {availablePlates.length === 0
-                    ? 'Tüm araçlar dağıtımdadır; bitiş raporu verilmeden seçilemez.'
-                    : 'Aktif dağıtımdaki araçlar listede görünmez; yalnızca müsait araçlar seçilebilir.'}
+                  Aktif dağıtımda olan araçlar seçilemez; yalnızca müsait araçlar seçilebilir.
                 </p>
               </div>
             </div>
@@ -383,7 +440,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  {isNextTrip ? 'Yeni Sefer Depo Yüklemesi Bekleniyor' : 'Sabah Depo Yüklemesi Bekleniyor'}
+                  {isNextTrip ? 'Yeni Sefer Depo Yüklemesi Bekleniyor' : 'Depo Yüklemesi Bekleniyor'}
                 </h3>
                 {isNextTrip && (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">

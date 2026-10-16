@@ -12,6 +12,7 @@ import {
   Delivery,
   CleanupStatus,
   DatabaseStatus,
+  sortProductsByCategory,
 } from '../types/index.ts';
 
 const { Pool } = pg;
@@ -239,13 +240,52 @@ interface LocalDatabaseSchema {
 }
 
 export function loadLocalDatabase(): LocalDatabaseSchema {
+  let db: LocalDatabaseSchema | null = null;
   try {
     if (fs.existsSync(DB_FILE)) {
       const data = fs.readFileSync(DB_FILE, 'utf-8');
-      return JSON.parse(data) as LocalDatabaseSchema;
+      db = JSON.parse(data) as LocalDatabaseSchema;
     }
   } catch (err) {
     console.error('Error loading local database file', err);
+  }
+
+  const requiredProducts = [
+    {
+      id: 'prod_cam_damacana',
+      name: 'Hayat Cam Damacana',
+      category: 'damacana',
+      defaultUnitPrice: 110,
+      isDeposit: true,
+      depositType: 'cam_damacana',
+      unit: 'Adet',
+      description: 'Hayat cam damacana su - boş cam damacana iadesi zorunlu'
+    },
+    {
+      id: 'prod_bardak_su_60',
+      name: "Bardak Su (60'lı Koli)",
+      category: 'bardak',
+      defaultUnitPrice: 90,
+      isDeposit: false,
+      depositType: 'none',
+      unit: 'Koli',
+      description: "60'lı koli bardak su"
+    }
+  ];
+
+  if (db) {
+    if (!db.products) db.products = [];
+    let updated = false;
+    for (const rp of requiredProducts) {
+      if (!db.products.some(p => p.id === rp.id || p.name.toLowerCase() === rp.name.toLowerCase())) {
+        db.products.push(rp as any);
+        updated = true;
+      }
+    }
+    if (updated) {
+      saveLocalDatabase(db);
+    }
+    return db;
   }
 
   const emptyDb: LocalDatabaseSchema = {
@@ -307,6 +347,16 @@ export function loadLocalDatabase(): LocalDatabaseSchema {
         description: 'Doğal kaynak damacana su - depozitolu 19 litre'
       },
       {
+        id: 'prod_cam_damacana',
+        name: 'Hayat Cam Damacana',
+        category: 'damacana',
+        defaultUnitPrice: 110,
+        isDeposit: true,
+        depositType: 'cam_damacana',
+        unit: 'Adet',
+        description: 'Hayat cam damacana su - boş cam damacana iadesi zorunlu'
+      },
+      {
         id: 'prod_pet_05l',
         name: "0.5L Su (24'lü Koli)",
         category: 'pet',
@@ -335,6 +385,16 @@ export function loadLocalDatabase(): LocalDatabaseSchema {
         depositType: 'tup',
         unit: 'Adet',
         description: '12 kg mutfak tüpü - depozitolu'
+      },
+      {
+        id: 'prod_bardak_su_60',
+        name: "Bardak Su (60'lı Koli)",
+        category: 'bardak',
+        defaultUnitPrice: 90,
+        isDeposit: false,
+        depositType: 'none',
+        unit: 'Koli',
+        description: "60'lı koli bardak su"
       }
     ],
     customers: [
@@ -346,7 +406,7 @@ export function loadLocalDatabase(): LocalDatabaseSchema {
         emails: ['info@ornekmarket.com', 'fatura@ornekmarket.com'],
         isAccountCustomer: true,
         currentBalanceTL: 450,
-        emptyDepositBalance: { damacana: 5, tup: 2 },
+        emptyDepositBalance: { damacana: 5, camDamacana: 0, tup: 2 },
         customPrices: { 'prod_damacana_19l': 95 },
         notes: 'Düzenli müşterimiz.',
         createdDate: '2026-01-01',
@@ -457,6 +517,7 @@ function mapCustomerFromDb(row: any): Customer {
     currentBalanceTL: Number(row.current_balance_tl) || 0,
     emptyDepositBalance: {
       damacana: Number(row.empty_deposit_damacana) || 0,
+      camDamacana: Number(row.empty_deposit_cam_damacana) || 0,
       tup: Number(row.empty_deposit_tup) || 0,
     },
     customPrices: typeof row.custom_prices === 'object' && row.custom_prices !== null ? row.custom_prices : {},
@@ -568,6 +629,7 @@ export async function ensureSupabaseSeeded(): Promise<void> {
             is_account_customer: c.isAccountCustomer,
             current_balance_tl: c.currentBalanceTL,
             empty_deposit_damacana: c.emptyDepositBalance?.damacana || 0,
+            empty_deposit_cam_damacana: c.emptyDepositBalance?.camDamacana || 0,
             empty_deposit_tup: c.emptyDepositBalance?.tup || 0,
             custom_prices: c.customPrices || {},
             notes: c.notes || '',
@@ -737,10 +799,54 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<Us
 
 // 2. Products
 export async function getProducts(): Promise<Product[]> {
+  const requiredProducts = [
+    {
+      id: 'prod_cam_damacana',
+      name: 'Hayat Cam Damacana',
+      category: 'damacana',
+      defaultUnitPrice: 110,
+      isDeposit: true,
+      depositType: 'cam_damacana',
+      unit: 'Adet',
+      description: 'Hayat cam damacana su - boş cam damacana iadesi zorunlu'
+    },
+    {
+      id: 'prod_bardak_su_60',
+      name: "Bardak Su (60'lı Koli)",
+      category: 'bardak',
+      defaultUnitPrice: 90,
+      isDeposit: false,
+      depositType: 'none',
+      unit: 'Koli',
+      description: "60'lı koli bardak su"
+    }
+  ];
+
   if (isSupabaseOperational() && supabase) {
     try {
       const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: true });
-      if (!error && data && data.length > 0) return data.map(mapProductFromDb);
+      if (!error && data) {
+        const existingIds = new Set(data.map((p: any) => p.id));
+        const missing = requiredProducts.filter(rp => !existingIds.has(rp.id));
+        if (missing.length > 0) {
+          await supabase.from('products').upsert(missing.map(p => ({
+            id: p.id,
+            name: p.name,
+            category: p.category,
+            default_unit_price: p.defaultUnitPrice,
+            is_deposit: p.isDeposit,
+            deposit_type: p.depositType,
+            unit: p.unit,
+            description: p.description,
+          })), { onConflict: 'id' });
+
+          const refetch = await supabase.from('products').select('*').order('created_at', { ascending: true });
+          if (!refetch.error && refetch.data) {
+            return refetch.data.map(mapProductFromDb);
+          }
+        }
+        if (data.length > 0) return data.map(mapProductFromDb);
+      }
       if (error) console.error('[Supabase getProducts]', error);
     } catch (e) {
       console.error('[Supabase getProducts Exception]', e);
@@ -874,6 +980,7 @@ export async function createCustomer(cust: Customer): Promise<Customer> {
         is_account_customer: cust.isAccountCustomer,
         current_balance_tl: cust.currentBalanceTL,
         empty_deposit_damacana: cust.emptyDepositBalance?.damacana || 0,
+        empty_deposit_cam_damacana: cust.emptyDepositBalance?.camDamacana || 0,
         empty_deposit_tup: cust.emptyDepositBalance?.tup || 0,
         custom_prices: cust.customPrices || {},
         notes: cust.notes || '',
@@ -929,6 +1036,9 @@ export async function updateCustomer(id: string, updates: Partial<Customer>): Pr
       if (updates.currentBalanceTL !== undefined) payload.current_balance_tl = updates.currentBalanceTL;
       if (updates.emptyDepositBalance?.damacana !== undefined) {
         payload.empty_deposit_damacana = updates.emptyDepositBalance.damacana;
+      }
+      if (updates.emptyDepositBalance?.camDamacana !== undefined) {
+        payload.empty_deposit_cam_damacana = updates.emptyDepositBalance.camDamacana;
       }
       if (updates.emptyDepositBalance?.tup !== undefined) {
         payload.empty_deposit_tup = updates.emptyDepositBalance.tup;

@@ -276,7 +276,7 @@ app.post('/api/customers', async (req, res) => {
     emails: cleanEmails,
     isAccountCustomer: !!isAccountCustomer,
     currentBalanceTL: 0,
-    emptyDepositBalance: { damacana: 0, tup: 0 },
+    emptyDepositBalance: { damacana: 0, camDamacana: 0, tup: 0 },
     customPrices: customPrices || {},
     notes: notes || '',
     createdDate: getTodayDateStr(),
@@ -331,7 +331,7 @@ app.post('/api/dispatches', async (req, res) => {
     // Önceki rapor/sefer tamamlanmadan şoför veya araç tekrar atanamaz
     const allDispatches = await getDispatches();
     const activeDriverDispatch = allDispatches.find(
-      (d) => d.driverId === driverId && d.status !== 'completed' && d.date === todayStr
+      (d) => d.driverId === driverId && d.status !== 'completed'
     );
     if (activeDriverDispatch) {
       return res.status(400).json({
@@ -341,7 +341,7 @@ app.post('/api/dispatches', async (req, res) => {
 
     const selectedPlate = vehiclePlate || driver.assignedPlate || '34 SU 101';
     const activePlateDispatch = allDispatches.find(
-      (d) => d.vehiclePlate === selectedPlate && d.status !== 'completed' && d.date === todayStr
+      (d) => d.vehiclePlate === selectedPlate && d.status !== 'completed'
     );
     if (activePlateDispatch) {
       return res.status(400).json({
@@ -523,6 +523,7 @@ app.post('/api/deliveries', async (req, res) => {
     const items = deliveredItems || [];
     let deliveredGrandTotal = 0;
     let depositDeliveredDamacana = 0;
+    let depositDeliveredCamDamacana = 0;
     let depositDeliveredTup = 0;
 
     items.forEach((item: any) => {
@@ -530,6 +531,8 @@ app.post('/api/deliveries', async (req, res) => {
       const prod = allProducts.find((p) => p.id === item.productId);
       if (prod?.depositType === 'damacana') {
         depositDeliveredDamacana += item.quantity;
+      } else if (prod?.depositType === 'cam_damacana') {
+        depositDeliveredCamDamacana += item.quantity;
       } else if (prod?.depositType === 'tup') {
         depositDeliveredTup += item.quantity;
       }
@@ -541,15 +544,21 @@ app.post('/api/deliveries', async (req, res) => {
       }
     });
 
-    const emptiesRecv = emptyContainersReceived || { damacana: 0, tup: 0 };
+    const emptiesRecv = emptyContainersReceived || { damacana: 0, camDamacana: 0, tup: 0 };
+    const recvDamacana = Number(emptiesRecv.damacana) || 0;
+    const recvCamDamacana = Number(emptiesRecv.camDamacana || emptiesRecv.cam_damacana) || 0;
+    const recvTup = Number(emptiesRecv.tup) || 0;
+
     const emptyContainersDiff = {
-      damacana: depositDeliveredDamacana - (emptiesRecv.damacana || 0),
-      tup: depositDeliveredTup - (emptiesRecv.tup || 0),
+      damacana: depositDeliveredDamacana - recvDamacana,
+      camDamacana: depositDeliveredCamDamacana - recvCamDamacana,
+      tup: depositDeliveredTup - recvTup,
     };
 
-    if (!customer.emptyDepositBalance) customer.emptyDepositBalance = { damacana: 0, tup: 0 };
-    customer.emptyDepositBalance.damacana += emptyContainersDiff.damacana;
-    customer.emptyDepositBalance.tup += emptyContainersDiff.tup;
+    if (!customer.emptyDepositBalance) customer.emptyDepositBalance = { damacana: 0, camDamacana: 0, tup: 0 };
+    customer.emptyDepositBalance.damacana = (Number(customer.emptyDepositBalance.damacana) || 0) + emptyContainersDiff.damacana;
+    customer.emptyDepositBalance.camDamacana = (Number(customer.emptyDepositBalance.camDamacana) || 0) + emptyContainersDiff.camDamacana;
+    customer.emptyDepositBalance.tup = (Number(customer.emptyDepositBalance.tup) || 0) + emptyContainersDiff.tup;
 
     const payment = collectedPayment || {
       method: 'UNPAID',

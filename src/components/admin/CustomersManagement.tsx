@@ -206,7 +206,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
     if (!confirm(`${cust.name} için boş kap bakiyesini sıfırlamak istediğinize emin misiniz?`)) return;
     try {
       const updated = await updateCustomer(cust.id, {
-        emptyDepositBalance: { damacana: 0, tup: 0 },
+        emptyDepositBalance: { damacana: 0, camDamacana: 0, tup: 0 },
       });
       onCustomersUpdated(customers.map((c) => (c.id === cust.id ? updated : c)));
     } catch (err: any) {

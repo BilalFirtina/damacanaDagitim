@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS public.products (
   category TEXT NOT NULL CHECK (category IN ('damacana', 'pet', 'soda', 'tup', 'bardak')),
   default_unit_price NUMERIC NOT NULL DEFAULT 100,
   is_deposit BOOLEAN DEFAULT false,
-  deposit_type TEXT DEFAULT 'none' CHECK (deposit_type IN ('damacana', 'tup', 'none')),
+  deposit_type TEXT DEFAULT 'none' CHECK (deposit_type IN ('damacana', 'cam_damacana', 'tup', 'none')),
   unit TEXT NOT NULL DEFAULT 'Adet',
   description TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS public.customers (
   is_account_customer BOOLEAN DEFAULT true,
   current_balance_tl NUMERIC DEFAULT 0,
   empty_deposit_damacana INTEGER DEFAULT 0,
+  empty_deposit_cam_damacana INTEGER DEFAULT 0,
   empty_deposit_tup INTEGER DEFAULT 0,
   custom_prices JSONB DEFAULT '{}'::jsonb,
   notes TEXT,
@@ -48,6 +49,7 @@ CREATE TABLE IF NOT EXISTS public.customers (
 
 -- Var olan veritabanlarında eksik 'emails' kolonunu güvenle ekle, varsa 'district' verilerini güvenle taşı ve 'district' kolonunu kaldır
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS emails JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS empty_deposit_cam_damacana INTEGER DEFAULT 0;
 
 DO $$ 
 BEGIN
