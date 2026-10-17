@@ -28,6 +28,7 @@ interface DeliveryModalProps {
   customers: Customer[];
   products: Product[];
   onDeliveryCreated: (delivery: any, updatedCustomer?: Customer) => void;
+  onCustomerCreated?: (customer: Customer) => void;
 }
 
 export const DeliveryModal: React.FC<DeliveryModalProps> = ({
@@ -38,6 +39,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   customers,
   products,
   onDeliveryCreated,
+  onCustomerCreated,
 }) => {
   // Local products list so newly created products are immediately selectable
   const [allProducts, setAllProducts] = useState<Product[]>(products);
@@ -45,6 +47,13 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   useEffect(() => {
     setAllProducts(products);
   }, [products]);
+
+  // Local customers list so newly created customers are immediately searchable
+  const [allCustomers, setAllCustomers] = useState<Customer[]>(customers);
+
+  useEffect(() => {
+    setAllCustomers(customers);
+  }, [customers]);
 
   // Step 1: Customer selection
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -85,6 +94,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const [posAmountInput, setPosAmountInput] = useState<string>('0');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittingCustomer, setIsSubmittingCustomer] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // When customer is selected, initialize prices with customer's custom prices or product defaults
@@ -177,6 +187,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   // New Customer submit
   const handleCreateNewCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingCustomer) return;
     if (!newCustName.trim()) {
       setErrorMsg('Lütfen müşteri adını giriniz');
       return;
@@ -188,6 +199,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       .filter((s) => s.length > 0 && s.includes('@'));
 
     try {
+      setIsSubmittingCustomer(true);
       setErrorMsg(null);
       const created = await createCustomer({
         name: newCustName.trim(),
@@ -196,6 +208,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         emails: parsedEmails,
         isAccountCustomer: newCustIsAccount,
       });
+      // Make the new customer immediately available in search / selection lists
+      setAllCustomers((prev) => (prev.some((c) => c.id === created.id) ? prev : [...prev, created]));
+      onCustomerCreated?.(created);
       // Automatically select created customer and proceed to product selection
       setSelectedCustomer(created);
       setShowNewCustomerForm(false);
@@ -205,6 +220,8 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       setNewCustEmails('');
     } catch (err: any) {
       setErrorMsg(err.message || 'Müşteri oluşturulamadı');
+    } finally {
+      setIsSubmittingCustomer(false);
     }
   };
 
@@ -298,7 +315,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   if (!isOpen) return null;
 
   // Filter customers
-  const filteredCustomers = customers.filter((c) => {
+  const filteredCustomers = allCustomers.filter((c) => {
     const term = customerSearch.toLowerCase().trim();
     if (!term) return true;
     return (
@@ -467,9 +484,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       </label>
                       <button
                         type="submit"
-                        className="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs shadow-sm"
+                        disabled={isSubmittingCustomer}
+                        className="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                       >
-                        Kaydet & Seç
+                        {isSubmittingCustomer ? 'Kaydediliyor...' : 'Kaydet & Seç'}
                       </button>
                     </div>
                   </form>

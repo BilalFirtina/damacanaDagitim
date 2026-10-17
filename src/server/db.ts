@@ -581,6 +581,106 @@ function mapDeliveryFromDb(row: any): Delivery {
 }
 
 // ----------------------------------------------------------------------
+// SUPABASE WRITE ERROR HANDLING (Turkish messages + schema drift)
+// ----------------------------------------------------------------------
+// Optional customer columns that may be missing on older Supabase projects.
+// If the remote table lacks one of these, we strip it and retry so that the
+// customer is still persisted instead of silently falling back to local JSON.
+const OPTIONAL_CUSTOMER_COLUMNS = ['emails', 'empty_deposit_cam_damacana'];
+
+export function isMissingColumnError(error: any): boolean {
+  if (!error) return false;
+  const code = String(error.code || '');
+  const msg = String(error.message || '').toLowerCase();
+  return (
+    code === '42703' ||
+    code === 'PGRST204' ||
+    msg.includes('does not exist') ||
+    msg.includes('could not find the') ||
+    (msg.includes('column') && msg.includes('schema cache'))
+  );
+}
+
+function extractMissingColumn(error: any): string | undefined {
+  const msg = String(error?.message || '');
+  const m1 = msg.match(/column\s+"?([a-zA-Z0-9_.]+)"?\s+does not exist/i);
+  if (m1) {
+    const parts = m1[1].split('.');
+    return parts[parts.length - 1];
+  }
+  const m2 = msg.match(/could not find the '([a-zA-Z0-9_]+)' column/i);
+  if (m2) return m2[1];
+  const m3 = msg.match(/column\s+'([a-zA-Z0-9_]+)'/i);
+  if (m3) return m3[1];
+  return undefined;
+}
+
+// Writes a customer row, transparently retrying without optional columns that
+// the remote schema does not (yet) have. Returns the raw Supabase result.
+async function upsertCustomerRow(payload: Record<string, any>): Promise<{ data: any; error: any }> {
+  const working: Record<string, any> = { ...payload };
+  let result = await supabase!.from('customers').upsert(working, { onConflict: 'id' }).select().single();
+
+  let attempts = 0;
+  while (result.error && isMissingColumnError(result.error) && attempts <= OPTIONAL_CUSTOMER_COLUMNS.length) {
+    const parsed = extractMissingColumn(result.error);
+    const col =
+      (parsed && working[parsed] !== undefined ? parsed : undefined) ||
+      OPTIONAL_CUSTOMER_COLUMNS.find((c) => working[c] !== undefined);
+    if (!col || working[col] === undefined) break;
+    console.warn(`[Supabase createCustomer] '${col}' kolonu bulunamadı, bu alan atlanarak tekrar deneniyor.`);
+    delete working[col];
+    result = await supabase!.from('customers').upsert(working, { onConflict: 'id' }).select().single();
+    attempts++;
+  }
+
+  return result;
+}
+
+async function updateCustomerRow(id: string, payload: Record<string, any>): Promise<{ data: any; error: any }> {
+  const working: Record<string, any> = { ...payload };
+  if (Object.keys(working).length === 0) return { data: null, error: null };
+  let result = await supabase!.from('customers').update(working).eq('id', id).select().single();
+
+  let attempts = 0;
+  while (result.error && isMissingColumnError(result.error) && attempts <= OPTIONAL_CUSTOMER_COLUMNS.length) {
+    const parsed = extractMissingColumn(result.error);
+    const col =
+      (parsed && working[parsed] !== undefined ? parsed : undefined) ||
+      OPTIONAL_CUSTOMER_COLUMNS.find((c) => working[c] !== undefined);
+    if (!col || working[col] === undefined) break;
+    console.warn(`[Supabase updateCustomer] '${col}' kolonu bulunamadı, bu alan atlanarak tekrar deneniyor.`);
+    delete working[col];
+    if (Object.keys(working).length === 0) return { data: null, error: null };
+    result = await supabase!.from('customers').update(working).eq('id', id).select().single();
+    attempts++;
+  }
+
+  return result;
+}
+
+function toTurkishDbError(error: any, fallback: string): string {
+  const code = String(error?.code || '');
+  const msg = String(error?.message || '').toLowerCase();
+  if (code === '23505' || msg.includes('duplicate key')) {
+    return 'Bu kayıt zaten mevcut. Yinelenen kayıt oluşturulamaz.';
+  }
+  if (code === '23503' || msg.includes('foreign key')) {
+    return 'İlişkili kayıt bulunamadığı için işlem tamamlanamadı.';
+  }
+  if (code === '23502' || msg.includes('not-null') || msg.includes('null value')) {
+    return 'Zorunlu alanlar boş bırakılamaz.';
+  }
+  if (code === '42501' || msg.includes('row-level security') || msg.includes('permission denied')) {
+    return 'Bu işlem için veritabanı yetkiniz bulunmuyor.';
+  }
+  if (code === '42P01' || msg.includes('does not exist')) {
+    return 'Veritabanı tablosu veya alanı bulunamadı. Lütfen sistem yöneticisiyle iletişime geçin.';
+  }
+  return fallback;
+}
+
+// ----------------------------------------------------------------------
 // AUTO-SEED SUPABASE WHEN CONNECTED BUT EMPTY
 // ----------------------------------------------------------------------
 let hasAttemptedSeed = false;
@@ -1070,24 +1170,21 @@ export async function createCustomer(cust: Customer): Promise<Customer> {
         payload.emails = cust.emails;
       }
 
-      let { data, error } = await supabase
-        .from('customers')
-        .upsert(payload, { onConflict: 'id' })
-        .select()
-        .single();
-
-      // Graceful fallback if remote Supabase doesn't have emails column yet
-      if (error && (error.message?.includes('emails') || error.code === 'PGRST204')) {
-        delete payload.emails;
-        const retry = await supabase.from('customers').upsert(payload, { onConflict: 'id' }).select().single();
-        data = retry.data;
-        error = retry.error;
-      }
+      const { data, error } = await upsertCustomerRow(payload);
 
       if (!error && data) return mapCustomerFromDb({ ...data, emails: cust.emails });
+
+      // Supabase yapılandırılmışsa hata sessizce yutulmaz; çağırana bildirilir.
       console.error('[Supabase createCustomer]', error);
-    } catch (e) {
+      throw new Error(
+        toTurkishDbError(error, 'Müşteri veritabanına kaydedilemedi. Lütfen tekrar deneyin.')
+      );
+    } catch (e: any) {
       console.error('[Supabase createCustomer Exception]', e);
+      if (e instanceof Error) throw e;
+      throw new Error(
+        toTurkishDbError(e, 'Müşteri veritabanına kaydedilemedi. Lütfen tekrar deneyin.')
+      );
     }
   } else if (pgPool) {
     try {
@@ -1165,24 +1262,21 @@ export async function updateCustomer(id: string, updates: Partial<Customer>): Pr
       if (updates.customPrices !== undefined) payload.custom_prices = updates.customPrices;
       if (updates.notes !== undefined) payload.notes = updates.notes;
 
-      let { data, error } = await supabase
-        .from('customers')
-        .update(payload)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error && (error.message?.includes('emails') || error.code === 'PGRST204')) {
-        delete payload.emails;
-        const retry = await supabase.from('customers').update(payload).eq('id', id).select().single();
-        data = retry.data;
-        error = retry.error;
-      }
+      const { data, error } = await updateCustomerRow(id, payload);
 
       if (!error && data) return mapCustomerFromDb({ ...data, emails: updates.emails });
+
+      // Supabase yapılandırılmışsa hata sessizce yutulmaz; çağırana bildirilir.
       console.error('[Supabase updateCustomer]', error);
-    } catch (e) {
+      throw new Error(
+        toTurkishDbError(error, 'Müşteri bilgileri güncellenemedi. Lütfen tekrar deneyin.')
+      );
+    } catch (e: any) {
       console.error('[Supabase updateCustomer Exception]', e);
+      if (e instanceof Error) throw e;
+      throw new Error(
+        toTurkishDbError(e, 'Müşteri bilgileri güncellenemedi. Lütfen tekrar deneyin.')
+      );
     }
   } else if (pgPool) {
     try {
@@ -1474,11 +1568,16 @@ export async function createDeliveryRecord(
         return { delivery: savedDel, updatedCustomer };
       }
 
-      if (delError) {
-        console.error('[Supabase createDeliveryRecord]', delError);
-      }
-    } catch (e) {
+      console.error('[Supabase createDeliveryRecord]', delError);
+      throw new Error(
+        toTurkishDbError(delError, 'Teslimat veritabanına kaydedilemedi. Lütfen tekrar deneyin.')
+      );
+    } catch (e: any) {
       console.error('[Supabase createDeliveryRecord Exception]', e);
+      if (e instanceof Error) throw e;
+      throw new Error(
+        toTurkishDbError(e, 'Teslimat veritabanına kaydedilemedi. Lütfen tekrar deneyin.')
+      );
     }
   } else if (pgPool) {
     const pool = pgPool;

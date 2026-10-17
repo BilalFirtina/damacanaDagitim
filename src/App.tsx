@@ -190,6 +190,15 @@ export default function App() {
     }
   };
 
+  const handleCustomerCreated = (created: Customer) => {
+    setCustomers((prev) => {
+      if (prev.some((c) => c.id === created.id)) {
+        return prev.map((c) => (c.id === created.id ? created : c));
+      }
+      return [...prev, created];
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
@@ -241,6 +250,7 @@ export default function App() {
             products={products}
             onDispatchUpdated={handleDispatchUpdated}
             onDeliveryCreated={handleDeliveryCreated}
+            onCustomerCreated={handleCustomerCreated}
             onNavigateTab={setActiveTab}
           />
         )}
@@ -271,6 +281,7 @@ export default function App() {
           <CustomersManagement
             customers={customers}
             products={products}
+            currentUser={currentUser}
             onCustomersUpdated={setCustomers}
           />
         )}

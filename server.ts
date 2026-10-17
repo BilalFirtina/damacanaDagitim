@@ -366,7 +366,8 @@ app.get('/api/customers', async (req, res) => {
   }
 });
 
-app.post('/api/customers', requireAdmin, async (req, res) => {
+// Müşteri oluşturma: hem depo yöneticisi hem de şoför (yetkilendirilmiş saha kullanıcısı) yapabilir.
+app.post('/api/customers', async (req, res) => {
   const { name, phone, address, emails, isAccountCustomer, notes, customPrices } = req.body;
   if (!name) return res.status(400).json({ error: 'Müşteri adı zorunludur' });
 
@@ -376,7 +377,7 @@ app.post('/api/customers', requireAdmin, async (req, res) => {
     : [];
 
   const newCust: Customer = {
-    id: `cust_${Date.now()}`,
+    id: `cust_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
     name,
     phone: phone || '',
     address: address || '',
@@ -393,17 +394,19 @@ app.post('/api/customers', requireAdmin, async (req, res) => {
     const created = await createCustomer(newCust);
     res.status(201).json({ customer: created });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message || 'Müşteri kaydedilemedi' });
   }
 });
 
+// Müşteri güncelleme ve bakiye/boş kap sıfırlama yalnızca depo yöneticisine açıktır.
+// (Sunucu tarafı yetki sınırı: şoförler doğrudan API çağrısıyla bile sıfırlayamaz.)
 app.put('/api/customers/:id', requireAdmin, async (req, res) => {
   try {
     const updated = await updateCustomer(req.params.id, req.body);
     if (!updated) return res.status(404).json({ error: 'Müşteri bulunamadı' });
     res.json({ customer: updated });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message || 'Müşteri güncellenemedi' });
   }
 });
 

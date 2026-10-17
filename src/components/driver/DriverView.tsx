@@ -26,6 +26,7 @@ interface DriverViewProps {
   products: Product[];
   onDispatchUpdated: (dispatch: Dispatch) => void;
   onDeliveryCreated: (delivery: Delivery, updatedCustomer?: Customer) => void;
+  onCustomerCreated?: (customer: Customer) => void;
   onNavigateTab: (tab: any) => void;
 }
 
@@ -39,6 +40,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
   products,
   onDispatchUpdated,
   onDeliveryCreated,
+  onCustomerCreated,
   onNavigateTab,
 }) => {
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
@@ -334,6 +336,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
           customers={customers}
           products={products}
           onDeliveryCreated={onDeliveryCreated}
+          onCustomerCreated={onCustomerCreated}
         />
       )}
     </div>

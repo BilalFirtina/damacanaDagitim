@@ -196,7 +196,10 @@ export async function createCustomer(customer: Partial<Customer>): Promise<Custo
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(customer),
   });
-  if (!res.ok) throw new Error('Müşteri oluşturulamadı');
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || 'Müşteri oluşturulamadı');
+  }
   const json = await res.json();
   return json.customer;
 }
@@ -207,7 +210,10 @@ export async function updateCustomer(id: string, updates: Partial<Customer>): Pr
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
   });
-  if (!res.ok) throw new Error('Müşteri güncellenemedi');
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || 'Müşteri güncellenemedi');
+  }
   const json = await res.json();
   return json.customer;
 }

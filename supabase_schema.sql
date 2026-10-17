@@ -49,15 +49,15 @@ CREATE TABLE IF NOT EXISTS public.customers (
 
 -- Var olan veritabanlarında eksik 'emails' kolonunu güvenle ekle, varsa 'district' verilerini güvenle taşı ve 'district' kolonunu kaldır
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS emails JSONB DEFAULT '[]'::jsonb;
-ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS empty_deposit_cam_damacana INTEGER DEFAULT 0;
+  ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS empty_deposit_cam_damacana INTEGER DEFAULT 0;
 
-DO $$ 
+DO $$
 BEGIN
   IF EXISTS (
-    SELECT 1 
-    FROM information_schema.columns 
-    WHERE table_schema = 'public' 
-      AND table_name = 'customers' 
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'customers'
       AND column_name = 'district'
   ) THEN
     EXECUTE 'UPDATE public.customers SET emails = jsonb_build_array(district) WHERE (emails IS NULL or emails = ''[]''::jsonb) AND district IS NOT NULL AND district != '''' AND district LIKE ''%@%'';';
@@ -200,16 +200,16 @@ ON CONFLICT (id) DO UPDATE SET
 -- Eğer veritabanınızda daha önceden district kolonunda e-postalar tutulduysa,
 -- aşağıdaki SQL komutunu çalıştırarak verileri güvenle emails (JSONB) kolonuna taşıyabilir
 -- ve district kolonunu silebilirsiniz:
--- 
+--
 -- ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS emails JSONB DEFAULT '[]'::jsonb;
--- 
--- UPDATE public.customers 
+--
+-- UPDATE public.customers
 -- SET emails = jsonb_build_array(district)
--- WHERE (emails IS NULL or emails = '[]'::jsonb) 
---   AND district IS NOT NULL 
---   AND district != '' 
+-- WHERE (emails IS NULL or emails = '[]'::jsonb)
+--   AND district IS NOT NULL
+--   AND district != ''
 --   AND district LIKE '%@%';
--- 
+--
 -- ALTER TABLE public.customers DROP COLUMN IF EXISTS district;
 -- ==============================================================================
 

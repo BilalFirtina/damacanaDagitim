@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Customer, Product } from '../../types';
+import { Customer, Product, User } from '../../types';
 import {
   Building2,
   Phone,
@@ -21,18 +21,22 @@ import { createCustomer, updateCustomer } from '../../services/api';
 interface CustomersManagementProps {
   customers: Customer[];
   products: Product[];
+  currentUser: User;
   onCustomersUpdated: (customers: Customer[]) => void;
 }
 
 export const CustomersManagement: React.FC<CustomersManagementProps> = ({
   customers,
   products,
+  currentUser,
   onCustomersUpdated,
 }) => {
+  const isAdmin = currentUser.role === 'admin';
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'account' | 'deposit_debt' | 'cash_debt'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // New customer form state
   const [newName, setNewName] = useState('');
@@ -129,6 +133,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
   const handleCreateCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!newName.trim()) return;
 
     // Flush any pending email in the input field
@@ -144,6 +149,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
     }
 
     try {
+      setIsSubmitting(true);
       const created = await createCustomer({
         name: newName.trim(),
         phone: newPhone.trim(),
@@ -155,7 +161,10 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       onCustomersUpdated([...customers, created]);
       setShowCreateModal(false);
     } catch (err: any) {
+      // Form verileri korunur; kullanıcı düzeltip tekrar deneyebilir.
       alert(err.message || 'Müşteri eklenemedi');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -203,6 +212,10 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
   };
 
   const handleClearDeposit = async (cust: Customer) => {
+    if (!isAdmin) {
+      alert('Boş kap bakiyesi sıfırlama yalnızca depo yöneticisi tarafından yapılabilir.');
+      return;
+    }
     if (!confirm(`${cust.name} için boş kap bakiyesini sıfırlamak istediğinize emin misiniz?`)) return;
     try {
       const updated = await updateCustomer(cust.id, {
@@ -215,6 +228,10 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
   };
 
   const handleClearBalanceTL = async (cust: Customer) => {
+    if (!isAdmin) {
+      alert('Cari bakiye sıfırlama yalnızca depo yöneticisi tarafından yapılabilir.');
+      return;
+    }
     if (!confirm(`${cust.name} için cari TL borcunu kapalı (0 ₺) olarak işaretlemek istediğinize emin misiniz?`)) return;
     try {
       const updated = await updateCustomer(cust.id, {
@@ -446,27 +463,29 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                 )}
               </div>
 
-              {/* Quick Actions */}
-              <div className="mt-4 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
-                {((c.emptyDepositBalance?.damacana || 0) > 0 ||
-                  (c.emptyDepositBalance?.camDamacana || 0) > 0 ||
-                  (c.emptyDepositBalance?.tup || 0) > 0) && (
-                  <button
-                    onClick={() => handleClearDeposit(c)}
-                    className="text-orange-600 hover:underline"
-                  >
-                    Boşları Sıfırla
-                  </button>
-                )}
-                {(c.currentBalanceTL || 0) > 0 && (
-                  <button
-                    onClick={() => handleClearBalanceTL(c)}
-                    className="text-red-600 hover:underline ml-auto"
-                  >
-                    Borcu Kapat
-                  </button>
-                )}
-              </div>
+              {/* Quick Actions (bakiye/boş kap sıfırlama yalnızca yöneticiye) */}
+              {isAdmin && (
+                <div className="mt-4 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
+                  {((c.emptyDepositBalance?.damacana || 0) > 0 ||
+                    (c.emptyDepositBalance?.camDamacana || 0) > 0 ||
+                    (c.emptyDepositBalance?.tup || 0) > 0) && (
+                    <button
+                      onClick={() => handleClearDeposit(c)}
+                      className="text-orange-600 hover:underline"
+                    >
+                      Boşları Sıfırla
+                    </button>
+                  )}
+                  {(c.currentBalanceTL || 0) > 0 && (
+                    <button
+                      onClick={() => handleClearBalanceTL(c)}
+                      className="text-red-600 hover:underline ml-auto"
+                    >
+                      Borcu Kapat
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
@@ -631,9 +650,10 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="w-1/2 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold shadow-md active:scale-95 transition-all"
+                  disabled={isSubmitting}
+                  className="w-1/2 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold shadow-md active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Kaydet
+                  {isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}
                 </button>
               </div>
             </form>
