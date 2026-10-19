@@ -4,9 +4,27 @@
 // veritabanı sorguları bu tek tanımı kullanır; böylece sefer tarihi, teslimat
 // gün filtresi ve raporlar arasında gün sınırı kayması oluşmaz.
 
+// Operasyonel veri saklama süresi (gün). TEK kaynak: saklama temizliği ve
+// durum raporları bu sabiti kullanır. Değiştirilecekse yalnızca burası.
+export const RETENTION_DAYS = 60;
+
 export function todayUtcDateStr(now: Date = new Date()): string {
   return now.toISOString().split('T')[0];
 }
+
+// Saklama eşiği: bu tarihten (dahil değil) önceki günler temizlenebilir.
+export function retentionCutoffDate(now: Date = new Date()): string {
+  return new Date(now.getTime() - RETENTION_DAYS * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split('T')[0];
+}
+
+// Saklama eşiğinin UTC gece yarısı anı (ISO). timestamp karşılaştırmalarında
+// saat dilimi kaymasını önlemek için kullanılır.
+export function retentionCutoffInstant(now: Date = new Date()): string {
+  return `${retentionCutoffDate(now)}T00:00:00.000Z`;
+}
+
 
 // Verilen bir UTC günü için sunucu tarafı sorgu penceresi. Yerel saat dilimi
 // farkları (en fazla ±14 saat) göz önünde bulundurularak bir gün geriye, iki

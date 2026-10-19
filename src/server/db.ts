@@ -20,8 +20,17 @@ import {
   ProductCategoryInfo,
   CleanupStatus,
   DatabaseStatus,
+  RetentionHealth,
+  RetentionRunResult,
 } from '../types/index.ts';
-import { utcDayQueryWindow, isSameUtcDate } from '../services/dateWindow.ts';
+import {
+  utcDayQueryWindow,
+  isSameUtcDate,
+  RETENTION_DAYS,
+  retentionCutoffDate,
+  retentionCutoffInstant,
+} from '../services/dateWindow.ts';
+import { applyRetentionToLocal } from '../services/retentionRules.ts';
 
 const { Pool } = pg;
 
@@ -289,6 +298,13 @@ interface LocalDatabaseSchema {
     previousEmpty: any;
     newEmpty: any;
     changedAt: string;
+  }>;
+  retentionArchive?: Array<{
+    runId: string;
+    purgeDate: string;
+    retentionDays: number;
+    dispatches: Dispatch[];
+    deliveries: Delivery[];
   }>;
 }
 
@@ -3532,6 +3548,8 @@ export async function reopenDispatch(
 let inMemoryLastPurged = 0;
 let inMemoryLastCleanupDate: string | null = null;
 
+const RETENTION_STALE_MS = 3 * 24 * 60 * 60 * 1000;
+
 export function getNext2300Time(): { nextDate: Date; msUntil: number; formatted: string } {
   const now = new Date();
   const target = new Date(now);
@@ -3547,75 +3565,185 @@ export function getNext2300Time(): { nextDate: Date; msUntil: number; formatted:
   return { nextDate: target, msUntil, formatted };
 }
 
-export async function runRetentionCleanup(): Promise<{
-  purgedDispatches: number;
-  purgedDeliveries: number;
-  lastCleanupDate: string;
-  thresholdDate: string;
-}> {
-  const RETENTION_DAYS = 60;
-  const thresholdMs = Date.now() - RETENTION_DAYS * 24 * 3600 * 1000;
-  const thresholdDateStr = new Date(thresholdMs).toISOString().split('T')[0];
+// Bir hata oluştuğunda durum satırına yazılır. Purge fonksiyonu tek
+// transaction olduğundan hata durumunda kendi durum güncellemesi geri alınır;
+// bu nedenle hata ayrı bir ifade ile kalıcılaştırılır.
+async function recordRetentionError(message: string): Promise<void> {
+  if (isSupabaseOperational() && supabase) {
+    await supabase
+      .from('retention_state')
+      .update({ last_error: message, last_finished_at: new Date().toISOString() })
+      .eq('id', true);
+  }
+}
+
+export async function getRetentionHealth(): Promise<RetentionHealth> {
+  let state: any = null;
+  if (isSupabaseOperational() && supabase) {
+    const { data } = await supabase.from('retention_state').select('*').eq('id', true).maybeSingle();
+    state = data || null;
+  }
+  const lastSuccessAt = state?.last_success_at || inMemoryLastCleanupDate || null;
+  const stale = !lastSuccessAt || Date.now() - new Date(lastSuccessAt).getTime() > RETENTION_STALE_MS;
+  return {
+    lastSuccessAt,
+    lastFinishedAt: state?.last_finished_at || null,
+    lastDryRun: state?.last_dry_run ?? null,
+    lastError: state?.last_error ?? null,
+    lastThresholdDate: state?.last_threshold_date || null,
+    retentionDays: Number(state?.retention_days) || RETENTION_DAYS,
+    counts: state?.last_counts || null,
+    stale,
+  };
+}
+
+// 60 günlük temizlik. Varsayılan olarak DRY-RUN'dır; gerçek silme için
+// RETENTION_DRY_RUN=false ayarlanmalıdır. Gerçek işlem sunucudaki
+// public.purge_retention RPC'si ile tek transaction içinde, arşiv-önce
+// mantığıyla ve advisory lock altında yürütülür.
+export async function runRetentionCleanup(): Promise<RetentionRunResult> {
+  const dryRun = process.env.RETENTION_DRY_RUN !== 'false';
   const nowIso = new Date().toISOString();
+  const thresholdDateStr = retentionCutoffDate();
+  const cutoffInstant = retentionCutoffInstant();
 
-  let purgedDispatches = 0;
-  let purgedDeliveries = 0;
+  const result: RetentionRunResult = {
+    dryRun,
+    thresholdDate: thresholdDateStr,
+    retentionDays: RETENTION_DAYS,
+    purgedDispatches: 0,
+    purgedDeliveries: 0,
+    archivedRows: 0,
+    counts: null,
+    locked: false,
+    lastCleanupDate: nowIso,
+  };
 
-  // 1. Supabase Cleanup (if connected)
+  let remoteCounts: any = null;
+  let usedRemote = false;
+
   if (isSupabaseOperational() && supabase) {
     try {
-      // First delete deliveries older than 60 days
-      const { data: delData, error: delErr } = await supabase
-        .from('deliveries')
-        .delete()
-        .lt('timestamp', `${thresholdDateStr}T00:00:00Z`)
-        .select();
+      await supabase
+        .from('retention_state')
+        .update({ last_started_at: nowIso })
+        .eq('id', true);
 
-      // Second delete dispatches older than 60 days
-      const { data: dispData, error: dispErr } = await supabase
+      // Sınırlı okuma: yalnızca eşikten eski seferler çekilir.
+      const { data: rows, error } = await supabase
         .from('dispatches')
-        .delete()
-        .lt('date', thresholdDateStr)
-        .select();
+        .select('id, status, closed_at, date')
+        .lt('date', thresholdDateStr);
+      if (error) throw error;
+      const dispatchIds = (rows || [])
+        .filter(
+          (r: any) =>
+            r.status === 'completed' &&
+            r.closed_at &&
+            typeof r.date === 'string' &&
+            r.date < thresholdDateStr
+        )
+        .map((r: any) => r.id);
 
-      if (delData) purgedDeliveries = delData.length;
-      if (dispData) purgedDispatches = dispData.length;
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('purge_retention', {
+        p_dry_run: dryRun,
+        p_dispatch_ids: dispatchIds,
+        p_delivery_ids: [],
+        p_retention_days: RETENTION_DAYS,
+      });
+      if (rpcErr) throw rpcErr;
 
-      if (delErr) console.error('[Supabase Retention Deliveries Error]', delErr);
-      if (dispErr) console.error('[Supabase Retention Dispatches Error]', dispErr);
-
-      console.log(`[Supabase 60-Day Cleanup] Purged ${purgedDispatches} dispatches and ${purgedDeliveries} deliveries older than ${thresholdDateStr}.`);
-    } catch (e) {
-      console.error('[Supabase runRetentionCleanup Exception]', e);
+      remoteCounts = rpcData || null;
+      usedRemote = true;
+      result.counts = remoteCounts?.counts || null;
+      result.purgedDispatches =
+        Number(remoteCounts?.purged_dispatches ?? remoteCounts?.counts?.dispatches) || 0;
+      result.purgedDeliveries =
+        Number(remoteCounts?.purged_deliveries ?? remoteCounts?.counts?.deliveries) || 0;
+      result.archivedRows = Number(remoteCounts?.archived_rows) || 0;
+      console.log(
+        `[Retention] ${dryRun ? 'DRY-RUN' : 'PURGE'} cutoff=${thresholdDateStr} dispatches=${result.purgedDispatches} deliveries=${result.purgedDeliveries} archived=${result.archivedRows}`
+      );
+    } catch (e: any) {
+      const msg = e?.message || e?.details || String(e);
+      if (/RETENTION_LOCKED/.test(msg)) {
+        result.locked = true;
+        result.error = 'RETENTION_LOCKED';
+        return result;
+      }
+      await recordRetentionError(msg).catch(() => {});
+      console.error('[Retention] purge failed:', msg);
+      throw e;
     }
   } else if (pgPool) {
     try {
-      const resDel = await pgPool.query('DELETE FROM public.deliveries WHERE timestamp < $1 RETURNING id', [`${thresholdDateStr}T00:00:00Z`]);
-      const resDisp = await pgPool.query('DELETE FROM public.dispatches WHERE date < $1 RETURNING id', [thresholdDateStr]);
-      purgedDeliveries = resDel.rowCount || 0;
-      purgedDispatches = resDisp.rowCount || 0;
-    } catch (e) {
-      console.error('[Postgres runRetentionCleanup Exception]', e);
+      const rows = await pgPool.query(
+        "SELECT id FROM public.dispatches WHERE status = 'completed' AND closed_at IS NOT NULL AND date < $1",
+        [thresholdDateStr]
+      );
+      const dispatchIds = rows.rows.map((r: any) => r.id);
+      const res = await pgPool.query('SELECT public.purge_retention($1, $2, $3, $4) AS r', [
+        dryRun,
+        dispatchIds,
+        [],
+        RETENTION_DAYS,
+      ]);
+      remoteCounts = res.rows[0]?.r || null;
+      usedRemote = true;
+      result.counts = remoteCounts?.counts || null;
+      result.purgedDispatches =
+        Number(remoteCounts?.purged_dispatches ?? remoteCounts?.counts?.dispatches) || 0;
+      result.purgedDeliveries =
+        Number(remoteCounts?.purged_deliveries ?? remoteCounts?.counts?.deliveries) || 0;
+      result.archivedRows = Number(remoteCounts?.archived_rows) || 0;
+    } catch (e: any) {
+      const msg = e?.message || String(e);
+      if (/RETENTION_LOCKED/.test(msg)) {
+        result.locked = true;
+        result.error = 'RETENTION_LOCKED';
+        return result;
+      }
+      console.error('[Retention] postgres purge failed:', msg);
+      throw e;
     }
   }
 
-  // 2. Local Fallback Database Cleanup (always kept in sync)
+  // Yerel yedek depoya (data_store.json) aynı saklama mantığı uygulanır.
   const db = loadLocalDatabase();
-  const initDispatches = db.dispatches.length;
-  const initDeliveries = db.deliveries.length;
+  const local = applyRetentionToLocal(
+    db.dispatches || [],
+    db.deliveries || [],
+    thresholdDateStr,
+    cutoffInstant
+  );
 
-  db.dispatches = db.dispatches.filter((d) => d.date >= thresholdDateStr);
-  const retainedIds = new Set(db.dispatches.map((d) => d.id));
-  db.deliveries = db.deliveries.filter((del) => del.timestamp.split('T')[0] >= thresholdDateStr && retainedIds.has(del.dispatchId));
+  if (!dryRun) {
+    if (!Array.isArray(db.retentionArchive)) db.retentionArchive = [];
+    const archivedDispatches = local.archivedDispatches.length;
+    const archivedDeliveries = local.archivedDeliveries.length;
+    if (archivedDispatches > 0 || archivedDeliveries > 0) {
+      db.retentionArchive.push({
+        runId: nowIso,
+        purgeDate: thresholdDateStr,
+        retentionDays: RETENTION_DAYS,
+        dispatches: local.archivedDispatches,
+        deliveries: local.archivedDeliveries,
+      });
+      db.dispatches = local.dispatches;
+      db.deliveries = local.deliveries;
+    }
+  }
 
-  const localPurgedDispatches = initDispatches - db.dispatches.length;
-  const localPurgedDeliveries = initDeliveries - db.deliveries.length;
+  if (!usedRemote) {
+    result.counts = {
+      dispatches: local.archivedDispatches.length,
+      deliveries: local.archivedDeliveries.length,
+    };
+    result.purgedDispatches = dryRun ? 0 : local.archivedDispatches.length;
+    result.purgedDeliveries = dryRun ? 0 : local.archivedDeliveries.length;
+  }
 
-  // Use the greater count between remote and local for reporting
-  if (purgedDispatches === 0 && localPurgedDispatches > 0) purgedDispatches = localPurgedDispatches;
-  if (purgedDeliveries === 0 && localPurgedDeliveries > 0) purgedDeliveries = localPurgedDeliveries;
-
-  const totalThisRun = purgedDispatches + purgedDeliveries;
+  const totalThisRun = result.purgedDispatches + result.purgedDeliveries;
   inMemoryLastPurged = totalThisRun;
   inMemoryLastCleanupDate = nowIso;
 
@@ -3623,47 +3751,54 @@ export async function runRetentionCleanup(): Promise<{
   db.purgedCountTotal = (db.purgedCountTotal || 0) + totalThisRun;
   saveLocalDatabase(db);
 
-  // NOTE: Customer profiles, active debts (currentBalanceTL), and deposit bottle counts
-  // are deliberately 100% untouched and preserved.
+  // NOT: Müşteri profilleri, güncel borç (currentBalanceTL) ve boş kap
+  // miktarları kasıtlı olarak %100 korunur; bu fonksiyon onlara dokunmaz.
 
-  return {
-    purgedDispatches,
-    purgedDeliveries,
-    lastCleanupDate: nowIso,
-    thresholdDate: thresholdDateStr,
-  };
+  return result;
 }
 
 export async function getCleanupStats(): Promise<CleanupStatus> {
-  const RETENTION_DAYS = 60;
-  const thresholdMs = Date.now() - RETENTION_DAYS * 24 * 3600 * 1000;
-  const thresholdDateStr = new Date(thresholdMs).toISOString().split('T')[0];
-
-  const allDispatches = await getDispatches();
-  const allDeliveries = await getDeliveries();
+  const thresholdDateStr = retentionCutoffDate();
   const db = loadLocalDatabase();
 
+  let totalDispatches = db.dispatches?.length || 0;
+  let totalDeliveries = db.deliveries?.length || 0;
   let oldestRecordDate: string | null = null;
-  if (allDispatches.length > 0) {
-    const dates = allDispatches.map((d) => d.date).sort();
-    oldestRecordDate = dates[0];
-  } else if (allDeliveries.length > 0) {
-    const dates = allDeliveries.map((d) => d.timestamp.split('T')[0]).sort();
-    oldestRecordDate = dates[0];
+
+  if (isSupabaseOperational() && supabase) {
+    // Sınırlı okumalar: tam tablo çekmek yerine count ve limit-1 sorguları.
+    const [dRes, delRes, oldestD, oldestDel] = await Promise.all([
+      supabase.from('dispatches').select('id', { count: 'exact', head: true }),
+      supabase.from('deliveries').select('id', { count: 'exact', head: true }),
+      supabase.from('dispatches').select('date').order('date', { ascending: true }).limit(1),
+      supabase.from('deliveries').select('timestamp').order('timestamp', { ascending: true }).limit(1),
+    ]);
+    if (!dRes.error && typeof dRes.count === 'number') totalDispatches = dRes.count;
+    if (!delRes.error && typeof delRes.count === 'number') totalDeliveries = delRes.count;
+    const od = oldestD.data?.[0]?.date as string | undefined;
+    const odd = oldestDel.data?.[0]?.timestamp as string | undefined;
+    if (od) oldestRecordDate = od;
+    else if (odd) oldestRecordDate = odd.split('T')[0];
+  } else if (db.dispatches?.length) {
+    oldestRecordDate = db.dispatches.map((d) => d.date).sort()[0];
+  } else if (db.deliveries?.length) {
+    oldestRecordDate = db.deliveries.map((d) => d.timestamp.split('T')[0]).sort()[0];
   }
 
   const { formatted: nextScheduledRun } = getNext2300Time();
+  const health = await getRetentionHealth();
 
   return {
-    totalDispatches: allDispatches.length,
-    totalDeliveries: allDeliveries.length,
+    totalDispatches,
+    totalDeliveries,
     oldestRecordDate,
     retentionDays: RETENTION_DAYS,
     thresholdDate: thresholdDateStr,
     purgedCountLastRun: inMemoryLastPurged,
     purgedCountTotal: db.purgedCountTotal || 0,
-    lastCleanupDate: inMemoryLastCleanupDate || db.lastCleanupDate || null,
+    lastCleanupDate: health.lastSuccessAt || inMemoryLastCleanupDate || db.lastCleanupDate || null,
     nextScheduledRun,
+    health,
   };
 }
 

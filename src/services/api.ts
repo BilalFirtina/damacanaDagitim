@@ -579,7 +579,16 @@ export async function fetchCleanupStatus(): Promise<CleanupStatus> {
 
 export async function triggerManualCleanup(): Promise<any> {
   const res = await apiFetch('/api/cleanup/trigger', { method: 'POST' });
-  if (!res.ok) throw new Error('Temizleme tetiklenemedi');
+  if (!res.ok) {
+    let message = 'Temizleme tetiklenemedi';
+    try {
+      const body = await res.json();
+      if (body?.error) message = body.error;
+    } catch {
+      /* yanıt gövdesi yoksa varsayılan mesaj kullanılır */
+    }
+    throw new Error(message);
+  }
   return res.json();
 }
 

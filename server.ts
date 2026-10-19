@@ -42,6 +42,7 @@ import {
   computeEmptyContainersDiff,
   runRetentionCleanup,
   getCleanupStats,
+  getRetentionHealth,
   getNext2300Time,
   getDatabaseStatus,
   ensureSupabaseSeeded,
@@ -83,9 +84,36 @@ app.get('/sw.js', (_req, res) => {
   res.sendFile(path.resolve(__dirname, 'public', 'sw.js'));
 });
 
-// Safe boot-time cleanup and Supabase initialization
-runRetentionCleanup().catch((err) => console.error('Initial cleanup error', err));
+// Safe boot-time cleanup and Supabase initialization.
+// Boot runs the retention job every start (Dry-Run by default). This is the
+// catch-up mechanism: because Render Free instances spin down when idle (and
+// can be redeployed/restarted at any time), a missed 23:00 run is executed on
+// the next startup instead of being silently skipped.
+runRetentionCleanup()
+  .then((res) => {
+    if (res.locked) {
+      console.warn('[Retention] Boot run skipped: another purge is in progress (lock held).');
+    }
+  })
+  .catch((err) => console.error('Initial retention cleanup error', err));
 ensureSupabaseSeeded().catch((err) => console.error('Initial Supabase seed error', err));
+
+// Visible startup/health warning if no successful purge has run in > 3 days.
+async function warnIfRetentionStale() {
+  try {
+    const health = await getRetentionHealth();
+    if (health.stale) {
+      console.warn(
+        `[Retention] WARNING: No successful retention run since ${health.lastSuccessAt || 'never'} ` +
+          `(> 3 days). Check /api/cleanup/status. dryRun=${health.lastDryRun ?? 'unknown'} ` +
+          `lastError=${health.lastError || 'none'}`
+      );
+    }
+  } catch (err) {
+    console.error('[Retention] Health check failed:', err);
+  }
+}
+warnIfRetentionStale();
 
 // Schedule recurring daily 60-day cleanup at exactly 23:00:00 every night
 function setupDailyRetentionJob() {
@@ -96,11 +124,15 @@ function setupDailyRetentionJob() {
     console.log('[Retention Scheduler] Executing daily 23:00 60-day data retention cleanup...');
     try {
       const res = await runRetentionCleanup();
-      console.log(
-        `[Retention Scheduler] 23:00 cleanup completed: ${res.purgedDispatches} dispatches and ${res.purgedDeliveries} deliveries older than 60 days purged.`
-      );
+      if (res.locked) {
+        console.warn('[Retention Scheduler] Run skipped: another purge holds the lock.');
+      } else {
+        console.log(
+          `[Retention Scheduler] completed (dryRun=${res.dryRun}): ${res.purgedDispatches} dispatches, ${res.purgedDeliveries} deliveries, ${res.archivedRows} archived rows.`
+        );
+      }
     } catch (err) {
-      console.error('[Retention Scheduler] Error during scheduled 23:00 cleanup:', err);
+      console.error('[Retention Scheduler] Error during scheduled cleanup:', err);
     }
     // Re-schedule for the next 23:00
     setupDailyRetentionJob();
@@ -1258,8 +1290,17 @@ app.get('/api/cleanup/status', requireAdmin, async (_req, res) => {
 app.post('/api/cleanup/trigger', requireAdmin, async (_req, res) => {
   try {
     const result = await runRetentionCleanup();
+    if (result.locked) {
+      return res.status(409).json({
+        error: 'Başka bir saklama temizliği şu anda çalışıyor. Lütfen tekrar deneyin.',
+        code: 'RETENTION_LOCKED',
+        ...result,
+      });
+    }
     res.json({
-      message: '60 günlük otomatik temizleme çalıştırıldı',
+      message: result.dryRun
+        ? '60 günlük saklama temizliği çalıştırıldı (DRY-RUN: hiçbir kayıt silinmedi)'
+        : '60 günlük saklama temizliği çalıştırıldı',
       ...result,
     });
   } catch (err: any) {

@@ -255,6 +255,41 @@ export interface CleanupStatus {
   purgedCountTotal?: number;
   lastCleanupDate?: string | null;
   nextScheduledRun?: string;
+  health?: RetentionHealth;
+}
+
+export interface RetentionCounts {
+  dispatches: number;
+  deliveries: number;
+  dispatch_items: number;
+  dispatch_reconciliation_items: number;
+  delivery_items: number;
+  delivery_container_returns: number;
+  archived_rows: number;
+}
+
+export interface RetentionHealth {
+  lastSuccessAt: string | null;
+  lastFinishedAt: string | null;
+  lastDryRun: boolean | null;
+  lastError: string | null;
+  lastThresholdDate: string | null;
+  retentionDays: number;
+  counts: Partial<RetentionCounts> | null;
+  stale: boolean;
+}
+
+export interface RetentionRunResult {
+  dryRun: boolean;
+  thresholdDate: string;
+  retentionDays: number;
+  purgedDispatches: number;
+  purgedDeliveries: number;
+  archivedRows: number;
+  counts: Partial<RetentionCounts> | null;
+  locked: boolean;
+  lastCleanupDate: string;
+  error?: string | null;
 }
 
 export interface DatabaseStatus {

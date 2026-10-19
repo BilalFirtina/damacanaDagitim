@@ -56,13 +56,15 @@ export const DataRetentionView: React.FC = () => {
     }
   };
 
-  const supabaseSqlCode = `-- Supabase 60 Günlük Otomatik Temizleme Sorgusu
--- Bu sorgu müşteri cari bakiyelerine dokunmaz, sadece 60 günden eski sefer ve teslimatları siler:
-DELETE FROM public.deliveries 
-WHERE timestamp < (NOW() - INTERVAL '60 days')::text;
-
-DELETE FROM public.dispatches 
-WHERE date < TO_CHAR(NOW() - INTERVAL '60 days', 'YYYY-MM-DD');`;
+  const supabaseSqlCode = `-- 60 Günlük Saklama Temizliği (atomik + arşiv-önce + kilitli)
+-- Gerçek silme için p_dry_run = false; test için true bırakın.
+-- Silinen satırlar public.retention_archive tablosuna JSONB olarak yazılır.
+SELECT public.purge_retention(
+  true,                 -- p_dry_run
+  ARRAY[]::text[],      -- p_dispatch_ids (boş: fonksiyon eşikten eskileri seçer)
+  ARRAY[]::text[],      -- p_delivery_ids (boş: sefere bağlı teslimatlar)
+  60                    -- p_retention_days
+);`;
 
   const handleCopySql = () => {
     navigator.clipboard.writeText(supabaseSqlCode);
@@ -85,7 +87,7 @@ WHERE date < TO_CHAR(NOW() - INTERVAL '60 days', 'YYYY-MM-DD');`;
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Dağıtım üzerinden 60 gün (2 ay) geçtikten sonra veritabanını hızlı ve hafif tutmak için eski sefer ve teslimat fişleri her gece saat 23:00'da Supabase ve yerel depodan otomatik silinir.
+            Dağıtım üzerinden 60 gün (2 ay) geçtikten sonra eski sefer ve teslimat fişleri önce kalıcı arşive (retention_archive) yazılır, ardından atomik olarak silinir. Varsayılan mod DRY-RUN'dır; gerçek silme yalnızca RETENTION_DRY_RUN=false iken yapılır.
           </p>
         </div>
 
@@ -108,6 +110,41 @@ WHERE date < TO_CHAR(NOW() - INTERVAL '60 days', 'YYYY-MM-DD');`;
             <span>{purging ? 'Temizleniyor...' : 'Şimdi Manuel Temizle'}</span>
           </button>
         </div>
+      </div>
+
+      {/* Dry-run / health status strip */}
+      <div className="flex flex-col sm:flex-row gap-3 w-full max-w-full">
+        <div
+          className={`flex-1 rounded-xl border p-3 text-xs flex items-start gap-2 ${
+            status?.health?.lastDryRun === false
+              ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+              : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300'
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4 mt-0.5 shrink-0" />
+          <div className="min-w-0">
+            <div className="font-bold">
+              {status?.health?.lastDryRun === false
+                ? 'Gerçek silme modu aktif (RETENTION_DRY_RUN=false)'
+                : 'DRY-RUN modu aktif — hiçbir kayıt silinmez'}
+            </div>
+            <div className="text-[11px] opacity-80">
+              Son başarılı çalışma: {status?.health?.lastSuccessAt ? new Date(status.health.lastSuccessAt).toLocaleString('tr-TR') : 'Kayıt yok'}
+            </div>
+          </div>
+        </div>
+
+        {status?.health?.stale && (
+          <div className="flex-1 rounded-xl border p-3 text-xs flex items-start gap-2 bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300">
+            <Clock className="w-4 h-4 mt-0.5 shrink-0" />
+            <div className="min-w-0">
+              <div className="font-bold">Uyarı: 3 günden uzun süredir başarılı temizlik yok</div>
+              <div className="text-[11px] opacity-80 break-words">
+                Son hata: {status?.health?.lastError || 'yok'}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Primary KPI Grid */}
@@ -169,10 +206,14 @@ WHERE date < TO_CHAR(NOW() - INTERVAL '60 days', 'YYYY-MM-DD');`;
           <div className="space-y-1">
             <div className="font-bold flex items-center gap-1.5 text-emerald-900 dark:text-emerald-200">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>60 Günlük Temizlik Başarıyla Gerçekleştirildi</span>
+              <span>
+                {purgeResult.dryRun
+                  ? 'DRY-RUN tamamlandı (hiçbir kayıt silinmedi)'
+                  : '60 Günlük Temizlik Başarıyla Gerçekleştirildi'}
+              </span>
             </div>
             <p className="text-[11px]">
-              Silinen Sefer Sayısı: <strong>{purgeResult.purgedDispatches}</strong> · Silinen Teslimat Fişi Sayısı: <strong>{purgeResult.purgedDeliveries}</strong> · Eşik: <strong>{purgeResult.thresholdDate}</strong>
+              Sefer: <strong>{purgeResult.purgedDispatches}</strong> · Teslimat Fişi: <strong>{purgeResult.purgedDeliveries}</strong> · Arşivlenen Satır: <strong>{purgeResult.archivedRows ?? 0}</strong> · Eşik: <strong>{purgeResult.thresholdDate}</strong>
             </p>
           </div>
           <span className="text-[10px] text-emerald-600 font-mono">
@@ -250,7 +291,7 @@ WHERE date < TO_CHAR(NOW() - INTERVAL '60 days', 'YYYY-MM-DD');`;
         </div>
 
         <p className="text-xs text-slate-500">
-          Uygulama sunucusu zaten her gece saat 23:00'da Supabase'e bağlanarak bu temizliği otomatik yapmaktadır. İsterseniz Supabase paneli üzerinden de tek tıkla çalıştırabilirsiniz:
+          Uygulama sunucusu her açılışta ve her gece 23:00'da bu temizliği çalıştırır (varsayılan DRY-RUN). Silme yetkisi yalnızca service_role'a aittir; fonksiyon advisory lock ile eşzamanlı çalışmayı engeller.
         </p>
 
         <pre className="p-3.5 rounded-xl bg-slate-900 text-sky-300 font-mono text-xs overflow-x-auto border border-slate-800">
