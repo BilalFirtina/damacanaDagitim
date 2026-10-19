@@ -41,7 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-sky-600 to-sky-400 flex items-center justify-center text-white shadow-md shadow-sky-500/20 shrink-0">
             <Truck className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 hidden sm:block">
             <span className="text-sm sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
               Dağıtım <span className="text-sky-600 font-extrabold ml-0.5">& Mutabakat</span>
             </span>
@@ -145,39 +145,39 @@ export const Header: React.FC<HeaderProps> = ({
         </nav>
 
         {/* Zone 3: Actions & Explicit Logout Button (Always visible on all screens) */}
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2 min-w-0">
           <button
             onClick={onRefreshData}
             disabled={isRefreshing}
-            className="p-1.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
+            className="flex items-center justify-center min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 p-1.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
             title="Verileri Yenile"
+            aria-label="Verileri Yenile"
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-sky-600' : ''}`} />
           </button>
 
           {/* Active User Badge */}
           <div
-            className="flex items-center gap-1.5 py-1 px-1.5 sm:px-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80 shrink-0"
+            className="flex items-center gap-1.5 py-1 px-1.5 sm:px-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80 min-w-0"
             title={`${currentUser.name} (${currentUser.title || (currentUser.role === 'admin' ? 'Depo Yöneticisi' : 'Şoför')})`}
           >
             <div className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 flex items-center justify-center text-xs font-bold shrink-0">
               {currentUser.name.charAt(0)}
             </div>
-            <div className="hidden sm:flex flex-col text-left">
-              <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate max-w-[90px] md:max-w-[130px]">
-                {currentUser.name.split(' ')[0]}
-              </span>
-            </div>
+            <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate min-w-0 max-w-[80px] min-[360px]:max-w-[100px] min-[390px]:max-w-[130px] sm:max-w-[150px] md:max-w-[180px]">
+              {currentUser.name}
+            </span>
           </div>
 
           {/* Explicit Always-Visible Logout Button in Top Bar */}
           <button
             onClick={onLogout}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl border border-red-200 dark:border-red-900/60 transition-colors shrink-0 cursor-pointer"
+            className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl border border-red-200 dark:border-red-900/60 transition-colors shrink-0 cursor-pointer"
             title="Oturumu Kapat (Çıkış Yap)"
+            aria-label="Oturumu Kapat (Çıkış Yap)"
           >
             <LogOut className="w-3.5 h-3.5 shrink-0 text-red-600" />
-            <span className="font-bold">Çıkış Yap</span>
+            <span className="font-bold hidden sm:inline">Çıkış Yap</span>
           </button>
         </div>
       </div>
