@@ -487,11 +487,6 @@ export interface OfflineSyncSummary {
   pending: number;
 }
 
-// Çözüm bekleyen (ör. kapatılmış sefere ait) kuyruk kayıtları.
-export function getOfflineQueueConflicts(): any[] {
-  return getOfflineQueue().filter(isConflictQueueItem);
-}
-
 // Drain and sync queued offline deliveries.
 // includeConflicts=false: otomatik senkron; çakışmalar atlanır (silinmez).
 // includeConflicts=true: kullanıcı "Şimdi Eşitle" derse çakışmalar da denenir
@@ -597,19 +592,6 @@ export async function fetchDatabaseStatus(): Promise<DatabaseStatus> {
 export async function triggerDatabaseSeed(): Promise<any> {
   const res = await apiFetch('/api/database/seed', { method: 'POST' });
   if (!res.ok) throw new Error('Veritabanı başlangıç kurulumu yapılamadı');
-  return res.json();
-}
-
-export async function updateDatabaseConfig(cfg: { url?: string; key?: string; enabled?: boolean }): Promise<any> {
-  const res = await apiFetch('/api/database/config', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(cfg),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || 'Veritabanı yapılandırması güncellenemedi');
-  }
   return res.json();
 }
 

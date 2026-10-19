@@ -4,9 +4,6 @@
 
 import type { Delivery } from '../types';
 
-export const DISPATCH_CLOSED_CODE = 'DISPATCH_CLOSED';
-export const ID_CONFLICT_CODE = 'ID_CONFLICT';
-
 export type DeliverySyncAction = 'synced' | 'conflict' | 'pending';
 
 export interface DeliverySyncErrorBody {

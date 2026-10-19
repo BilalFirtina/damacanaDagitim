@@ -1,7 +1,6 @@
 export type UserRole = 'admin' | 'driver';
 
 export const AUTHORIZED_VEHICLE_PLATES = ['01 FV 823', '06 GB 357', '01 AVH 886'] as const;
-export type AuthorizedVehiclePlate = typeof AUTHORIZED_VEHICLE_PLATES[number];
 
 export interface User {
   id: string;

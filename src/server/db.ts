@@ -154,8 +154,6 @@ export const isPostgresDirectConfigured = Boolean(
   !rawDatabaseUrl.includes('dummy')
 );
 
-export let isSupabaseConfigured = isSupabaseApiConfigured || isPostgresDirectConfigured;
-
 export let supabase: SupabaseClient | null = isSupabaseApiConfigured
   ? createClient(rawSupabaseUrl, rawSupabaseKey, {
       auth: { persistSession: false },
@@ -166,18 +164,6 @@ export function isSupabaseOperational(): boolean {
   return Boolean(isSupabaseApiConfigured && supabase);
 }
 
-export async function checkSupabaseHealth(): Promise<boolean> {
-  if (!isSupabaseApiConfigured || !supabase) {
-    return false;
-  }
-  try {
-    const { error } = await supabase.from('users').select('id', { head: true, count: 'exact' });
-    return !error;
-  } catch {
-    return false;
-  }
-}
-
 export async function configureSupabase(cfg: { url?: string; key?: string; enabled?: boolean }) {
   if (cfg.enabled === false) {
     const update = { enabled: false, note: 'Kullanıcı yerel depolama modunu seçti.' };
@@ -185,7 +171,6 @@ export async function configureSupabase(cfg: { url?: string; key?: string; enabl
     activeConfig = update;
     isSupabaseApiConfigured = false;
     supabase = null;
-    isSupabaseConfigured = isPostgresDirectConfigured;
     return {
       success: true,
       message: 'Supabase bulut bağlantısı devre dışı bırakıldı. Sistem yerel veritabanı (data_store.json) modunda çalışıyor.',
@@ -233,7 +218,6 @@ export async function configureSupabase(cfg: { url?: string; key?: string; enabl
   rawSupabaseKey = newKey;
   isSupabaseApiConfigured = true;
   supabase = createClient(newUrl, newKey, { auth: { persistSession: false } });
-  isSupabaseConfigured = true;
 
   // Auto-seed if needed
   await ensureSupabaseSeeded();
@@ -2907,6 +2891,17 @@ export async function getDeliveries(params?: { dispatchId?: string; driverId?: s
       let query = supabase.from('deliveries').select('*').order('timestamp', { ascending: false });
       if (params?.dispatchId) query = query.eq('dispatch_id', params.dispatchId);
       if (params?.driverId) query = query.eq('driver_id', params.driverId);
+      if (params?.date) {
+        // Gün filtresi sunucu tarafında dar bir aralığa indirilir; kesin gün
+        // eşleşmesi aşağıda bellekte doğrulanır. Böylece tüm geçmiş çekilmez
+        // ve idx_deliveries_timestamp indeksi kullanılabilir.
+        const dayStart = new Date(`${params.date}T00:00:00.000Z`).getTime();
+        if (!Number.isNaN(dayStart)) {
+          const lower = new Date(dayStart - 24 * 60 * 60 * 1000).toISOString();
+          const upper = new Date(dayStart + 48 * 60 * 60 * 1000).toISOString();
+          query = query.gte('timestamp', lower).lt('timestamp', upper);
+        }
+      }
       const { data, error } = await query;
       if (!error && data) {
         const ids = data.map((d: any) => d.id);

@@ -9,6 +9,7 @@ import {
   fetchDeliveries,
   logoutUser,
   normalizeDelivery,
+  getAuthToken,
 } from './services/api';
 import { LoginView } from './components/auth/LoginView';
 import { Header } from './components/common/Header';
@@ -107,8 +108,13 @@ export default function App() {
   useEffect(() => {
     loadData();
 
-    // Auto-poll deliveries and dispatches every 8 seconds for real-time inter-vehicle live feed
+    // Auto-poll deliveries and dispatches every 8 seconds for real-time inter-vehicle live feed.
+    // Yalnızca oturum açıkken, çevrimiçiyken ve sekme görünürken sorgulanır;
+    // gereksiz ağ isteklerini ve arka plan tüketimini önler.
     const interval = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+      if (!getAuthToken()) return;
       try {
         const [latestDeliveries, latestDispatches] = await Promise.all([
           fetchDeliveries(),

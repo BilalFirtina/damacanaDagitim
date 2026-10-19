@@ -4,8 +4,6 @@
 
 import type { DispatchStatus, LoadedItem } from '../types';
 
-export const DISPATCH_ALLOWED_UPDATE_FIELDS = ['loadedItems'] as const;
-
 export type DispatchRuleCode =
   | 'NOT_AUTHORIZED'
   | 'INVALID_STATE'
