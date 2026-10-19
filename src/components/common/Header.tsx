@@ -56,104 +56,128 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Zone 2: Desktop Navigation Links (Unified flat layout with wrapping) */}
-        <nav className="hidden lg:flex items-center gap-1.5 flex-wrap py-1">
+        {/* Zone 2: Desktop Navigation Links (icon-only at lg, icon+label at xl; wraps and condenses, no horizontal scroll) */}
+        <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 flex-wrap py-1 min-w-0">
           <button
             onClick={() => setActiveTab('delivery')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+            title="Saha Dağıtımı"
+            aria-label="Saha Dağıtımı"
+            className={`px-3 py-1 text-xs leading-none font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'delivery'
                 ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 font-bold'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
-            Saha Dağıtımı
+            <Truck className="w-4 h-4 shrink-0" />
+            <span className="hidden xl:inline">Saha Dağıtımı</span>
           </button>
 
           <button
             onClick={() => setActiveTab('team_feed')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer ${
+            title="Ekip Canlı Akışı"
+            aria-label="Ekip Canlı Akışı"
+            className={`px-3 py-1 text-xs leading-none font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'team_feed'
                 ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 font-bold'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
-            <span>Ekip Canlı Akışı</span>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <Activity className="w-4 h-4 shrink-0" />
+            <span className="hidden xl:inline">Ekip Canlı Akışı</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
           </button>
 
           <button
             onClick={() => setActiveTab('eod')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+            title="Gün Sonu Kapatma"
+            aria-label="Gün Sonu Kapatma"
+            className={`px-3 py-1 text-xs leading-none font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'eod'
                 ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 font-bold'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
-            Gün Sonu Kapatma
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <span className="hidden xl:inline">Gün Sonu Kapatma</span>
           </button>
 
           <button
             onClick={() => setActiveTab('customers')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+            title="Müşteriler & Borçlar"
+            aria-label="Müşteriler & Borçlar"
+            className={`px-3 py-1 text-xs leading-none font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'customers'
                 ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 font-bold'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
-            Müşteriler & Borçlar
+            <Users className="w-4 h-4 shrink-0" />
+            <span className="hidden xl:inline">Müşteriler & Borçlar</span>
           </button>
 
           <button
             onClick={() => setActiveTab('products')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+            title="Ürünler & Fiyatlar"
+            aria-label="Ürünler & Fiyatlar"
+            className={`px-3 py-1 text-xs leading-none font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'products'
                 ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 font-bold'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
-            Ürünler & Fiyatlar
+            <Package className="w-4 h-4 shrink-0" />
+            <span className="hidden xl:inline">Ürünler & Fiyatlar</span>
           </button>
 
           <button
             onClick={() => setActiveTab('reports')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+            title="Gün Sonu Dökümü (PDF/Excel)"
+            aria-label="Gün Sonu Dökümü (PDF/Excel)"
+            className={`px-3 py-1 text-xs leading-none font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'reports'
                 ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 font-bold'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
-            Gün Sonu Dökümü (PDF/Excel)
+            <FileText className="w-4 h-4 shrink-0" />
+            <span className="hidden xl:inline">Gün Sonu Dökümü (PDF/Excel)</span>
           </button>
 
           {isAdmin && (
             <>
               <button
                 onClick={() => setActiveTab('admin_loads')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                title="Araç Yüklemeleri & Yetki"
+                aria-label="Araç Yüklemeleri & Yetki"
+                className={`px-3 py-1 text-xs leading-none font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'admin_loads'
                     ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 font-bold'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
-                Araç Yüklemeleri & Yetki
+                <ShieldCheck className="w-4 h-4 shrink-0" />
+                <span className="hidden xl:inline">Araç Yüklemeleri & Yetki</span>
               </button>
 
               <button
                 onClick={() => setActiveTab('retention')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                title="60 Günlük Temizlik"
+                aria-label="60 Günlük Temizlik"
+                className={`px-3 py-1 text-xs leading-none font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'retention'
                     ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-bold'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
-                60 Günlük Temizlik
+                <CalendarCheck className="w-4 h-4 shrink-0" />
+                <span className="hidden xl:inline">60 Günlük Temizlik</span>
               </button>
             </>
           )}
         </nav>
 
         {/* Zone 3: Actions & Explicit Logout Button (Always visible on all screens) */}
-        <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+        <div className="flex items-center gap-1 sm:gap-2 min-w-0 lg:shrink-0">
           <button
             onClick={onRefreshData}
             disabled={isRefreshing}
