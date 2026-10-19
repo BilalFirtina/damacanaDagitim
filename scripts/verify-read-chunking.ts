@@ -7,8 +7,9 @@
  *   1. compares the production chunked read against a "legacy" single-`.in()`
  *      read (deep equality) on 1k / 3k / 10k datasets,
  *   2. asserts no request URL exceeds 8 KiB at 3k / 10k,
- *   3. asserts a failed chunk keeps the SAME error handling as before (logged,
- *      no throw, no widening of the local `data_store.json` fallback).
+ *   3. asserts an injected single chunk failure is recovered by ONE retry and
+ *      the result stays complete, and that a PERSISTENT chunk failure takes the
+ *      existing error path (never a partial result, no data_store.json widening).
  *
  * SAFETY: every Supabase env var is overwritten with a localhost mock before
  * the DB layer is imported, so this can NEVER reach the production project.
@@ -229,6 +230,7 @@ let tables: Record<string, any[]> = {};
 let maxUrlLen = 0;
 let requestCount = 0;
 let failOnceTable = '';
+let failAlwaysTable = '';
 
 function rowMatches(rows: any[], key: string, token: string): any[] {
   if (token.startsWith('in.(') && token.endsWith(')')) {
@@ -258,6 +260,12 @@ async function main() {
       res.statusCode = 500;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ message: 'injected failure', code: 'TEST_FAILURE' }));
+      return;
+    }
+    if (failAlwaysTable === table) {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ message: 'persistent failure', code: 'TEST_FAILURE' }));
       return;
     }
     const body = JSON.stringify(rows);
@@ -381,23 +389,90 @@ async function main() {
     }
   }
 
-  // Failed chunk: logged, no throw, no widening of the local fallback.
-  const size = 1000;
-  tables = buildDeliveriesTable(size);
-  failOnceTable = 'delivery_items';
-  let threw = false;
-  let result: any[] = [];
-  try {
-    result = await db.getDeliveries();
-  } catch {
-    threw = true;
+  // (a) A single transient chunk failure must be recovered by the retry and
+  //     still produce the COMPLETE result.
+  {
+    const size = 1000;
+    tables = buildDeliveriesTable(size);
+    const rows = tables.deliveries;
+    const ids = rows.map((r: any) => r.id);
+    const legacyItems = await legacyQuery('delivery_items', {
+      select: 'delivery_id,line_no,product_id,product_name,quantity,unit_price,line_total',
+      delivery_id: `in.(${ids.join(',')})`,
+    });
+    const legacyContainers = await legacyQuery('delivery_container_returns', {
+      select: 'delivery_id,deposit_type,received_qty,diff_qty',
+      delivery_id: `in.(${ids.join(',')})`,
+    });
+    const expected = rows.map((r: any) =>
+      refMapDelivery(
+        r,
+        legacyItems.filter((i) => i.delivery_id === r.id),
+        legacyContainers.filter((c) => c.delivery_id === r.id)
+      )
+    );
+
+    failOnceTable = 'delivery_items';
+    let threw = false;
+    let got: any[] = [];
+    try {
+      got = await db.getDeliveries();
+    } catch {
+      threw = true;
+    }
+    check('transient chunk failure does not bubble up', !threw);
+    check(
+      'transient chunk failure recovered by retry -> complete result',
+      JSON.stringify(got) === JSON.stringify(expected),
+      `got=${got.length} expected=${expected.length}`
+    );
+    check(
+      'recovered result is not partial (full delivery items present)',
+      got.length === size && got.every((d) => d.deliveredItems.length > 0)
+    );
   }
-  check('failed chunk does not throw', !threw);
-  check(
-    'failed chunk still returns the main rows (no data_store.json fallback)',
-    result.length === size,
-    `got=${result.length} expected=${size}`
-  );
+
+  // (b) A persistent chunk failure must take the existing error path and must
+  //     NEVER return a partial (missing-items) result.
+  {
+    const size = 1000;
+    tables = buildDeliveriesTable(size);
+    const remoteIds = new Set(tables.deliveries.map((r: any) => r.id));
+
+    failAlwaysTable = 'delivery_items';
+    const logged: string[] = [];
+    const origError = console.error;
+    console.error = (...args: any[]) => {
+      logged.push(args.map((a) => (a && a.message) || String(a)).join(' '));
+    };
+    let threw = false;
+    let got: any[] = [];
+    try {
+      got = await db.getDeliveries();
+    } catch {
+      threw = true;
+    } finally {
+      console.error = origError;
+      failAlwaysTable = '';
+    }
+
+    check('persistent chunk failure takes the existing error path (no throw)', !threw);
+    check(
+      'persistent chunk failure is logged',
+      logged.some((m) => m.includes('getDeliveries items')),
+      JSON.stringify(logged.slice(0, 3))
+    );
+    check(
+      'persistent chunk failure returns NO partial remote rows',
+      got.every((d) => !remoteIds.has(d.id)),
+      `returned ${got.filter((d) => remoteIds.has(d.id)).length} partial rows`
+    );
+    check(
+      'persistent chunk failure does not return the partial remote count',
+      got.length !== size,
+      `got=${got.length}`
+    );
+  }
 
   server.close();
 }

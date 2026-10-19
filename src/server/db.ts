@@ -777,13 +777,17 @@ function mapCustomerFromDb(
 //
 // PostgREST encodes `.in('col', ids)` directly in the request URL. A large id
 // list can exceed Node's ~16 KiB request-line limit (and many gateways reject
-// > ~8 KiB), causing the query to fail silently. We split ids into small
-// batches, run them with bounded concurrency and merge the rows, producing the
-// exact same result set. A failed batch is logged and contributes nothing,
-// which is the same behavior a single failing query had before.
+// > ~8 KiB). We split ids into small batches, run them with bounded
+// concurrency and merge the rows, producing the exact same result set.
+//
+// A failed batch is retried once (transient network blips are common). If it
+// still fails, the whole read fails through the existing per-function error
+// path (logged, then the pre-existing local fallback) so callers NEVER receive
+// silently incomplete data.
 // ----------------------------------------------------------------------
 const IN_CHUNK_SIZE = 200;
 const IN_CHUNK_CONCURRENCY = 4;
+const CHUNK_ATTEMPTS = 2;
 
 function chunkIds(ids: string[], size: number): string[][] {
   const batches: string[][] = [];
@@ -793,6 +797,15 @@ function chunkIds(ids: string[], size: number): string[][] {
 
 type ChunkQuery = (batch: string[]) => PromiseLike<{ data: any[] | null; error: any }>;
 
+async function runChunkOnce(makeQuery: ChunkQuery, batch: string[]): Promise<{ data: any[] | null; error: any }> {
+  try {
+    const res = await makeQuery(batch);
+    return { data: res?.data ?? null, error: res?.error };
+  } catch (err) {
+    return { data: null, error: err };
+  }
+}
+
 async function fetchInChunks(ids: string[], makeQuery: ChunkQuery, errorLabel: string): Promise<any[]> {
   if (ids.length === 0) return [];
   const batches = chunkIds(ids, IN_CHUNK_SIZE);
@@ -800,15 +813,21 @@ async function fetchInChunks(ids: string[], makeQuery: ChunkQuery, errorLabel: s
   for (let i = 0; i < batches.length; i += IN_CHUNK_CONCURRENCY) {
     const group = batches.slice(i, i + IN_CHUNK_CONCURRENCY);
     const settled = await Promise.all(
-      group.map((batch) =>
-        Promise.resolve(makeQuery(batch)).catch((err) => ({ data: null, error: err }))
-      )
+      group.map(async (batch) => {
+        let lastError: any = null;
+        for (let attempt = 1; attempt <= CHUNK_ATTEMPTS; attempt++) {
+          const res = await runChunkOnce(makeQuery, batch);
+          if (!res.error) return res;
+          lastError = res.error;
+          if (attempt < CHUNK_ATTEMPTS) {
+            console.error(`${errorLabel} (retry ${attempt})`, lastError);
+          }
+        }
+        console.error(errorLabel, lastError);
+        throw new Error(`${errorLabel}: ${lastError?.message || lastError}`);
+      })
     );
     for (const res of settled) {
-      if (res.error) {
-        console.error(errorLabel, res.error);
-        continue;
-      }
       if (res.data) rows.push(...res.data);
     }
   }
