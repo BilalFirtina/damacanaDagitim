@@ -174,6 +174,9 @@ export default function App() {
     }) || null;
 
   const handleDispatchUpdated = (updated: Dispatch) => {
+    // Oluşturma/güncelleme/onay/kapatma uçları kalıcı sefer kaydını (id, status,
+    // sunucu zaman damgaları, mutabakat) döndürür ve durum bu yanıttan
+    // güncellenir; bu nedenle tam veri yenilemesi (loadData) gerekmez.
     setDispatches((prev) => {
       const exists = prev.some((d) => d.id === updated.id);
       if (exists) {
@@ -181,12 +184,10 @@ export default function App() {
       }
       return [updated, ...prev];
     });
-    loadData();
   };
 
   const handleDispatchCreated = (created: Dispatch) => {
     setDispatches((prev) => [created, ...prev]);
-    loadData();
   };
 
   const handleDeliveryCreated = (newDelivery: Delivery, updatedCustomer?: Customer) => {
