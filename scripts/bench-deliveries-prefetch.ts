@@ -17,6 +17,7 @@
 import http from 'http';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
+import path from 'path';
 
 const SIZES = [1000, 10000, 50000];
 const USERS = 50;
@@ -203,15 +204,21 @@ if (process.argv.includes('--size')) {
 // Parent: run each size in a child process with a hard timeout so a runaway
 // quadratic pass cannot hang the whole command.
 const scriptPath = fileURLToPath(import.meta.url);
+const tsxCli = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+  'node_modules',
+  'tsx',
+  'dist',
+  'cli.mjs'
+);
 const results: any[] = [];
 
 async function runWithTimeout(size: number, timeoutMs: number): Promise<any> {
   return new Promise((resolve) => {
-    const child = spawn(
-      process.platform === 'win32' ? 'npx.cmd' : 'npx',
-      ['tsx', scriptPath, '--size', String(size)],
-      { env: process.env, shell: process.platform === 'win32' }
-    );
+    const child = spawn(process.execPath, [tsxCli, scriptPath, '--size', String(size)], {
+      env: process.env,
+    });
     let out = '';
     const timer = setTimeout(() => {
       child.kill('SIGKILL');
