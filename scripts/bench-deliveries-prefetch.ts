@@ -208,10 +208,21 @@ async function runChild(size: number, mode: string): Promise<void> {
   const server = http.createServer({ maxHeaderSize: 64 * 1024 * 1024 }, (req, res) => {
     const url = new URL(req.url || '/', 'http://localhost');
     maxUrlLen = Math.max(maxUrlLen, (req.url || '').length);
-    const body = JSON.stringify(tableFor(url.pathname));
+    let rows = tableFor(url.pathname);
+    for (const [key, val] of url.searchParams.entries()) {
+      if (key === 'select' || key === 'order' || key === 'limit' || key === 'offset') continue;
+      if (val.startsWith('in.(') && val.endsWith(')')) {
+        const set = new Set(val.slice(4, -1).split(','));
+        rows = rows.filter((r) => set.has(String(r[key])));
+      } else if (val.startsWith('eq.')) {
+        const v = val.slice(3);
+        rows = rows.filter((r) => String(r[key]) === v);
+      }
+    }
+    const body = JSON.stringify(rows);
     servedBytes += Buffer.byteLength(body);
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Range', `0-${Math.max(0, tableFor(url.pathname).length - 1)}/*`);
+    res.setHeader('Content-Range', `0-${Math.max(0, rows.length - 1)}/*`);
     res.end(body);
   });
 

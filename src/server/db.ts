@@ -756,6 +756,60 @@ function mapCustomerFromDb(
   };
 }
 
+// ----------------------------------------------------------------------
+// BOUNDED `.in()` CHUNKING HELPERS
+//
+// PostgREST encodes `.in('col', ids)` directly in the request URL. A large id
+// list can exceed Node's ~16 KiB request-line limit (and many gateways reject
+// > ~8 KiB), causing the query to fail silently. We split ids into small
+// batches, run them with bounded concurrency and merge the rows, producing the
+// exact same result set. A failed batch is logged and contributes nothing,
+// which is the same behavior a single failing query had before.
+// ----------------------------------------------------------------------
+const IN_CHUNK_SIZE = 200;
+const IN_CHUNK_CONCURRENCY = 4;
+
+function chunkIds(ids: string[], size: number): string[][] {
+  const batches: string[][] = [];
+  for (let i = 0; i < ids.length; i += size) batches.push(ids.slice(i, i + size));
+  return batches;
+}
+
+type ChunkQuery = (batch: string[]) => PromiseLike<{ data: any[] | null; error: any }>;
+
+async function fetchInChunks(ids: string[], makeQuery: ChunkQuery, errorLabel: string): Promise<any[]> {
+  if (ids.length === 0) return [];
+  const batches = chunkIds(ids, IN_CHUNK_SIZE);
+  const rows: any[] = [];
+  for (let i = 0; i < batches.length; i += IN_CHUNK_CONCURRENCY) {
+    const group = batches.slice(i, i + IN_CHUNK_CONCURRENCY);
+    const settled = await Promise.all(
+      group.map((batch) =>
+        Promise.resolve(makeQuery(batch)).catch((err) => ({ data: null, error: err }))
+      )
+    );
+    for (const res of settled) {
+      if (res.error) {
+        console.error(errorLabel, res.error);
+        continue;
+      }
+      if (res.data) rows.push(...res.data);
+    }
+  }
+  return rows;
+}
+
+function groupRows<T>(rows: T[], key: (row: T) => string): Map<string, T[]> {
+  const map = new Map<string, T[]>();
+  for (const row of rows) {
+    const k = key(row);
+    const bucket = map.get(k);
+    if (bucket) bucket.push(row);
+    else map.set(k, [row]);
+  }
+  return map;
+}
+
 function mapDispatchFromDb(row: any, loadedItems: any[] = [], reconRows: any[] = []): Dispatch {
   const remainingFullExpected: Record<string, number> = {};
   const remainingFullCounted: Record<string, number> = {};
@@ -1924,29 +1978,33 @@ export async function getDispatches(date?: string): Promise<Dispatch[]> {
       const { data, error } = await query;
       if (!error && data) {
         const ids = data.map((d: any) => d.id);
-        let items: any[] = [];
-        let recons: any[] = [];
-        if (ids.length > 0) {
-          const [iRes, rRes] = await Promise.all([
-            supabase
-              .from('dispatch_items')
-              .select('dispatch_id, product_id, quantity')
-              .in('dispatch_id', ids),
-            supabase
-              .from('dispatch_reconciliation_items')
-              .select('dispatch_id, product_id, expected_qty, counted_qty')
-              .in('dispatch_id', ids),
-          ]);
-          if (iRes.error) console.error('[Supabase getDispatches items]', iRes.error);
-          if (rRes.error) console.error('[Supabase getDispatches recon]', rRes.error);
-          items = iRes.data || [];
-          recons = rRes.data || [];
-        }
+        const [items, recons] = await Promise.all([
+          fetchInChunks(
+            ids,
+            (batch) =>
+              supabase!
+                .from('dispatch_items')
+                .select('dispatch_id, product_id, quantity')
+                .in('dispatch_id', batch),
+            '[Supabase getDispatches items]'
+          ),
+          fetchInChunks(
+            ids,
+            (batch) =>
+              supabase!
+                .from('dispatch_reconciliation_items')
+                .select('dispatch_id, product_id, expected_qty, counted_qty')
+                .in('dispatch_id', batch),
+            '[Supabase getDispatches recon]'
+          ),
+        ]);
+        const itemsByDispatch = groupRows(items, (i: any) => i.dispatch_id);
+        const reconsByDispatch = groupRows(recons, (r: any) => r.dispatch_id);
         return data.map((row: any) =>
           mapDispatchFromDb(
             row,
-            items.filter((i) => i.dispatch_id === row.id),
-            recons.filter((r) => r.dispatch_id === row.id)
+            itemsByDispatch.get(row.id) || [],
+            reconsByDispatch.get(row.id) || []
           )
         );
       }
@@ -2904,29 +2962,33 @@ export async function getDeliveries(params?: { dispatchId?: string; driverId?: s
       const { data, error } = await query;
       if (!error && data) {
         const ids = data.map((d: any) => d.id);
-        let items: any[] = [];
-        let containers: any[] = [];
-        if (ids.length > 0) {
-          const [iRes, cRes] = await Promise.all([
-            supabase
-              .from('delivery_items')
-              .select('delivery_id, line_no, product_id, product_name, quantity, unit_price, line_total')
-              .in('delivery_id', ids),
-            supabase
-              .from('delivery_container_returns')
-              .select('delivery_id, deposit_type, received_qty, diff_qty')
-              .in('delivery_id', ids),
-          ]);
-          if (iRes.error) console.error('[Supabase getDeliveries items]', iRes.error);
-          if (cRes.error) console.error('[Supabase getDeliveries containers]', cRes.error);
-          items = iRes.data || [];
-          containers = cRes.data || [];
-        }
+        const [items, containers] = await Promise.all([
+          fetchInChunks(
+            ids,
+            (batch) =>
+              supabase!
+                .from('delivery_items')
+                .select('delivery_id, line_no, product_id, product_name, quantity, unit_price, line_total')
+                .in('delivery_id', batch),
+            '[Supabase getDeliveries items]'
+          ),
+          fetchInChunks(
+            ids,
+            (batch) =>
+              supabase!
+                .from('delivery_container_returns')
+                .select('delivery_id, deposit_type, received_qty, diff_qty')
+                .in('delivery_id', batch),
+            '[Supabase getDeliveries containers]'
+          ),
+        ]);
+        const itemsByDelivery = groupRows(items, (i: any) => i.delivery_id);
+        const containersByDelivery = groupRows(containers, (c: any) => c.delivery_id);
         let list = data.map((row: any) =>
           mapDeliveryFromDb(
             row,
-            items.filter((i) => i.delivery_id === row.id),
-            containers.filter((c) => c.delivery_id === row.id)
+            itemsByDelivery.get(row.id) || [],
+            containersByDelivery.get(row.id) || []
           )
         );
         if (params?.date) {
