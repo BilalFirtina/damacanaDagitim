@@ -35,10 +35,92 @@ export const PRODUCT_CATEGORY_TITLES: Record<ProductCategory, string> = {
   bardak: 'Bardak & Sarf Malzeme',
 };
 
-export function sortProductsByCategory<T extends { category: ProductCategory; name: string }>(items: T[]): T[] {
+// Kategoriler veritabanından yüklenemezse (çevrimdışı/hata) kullanılacak
+// varsayılan birim ve depozito kuralları. DB kayıtları bunları geçersiz kılar.
+export const PRODUCT_CATEGORY_DEFAULTS: Record<
+  ProductCategory,
+  { unit: string; isDeposit: boolean; depositType: DepositType }
+> = {
+  damacana: { unit: 'Adet', isDeposit: true, depositType: 'damacana' },
+  pet: { unit: 'Koli', isDeposit: false, depositType: 'none' },
+  tup: { unit: 'Adet', isDeposit: true, depositType: 'tup' },
+  soda: { unit: 'Koli', isDeposit: false, depositType: 'none' },
+  bardak: { unit: 'Paket', isDeposit: false, depositType: 'none' },
+};
+
+// Kategoriler artık veritabanındaki product_categories tablosundan beslenir.
+// Veritabanı erişilemezse yukarıdaki varsayılanlar (offline/yerel) kullanılır.
+export interface ProductCategoryInfo {
+  code: string;
+  title: string;
+  order: number;
+  defaultUnit?: string;
+  isDeposit?: boolean;
+  depositType?: string;
+}
+
+interface CategoryRegistryEntry {
+  title: string;
+  order: number;
+  defaultUnit?: string;
+  isDeposit?: boolean;
+  depositType?: string;
+}
+
+const categoryRegistry: Map<string, CategoryRegistryEntry> = new Map(
+  (Object.keys(PRODUCT_CATEGORY_ORDER) as ProductCategory[]).map((code) => {
+    const def = PRODUCT_CATEGORY_DEFAULTS[code];
+    return [
+      code,
+      {
+        title: PRODUCT_CATEGORY_TITLES[code],
+        order: PRODUCT_CATEGORY_ORDER[code],
+        defaultUnit: def.unit,
+        isDeposit: def.isDeposit,
+        depositType: def.depositType,
+      },
+    ];
+  })
+);
+
+// Veritabanından gelen kategori tanımlarını kaydeder (yalnızca geçerli kayıtlar kabul edilir).
+export function setProductCategories(list: ProductCategoryInfo[] | undefined | null): void {
+  if (!Array.isArray(list)) return;
+  for (const item of list) {
+    if (!item || typeof item.code !== 'string' || !item.code) continue;
+    categoryRegistry.set(item.code, {
+      title: item.title || item.code,
+      order: Number.isFinite(item.order) ? Number(item.order) : 99,
+      defaultUnit: item.defaultUnit,
+      isDeposit: item.isDeposit,
+      depositType: item.depositType,
+    });
+  }
+}
+
+export function getProductCategoryOrder(code: string): number {
+  return categoryRegistry.get(code)?.order ?? 99;
+}
+
+export function getProductCategoryTitle(code: string): string {
+  return categoryRegistry.get(code)?.title ?? code;
+}
+
+export function getProductCategoryDefaults(code: string): Pick<CategoryRegistryEntry, 'defaultUnit' | 'isDeposit' | 'depositType'> {
+  return categoryRegistry.get(code) || {};
+}
+
+// Sıralı kategori kodları (veritabanı sırasına göre)
+export function getProductCategoryCodes(): string[] {
+  return Array.from(categoryRegistry.keys()).sort(
+    (a, b) => getProductCategoryOrder(a) - getProductCategoryOrder(b)
+  );
+}
+
+export function sortProductsByCategory<T extends { category: string; name: string }>(items: T[]): T[] {
   return [...items].sort((a, b) => {
-    const orderA = PRODUCT_CATEGORY_ORDER[a.category] ?? 99;
-    const orderB = PRODUCT_CATEGORY_ORDER[b.category] ?? 99;
+    const orderA = getProductCategoryOrder(a.category);
+    const orderB = getProductCategoryOrder(b.category);
     if (orderA !== orderB) return orderA - orderB;
     return a.name.localeCompare(b.name, 'tr');
   });

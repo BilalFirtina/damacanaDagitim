@@ -4,12 +4,6 @@ import {
   Truck,
   Plus,
   ShieldCheck,
-  CheckCircle2,
-  Clock,
-  UserCheck,
-  UserX,
-  Package,
-  Layers,
   Check
 } from 'lucide-react';
 import { createDispatch, updateUser } from '../../services/api';
@@ -47,11 +41,6 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
   const activeDispatches = dispatches.filter((d) => d.status !== 'completed');
   const busyDriverIds = new Set(activeDispatches.map((d) => d.driverId));
   const busyPlates = new Set(activeDispatches.map((d) => d.vehiclePlate));
-
-  // Müsait araç plakaları: Aktif dağıtımda olanlar LİSTEDE GÖRÜNTÜLENMEZ!
-  const availablePlates = AUTHORIZED_VEHICLE_PLATES.filter((plate) => !busyPlates.has(plate));
-  // Müsait şoförler
-  const availableDrivers = drivers.filter((d) => !busyDriverIds.has(d.id));
 
   const handleOpenLoadModal = () => {
     const firstFreeDriver = drivers.find((d) => !busyDriverIds.has(d.id));

@@ -5,13 +5,10 @@ import {
   ShieldCheck,
   CheckCircle2,
   Clock,
-  Calendar,
   RefreshCw,
   Database,
   Copy,
-  Check,
-  Info,
-  AlertTriangle
+  Check
 } from 'lucide-react';
 import { fetchCleanupStatus, triggerManualCleanup } from '../../services/api';
 

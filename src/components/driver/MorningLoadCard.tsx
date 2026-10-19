@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Dispatch, Product, User, AUTHORIZED_VEHICLE_PLATES } from '../../types';
-import { CheckCircle2, PackageCheck, Truck, Plus, Check, UserCheck, ShieldCheck, AlertCircle } from 'lucide-react';
+import { CheckCircle2, PackageCheck, Truck, Plus, Check, UserCheck, AlertCircle } from 'lucide-react';
 import { confirmDispatch, createDispatch } from '../../services/api';
 
 interface MorningLoadCardProps {
@@ -22,8 +22,6 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
 }) => {
   const [isConfirming, setIsConfirming] = useState(false);
   const [showManualLoadModal, setShowManualLoadModal] = useState(false);
-
-  const todayStr = new Date().toISOString().split('T')[0];
 
   // Active dispatches across system (not completed)
   const activeDispatches = dispatches.filter((d) => d.status !== 'completed');
@@ -129,7 +127,6 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
       setIsSaving(true);
       setLoadingError(null);
 
-      const targetDriver = users.find((u) => u.id === selectedDriverId);
       const isSelfLoad = selectedDriverId === currentUser.id;
 
       const loaderRoleTitle =

@@ -8,10 +8,7 @@ import {
   Truck,
   RotateCcw,
   CheckCircle2,
-  Wallet,
-  CreditCard,
   Building2,
-  Clock,
   ArrowRight,
   UserCheck
 } from 'lucide-react';
@@ -80,11 +77,6 @@ export const DriverView: React.FC<DriverViewProps> = ({
       d.driverId === inspectedDriverId &&
       d.status === 'completed'
   );
-
-  const activeDriver =
-    currentUser.role === 'admin'
-      ? drivers.find((d) => d.id === selectedDriverIdForAdmin)
-      : currentUser;
 
   // Deliveries made today by this active vehicle
   const myDeliveries = activeDispatch
@@ -183,14 +175,12 @@ export const DriverView: React.FC<DriverViewProps> = ({
         <DriverStatsStrip dispatch={activeDispatch} deliveries={deliveries} products={products} />
       )}
 
-      {/* Primary Action CTA Bar for Driver */}
-      {isShiftReady && (
+      {/* Primary Action CTA Bar for Driver (depo yöneticisi teslimat yapmaz) */}
+      {isShiftReady && currentUser.role !== 'admin' && (
         <div className="bg-gradient-to-r from-sky-600 to-sky-700 rounded-2xl p-4 sm:p-5 text-white shadow-lg shadow-sky-600/20 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
             <h2 className="text-base sm:text-lg font-bold">
-              {currentUser.role === 'admin'
-                ? `${activeDriver?.name || 'Şoför'} için Teslimat Girişi`
-                : 'Müşteri Teslimatı Yapmaya Hazır mısınız?'}
+              Müşteri Teslimatı Yapmaya Hazır mısınız?
             </h2>
             <p className="text-xs text-sky-100 mt-0.5">
               Müşteriyi seçin, teslim edilen dolu ürünleri ve alınan boş kapları tek tıkla sisteme kaydedin.
@@ -237,7 +227,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
           <div className="py-12 text-center text-slate-400 text-xs space-y-2">
             <Truck className="w-8 h-8 text-slate-300 mx-auto" />
             <p>Bugün henüz bu araçla teslimat kaydı yapılmadı.</p>
-            {isShiftReady && (
+            {isShiftReady && currentUser.role !== 'admin' && (
               <button
                 onClick={() => setShowDeliveryModal(true)}
                 className="mt-2 text-xs font-semibold text-sky-600 hover:underline"
@@ -326,8 +316,8 @@ export const DriverView: React.FC<DriverViewProps> = ({
         )}
       </div>
 
-      {/* Delivery Entry Modal */}
-      {activeDispatch && (
+      {/* Delivery Entry Modal (yalnızca şoför) */}
+      {activeDispatch && currentUser.role !== 'admin' && (
         <DeliveryModal
           isOpen={showDeliveryModal}
           onClose={() => setShowDeliveryModal(false)}

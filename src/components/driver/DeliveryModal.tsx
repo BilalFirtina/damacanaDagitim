@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Customer, Product, Dispatch, User, ProductCategory } from '../../types';
+import {
+  Customer,
+  Product,
+  Dispatch,
+  User,
+  ProductCategory,
+  getProductCategoryCodes,
+  getProductCategoryTitle,
+} from '../../types';
 import {
   Search,
   Plus,
@@ -10,13 +18,7 @@ import {
   Phone,
   MapPin,
   Building2,
-  Mail,
-  X,
-  Package,
-  ShoppingBag,
-  CreditCard,
-  Banknote,
-  Info
+  X
 } from 'lucide-react';
 import { createDelivery, createCustomer, createProduct } from '../../services/api';
 
@@ -635,14 +637,16 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] flex items-center justify-center font-bold">2</span>
                   <span>Ürün Arama ve Seçimi</span>
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setShowNewProductForm(!showNewProductForm)}
-                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 flex items-center gap-1"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Yeni Ürün Ekle</span>
-                </button>
+                {currentUser.role === 'admin' && (
+                  <button
+                    type="button"
+                    onClick={() => setShowNewProductForm(!showNewProductForm)}
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Yeni Ürün Ekle</span>
+                  </button>
+                )}
               </div>
 
               {/* Product search box */}
@@ -658,7 +662,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
               </div>
 
               {/* Inline New Product Form */}
-              {showNewProductForm && (
+              {currentUser.role === 'admin' && showNewProductForm && (
                 <form onSubmit={handleCreateNewProduct} className="p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-indigo-900 dark:text-indigo-300">Hızlı Yeni Ürün Tanımla</span>
@@ -684,11 +688,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       onChange={(e) => setNewProdCategory(e.target.value as ProductCategory)}
                       className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                     >
-                      <option value="damacana">Damacana Su</option>
-                      <option value="tup">Tüp</option>
-                      <option value="pet">Pet Su</option>
-                      <option value="bardak">Bardak</option>
-                      <option value="soda">Soda / Gazoz</option>
+                      {getProductCategoryCodes().map((code) => (
+                        <option key={code} value={code}>
+                          {getProductCategoryTitle(code)}
+                        </option>
+                      ))}
                     </select>
                     <input
                       type="number"

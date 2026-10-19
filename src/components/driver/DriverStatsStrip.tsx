@@ -24,9 +24,6 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
       .filter((p) => p.category === 'damacana' || p.depositType === 'damacana')
       .map((p) => p.id)
   );
-  if (damacanaIds.size === 0) {
-    damacanaIds.add('prod_damacana_19l');
-  }
 
   // 1. Calculate full damacana items remaining
   const loadedDamacana = dispatch.loadedItems

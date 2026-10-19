@@ -1,5 +1,5 @@
 // SuDağıtım Pro Service Worker
-const CACHE_NAME = 'sudagitim-cache-v2';
+const CACHE_NAME = 'sudagitim-cache-v3';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',

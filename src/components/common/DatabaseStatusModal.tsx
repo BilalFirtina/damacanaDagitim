@@ -281,14 +281,17 @@ export const DatabaseStatusModal: React.FC<DatabaseStatusModalProps> = ({ isOpen
                   3. Adım: Render veya Railway Ortam Değişkenlerine Ekleyin
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-400 mb-2">
-                  Supabase <strong>Project Settings → API</strong> sekmesindeki iki bilgiyi Render / Railway'deki Environment Variables bölümüne ekleyin:
+                  Supabase <strong>Project Settings → API</strong> sekmesindeki URL ve sunucu tarafı gizli anahtarı Render / Railway ortam değişkenlerine ekleyin. <code>SUPABASE_SECRET_KEY</code> tercih edilir; eski kurulumlarda <code>SUPABASE_SERVICE_ROLE_KEY</code> de desteklenir. Anon/publishable anahtar yazma işlemleri için yeterli değildir.
                 </p>
-                <div className="bg-slate-900 text-slate-100 p-2.5 rounded-lg font-mono text-[11px] space-y-1">
+                <div className="bg-slate-900 text-slate-100 p-2.5 rounded-lg font-mono text-[11px] space-y-1 break-all">
                   <div>SUPABASE_URL=https://projeniz.supabase.co</div>
-                  <div>SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1Ni...</div>
+                  <div>SUPABASE_SECRET_KEY=sb_secret_...</div>
                 </div>
                 <p className="text-[11px] text-slate-500 mt-2">
-                  Alternatif olarak doğrudan <code>DATABASE_URL=postgresql://...</code> dizesi de desteklenir.
+                  Servis anahtarı yalnızca sunucuda tutulmalıdır; istemciye veya tarayıcıya kesinlikle verilmemelidir. Ardından migration dosyalarını sırasıyla uygulayın.
+                </p>
+                <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-semibold">
+                  Uyarı: 20261020 RPC yetki sertleştirmesi uygulanmadan yazma işlemleri 503 döner.
                 </p>
               </div>
             </div>

@@ -1,9 +1,17 @@
 -- ==============================================================================
--- Dağıtım & Mutabakat - Supabase PostgreSQL Veritabanı Şeması
+-- Dağıtım & Mutabakat - Supabase PostgreSQL Veritabanı Şeması (NORMALİZE)
 -- Supabase Panelinde "SQL Editor" sekmesine yapıştırıp "Run" butonuna basınız.
 -- ==============================================================================
+-- ÖNEMLİ:
+--   * Bu dosya, uygulamanın beklediği normalleştirilmiş şemanın referansıdır.
+--     Canlı veritabanı şeması bu dosyayla uyumlu olacak şekilde uygulanmıştır.
+--   * public.users tablosu, kimlik doğrulama ve mevcut kullanıcı kayıtları
+--     KORUNUR; bu dosya users/customers için başlangıç verisi EKLEMEZ.
+--   * Yalnızca referans verisi (deposit_types, product_categories, products)
+--     ekilir. Ürünler uygulama tarafından da (ensureSupabaseSeeded) ekilir.
+-- ==============================================================================
 
--- 1. KULLANICILAR TABLOSU (users)
+-- 1. KULLANICILAR TABLOSU (users) — mevcut yapı korunur
 CREATE TABLE IF NOT EXISTS public.users (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -16,200 +24,273 @@ CREATE TABLE IF NOT EXISTS public.users (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 2. ÜRÜN KATALOĞU TABLOSU (products)
+-- 2. DEPOZİTO TÜRLERİ (deposit_types)
+CREATE TABLE IF NOT EXISTS public.deposit_types (
+  code TEXT PRIMARY KEY,
+  label_tr TEXT NOT NULL,
+  is_returnable BOOLEAN NOT NULL DEFAULT true,
+  sort_order INTEGER NOT NULL DEFAULT 99
+);
+
+-- 3. ÜRÜN KATEGORİLERİ (product_categories) — veri odaklı kategori yönetimi
+CREATE TABLE IF NOT EXISTS public.product_categories (
+  code TEXT PRIMARY KEY,
+  title_tr TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 99,
+  default_unit TEXT NOT NULL DEFAULT 'Adet',
+  default_is_deposit BOOLEAN NOT NULL DEFAULT false,
+  default_deposit_type TEXT NOT NULL DEFAULT 'none' REFERENCES public.deposit_types(code),
+  is_active BOOLEAN NOT NULL DEFAULT true
+);
+
+-- 4. ÜRÜN KATALOĞU (products)
 CREATE TABLE IF NOT EXISTS public.products (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  category TEXT NOT NULL CHECK (category IN ('damacana', 'pet', 'soda', 'tup', 'bardak')),
+  category TEXT NOT NULL REFERENCES public.product_categories(code),
   default_unit_price NUMERIC NOT NULL DEFAULT 100,
-  is_deposit BOOLEAN DEFAULT false,
-  deposit_type TEXT DEFAULT 'none' CHECK (deposit_type IN ('damacana', 'cam_damacana', 'tup', 'none')),
+  is_deposit BOOLEAN NOT NULL DEFAULT false,
+  deposit_type TEXT NOT NULL DEFAULT 'none' REFERENCES public.deposit_types(code),
   unit TEXT NOT NULL DEFAULT 'Adet',
+  package_size INTEGER,
   description TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 3. MÜŞTERİLER TABLOSU (customers)
+-- 5. MÜŞTERİLER (customers)
 CREATE TABLE IF NOT EXISTS public.customers (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   phone TEXT,
   address TEXT,
-  emails JSONB DEFAULT '[]'::jsonb, -- Çoklu e-posta adresleri (e-fatura, cari mutabakat bildirimleri)
-  is_account_customer BOOLEAN DEFAULT true,
-  current_balance_tl NUMERIC DEFAULT 0,
-  empty_deposit_damacana INTEGER DEFAULT 0,
-  empty_deposit_cam_damacana INTEGER DEFAULT 0,
-  empty_deposit_tup INTEGER DEFAULT 0,
-  custom_prices JSONB DEFAULT '{}'::jsonb,
+  emails JSONB NOT NULL DEFAULT '[]'::jsonb,
+  is_account_customer BOOLEAN NOT NULL DEFAULT true,
+  current_balance_tl NUMERIC NOT NULL DEFAULT 0,
   notes TEXT,
   created_date TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Var olan veritabanlarında eksik 'emails' kolonunu güvenle ekle, varsa 'district' verilerini güvenle taşı ve 'district' kolonunu kaldır
-ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS emails JSONB DEFAULT '[]'::jsonb;
-  ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS empty_deposit_cam_damacana INTEGER DEFAULT 0;
+-- 6. MÜŞTERİ ÖZEL FİYATLARI (customer_product_prices)
+CREATE TABLE IF NOT EXISTS public.customer_product_prices (
+  customer_id TEXT NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
+  product_id TEXT NOT NULL REFERENCES public.products(id),
+  unit_price NUMERIC NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (customer_id, product_id)
+);
 
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1
-    FROM information_schema.columns
-    WHERE table_schema = 'public'
-      AND table_name = 'customers'
-      AND column_name = 'district'
-  ) THEN
-    EXECUTE 'UPDATE public.customers SET emails = jsonb_build_array(district) WHERE (emails IS NULL or emails = ''[]''::jsonb) AND district IS NOT NULL AND district != '''' AND district LIKE ''%@%'';';
-    EXECUTE 'ALTER TABLE public.customers DROP COLUMN district;';
-  END IF;
-END $$;
+-- 7. MÜŞTERİDEKİ BOŞ KAP BAKİYELERİ (customer_empty_balances)
+CREATE TABLE IF NOT EXISTS public.customer_empty_balances (
+  customer_id TEXT NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
+  deposit_type TEXT NOT NULL REFERENCES public.deposit_types(code),
+  quantity INTEGER NOT NULL DEFAULT 0 CHECK (quantity >= 0),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (customer_id, deposit_type)
+);
 
-
--- 4. ARAÇ YÜKLEMELERİ & SEFERLER TABLOSU (dispatches)
+-- 8. ARAÇ YÜKLEMELERİ & SEFERLER (dispatches)
 CREATE TABLE IF NOT EXISTS public.dispatches (
   id TEXT PRIMARY KEY,
   date TEXT NOT NULL, -- YYYY-MM-DD
-  driver_id TEXT NOT NULL,
+  driver_id TEXT NOT NULL REFERENCES public.users(id),
   driver_name TEXT NOT NULL,
   vehicle_plate TEXT NOT NULL,
-  loaded_by_user_id TEXT NOT NULL,
+  loaded_by_user_id TEXT NOT NULL REFERENCES public.users(id),
   loaded_by_user_name TEXT NOT NULL,
   driver_confirmed_at TIMESTAMPTZ,
-  status TEXT NOT NULL DEFAULT 'pending_confirmation' CHECK (status IN ('pending_confirmation', 'in_transit', 'completed')),
-  loaded_items JSONB DEFAULT '[]'::jsonb,
-  end_of_day_reconciliation JSONB,
+  status TEXT NOT NULL DEFAULT 'pending_confirmation'
+    CHECK (status IN ('pending_confirmation', 'in_transit', 'completed')),
+  -- Gün sonu mutabakatı skaler alanları (canlı şema ile doğrulandı)
+  total_delivered_value NUMERIC NOT NULL DEFAULT 0,
+  total_cash_collected NUMERIC NOT NULL DEFAULT 0,
+  total_pos_collected NUMERIC NOT NULL DEFAULT 0,
+  total_credit_added NUMERIC NOT NULL DEFAULT 0,
+  actual_cash_in_pocket NUMERIC NOT NULL DEFAULT 0,
+  actual_pos_slips_total NUMERIC NOT NULL DEFAULT 0,
+  collected_empty_damacana INTEGER NOT NULL DEFAULT 0,
+  collected_empty_cam_damacana INTEGER NOT NULL DEFAULT 0,
+  collected_empty_tup INTEGER NOT NULL DEFAULT 0,
+  reconciliation_notes TEXT,
+  -- Kapanışı yapan yönetici; migration ile eklenir ve sunucu oturumundan yazılır.
+  closed_by_user_id TEXT REFERENCES public.users(id),
+  closed_by_user_name TEXT,
+  closed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 5. MÜŞTERİ TESLİMATLARI & EKİP CANLI AKIŞ TABLOSU (deliveries)
+-- 8b. SEFER YÜKLENEN KALEMLER (dispatch_items)
+CREATE TABLE IF NOT EXISTS public.dispatch_items (
+  dispatch_id TEXT NOT NULL REFERENCES public.dispatches(id) ON DELETE CASCADE,
+  product_id TEXT NOT NULL REFERENCES public.products(id),
+  quantity INTEGER NOT NULL DEFAULT 0 CHECK (quantity >= 0),
+  PRIMARY KEY (dispatch_id, product_id)
+);
+
+-- 8c. SEFER GÜN SONU MUTABAKAT KALEMLERİ (dispatch_reconciliation_items)
+CREATE TABLE IF NOT EXISTS public.dispatch_reconciliation_items (
+  dispatch_id TEXT NOT NULL REFERENCES public.dispatches(id) ON DELETE CASCADE,
+  product_id TEXT NOT NULL REFERENCES public.products(id),
+  expected_qty INTEGER NOT NULL DEFAULT 0 CHECK (expected_qty >= 0),
+  counted_qty INTEGER NOT NULL DEFAULT 0 CHECK (counted_qty >= 0),
+  PRIMARY KEY (dispatch_id, product_id)
+);
+
+-- 9. MÜŞTERİ TESLİMATLARI (deliveries)
 CREATE TABLE IF NOT EXISTS public.deliveries (
   id TEXT PRIMARY KEY,
-  dispatch_id TEXT NOT NULL,
-  driver_id TEXT NOT NULL,
+  dispatch_id TEXT NOT NULL REFERENCES public.dispatches(id),
+  driver_id TEXT NOT NULL REFERENCES public.users(id),
   driver_name TEXT NOT NULL,
   vehicle_plate TEXT NOT NULL,
-  customer_id TEXT NOT NULL,
+  customer_id TEXT NOT NULL REFERENCES public.customers(id),
   customer_name TEXT NOT NULL,
   customer_address TEXT,
   customer_phone TEXT,
   timestamp TIMESTAMPTZ DEFAULT now(),
-  delivered_items JSONB DEFAULT '[]'::jsonb,
-  delivered_grand_total NUMERIC DEFAULT 0,
-  collected_payment JSONB DEFAULT '{}'::jsonb,
-  empty_containers_received JSONB DEFAULT '{"damacana": 0, "camDamacana": 0, "tup": 0}'::jsonb,
-  empty_containers_diff JSONB DEFAULT '{"damacana": 0, "camDamacana": 0, "tup": 0}'::jsonb,
+  delivered_grand_total NUMERIC NOT NULL DEFAULT 0,
+  payment_method TEXT NOT NULL DEFAULT 'UNPAID',
+  cash_amount NUMERIC NOT NULL DEFAULT 0,
+  pos_amount NUMERIC NOT NULL DEFAULT 0,
+  total_collected NUMERIC NOT NULL DEFAULT 0,
+  diff_uncollected NUMERIC NOT NULL DEFAULT 0,
+  payment_status TEXT NOT NULL DEFAULT 'unpaid',
   notes TEXT,
-  is_offline_sync BOOLEAN DEFAULT false,
+  is_offline_sync BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 9b. TESLİMAT KALEMLERİ (delivery_items)
+CREATE TABLE IF NOT EXISTS public.delivery_items (
+  delivery_id TEXT NOT NULL REFERENCES public.deliveries(id) ON DELETE CASCADE,
+  line_no INTEGER NOT NULL,
+  product_id TEXT NOT NULL REFERENCES public.products(id),
+  product_name TEXT NOT NULL,
+  quantity INTEGER NOT NULL DEFAULT 0 CHECK (quantity >= 0),
+  unit_price NUMERIC NOT NULL DEFAULT 0,
+  line_total NUMERIC NOT NULL DEFAULT 0,
+  PRIMARY KEY (delivery_id, line_no)
+);
+
+-- 9c. TESLİMAT BOŞ KAP HAREKETLERİ (delivery_container_returns)
+CREATE TABLE IF NOT EXISTS public.delivery_container_returns (
+  delivery_id TEXT NOT NULL REFERENCES public.deliveries(id) ON DELETE CASCADE,
+  deposit_type TEXT NOT NULL REFERENCES public.deposit_types(code),
+  received_qty INTEGER NOT NULL DEFAULT 0,
+  diff_qty INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (delivery_id, deposit_type)
 );
 
 -- Performans İndeksleri
 CREATE INDEX IF NOT EXISTS idx_users_username ON public.users(username);
+CREATE INDEX IF NOT EXISTS idx_products_category ON public.products(category);
 CREATE INDEX IF NOT EXISTS idx_dispatches_date ON public.dispatches(date);
 CREATE INDEX IF NOT EXISTS idx_dispatches_driver ON public.dispatches(driver_id);
 CREATE INDEX IF NOT EXISTS idx_deliveries_timestamp ON public.deliveries(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_deliveries_dispatch ON public.deliveries(dispatch_id);
 CREATE INDEX IF NOT EXISTS idx_deliveries_customer ON public.deliveries(customer_id);
 
--- RLS (Row Level Security) İzinleri (Anonim anahtarla tam okuma/yazma)
+-- Aynı şoför veya aynı plaka için tek aktif sefer (AGENTS.md 15.5)
+CREATE UNIQUE INDEX IF NOT EXISTS ux_dispatches_active_driver
+  ON public.dispatches(driver_id) WHERE status IN ('pending_confirmation', 'in_transit');
+CREATE UNIQUE INDEX IF NOT EXISTS ux_dispatches_active_plate
+  ON public.dispatches(vehicle_plate) WHERE status IN ('pending_confirmation', 'in_transit');
+
+-- RLS (Row Level Security) — anonim anahtarla tam okuma/yazma (mevcut politika korunur)
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.deposit_types ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.product_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customer_product_prices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customer_empty_balances ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.dispatches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.dispatch_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.dispatch_reconciliation_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.deliveries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.delivery_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.delivery_container_returns ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Allow public all access on users" ON public.users;
-CREATE POLICY "Allow public all access on users" ON public.users FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Allow public all access on products" ON public.products;
-CREATE POLICY "Allow public all access on products" ON public.products FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Allow public all access on customers" ON public.customers;
-CREATE POLICY "Allow public all access on customers" ON public.customers FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Allow public all access on dispatches" ON public.dispatches;
-CREATE POLICY "Allow public all access on dispatches" ON public.dispatches FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Allow public all access on deliveries" ON public.deliveries;
-CREATE POLICY "Allow public all access on deliveries" ON public.deliveries FOR ALL USING (true) WITH CHECK (true);
-
--- ==============================================================================
--- BAŞLANGIÇ VERİLERİ (SEED DATA - Otomatik olarak eklenir)
--- ==============================================================================
-
--- Kullanıcılar (Kullanıcı adı ve Şifre/PIN Supabase Tablosundan yönetilebilir)
--- İzinli Araç Plakaları: 01 FV 823, 06 GB 357, 01 AVH 886
-INSERT INTO public.users (id, name, username, role, can_load_vehicle, assigned_plate, pin, phone)
-VALUES
-  ('usr_admin', 'Uğur Fırtına', 'yonetici', 'admin', true, '', '1234', '0532 555 10 00'),
-  ('usr_driver_1', 'Ahmet Yılmaz', 'ahmet', 'driver', true, '01 FV 823', '1010', '0533 555 20 01'),
-  ('usr_driver_2', 'Mehmet Kaya', 'mehmet', 'driver', false, '06 GB 357', '2020', '0535 555 30 02'),
-  ('usr_driver_3', 'Serkan Aydın', 'serkan', 'driver', false, '01 AVH 886', '3030', '0536 555 40 03')
-ON CONFLICT (id) DO UPDATE SET
-  name = EXCLUDED.name,
-  username = EXCLUDED.username,
-  pin = EXCLUDED.pin,
-  role = EXCLUDED.role,
-  assigned_plate = EXCLUDED.assigned_plate;
+DO $$
+DECLARE t TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'users','deposit_types','product_categories','products','customers',
+    'customer_product_prices','customer_empty_balances','dispatches',
+    'dispatch_items','dispatch_reconciliation_items','deliveries',
+    'delivery_items','delivery_container_returns'
+  ] LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', 'Allow public all access on ' || t, t);
+    EXECUTE format('CREATE POLICY %I ON public.%I FOR ALL USING (true) WITH CHECK (true)',
+      'Allow public all access on ' || t, t);
+  END LOOP;
+END $$;
 
 -- ==============================================================================
--- ŞOFÖR VE KULLANICI YÖNETİMİ (SUPABASE SQL / TABLO EDİTÖRÜ KULLANIMI)
+-- BAŞLANGIÇ REFERANS VERİLERİ (SEED — yalnızca referans; kullanıcı/müşteri EKLENMEZ)
 -- ==============================================================================
--- 1. Şoför Şifresini veya Kullanıcı Adını Değiştirmek İçin:
---    UPDATE public.users SET pin = '9999' WHERE username = 'ahmet';
+
+-- Depozito Türleri
+INSERT INTO public.deposit_types (code, label_tr, is_returnable, sort_order) VALUES
+  ('damacana', 'Damacana (Plastik/Polikarbon)', true, 1),
+  ('cam_damacana', 'Cam Damacana', true, 2),
+  ('tup', 'Gaz Tüpü', true, 3),
+  ('none', 'Yok', false, 99)
+ON CONFLICT (code) DO UPDATE SET
+  label_tr = EXCLUDED.label_tr,
+  is_returnable = EXCLUDED.is_returnable,
+  sort_order = EXCLUDED.sort_order;
+
+-- Ürün Kategorileri
+INSERT INTO public.product_categories
+  (code, title_tr, sort_order, default_unit, default_is_deposit, default_deposit_type) VALUES
+  ('damacana', 'Damacana Su', 1, 'Adet', true, 'damacana'),
+  ('pet', 'Pet Su', 2, 'Koli', false, 'none'),
+  ('tup', 'Tüp', 3, 'Adet', true, 'tup'),
+  ('soda', 'Maden Suyu / İçecek', 4, 'Koli', false, 'none'),
+  ('bardak', 'Bardak & Sarf Malzeme', 5, 'Paket', false, 'none')
+ON CONFLICT (code) DO UPDATE SET
+  title_tr = EXCLUDED.title_tr,
+  sort_order = EXCLUDED.sort_order;
+
+-- ==============================================================================
+-- NOT: public.users tablosu ve müşteri kayıtları BİLİNÇLİ OLARAK eklenmez.
+-- Kullanıcı ve müşteri verileri Supabase üzerinde mevcut haliyle korunur.
+-- ==============================================================================
+
+-- ==============================================================================
+-- 14. TESLİMAT GÜVENİLİRLİĞİ / ATOMİK RPC NESNELERİ
 --
--- 2. Yeni Şoför Tanımlamak İçin:
---    INSERT INTO public.users (id, name, username, role, can_load_vehicle, assigned_plate, pin, phone)
---    VALUES ('usr_driver_yeni', 'Murat Can', 'murat', 'driver', false, '01 FV 823', '5555', '0532 111 22 33');
+-- Bu dosya yalnızca temel şemayı tanımlar. Aşağıdaki nesneler
+-- migrations/20261019_delivery_atomic_and_reopen.sql tarafından eklenir:
 --
--- 3. Yetkili Şoför Yapmak (Depo yüklemesi girebilen şoför):
---    UPDATE public.users SET can_load_vehicle = true WHERE username = 'ahmet';
-
--- Ürünler
-INSERT INTO public.products (id, name, category, default_unit_price, is_deposit, deposit_type, unit, description)
-VALUES
-  ('prod_damacana_19l', '19L Damacana Su (Polikarbon)', 'damacana', 100, true, 'damacana', 'Adet', 'Doğal kaynak damacana su - depozitolu 19 litre'),
-  ('prod_cam_damacana', 'Hayat Cam Damacana', 'damacana', 110, true, 'cam_damacana', 'Adet', 'Cam damacana su - boş cam damacana iadesi zorunlu'),
-  ('prod_pet_05l_24', '0.5L Pet Su (24''lü Koli)', 'pet', 120, false, 'none', 'Koli', '24 adet 500ml pet şişe doğal kaynak suyu'),
-  ('prod_pet_15l_12', '1.5L Pet Su (12''li Koli)', 'pet', 110, false, 'none', 'Koli', '12 adet 1.5 litre pet şişe su'),
-  ('prod_soda_beypazari_24', 'Beypazarı Maden Suyu (24''lü Koli)', 'soda', 180, false, 'none', 'Koli', 'Doğal maden suyu 200ml cam şişe'),
-  ('prod_soda_kizilay_24', 'Kızılay Maden Suyu (24''lü Koli)', 'soda', 175, false, 'none', 'Koli', '24 adet 200ml sade maden suyu'),
-  ('prod_tup_12kg', 'Mutfak Tüpü (12 Kg - Tombul/Uzun)', 'tup', 750, true, 'tup', 'Adet', 'Ev tipi 12kg gaz tüpü - depozitolu boş tüp iadeli'),
-  ('prod_tup_2kg', 'Piknik Tüpü (2 Kg)', 'tup', 160, true, 'tup', 'Adet', '2kg piknik gaz tüpü - depozitolu'),
-  ('prod_bardak_3000', 'Karton Bardak 7oz (3000''li Koli)', 'bardak', 320, false, 'none', 'Koli', 'Sıcak ve soğuk su sebili uyumlu tek kullanımlık bardak')
-ON CONFLICT (id) DO UPDATE SET
-  name = EXCLUDED.name,
-  default_unit_price = EXCLUDED.default_unit_price;
-
--- Müşteriler
-INSERT INTO public.customers (id, name, phone, address, emails, is_account_customer, current_balance_tl, empty_deposit_damacana, empty_deposit_tup, custom_prices, notes, created_date)
-VALUES
-  ('cust_1', 'Yıldız Cafe & Bistro', '0216 450 11 22', 'Moda Cad. No: 42, Kadıköy', '["yildiz@cafe.com"]'::jsonb, true, 0, 4, 0, '{"prod_damacana_19l": 85, "prod_soda_beypazari_24": 165}', 'Arka kapıdan mutfağa bırakılacak. Sabah 10:00 dan önce teslimat.', '2026-09-01'),
-  ('cust_2', 'Boğaziçi Unlu Mamülleri', '0216 340 33 44', 'Hakimiyeti Milliye Cad. No: 18, Üsküdar', '["bogazici@unlu.com"]'::jsonb, true, 350, 6, 1, '{"prod_damacana_19l": 85, "prod_pet_05l_24": 110}', 'Fırın ustası Mehmet Bey teslim alıyor.', '2026-09-10'),
-  ('cust_3', 'Demir Hukuk & Mimarlık', '0216 570 55 66', 'Varyap Meridian B Blok Kat: 12, Ataşehir', '["info@demirhukuk.com"]'::jsonb, true, 285, 3, 0, '{"prod_damacana_19l": 95}', 'Danışma sekreteryaya bırakılıyor.', '2026-09-15'),
-  ('cust_4', 'Marmara Balıkçısı', '0216 380 77 88', 'Sahil Yolu No: 85, Maltepe', '["marmara@balik.com"]'::jsonb, false, 0, 8, 2, '{"prod_damacana_19l": 90, "prod_soda_kizilay_24": 160}', 'Kasa görevlisi Ayhan Bey peşin ödüyor.', '2026-09-20'),
-  ('cust_5', 'Ayşe Hanım (Ev Abonesi)', '0532 111 22 33', 'Bağdat Cad. Çiçek Apt. D: 5, Bostancı', '["ayse@hanim.com"]'::jsonb, false, 0, 1, 0, '{}', 'Zil bozuk, gelince cepten aranacak.', '2026-09-25'),
-  ('cust_6', 'Çağdaş Spor Kompleksi', '0216 488 99 00', 'Atalar Mah. Spor Cad. No: 14, Kartal', '["cagdas@spor.com"]'::jsonb, true, 600, 12, 0, '{"prod_damacana_19l": 80, "prod_pet_05l_24": 105, "prod_bardak_3000": 290}', 'Giriş resepsiyonu ve spor salonu sebilleri için.', '2026-09-28')
-ON CONFLICT (id) DO UPDATE SET
-  name = EXCLUDED.name,
-  phone = EXCLUDED.phone;
-
+--   * public.dispatch_reopen_audit  (yalnızca SELECT + INSERT; immutable)
+--   * public.customer_financial_audit (yalnızca SELECT + INSERT; immutable)
+--   * public.dispatch_loading_audit (yalnızca SELECT + INSERT; immutable)
+--   * public.prevent_dispatch_reopen_audit_mutation()
+--   * public.apply_delivery(jsonb)              -- atomik + idempotent teslimat
+--   * public.update_dispatch_loading(jsonb)     -- yalnızca pending_confirmation
+--   * public.close_dispatch(jsonb)              -- atomik gün sonu kapatma
+--   * public.reopen_dispatch(jsonb)             -- yönetici + denetim kaydı
+--   * public.admin_update_customer(jsonb)       -- beklenen değer kontrollü yazım
+--
+-- Uygulama sırası (yeni kurulum):
+--   1) Bu dosya ile temel şema oluşturulur.
+--   2) 20261019_delivery_atomic_and_reopen.sql uygulanır.
+--   3) 20261020_rpc_authorization_hardening.sql uygulanır.
+--
+-- Sunucu SUPABASE_SERVICE_ROLE_KEY (veya SUPABASE_SECRET_KEY) ile çalışmalıdır.
+-- Anon/publishable anahtar ile yazma işlemleri 503 RPC_AUTH_REQUIRED döner;
+-- 20261020 migration'ı anon/authenticated erişimini kaldırmadan uygulama
+-- yazma yapmaz. Kod sessizce atomik olmayan eski yola DÖNMEZ.
+--
+-- Canlı şemayı uygulamadan önce doğrulamak için (salt-okunur):
+--   psql "$DATABASE_URL" -f scripts/introspect-delivery-rpcs.sql
+--
+-- GÜVEN SINIRI: RPC'ler express ile aynı süreçteki service_role tarafından
+-- çağrılır; kimlik/rol kontrolü Express'te, yürütme yetkisi DB'de zorunludur.
 -- ==============================================================================
--- MİGRASYON / GÜNCELLEME NOTU (Eski veritabanlarında district -> emails taşıma)
--- Eğer veritabanınızda daha önceden district kolonunda e-postalar tutulduysa,
--- aşağıdaki SQL komutunu çalıştırarak verileri güvenle emails (JSONB) kolonuna taşıyabilir
--- ve district kolonunu silebilirsiniz:
---
--- ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS emails JSONB DEFAULT '[]'::jsonb;
---
--- UPDATE public.customers
--- SET emails = jsonb_build_array(district)
--- WHERE (emails IS NULL or emails = '[]'::jsonb)
---   AND district IS NOT NULL
---   AND district != ''
---   AND district LIKE '%@%';
---
--- ALTER TABLE public.customers DROP COLUMN IF EXISTS district;
--- ==============================================================================
-

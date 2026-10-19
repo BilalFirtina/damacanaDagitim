@@ -8,7 +8,6 @@ import {
   Search,
   Wallet,
   CreditCard,
-  Building2,
   Droplet,
   RotateCcw,
   RefreshCw,

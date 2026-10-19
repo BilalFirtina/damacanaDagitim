@@ -9,16 +9,12 @@ import {
   Building2,
   Search,
   Filter,
-  Users,
-  CheckCircle2,
-  Sparkles
+  Users
 } from 'lucide-react';
 
 interface LiveTeamFeedProps {
   deliveries: Delivery[];
   currentUser: User;
-  onRefresh: () => void;
-  isRefreshing?: boolean;
 }
 
 // Ayırt edici şoför renk paletleri (Her şoför alt alta listelendiğinde belirgin şekilde ayrışır)
@@ -111,8 +107,6 @@ export const getDriverPalette = (driverId: string, driverName?: string): DriverP
 export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
   deliveries,
   currentUser,
-  onRefresh,
-  isRefreshing,
 }) => {
   const [filterPlate, setFilterPlate] = useState<string>('all');
   const [filterDriverId, setFilterDriverId] = useState<string>('all');

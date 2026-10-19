@@ -7,11 +7,13 @@ export const OfflineIndicator: React.FC = () => {
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
   const [pendingCount, setPendingCount] = useState(0);
+  const [conflictCount, setConflictCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
 
   const checkQueue = () => {
     const queue = getOfflineQueue();
     setPendingCount(queue.length);
+    setConflictCount(queue.filter((item) => item?.syncStatus === 'conflict').length);
   };
 
   useEffect(() => {
@@ -19,9 +21,9 @@ export const OfflineIndicator: React.FC = () => {
 
     const handleOnline = async () => {
       setIsOnline(true);
-      // Auto trigger sync
+      // Otomatik senkron: çakışmalar atlanır, kuyrukta korunur.
       setIsSyncing(true);
-      await syncOfflineDeliveries();
+      await syncOfflineDeliveries(false);
       setIsSyncing(false);
       checkQueue();
     };
@@ -46,7 +48,9 @@ export const OfflineIndicator: React.FC = () => {
   const handleManualSync = async () => {
     if (!isOnline) return;
     setIsSyncing(true);
-    await syncOfflineDeliveries();
+    // Kullanıcı açıkça istediğinde çakışan kayıtlar da yeniden denenir
+    // (ör. yönetici seferi yeniden açtıktan sonra).
+    await syncOfflineDeliveries(true);
     setIsSyncing(false);
     checkQueue();
   };
@@ -54,7 +58,7 @@ export const OfflineIndicator: React.FC = () => {
   if (isOnline && pendingCount === 0) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 z-50 max-w-[calc(100vw-2rem)] flex items-center gap-2 rounded-xl bg-slate-900/95 text-white px-3.5 py-2 shadow-2xl border border-slate-700 backdrop-blur-md text-xs">
+    <div className="fixed bottom-4 left-4 z-50 max-w-[calc(100vw-2rem)] flex flex-wrap items-center gap-2 rounded-xl bg-slate-900/95 text-white px-3.5 py-2 shadow-2xl border border-slate-700 backdrop-blur-md text-xs">
       {!isOnline ? (
         <>
           <span className="flex h-2.5 w-2.5 relative">
@@ -69,7 +73,16 @@ export const OfflineIndicator: React.FC = () => {
       ) : (
         <>
           <RefreshCw className={`w-3.5 h-3.5 text-sky-400 ${isSyncing ? 'animate-spin' : ''}`} />
-          <span className="text-slate-200">Senkronizasyon Bekleyen: <strong className="text-sky-300">{pendingCount}</strong> kayıt</span>
+          {conflictCount > 0 ? (
+            <span className="text-amber-200" title="Sefer kapatıldığı için uygulanamadı. Yönetici seferi yeniden açtıktan sonra 'Şimdi Eşitle' ile tekrar deneyin.">
+              Çözüm bekleyen <strong className="text-amber-300">{conflictCount}</strong> kayıt
+              {pendingCount > conflictCount
+                ? ` · ${pendingCount - conflictCount} bekliyor`
+                : ' · yönetici onayı gerekli'}
+            </span>
+          ) : (
+            <span className="text-slate-200">Senkronizasyon Bekleyen: <strong className="text-sky-300">{pendingCount}</strong> kayıt</span>
+          )}
           <button
             onClick={handleManualSync}
             disabled={isSyncing}

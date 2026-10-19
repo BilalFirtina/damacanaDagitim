@@ -17,8 +17,6 @@ import {
 
 interface HeaderProps {
   currentUser: User;
-  allUsers: User[];
-  onSwitchUser: (user: User) => void;
   onLogout: () => void;
   activeTab: 'delivery' | 'team_feed' | 'eod' | 'customers' | 'products' | 'admin_loads' | 'reports' | 'retention';
   setActiveTab: (tab: any) => void;
@@ -28,8 +26,6 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   currentUser,
-  allUsers,
-  onSwitchUser,
   onLogout,
   activeTab,
   setActiveTab,

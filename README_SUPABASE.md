@@ -1,40 +1,36 @@
-# SuDağıtım Pro - Supabase PostgreSQL Kurulum Rehberi
+# SuDağıtım Pro - Supabase Kurulum Rehberi
 
-Projeniz **Supabase PostgreSQL** veritabanına bağlanacak şekilde tam olarak hazırlandı. Render, Railway veya kendi sunucunuzda çalıştırmak için aşağıdaki 3 adımı uygulamanız yeterlidir:
+Uygulama sunucu tarafında Supabase REST API kullanır. İstemci tarayıcıya Supabase anahtarı gönderilmez.
 
----
+## 1. Supabase projesi
 
-### 1. Adım: Supabase'de Proje Açma
-1. [supabase.com](https://supabase.com) adresine gidin ve ücretsiz bir hesap açıp **"New Project"** deyin.
-2. Projenize bir isim verin (Örn: `sudagitim-pro`) ve veritabanı şifrenizi belirleyin.
+1. [supabase.com](https://supabase.com) üzerinde proje oluşturun.
+2. Proje URL'sini ve sunucu tarafı gizli anahtarını **Project Settings → API** bölümünden alın.
 
----
+## 2. Veritabanı şeması ve migration'lar
 
-### 2. Adım: Veritabanı Tablolarını Oluşturma (Tek Tıkla)
-1. Supabase panelinde sol menüden **"SQL Editor"** simgesine tıklayın.
-2. Projenin ana dizininde bulunan **`supabase_schema.sql`** dosyasının tüm içeriğini kopyalayıp buraya yapıştırın.
-3. Sağ alttaki yeşil **"Run"** butonuna basın.
+Supabase **SQL Editor** içinde aşağıdaki dosyaları sırasıyla çalıştırın:
 
-Bu işlem saniyeler içinde şu tabloları, ilişkileri ve başlangıç verilerini oluşturur:
-- `users`: Şoförler ve Firma Sahibi (Uğur Fırtına vb.)
-- `products`: 19L Damacana, Pet Su, Soda, Tüp, Bardak
-- `customers`: Müşteri carileri, adresleri ve emanet boş damacana borçları
-- `dispatches`: Günlük araç yüklemeleri ve gün sonu mutabakat kayıtları
-- `deliveries`: Saha teslimatları, nakit/POS tahsilatları ve alınan boş kaplar
+1. `supabase_schema.sql`
+2. `migrations/20261018_fix_cam_damacana_deposit_type.sql`
+3. `migrations/20261019_delivery_atomic_and_reopen.sql`
+4. `migrations/20261020_rpc_authorization_hardening.sql`
 
----
+> Migration 20, anon/authenticated erişimini kaldırır. Yalnızca sunucu tarafı gizli anahtar tanımlandıktan ve doğrulandıktan sonra uygulanmalıdır. Mevcut projede migration 19 uygulanmış, migration 20 henüz uygulanmamıştır.
 
-### 3. Adım: Supabase Anahtarlarını Render / Railway'e Ekleme
-1. Supabase panelinde sol alttaki **Project Settings (Çark simgesi) → API** bölümüne gidin.
-2. Buradaki 2 bilgiyi kopyalayın:
-   - **Project URL** (Örn: `https://xyzabc.supabase.co`)
-   - **Project API keys → anon / public** (Örn: `eyJhbGciOi...`)
-3. Render.com veya Railway.app üzerindeki servisinizin **Environment Variables (Ortam Değişkenleri)** bölümüne ekleyin:
-   - `SUPABASE_URL` = `https://xyzabc.supabase.co`
-   - `SUPABASE_ANON_KEY` = `eyJhbGciOi...`
+## 3. Ortam değişkenleri
 
----
+Sunucuda aşağıdaki değişkenleri tanımlayın:
 
-### Nasıl Çalışır?
-- Eğer `SUPABASE_URL` ve `SUPABASE_ANON_KEY` tanımlanmışsa, sistem otomatik olarak **Supabase PostgreSQL**'i aktif eder ve tüm teslimat, yükleme ve müşteri kayıtlarını doğrudan bulut veritabanına yazar.
-- Eğer bu değişkenler henüz girilmemişse (örneğin yerel geliştirme veya test ortamında), sistem çökmeyip otomatik olarak yerel `data_store.json` dosyasını kullanarak çalışmaya devam eder.
+- `SUPABASE_URL` = Supabase proje URL'si
+- `SUPABASE_SECRET_KEY` = Sunucu tarafı gizli anahtar
+
+`SUPABASE_ANON_KEY` yalnızca geriye dönük uyumluluk içindir; migration 20 sonrasında veritabanı erişimi için kullanılamaz. Gizli anahtarı istemci koduna, repoya veya `.env.example` dosyasına yazmayın.
+
+Render/Railway ortamında `SUPABASE_SECRET_KEY` değerini tanımlayıp servisi yeniden başlatın.
+
+## 4. Çalışma biçimi
+
+- `SUPABASE_URL` ve sunucu anahtarı tanımlıysa tüm veri işlemleri Supabase üzerinden yürür.
+- Bağlantı yoksa uygulama yerel `data_store.json` dosyasıyla çalışmaya devam eder.
+- Sunucu gizli anahtarı yoksa yazma işlemleri güvenli biçimde reddedilir.

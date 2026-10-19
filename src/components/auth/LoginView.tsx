@@ -8,22 +8,15 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  ShieldCheck,
-  Check,
-  ArrowRight,
-  Download
+  ArrowRight
 } from 'lucide-react';
 import { PWAInstallButton } from '../common/PWAInstallButton';
 
 interface LoginViewProps {
   onLoginSuccess: (user: User, rememberMe: boolean) => void;
-  availableUsers?: User[];
 }
 
-export const LoginView: React.FC<LoginViewProps> = ({
-  onLoginSuccess,
-  availableUsers = [],
-}) => {
+export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
   const [username, setUsername] = useState('');
   const [pin, setPin] = useState('');
   const [rememberMe, setRememberMe] = useState(true);

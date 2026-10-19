@@ -1,5 +1,14 @@
 import React, { useState } from 'react';
-import { Product, ProductCategory, DepositType, User, sortProductsByCategory } from '../../types';
+import {
+  Product,
+  ProductCategory,
+  DepositType,
+  User,
+  sortProductsByCategory,
+  getProductCategoryCodes,
+  getProductCategoryTitle,
+  getProductCategoryDefaults,
+} from '../../types';
 import {
   Package,
   Plus,
@@ -11,8 +20,6 @@ import {
   Boxes,
   Flame,
   CheckCircle2,
-  Info,
-  Tag,
   AlertCircle
 } from 'lucide-react';
 import { createProduct, updateProduct, deleteProduct } from '../../services/api';
@@ -77,27 +84,19 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
     setErrorMsg(null);
   };
 
-  // Auto-adjust deposit when category changes in form
+  // Kategori değiştiğinde depozito/birim varsayılanlarını veritabanı tanımından uygula
   const handleCategoryChange = (cat: ProductCategory) => {
     setFormCategory(cat);
-    if (cat === 'damacana') {
-      setFormIsDeposit(true);
-      setFormDepositType('damacana');
-      setFormUnit('Adet');
-    } else if (cat === 'tup') {
-      setFormIsDeposit(true);
-      setFormDepositType('tup');
-      setFormUnit('Adet');
-    } else if (cat === 'bardak') {
-      setFormIsDeposit(false);
-      setFormDepositType('none');
-      setFormUnit('Paket');
-    } else if (cat === 'pet' || cat === 'soda') {
-      setFormIsDeposit(false);
-      setFormDepositType('none');
-      setFormUnit('Koli');
-    }
+    const def = getProductCategoryDefaults(cat);
+    if (def.isDeposit !== undefined) setFormIsDeposit(def.isDeposit);
+    if (def.depositType !== undefined) setFormDepositType(def.depositType as DepositType);
+    if (def.defaultUnit) setFormUnit(def.defaultUnit);
   };
+
+  const categoryFilterOptions = [
+    { id: 'all', label: 'Tüm Ürünler' },
+    ...getProductCategoryCodes().map((code) => ({ id: code, label: getProductCategoryTitle(code) })),
+  ];
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -291,14 +290,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
         {/* Category Pills */}
         <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto pb-1 md:pb-0 text-xs">
-          {[
-            { id: 'all', label: 'Tüm Ürünler' },
-            { id: 'damacana', label: '💧 Damacana' },
-            { id: 'bardak', label: '🥤 Karton Bardak' },
-            { id: 'pet', label: '📦 Pet Su' },
-            { id: 'soda', label: '🍾 Soda' },
-            { id: 'tup', label: '🔥 Gaz Tüpü' },
-          ].map((cat) => (
+          {categoryFilterOptions.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
@@ -468,11 +460,11 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                     onChange={(e) => handleCategoryChange(e.target.value as ProductCategory)}
                     className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                   >
-                    <option value="damacana">💧 Damacana Su</option>
-                    <option value="bardak">🥤 Karton Bardak & Sarf</option>
-                    <option value="pet">📦 Pet Şişe Su</option>
-                    <option value="soda">🍾 Soda & İçecek</option>
-                    <option value="tup">🔥 Mutfak / Piknik Tüpü</option>
+                    {getProductCategoryCodes().map((code) => (
+                      <option key={code} value={code}>
+                        {getProductCategoryTitle(code)}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

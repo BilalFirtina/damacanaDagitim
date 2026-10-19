@@ -6,15 +6,8 @@ import {
   MapPin,
   Search,
   Plus,
-  RotateCcw,
-  CheckCircle2,
-  AlertCircle,
-  Tag,
   Edit2,
-  Mail,
-  X,
-  Check,
-  Send
+  Mail
 } from 'lucide-react';
 import { createCustomer, updateCustomer } from '../../services/api';
 
@@ -220,6 +213,14 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
     try {
       const updated = await updateCustomer(cust.id, {
         emptyDepositBalance: { damacana: 0, camDamacana: 0, tup: 0 },
+        expectedEmptyDepositBalance: {
+          damacana: cust.emptyDepositBalance?.damacana || 0,
+          camDamacana:
+            cust.emptyDepositBalance?.camDamacana ??
+            cust.emptyDepositBalance?.cam_damacana ??
+            0,
+          tup: cust.emptyDepositBalance?.tup || 0,
+        },
       });
       onCustomersUpdated(customers.map((c) => (c.id === cust.id ? updated : c)));
     } catch (err: any) {
@@ -236,6 +237,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
     try {
       const updated = await updateCustomer(cust.id, {
         currentBalanceTL: 0,
+        expectedBalanceTL: cust.currentBalanceTL || 0,
       });
       onCustomersUpdated(customers.map((c) => (c.id === cust.id ? updated : c)));
     } catch (err: any) {

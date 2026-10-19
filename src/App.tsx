@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { User, Product, Customer, Dispatch, Delivery } from './types';
+import { useState, useEffect, useCallback } from 'react';
+import { User, Product, Customer, Dispatch, Delivery, setProductCategories } from './types';
 import {
   fetchUsers,
   fetchProducts,
+  fetchCategories,
   fetchCustomers,
   fetchDispatches,
   fetchDeliveries,
@@ -59,6 +60,14 @@ export default function App() {
         fetchDispatches(),
         fetchDeliveries(),
       ]);
+
+      // Kategori tanımlarını veritabanından yükle (veri odaklı sıralama/etiketleme).
+      try {
+        const categories = await fetchCategories();
+        setProductCategories(categories);
+      } catch {
+        // Kategori servisi erişilemezse varsayılan kategoriler kullanılır.
+      }
 
       setUsers(uList);
       setProducts(pList);
@@ -142,16 +151,6 @@ export default function App() {
     logoutUser();
   };
 
-  const handleSwitchUser = (user: User) => {
-    setCurrentUser(user);
-    // Keep session updated with active user
-    if (localStorage.getItem(REMEMBERED_USER_KEY)) {
-      localStorage.setItem(REMEMBERED_USER_KEY, JSON.stringify(user));
-    } else {
-      sessionStorage.setItem(SESSION_USER_KEY, JSON.stringify(user));
-    }
-  };
-
   // Find active dispatch for the current user (if driver) or first active dispatch for admin
   const todayStr = new Date().toISOString().split('T')[0];
   const currentDispatch =
@@ -216,10 +215,7 @@ export default function App() {
   // If user is not logged in, show dedicated Login View
   if (!currentUser) {
     return (
-      <LoginView
-        onLoginSuccess={handleLoginSuccess}
-        availableUsers={users}
-      />
+      <LoginView onLoginSuccess={handleLoginSuccess} />
     );
   }
 
@@ -228,8 +224,6 @@ export default function App() {
       {/* Top Bar Header with 3-Zone Contract */}
       <Header
         currentUser={currentUser}
-        allUsers={users}
-        onSwitchUser={handleSwitchUser}
         onLogout={handleLogout}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -259,8 +253,6 @@ export default function App() {
           <LiveTeamFeed
             deliveries={deliveries}
             currentUser={currentUser}
-            onRefresh={loadData}
-            isRefreshing={isRefreshing}
           />
         )}
 
