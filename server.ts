@@ -58,6 +58,7 @@ import {
   validateCloseTransition,
   DispatchRuleResult,
 } from './src/services/dispatchRules.ts';
+import { todayUtcDateStr } from './src/services/dateWindow.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -67,7 +68,7 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
 app.use(express.json());
 
-const getTodayDateStr = () => new Date().toISOString().split('T')[0];
+const getTodayDateStr = () => todayUtcDateStr();
 
 // PWA Manifest and Service Worker static serving with proper headers
 app.get(['/manifest.json', '/manifest.webmanifest'], (_req, res) => {

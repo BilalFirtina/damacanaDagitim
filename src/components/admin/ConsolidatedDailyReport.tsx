@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Product, Delivery, Dispatch } from '../../types';
 import { fetchDailyReport } from '../../services/api';
+import { todayUtcDateStr } from '../../services/dateWindow';
 import { Printer, Calendar, RefreshCw, FileText } from 'lucide-react';
 
 interface ConsolidatedDailyReportProps {
@@ -12,7 +13,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
   users,
   products,
 }) => {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayUtcDateStr();
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [loading, setLoading] = useState<boolean>(false);
   const [reportData, setReportData] = useState<any>(null);

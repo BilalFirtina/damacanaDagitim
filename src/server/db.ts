@@ -21,6 +21,7 @@ import {
   CleanupStatus,
   DatabaseStatus,
 } from '../types/index.ts';
+import { utcDayQueryWindow, isSameUtcDate } from '../services/dateWindow.ts';
 
 const { Pool } = pg;
 
@@ -2895,11 +2896,9 @@ export async function getDeliveries(params?: { dispatchId?: string; driverId?: s
         // Gün filtresi sunucu tarafında dar bir aralığa indirilir; kesin gün
         // eşleşmesi aşağıda bellekte doğrulanır. Böylece tüm geçmiş çekilmez
         // ve idx_deliveries_timestamp indeksi kullanılabilir.
-        const dayStart = new Date(`${params.date}T00:00:00.000Z`).getTime();
-        if (!Number.isNaN(dayStart)) {
-          const lower = new Date(dayStart - 24 * 60 * 60 * 1000).toISOString();
-          const upper = new Date(dayStart + 48 * 60 * 60 * 1000).toISOString();
-          query = query.gte('timestamp', lower).lt('timestamp', upper);
+        const window = utcDayQueryWindow(params.date);
+        if (window) {
+          query = query.gte('timestamp', window.lower).lt('timestamp', window.upper);
         }
       }
       const { data, error } = await query;
@@ -2931,7 +2930,7 @@ export async function getDeliveries(params?: { dispatchId?: string; driverId?: s
           )
         );
         if (params?.date) {
-          list = list.filter((d) => d.timestamp.startsWith(params.date!));
+          list = list.filter((d) => isSameUtcDate(d.timestamp, params.date!));
         }
         return list;
       }
@@ -2944,7 +2943,7 @@ export async function getDeliveries(params?: { dispatchId?: string; driverId?: s
   let list = [...loadLocalDatabase().deliveries];
   if (params?.dispatchId) list = list.filter((d) => d.dispatchId === params.dispatchId);
   if (params?.driverId) list = list.filter((d) => d.driverId === params.driverId);
-  if (params?.date) list = list.filter((d) => d.timestamp.startsWith(params.date!));
+  if (params?.date) list = list.filter((d) => isSameUtcDate(d.timestamp, params.date!));
   list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   return list;
 }

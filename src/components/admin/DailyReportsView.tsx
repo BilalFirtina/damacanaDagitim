@@ -14,6 +14,7 @@ import {
   FileText
 } from 'lucide-react';
 import { fetchDailyReport } from '../../services/api';
+import { todayUtcDateStr } from '../../services/dateWindow';
 import { ConsolidatedDailyReport } from './ConsolidatedDailyReport';
 
 interface DailyReportsViewProps {
@@ -28,7 +29,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
   currentUser,
 }) => {
   const isDriver = currentUser?.role === 'driver';
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayUtcDateStr();
   const [subTab, setSubTab] = useState<'consolidated' | 'detailed'>('consolidated');
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [selectedDriverId, setSelectedDriverId] = useState<string>(

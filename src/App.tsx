@@ -12,6 +12,7 @@ import {
   getAuthToken,
 } from './services/api';
 import { LoginView } from './components/auth/LoginView';
+import { todayUtcDateStr } from './services/dateWindow';
 import { Header } from './components/common/Header';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
 import { DriverView } from './components/driver/DriverView';
@@ -59,7 +60,7 @@ export default function App() {
         fetchProducts(),
         fetchCustomers(),
         fetchDispatches(),
-        fetchDeliveries(),
+        fetchDeliveries({ date: todayUtcDateStr() }),
       ]);
 
       // Kategori tanımlarını veritabanından yükle (veri odaklı sıralama/etiketleme).
@@ -116,8 +117,10 @@ export default function App() {
       if (typeof navigator !== 'undefined' && !navigator.onLine) return;
       if (!getAuthToken()) return;
       try {
+        // Gün her tetikte yeniden hesaplanır; gece yarısı geçişinde yeni gün
+        // verisi çekilir ve önceki günün kayıtları state'te kalmaz.
         const [latestDeliveries, latestDispatches] = await Promise.all([
-          fetchDeliveries(),
+          fetchDeliveries({ date: todayUtcDateStr() }),
           fetchDispatches(),
         ]);
         setDeliveries(latestDeliveries.map((d) => normalizeDelivery(d)));
@@ -158,7 +161,7 @@ export default function App() {
   };
 
   // Find active dispatch for the current user (if driver) or first active dispatch for admin
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayUtcDateStr();
   const currentDispatch =
     dispatches.find((d) => {
       if (d.date !== todayStr) return false;

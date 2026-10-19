@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Dispatch, Delivery, Customer, Product, User } from '../../types';
+import { todayUtcDateStr } from '../../services/dateWindow';
 import { MorningLoadCard } from './MorningLoadCard';
 import { DriverStatsStrip } from './DriverStatsStrip';
 import { DeliveryModal } from './DeliveryModal';
@@ -52,7 +53,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
     return currentUser.id;
   });
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayUtcDateStr();
 
   // Active dispatch being viewed: only open dispatches (not completed)
   const activeDispatch =

@@ -7,6 +7,7 @@ import {
   Check
 } from 'lucide-react';
 import { createDispatch, updateUser } from '../../services/api';
+import { todayUtcDateStr } from '../../services/dateWindow';
 
 interface VehicleLoadManagementProps {
   dispatches: Dispatch[];
@@ -32,7 +33,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayUtcDateStr();
 
   // List of actual drivers
   const drivers = users.filter((u) => u.role === 'driver');

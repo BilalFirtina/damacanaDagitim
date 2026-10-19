@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Dispatch, Delivery, Product, User } from '../../types';
+import { todayUtcDateStr } from '../../services/dateWindow';
 import {
   CheckCircle2,
   AlertCircle,
@@ -36,7 +37,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
   onNavigateTab,
   onRefreshData,
 }) => {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayUtcDateStr();
 
   // Dispatches belonging to this driver/user or all for admin
   const candidateDispatches = dispatches.filter((d) => {
