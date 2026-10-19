@@ -13,6 +13,12 @@ import {
   CalendarCheck,
 } from 'lucide-react';
 
+export function getFirstName(fullName: string, fallback: string): string {
+  const trimmed = (fullName || '').trim();
+  if (!trimmed) return fallback;
+  return trimmed.split(/\s+/)[0];
+}
+
 interface HeaderProps {
   currentUser: User;
   onLogout: () => void;
@@ -31,6 +37,8 @@ export const Header: React.FC<HeaderProps> = ({
   isRefreshing,
 }) => {
   const isAdmin = currentUser.role === 'admin';
+  const nameFallback = currentUser.title || (currentUser.role === 'admin' ? 'Depo Yöneticisi' : 'Şoför');
+  const firstName = getFirstName(currentUser.name, nameFallback);
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs w-full max-w-full">
@@ -41,9 +49,9 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-sky-600 to-sky-400 flex items-center justify-center text-white shadow-md shadow-sky-500/20 shrink-0">
             <Truck className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div className="min-w-0 hidden sm:block">
+          <div className="min-w-0">
             <span className="text-sm sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
-              Dağıtım <span className="text-sky-600 font-extrabold ml-0.5">& Mutabakat</span>
+              Fırtına <span className="text-sky-600 font-extrabold ml-0.5">Gıda</span>
             </span>
           </div>
         </div>
@@ -159,13 +167,16 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Active User Badge */}
           <div
             className="flex items-center gap-1.5 py-1 px-1.5 sm:px-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80 min-w-0"
-            title={`${currentUser.name} (${currentUser.title || (currentUser.role === 'admin' ? 'Depo Yöneticisi' : 'Şoför')})`}
+            title={`${currentUser.name} (${nameFallback})`}
           >
             <div className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 flex items-center justify-center text-xs font-bold shrink-0">
               {currentUser.name.charAt(0)}
             </div>
-            <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate min-w-0 max-w-[80px] min-[360px]:max-w-[100px] min-[390px]:max-w-[130px]">
-              {currentUser.name}
+            <span
+              className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate min-w-0 max-w-[80px] min-[360px]:max-w-[100px] min-[390px]:max-w-[130px]"
+              title={currentUser.name}
+            >
+              {firstName}
             </span>
           </div>
 
