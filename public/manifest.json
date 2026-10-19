@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "SuDağıtım Pro - Dağıtım & Mutabakat",
-  "short_name": "SuDağıtım",
+  "name": "Fırtına Gıda - Dağıtım & Mutabakat",
+  "short_name": "Fırtına Gıda",
   "description": "Damacana su ve meşrubat dağıtım, araç yükleme, canlı ekip koordinasyonu ve mutabakat sistemi",
   "start_url": "/",
   "scope": "/",
@@ -32,12 +32,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    },
-    {
-      "src": "/icon.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any"
     }
   ]
 }

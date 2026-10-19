@@ -211,11 +211,13 @@ export default function App() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
-        <div className="w-12 h-12 rounded-2xl bg-sky-600 flex items-center justify-center text-white shadow-xl animate-bounce">
-          💧
-        </div>
+        <img
+          src="/logo-header.png"
+          alt=""
+          className="w-12 h-12 rounded-2xl bg-white ring-1 ring-slate-200 dark:ring-slate-700 shadow-xl object-contain animate-bounce"
+        />
         <h2 className="mt-4 text-base font-bold text-slate-900 dark:text-white">
-          Dağıtım & Mutabakat Yükleniyor...
+          Fırtına Gıda Yükleniyor...
         </h2>
         <p className="text-xs text-slate-500 mt-1">Saha ve mutabakat verileri hazırlanıyor</p>
       </div>

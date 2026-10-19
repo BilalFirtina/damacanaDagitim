@@ -46,9 +46,11 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-7xl mx-auto px-2.5 sm:px-6 flex items-center justify-between gap-2 sm:gap-4 md:gap-8 h-14 sm:h-16 w-full max-w-full">
         {/* Zone 1: Brand Wordmark (Directly displayed, no open/close toggle) */}
         <div className="flex items-center gap-2 shrink-0 min-w-0">
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-sky-600 to-sky-400 flex items-center justify-center text-white shadow-md shadow-sky-500/20 shrink-0">
-            <Truck className="w-4 h-4 sm:w-5 sm:h-5" />
-          </div>
+          <img
+            src="/logo-header.png"
+            alt=""
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-white ring-1 ring-slate-200 dark:ring-slate-700 object-contain shrink-0"
+          />
           <div className="min-w-0">
             <span className="text-sm sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
               Fırtına <span className="text-sky-600 font-extrabold ml-0.5">Gıda</span>

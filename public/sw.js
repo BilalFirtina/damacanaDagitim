@@ -1,14 +1,16 @@
-// SuDağıtım Pro Service Worker
-const CACHE_NAME = 'sudagitim-cache-v3';
+// Fırtına Gıda Service Worker
+const CACHE_NAME = 'sudagitim-cache-v4';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/favicon.ico',
+  '/favicon-32.png',
+  '/logo-header.png',
   '/pwa-192x192.png',
   '/pwa-512x512.png',
   '/pwa-maskable-512x512.png',
-  '/apple-touch-icon.png',
-  '/icon.svg'
+  '/apple-touch-icon.png'
 ];
 
 self.addEventListener('install', (event) => {

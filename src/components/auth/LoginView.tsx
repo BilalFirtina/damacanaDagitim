@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { User } from '../../types';
 import { loginUser } from '../../services/api';
 import {
-  Truck,
   Lock,
   User as UserIcon,
   Eye,
@@ -47,11 +46,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
     <div className="min-h-screen bg-gradient-to-b from-sky-50 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex flex-col items-center justify-center p-4">
       {/* Top Brand Area */}
       <div className="w-full max-w-md mx-auto text-center mb-6">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-sky-600 to-sky-400 text-white shadow-xl shadow-sky-500/20 mb-3">
-          <Truck className="w-8 h-8" />
-        </div>
+        <img
+          src="/logo-header.png"
+          alt=""
+          className="inline-block w-14 h-14 rounded-2xl bg-white ring-1 ring-slate-200 dark:ring-slate-700 shadow-xl shadow-sky-500/20 mb-3 object-contain"
+        />
         <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-          Dağıtım <span className="text-sky-600">& Mutabakat</span>
+          Fırtına <span className="text-sky-600">Gıda</span>
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
           Saha Dağıtım, Yükleme & Gün Sonu Kasa Mutabakat Portalı
@@ -155,7 +156,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
 
       {/* Footer Info */}
       <div className="mt-6 text-center text-xs text-slate-400">
-        Dağıtım & Mutabakat © 2026 · Çevrimdışı ve Android PWA Uyumlu
+        Fırtına Gıda © 2026 · Çevrimdışı ve Android PWA Uyumlu
       </div>
     </div>
   );
