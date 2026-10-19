@@ -164,7 +164,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 flex items-center justify-center text-xs font-bold shrink-0">
               {currentUser.name.charAt(0)}
             </div>
-            <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate min-w-0 max-w-[80px] min-[360px]:max-w-[100px] min-[390px]:max-w-[130px] sm:max-w-[150px] md:max-w-[180px]">
+            <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate min-w-0 max-w-[80px] min-[360px]:max-w-[100px] min-[390px]:max-w-[130px]">
               {currentUser.name}
             </span>
           </div>
