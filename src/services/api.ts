@@ -6,7 +6,6 @@ import {
   Delivery,
   ProductCategoryInfo,
   CleanupStatus,
-  DatabaseStatus,
   PaymentStatus,
 } from '../types';
 import {
@@ -589,18 +588,6 @@ export async function triggerManualCleanup(): Promise<any> {
     }
     throw new Error(message);
   }
-  return res.json();
-}
-
-export async function fetchDatabaseStatus(): Promise<DatabaseStatus> {
-  const res = await apiFetch('/api/database/status');
-  if (!res.ok) throw new Error('Veritabanı durumu alınamadı');
-  return res.json();
-}
-
-export async function triggerDatabaseSeed(): Promise<any> {
-  const res = await apiFetch('/api/database/seed', { method: 'POST' });
-  if (!res.ok) throw new Error('Veritabanı başlangıç kurulumu yapılamadı');
   return res.json();
 }
 
