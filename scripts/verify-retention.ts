@@ -10,7 +10,10 @@
  *
  * Part B — server orchestration against a mock PostgREST endpoint:
  *   dry-run default, lock rejection, archive-failure abort, success counts,
- *   and error recording.
+ *   error recording, and the dry-run archive contract: p_dry_run=true writes
+ *   ZERO retention_archive rows; a real run archives only non-empty tables.
+ *
+ * Part C — static guards on migration 20261022 (the SQL itself cannot run here).
  *
  * SAFETY: Supabase env is overwritten with a localhost mock before importing
  * the DB layer. `data_store.json` is backed up and restored, so the test never
@@ -206,6 +209,19 @@ let tables: Record<string, any[]> = {};
 let rpcMode: 'ok' | 'locked' | 'archive_fail' = 'ok';
 let rpcBody: any = null;
 let statePatches: any[] = [];
+let archiveWrites: any[] = [];
+
+// Eligible rows the SQL function would count. One table is intentionally 0 so
+// the "skip empty tables" behaviour is exercised.
+const MOCK_COUNTS: Record<string, number> = {
+  dispatches: 2,
+  deliveries: 3,
+  dispatch_items: 2,
+  dispatch_reconciliation_items: 2,
+  delivery_items: 3,
+  delivery_container_returns: 0,
+};
+const MOCK_ARCHIVED_ROWS = Object.values(MOCK_COUNTS).reduce((a, b) => a + b, 0);
 
 async function partB() {
   console.log('\n2) Server orchestration (mock RPC)');
@@ -237,24 +253,25 @@ async function partB() {
           res.end(JSON.stringify({ message: 'ARCHIVE_COUNT_MISMATCH: expected 5 archived 4', code: 'P0001' }));
           return;
         }
+        // Emulate the real function: archive ONLY on a real run and ONLY for
+        // tables that actually have eligible rows.
+        const dry = body?.p_dry_run === true;
+        if (!dry) {
+          for (const [table_name, row_count] of Object.entries(MOCK_COUNTS)) {
+            if (row_count > 0) archiveWrites.push({ run_id: 'ret_test', table_name, row_count });
+          }
+        }
+        const archived = dry ? 0 : MOCK_ARCHIVED_ROWS;
         res.end(
           JSON.stringify({
             run_id: 'ret_test',
-            dry_run: body?.p_dry_run,
+            dry_run: dry,
             threshold_date: '2026-08-20',
             retention_days: 60,
-            counts: {
-              dispatches: 2,
-              deliveries: 3,
-              dispatch_items: 2,
-              dispatch_reconciliation_items: 2,
-              delivery_items: 3,
-              delivery_container_returns: 0,
-              archived_rows: 12,
-            },
-            archived_rows: 12,
-            purged_dispatches: body?.p_dry_run ? 0 : 2,
-            purged_deliveries: body?.p_dry_run ? 0 : 3,
+            counts: { ...MOCK_COUNTS, archived_rows: archived },
+            archived_rows: archived,
+            purged_dispatches: dry ? 0 : MOCK_COUNTS.dispatches,
+            purged_deliveries: dry ? 0 : MOCK_COUNTS.deliveries,
           })
         );
         return;
@@ -328,10 +345,12 @@ async function partB() {
     delete process.env.RETENTION_DRY_RUN;
     rpcMode = 'ok';
     rpcBody = null;
+    archiveWrites = [];
     const dry = await db.runRetentionCleanup();
     check('default is dry-run', dry.dryRun === true);
     check('dry-run sends p_dry_run=true to RPC', rpcBody?.p_dry_run === true);
-    check('dry-run reports archived rows', dry.archivedRows === 12);
+    check('dry-run reports 0 archived rows', dry.archivedRows === 0);
+    check('dry-run writes NOTHING to retention_archive', archiveWrites.length === 0, `writes=${archiveWrites.length}`);
     check('dry-run reports 0 real deletions', dry.purgedDispatches === 0 && dry.purgedDeliveries === 0);
     check(
       'only eligible dispatch id passed (open/recent excluded)',
@@ -343,10 +362,21 @@ async function partB() {
     process.env.RETENTION_DRY_RUN = 'false';
     rpcMode = 'ok';
     rpcBody = null;
+    archiveWrites = [];
     const real = await db.runRetentionCleanup();
     check('RETENTION_DRY_RUN=false -> dryRun false', real.dryRun === false);
     check('real run sends p_dry_run=false', rpcBody?.p_dry_run === false);
     check('real run reports purge counts', real.purgedDispatches === 2 && real.purgedDeliveries === 3);
+    check(
+      'real run archives only non-empty tables (skips empty)',
+      archiveWrites.length === 5,
+      `writes=${archiveWrites.length}`
+    );
+    check(
+      'real run archived_rows = sum of non-empty counts',
+      real.archivedRows === MOCK_ARCHIVED_ROWS,
+      `got=${real.archivedRows} expected=${MOCK_ARCHIVED_ROWS}`
+    );
 
     // (3) lock rejection.
     rpcMode = 'locked';
@@ -377,8 +407,44 @@ async function partB() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Part C: static guards on the fix migration (no Postgres available, so the
+// SQL contract is asserted on the source text as a regression guard).
+// ---------------------------------------------------------------------------
+function partC() {
+  console.log('\n3) Migration 20261022 guards');
+
+  const mig = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '..',
+    'migrations',
+    '20261022_fix_retention_dry_run_archive.sql'
+  );
+  const sql = fs.readFileSync(mig, 'utf-8');
+
+  check('uses CREATE OR REPLACE FUNCTION', /CREATE OR REPLACE FUNCTION public\.purge_retention/.test(sql));
+  check('keeps SECURITY INVOKER', /SECURITY INVOKER/.test(sql));
+  check('keeps advisory lock', sql.includes('pg_try_advisory_xact_lock(620260102)'));
+  check('re-states service_role-only EXECUTE', /REVOKE EXECUTE ON FUNCTION public\.purge_retention/.test(sql) && /GRANT EXECUTE ON FUNCTION public\.purge_retention[\s\S]*?TO service_role/.test(sql));
+  check('keeps ARCHIVE_COUNT_MISMATCH verification', sql.includes('ARCHIVE_COUNT_MISMATCH'));
+  check('keeps batched deletes (LIMIT 500)', sql.includes('LIMIT 500'));
+
+  const inserts = (sql.match(/INSERT INTO public\.retention_archive/g) || []).length;
+  check('exactly 6 archive inserts', inserts === 6, `got=${inserts}`);
+  const emptyGuards = (sql.match(/IF v_\w+ > 0 THEN/g) || []).length;
+  check('every archive insert skips empty tables (6 guards)', emptyGuards === 6, `got=${emptyGuards}`);
+
+  const firstArchive = sql.indexOf('INSERT INTO public.retention_archive');
+  const firstDelete = sql.indexOf('DELETE FROM public.deliveries');
+  const firstDryGuard = sql.indexOf('IF NOT p_dry_run THEN');
+  check('archive happens before any delete', firstArchive > 0 && firstArchive < firstDelete);
+  check('archive is gated by the dry-run guard', firstDryGuard > 0 && firstDryGuard < firstArchive);
+  check('dry-run branch forces archived_rows = 0', /ELSE[\s\S]*?v_arch\s*:=\s*0;/.test(sql));
+}
+
 partA();
 await partB();
+partC();
 
 console.log(`\nResult: ${passed} passed, ${failed} failed\n`);
 process.exit(failed === 0 ? 0 : 1);
