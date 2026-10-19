@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  unit:
+    name: Lint, doğrulama betikleri ve build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Bağımlılıkları kur
+        run: npm ci --legacy-peer-deps
+
+      - name: Lint (tsc --noEmit)
+        run: npm run lint
+
+      - name: Doğrulama betikleri
+        run: |
+          for f in scripts/verify-*.ts; do
+            echo "== $f =="
+            npx tsx "$f"
+          done
+
+      - name: Build (vite build)
+        run: npm run build
+
+  retention-db:
+    name: Retention SQL (gerçek PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Bağımlılıkları kur
+        run: npm ci --legacy-peer-deps
+
+      - name: Supabase stub + temel şema + migration'ları uygula
+        run: npx tsx scripts/ci/retention-pg-test.ts --apply-only
+
+      - name: Retention semantiğini doğrula
+        run: npx tsx scripts/ci/retention-pg-test.ts
