@@ -21,6 +21,12 @@ import {
   X
 } from 'lucide-react';
 import { createDelivery, createCustomer, createProduct } from '../../services/api';
+import {
+  computeStockWarnings,
+  getStockWarningSignature,
+  shouldShowStockWarning,
+  STOCK_WARNING_DURATION_MS,
+} from '../../services/stockWarning';
 
 interface DeliveryModalProps {
   isOpen: boolean;
@@ -98,6 +104,21 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingCustomer, setIsSubmittingCustomer] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorPersistent, setErrorPersistent] = useState(false);
+  const [dismissedWarningSignature, setDismissedWarningSignature] = useState<string | null>(null);
+  const [warningExpiresAt, setWarningExpiresAt] = useState<number | null>(null);
+  const [warningClock, setWarningClock] = useState(() => Date.now());
+
+  const showTransientError = (message: string) => {
+    setErrorPersistent(false);
+    setErrorMsg(message);
+  };
+
+  useEffect(() => {
+    if (!errorMsg || errorPersistent) return;
+    const timeout = setTimeout(() => setErrorMsg(null), STOCK_WARNING_DURATION_MS);
+    return () => clearTimeout(timeout);
+  }, [errorMsg, errorPersistent]);
 
   // When customer is selected, initialize prices with customer's custom prices or product defaults
   useEffect(() => {
@@ -191,7 +212,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     e.preventDefault();
     if (isSubmittingCustomer) return;
     if (!newCustName.trim()) {
-      setErrorMsg('Lütfen müşteri adını giriniz');
+      showTransientError('Lütfen müşteri adını giriniz');
       return;
     }
 
@@ -202,6 +223,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
     try {
       setIsSubmittingCustomer(true);
+      setErrorPersistent(false);
       setErrorMsg(null);
       const created = await createCustomer({
         name: newCustName.trim(),
@@ -221,6 +243,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       setNewCustAddress('');
       setNewCustEmails('');
     } catch (err: any) {
+      setErrorPersistent(true);
       setErrorMsg(err.message || 'Müşteri oluşturulamadı');
     } finally {
       setIsSubmittingCustomer(false);
@@ -231,11 +254,12 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const handleCreateNewProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProdName.trim()) {
-      setErrorMsg('Lütfen ürün adını giriniz');
+      showTransientError('Lütfen ürün adını giriniz');
       return;
     }
 
     try {
+      setErrorPersistent(false);
       setErrorMsg(null);
       const created = await createProduct({
         name: newProdName.trim(),
@@ -254,6 +278,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       setNewProdName('');
       setProductSearch('');
     } catch (err: any) {
+      setErrorPersistent(true);
       setErrorMsg(err.message || 'Ürün oluşturulamadı');
     }
   };
@@ -261,16 +286,17 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   // Submit Delivery
   const handleSubmitDelivery = async () => {
     if (!selectedCustomer) {
-      setErrorMsg('Lütfen önce bir müşteri seçiniz');
+      showTransientError('Lütfen önce bir müşteri seçiniz');
       return;
     }
     if (deliveredItems.length === 0) {
-      setErrorMsg('Lütfen teslim edilecek en az bir ürün seçiniz ve adedini giriniz');
+      showTransientError('Lütfen teslim edilecek en az bir ürün seçiniz ve adedini giriniz');
       return;
     }
 
     try {
       setIsSubmitting(true);
+      setErrorPersistent(false);
       setErrorMsg(null);
 
       const payload = {
@@ -308,11 +334,38 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       onDeliveryCreated(result.delivery, result.updatedCustomer);
       onClose();
     } catch (err: any) {
+      setErrorPersistent(true);
       setErrorMsg(err.message || 'Teslimat kaydedilemedi');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const stockWarnings = computeStockWarnings(deliveredItems, dispatch.loadedItems);
+  const stockWarningSignature = getStockWarningSignature(stockWarnings);
+
+  useEffect(() => {
+    if (!stockWarningSignature) {
+      setWarningExpiresAt(null);
+      setDismissedWarningSignature(null);
+      return;
+    }
+
+    setDismissedWarningSignature(null);
+    setWarningExpiresAt(Date.now() + STOCK_WARNING_DURATION_MS);
+    const timeout = setTimeout(
+      () => setWarningClock(Date.now()),
+      STOCK_WARNING_DURATION_MS + 50
+    );
+    return () => clearTimeout(timeout);
+  }, [stockWarningSignature]);
+
+  const showStockWarning = shouldShowStockWarning({
+    warnings: stockWarnings,
+    dismissedSignature: dismissedWarningSignature,
+    expiresAt: warningExpiresAt,
+    now: warningClock,
+  });
 
   if (!isOpen) return null;
 
@@ -344,24 +397,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     return item ? item.quantity : 0;
   };
 
-  // Check if any product quantity exceeds vehicle loaded stock
-  const stockWarnings = deliveredItems
-    .map((item) => {
-      const vehicleQty = getVehicleStock(item.productId);
-      if (item.quantity > vehicleQty) {
-        return {
-          productName: item.productName,
-          qty: item.quantity,
-          vehicleQty,
-        };
-      }
-      return null;
-    })
-    .filter(Boolean) as { productName: string; qty: number; vehicleQty: number }[];
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto">
-      <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 my-auto max-h-[94vh] flex flex-col">
+      <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 my-auto max-h-[calc(94dvh-env(safe-area-inset-bottom))] sm:max-h-[94vh] flex flex-col overflow-hidden">
         
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
@@ -378,21 +416,15 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="min-w-11 min-h-11 p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center shrink-0"
+            aria-label="Teslimat penceresini kapat"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Scrollable Body */}
-        <div className="p-4 sm:p-5 overflow-y-auto space-y-5 flex-1">
-          {errorMsg && (
-            <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs font-semibold flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
-
+        <div className="p-4 sm:p-5 overflow-y-auto space-y-5 flex-1 min-h-0">
           {/* ============================================================== */}
           {/* STEP 1: CUSTOMER SELECTION (ALWAYS FIRST)                     */}
           {/* ============================================================== */}
@@ -516,6 +548,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         type="button"
                         onClick={() => {
                           setSelectedCustomer(c);
+                          setErrorPersistent(false);
                           setErrorMsg(null);
                         }}
                         className="w-full text-left p-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition-colors flex items-center justify-between border border-transparent hover:border-slate-200 dark:hover:border-slate-700 shadow-2xs"
@@ -885,21 +918,6 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 <span>Teslimat & Tahsilat Detayları</span>
               </label>
 
-              {/* Stock Overflow Non-blocking Warning (Kullanıcı: "aşımı engellemeye gerek yok ama uyarı verebilir") */}
-              {stockWarnings.length > 0 && (
-                <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-xs space-y-1">
-                  <div className="flex items-center gap-1.5 font-bold">
-                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>Araç Stok Aşımı Uyarısı</span>
-                  </div>
-                  {stockWarnings.map((w, idx) => (
-                    <p key={idx} className="text-[11px]">
-                      ⚠️ <strong>{w.productName}</strong> için girilen miktar ({w.qty}), araçtaki yüklü stoğu ({w.vehicleQty}) aşıyor. Teslimat kaydedilebilir ancak gün sonu sayımında dikkate alınacaktır.
-                    </p>
-                  ))}
-                </div>
-              )}
-
               {/* Deposit Empties Returned */}
               {(deliveredDepositDamacana > 0 || deliveredDepositCamDamacana > 0 || deliveredDepositTup > 0) && (
                 <div className="p-3.5 rounded-xl border border-orange-200 dark:border-orange-900/60 bg-orange-50/40 dark:bg-orange-950/20 space-y-3">
@@ -1211,12 +1229,68 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
           )}
         </div>
 
+        {/* Non-blocking alerts: always above the action bar so they cannot cover it */}
+        {(errorMsg || showStockWarning) && (
+          <div className="shrink-0 px-4 sm:px-5 pt-3 space-y-2 max-h-[35vh] overflow-y-auto">
+            {errorMsg && (
+              <div
+                role="alert"
+                className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm font-semibold flex items-start gap-2"
+              >
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="flex-1 break-words">{errorMsg}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrorPersistent(false);
+                    setErrorMsg(null);
+                  }}
+                  className="min-w-11 min-h-11 -my-2 -mr-2 rounded-lg flex items-center justify-center shrink-0 hover:bg-red-100 dark:hover:bg-red-900/40"
+                  aria-label="Hata mesajını kapat"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {showStockWarning && (
+              <div
+                role="status"
+                aria-live="polite"
+                onClick={() => setDismissedWarningSignature(stockWarningSignature)}
+                className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-sm space-y-1 cursor-pointer"
+              >
+                <div className="flex items-center gap-1.5 font-bold">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span className="flex-1">Araç Stok Aşımı Uyarısı</span>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setDismissedWarningSignature(stockWarningSignature);
+                    }}
+                    className="min-w-11 min-h-11 -my-2 -mr-2 rounded-lg flex items-center justify-center shrink-0 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+                    aria-label="Uyarıyı kapat"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                {stockWarnings.map((warning) => (
+                  <p key={warning.productId} className="break-words">
+                    ⚠️ <strong>{warning.productName}</strong> için girilen miktar ({warning.qty}), araçtaki yüklü stoğu ({warning.vehicleQty}) aşıyor. Teslimat kaydedilebilir ancak gün sonu sayımında dikkate alınacaktır.
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Footer Actions */}
-        <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 shrink-0 flex items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-900">
+        <div className="p-4 sm:p-5 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-slate-100 dark:border-slate-800 shrink-0 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 bg-slate-50/50 dark:bg-slate-900">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="w-full sm:w-auto min-h-11 px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 dark:text-slate-300 font-semibold text-sm hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             İptal
           </button>
@@ -1225,10 +1299,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
             type="button"
             onClick={handleSubmitDelivery}
             disabled={isSubmitting || !selectedCustomer || deliveredItems.length === 0}
-            className="flex-1 sm:flex-initial px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-sky-600/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full sm:w-auto sm:flex-1 min-h-12 px-6 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold text-sm shadow-md shadow-sky-600/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
-            <Check className="w-4 h-4" />
-            <span>
+            <Check className="w-4 h-4 shrink-0" />
+            <span className="break-words">
               {isSubmitting
                 ? 'Kaydediliyor...'
                 : !selectedCustomer

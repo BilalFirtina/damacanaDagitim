@@ -9,6 +9,7 @@ export const OfflineIndicator: React.FC = () => {
   const [pendingCount, setPendingCount] = useState(0);
   const [conflictCount, setConflictCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   const checkQueue = () => {
     const queue = getOfflineQueue();
@@ -55,10 +56,46 @@ export const OfflineIndicator: React.FC = () => {
     checkQueue();
   };
 
-  if (isOnline && pendingCount === 0) return null;
+  const hasUnsynced = pendingCount > 0 || conflictCount > 0;
+  if (isOnline && !hasUnsynced) return null;
+
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        onClick={() => setCollapsed(false)}
+        className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-4 z-30 min-w-11 min-h-11 px-2.5 rounded-xl bg-slate-900/95 text-white shadow-2xl border border-slate-700 backdrop-blur-md flex items-center justify-center gap-1.5"
+        aria-label={
+          hasUnsynced
+            ? `Senkronizasyon bekleyen ${pendingCount} kayıt. Detayları aç.`
+            : 'Çevrimdışı mod. Detayları aç.'
+        }
+        title={hasUnsynced ? `${pendingCount} kayıt senkronizasyon bekliyor` : 'Çevrimdışı Mod'}
+      >
+        {!isOnline ? (
+          <WifiOff className="w-5 h-5 text-amber-400" />
+        ) : (
+          <RefreshCw className="w-5 h-5 text-sky-400" />
+        )}
+        {hasUnsynced && (
+          <span
+            className={`min-w-5 h-5 px-1 rounded-full text-xs font-bold flex items-center justify-center ${
+              conflictCount > 0 ? 'bg-amber-400 text-slate-950' : 'bg-sky-500 text-white'
+            }`}
+          >
+            {pendingCount}
+          </span>
+        )}
+      </button>
+    );
+  }
 
   return (
-    <div className="fixed bottom-4 left-4 z-50 max-w-[calc(100vw-2rem)] flex flex-wrap items-center gap-2 rounded-xl bg-slate-900/95 text-white px-3.5 py-2 shadow-2xl border border-slate-700 backdrop-blur-md text-xs">
+    <div
+      onClick={() => setCollapsed(true)}
+      className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-4 z-30 max-w-[calc(100vw-2rem)] flex flex-wrap items-center gap-2 rounded-xl bg-slate-900/95 text-white px-3.5 py-2 shadow-2xl border border-slate-700 backdrop-blur-md text-sm cursor-pointer"
+      title="Daraltmak için dokunun"
+    >
       {!isOnline ? (
         <>
           <span className="flex h-2.5 w-2.5 relative">
@@ -84,9 +121,13 @@ export const OfflineIndicator: React.FC = () => {
             <span className="text-slate-200">Senkronizasyon Bekleyen: <strong className="text-sky-300">{pendingCount}</strong> kayıt</span>
           )}
           <button
-            onClick={handleManualSync}
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              handleManualSync();
+            }}
             disabled={isSyncing}
-            className="ml-1.5 px-2 py-0.5 rounded bg-sky-600 hover:bg-sky-500 text-white font-medium text-[11px] transition-colors"
+            className="ml-1.5 min-h-11 px-3 py-2 rounded bg-sky-600 hover:bg-sky-500 text-white font-medium text-sm transition-colors"
           >
             {isSyncing ? 'Gönderiliyor...' : 'Şimdi Eşitle'}
           </button>
