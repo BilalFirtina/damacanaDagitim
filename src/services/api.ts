@@ -536,6 +536,38 @@ export async function replaceDelivery(
   return res.json();
 }
 
+export interface DeliveryCorrectionAudit {
+  id: number;
+  deliveryId: string;
+  dispatchId: string;
+  customerId: string;
+  action: 'cancel' | 'replace';
+  performedByUserId: string;
+  performedByUserName: string;
+  reason: string;
+  replacementDeliveryId: string | null;
+  previousBalance: number;
+  newBalance: number;
+  reversedBalance: number;
+  previousEmpty: Record<string, number>;
+  newEmpty: Record<string, number>;
+  reversedEmpty: Record<string, number>;
+  createdAt: string;
+}
+
+export async function fetchDeliveryCorrections(
+  limit = 100
+): Promise<DeliveryCorrectionAudit[]> {
+  const res = await apiFetch(
+    `/api/delivery-corrections?limit=${encodeURIComponent(String(limit))}`
+  );
+  if (!res.ok) {
+    await throwServerError(res, 'Teslimat düzeltme kayıtları yüklenemedi.');
+  }
+  const json = await res.json();
+  return Array.isArray(json?.corrections) ? json.corrections : [];
+}
+
 export interface OfflineSyncSummary {
   synced: number;
   conflicts: number;

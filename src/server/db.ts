@@ -3120,6 +3120,95 @@ export async function getDeliveryById(id: string): Promise<Delivery | null> {
   return loadLocalDatabase().deliveries.find((d) => d.id === id) || null;
 }
 
+export interface DeliveryCorrectionAudit {
+  id: number;
+  deliveryId: string;
+  dispatchId: string;
+  customerId: string;
+  action: 'cancel' | 'replace';
+  performedByUserId: string;
+  performedByUserName: string;
+  reason: string;
+  replacementDeliveryId: string | null;
+  previousBalance: number;
+  newBalance: number;
+  reversedBalance: number;
+  previousEmpty: Record<string, number>;
+  newEmpty: Record<string, number>;
+  reversedEmpty: Record<string, number>;
+  createdAt: string;
+}
+
+function mapEmptyQuantityObject(value: any): Record<string, number> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const mapped: Record<string, number> = {};
+  for (const [key, qty] of Object.entries(value)) {
+    const n = Number(qty);
+    if (Number.isFinite(n)) mapped[key] = n;
+  }
+  return mapped;
+}
+
+function mapDeliveryCorrectionAudit(row: any): DeliveryCorrectionAudit {
+  return {
+    id: Number(row.id),
+    deliveryId: row.delivery_id,
+    dispatchId: row.dispatch_id,
+    customerId: row.customer_id,
+    action: row.action === 'replace' ? 'replace' : 'cancel',
+    performedByUserId: row.performed_by_user_id || '',
+    performedByUserName: row.performed_by_user_name || '',
+    reason: row.reason || '',
+    replacementDeliveryId: row.replacement_delivery_id || null,
+    previousBalance: Number(row.previous_balance) || 0,
+    newBalance: Number(row.new_balance) || 0,
+    reversedBalance: Number(row.reversed_balance) || 0,
+    previousEmpty: mapEmptyQuantityObject(row.previous_empty),
+    newEmpty: mapEmptyQuantityObject(row.new_empty),
+    reversedEmpty: mapEmptyQuantityObject(row.reversed_empty),
+    createdAt: row.created_at || new Date().toISOString(),
+  };
+}
+
+// Yönetici denetim listesi. Kayıtlar değiştirilemez; yalnızca okunur.
+export async function getDeliveryCorrections(limit = 100): Promise<DeliveryCorrectionAudit[]> {
+  const safeLimit = Math.min(Math.max(Math.trunc(limit) || 100, 1), 200);
+
+  if (isSupabaseOperational() && supabase) {
+    const { data, error } = await supabase
+      .from('delivery_cancellation_audit')
+      .select(
+        'id, delivery_id, dispatch_id, customer_id, action, performed_by_user_id, performed_by_user_name, reason, replacement_delivery_id, previous_balance, new_balance, reversed_balance, previous_empty, new_empty, reversed_empty, created_at'
+      )
+      .order('created_at', { ascending: false })
+      .limit(safeLimit);
+    if (error) {
+      console.error('[Supabase getDeliveryCorrections]', error);
+      throw new Error(
+        toTurkishDbError(error, 'Teslimat düzeltme kayıtları sorgulanamadı. Lütfen tekrar deneyin.')
+      );
+    }
+    return (data || []).map(mapDeliveryCorrectionAudit);
+  }
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `SELECT id, delivery_id, dispatch_id, customer_id, action,
+              performed_by_user_id, performed_by_user_name, reason,
+              replacement_delivery_id, previous_balance, new_balance,
+              reversed_balance, previous_empty, new_empty, reversed_empty,
+              created_at
+         FROM public.delivery_cancellation_audit
+        ORDER BY created_at DESC, id DESC
+        LIMIT $1`,
+      [safeLimit]
+    );
+    return result.rows.map(mapDeliveryCorrectionAudit);
+  }
+
+  return [];
+}
+
 // Teslimatı ve müşteriyi yerel JSON yedeğine yansıtır (tutarlılık için).
 function mirrorDeliveryLocally(del: Delivery, updatedCustomer: Customer): void {
   const db = loadLocalDatabase();

@@ -32,6 +32,7 @@ import {
   adminUpdateCustomerAtomic,
   getDeliveries,
   getDeliveryById,
+  getDeliveryCorrections,
   createDeliveryRecord,
   cancelDeliveryAtomic,
   replaceDeliveryAtomic,
@@ -1307,6 +1308,22 @@ app.post('/api/deliveries/:id/replace', async (req, res) => {
     });
   } catch (err: any) {
     sendDeliveryCorrectionError(res, err);
+  }
+});
+
+// 5d. Teslimat iptal/düzenleme denetim kayıtları — salt okunur, yönetici
+app.get('/api/delivery-corrections', requireAdmin, async (req, res) => {
+  try {
+    const requested = Number(req.query.limit);
+    const corrections = await getDeliveryCorrections(
+      Number.isFinite(requested) ? requested : 100
+    );
+    res.json({ corrections });
+  } catch (err: any) {
+    res.status(500).json({
+      error: err.message || 'Teslimat düzeltme kayıtları yüklenemedi.',
+      code: 'CORRECTIONS_FAILED',
+    });
   }
 });
 
