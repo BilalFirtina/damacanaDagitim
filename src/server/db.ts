@@ -948,6 +948,12 @@ function mapDeliveryFromDb(row: any, itemRows: any[] = [], containerRows: any[] 
     emptyContainersDiff,
     notes: row.notes || '',
     isOfflineSync: Boolean(row.is_offline_sync),
+    status: row.status === 'cancelled' ? 'cancelled' : 'active',
+    cancelledAt: row.cancelled_at || null,
+    cancelledByUserId: row.cancelled_by_user_id || null,
+    cancelledByUserName: row.cancelled_by_user_name || null,
+    cancelReason: row.cancel_reason || null,
+    replacedByDeliveryId: row.replaced_by_delivery_id || null,
   };
 }
 
@@ -2482,7 +2488,9 @@ export async function closeDispatchAtomic(
     );
   }
 
-  const deliveries = db.deliveries.filter((d) => d.dispatchId === dispatch.id);
+  const deliveries = db.deliveries.filter(
+    (d) => d.dispatchId === dispatch.id && d.status !== 'cancelled'
+  );
   const deliveredTotals: Record<string, number> = {};
   let totalDeliveredValue = 0;
   let totalCashCollected = 0;
@@ -2979,10 +2987,16 @@ export async function updateDispatch(id: string, updates: Partial<Dispatch>): Pr
 }
 
 // 5. Deliveries
-export async function getDeliveries(params?: { dispatchId?: string; driverId?: string; date?: string }): Promise<Delivery[]> {
+export async function getDeliveries(params?: {
+  dispatchId?: string;
+  driverId?: string;
+  date?: string;
+  includeCancelled?: boolean;
+}): Promise<Delivery[]> {
   if (isSupabaseOperational() && supabase) {
     try {
       let query = supabase.from('deliveries').select('*').order('timestamp', { ascending: false });
+      if (!params?.includeCancelled) query = query.neq('status', 'cancelled');
       if (params?.dispatchId) query = query.eq('dispatch_id', params.dispatchId);
       if (params?.driverId) query = query.eq('driver_id', params.driverId);
       if (params?.date) {
@@ -3038,6 +3052,7 @@ export async function getDeliveries(params?: { dispatchId?: string; driverId?: s
   }
 
   let list = [...loadLocalDatabase().deliveries];
+  if (!params?.includeCancelled) list = list.filter((d) => d.status !== 'cancelled');
   if (params?.dispatchId) list = list.filter((d) => d.dispatchId === params.dispatchId);
   if (params?.driverId) list = list.filter((d) => d.driverId === params.driverId);
   if (params?.date) list = list.filter((d) => isSameUtcDate(d.timestamp, params.date!));
@@ -3394,7 +3409,9 @@ export async function createDeliveryRecord(
   }
 
   const alreadyDelivered: Record<string, number> = {};
-  for (const prior of db.deliveries.filter((d) => d.dispatchId === del.dispatchId)) {
+  for (const prior of db.deliveries.filter(
+    (d) => d.dispatchId === del.dispatchId && d.status !== 'cancelled'
+  )) {
     for (const item of prior.deliveredItems || []) {
       alreadyDelivered[item.productId] =
         (alreadyDelivered[item.productId] || 0) + (Number(item.quantity) || 0);
@@ -3414,6 +3431,233 @@ export async function createDeliveryRecord(
 
   mirrorDeliveryLocally(del, updatedCustomer);
   return { delivery: del, updatedCustomer, duplicate: false };
+}
+
+// Teslimat iptali ve düzenlemesi yalnızca merkezi veritabanı RPC'siyle yapılır.
+// Yerel JSON modunda bakiye/boş kap mantığı yeniden uygulanmaz; 503 döner.
+export interface DeliveryCorrectionResult {
+  delivery: Delivery | null;
+  replacement: Delivery | null;
+  updatedCustomer: Customer | null;
+  duplicate: boolean;
+}
+
+function parseCancellationDbError(e: any): DeliveryDbError {
+  const raw = `${e?.message || ''} ${e?.details || ''} ${e?.hint || ''}`.trim();
+
+  if (/CANCEL_HISTORICAL_UNSUPPORTED/.test(raw)) {
+    return new DeliveryDbError(
+      'CANCEL_HISTORICAL_UNSUPPORTED',
+      'Bu teslimat eski sürümle kaydedildiği için güvenli biçimde iptal edilemez. Lütfen yöneticiyle iletişime geçin.'
+    );
+  }
+  if (/EMPTY_REVERSAL_CONFLICT/.test(raw)) {
+    const match = raw.match(/EMPTY_REVERSAL_CONFLICT:([a-z_]+)/i);
+    const labels: Record<string, string> = {
+      damacana: 'Damacana',
+      cam_damacana: 'Cam damacana',
+      tup: 'Tüp',
+    };
+    const label = (match && labels[match[1]]) || 'Boş kap';
+    return new DeliveryDbError(
+      'EMPTY_REVERSAL_CONFLICT',
+      `${label} boş kap bakiyesi bu işlemde negatife düşüyor. Lütfen yöneticiyle iletişime geçin.`
+    );
+  }
+  if (/DELIVERY_ALREADY_CANCELLED/.test(raw)) {
+    return new DeliveryDbError(
+      'DELIVERY_ALREADY_CANCELLED',
+      'Bu teslimat başka bir işlemle iptal edilmiş.'
+    );
+  }
+  if (/REPLACEMENT_ID_CONFLICT/.test(raw)) {
+    return new DeliveryDbError(
+      'REPLACEMENT_ID_CONFLICT',
+      'Düzenleme kaydı başka bir işlemle çakıştı. Lütfen listeyi yenileyip tekrar deneyin.'
+    );
+  }
+  if (/DELIVERY_NOT_FOUND/.test(raw)) {
+    return new DeliveryDbError('DELIVERY_NOT_FOUND', 'Teslimat bulunamadı.');
+  }
+  if (/NOT_AUTHORIZED/.test(raw)) {
+    return new DeliveryDbError(
+      'NOT_AUTHORIZED',
+      'Bu teslimatı yalnızca kendi seferinizdeki şoför iptal edebilir.'
+    );
+  }
+  if (/REASON_REQUIRED/.test(raw)) {
+    return new DeliveryDbError('REASON_REQUIRED', 'En az 3 karakterlik bir gerekçe girin.');
+  }
+  if (/DISPATCH_CLOSED/.test(raw)) {
+    return new DeliveryDbError(
+      'DISPATCH_CLOSED',
+      'Sefer kapatılmış. Düzeltme için yönetici seferi yeniden açmalıdır.'
+    );
+  }
+  if (/DISPATCH_NOT_FOUND/.test(raw)) {
+    return new DeliveryDbError('DISPATCH_NOT_FOUND', 'Sefer bulunamadı.');
+  }
+  if (/CUSTOMER_NOT_FOUND/.test(raw)) {
+    return new DeliveryDbError('CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
+  }
+  if (/INSUFFICIENT_VEHICLE_STOCK/.test(raw)) {
+    return new DeliveryDbError(
+      'INSUFFICIENT_VEHICLE_STOCK',
+      'Araçta bu üründen yeterli stok yok. Teslimat miktarı yüklenen miktarı aşamaz.'
+    );
+  }
+  if (/PAYMENT_DATA_INCONSISTENT/.test(raw)) {
+    return new DeliveryDbError(
+      'PAYMENT_DATA_INCONSISTENT',
+      'Teslimat ödeme tutarları birbiriyle uyuşmuyor. Kayıt reddedildi.'
+    );
+  }
+  if (/VALIDATION_ERROR/.test(raw)) {
+    return new DeliveryDbError('VALIDATION_ERROR', 'Teslimat bilgileri geçersiz.');
+  }
+  if (/EMPTY_BALANCE_NEGATIVE/.test(raw)) {
+    return new DeliveryDbError(
+      'EMPTY_BALANCE_NEGATIVE',
+      'Boş kap bakiyesi negatife düşeceği için işlem reddedildi.'
+    );
+  }
+  if (hasRpcMissingSignature(e)) {
+    return new DeliveryDbError(
+      'MIGRATION_REQUIRED',
+      'Sunucu veritabanı güncellemesi eksik: teslimat iptal fonksiyonu bulunamadı. Yöneticiye bildirin.'
+    );
+  }
+  return new DeliveryDbError(
+    'DB_ERROR',
+    toTurkishDbError(e, 'Teslimat düzeltilemedi. Lütfen tekrar deneyin.')
+  );
+}
+
+async function readCorrectionResult(
+  deliveryId: string,
+  replacementId: string | null,
+  duplicate: boolean
+): Promise<DeliveryCorrectionResult> {
+  const delivery = await getDeliveryById(deliveryId);
+  const replacement = replacementId ? await getDeliveryById(replacementId) : null;
+  let updatedCustomer: Customer | null = null;
+  try {
+    const all = await getCustomers();
+    updatedCustomer = all.find((c) => c.id === delivery?.customerId) || null;
+  } catch (e) {
+    console.error('[delivery correction customer refresh]', e);
+  }
+
+  if (delivery && updatedCustomer) {
+    mirrorDeliveryLocally(delivery, updatedCustomer);
+  }
+  if (replacement && updatedCustomer) {
+    mirrorDeliveryLocally(replacement, updatedCustomer);
+  }
+
+  return { delivery, replacement, updatedCustomer, duplicate };
+}
+
+export async function cancelDeliveryAtomic(
+  deliveryId: string,
+  actorId: string,
+  reason: string
+): Promise<DeliveryCorrectionResult> {
+  const payload = {
+    delivery_id: deliveryId,
+    mode: 'cancel',
+    actor_id: actorId,
+    reason,
+  };
+
+  if (isSupabaseOperational() && supabase) {
+    let data: any;
+    try {
+      const rpc = await supabase.rpc('cancel_or_replace_delivery', { p: payload });
+      if (rpc.error) throw rpc.error;
+      data = rpc.data;
+    } catch (e: any) {
+      console.error('[Supabase cancel_or_replace_delivery]', e);
+      throw parseCancellationDbError(e);
+    }
+    return readCorrectionResult(deliveryId, null, !!data?.duplicate);
+  }
+
+  if (pgPool) {
+    let data: any;
+    try {
+      const res = await pgPool.query(
+        'SELECT public.cancel_or_replace_delivery($1::jsonb) AS result',
+        [JSON.stringify(payload)]
+      );
+      data = res.rows[0]?.result;
+    } catch (e: any) {
+      console.error('[Postgres cancel_or_replace_delivery]', e);
+      throw parseCancellationDbError(e);
+    }
+    return readCorrectionResult(deliveryId, null, !!data?.duplicate);
+  }
+
+  throw new DeliveryDbError(
+    'REMOTE_REQUIRED',
+    'İptal işlemi yalnızca merkezi veritabanı bağlantısı varken yapılabilir. Lütfen bağlantıyı kontrol edin.'
+  );
+}
+
+export async function replaceDeliveryAtomic(
+  deliveryId: string,
+  actorId: string,
+  reason: string,
+  replacement: Delivery
+): Promise<DeliveryCorrectionResult> {
+  const payload = {
+    delivery_id: deliveryId,
+    mode: 'replace',
+    actor_id: actorId,
+    reason,
+    replacement: buildApplyDeliveryPayload(replacement),
+  };
+
+  if (isSupabaseOperational() && supabase) {
+    let data: any;
+    try {
+      const rpc = await supabase.rpc('cancel_or_replace_delivery', { p: payload });
+      if (rpc.error) throw rpc.error;
+      data = rpc.data;
+    } catch (e: any) {
+      console.error('[Supabase cancel_or_replace_delivery replace]', e);
+      throw parseCancellationDbError(e);
+    }
+    return readCorrectionResult(
+      deliveryId,
+      replacement.id,
+      !!data?.duplicate
+    );
+  }
+
+  if (pgPool) {
+    let data: any;
+    try {
+      const res = await pgPool.query(
+        'SELECT public.cancel_or_replace_delivery($1::jsonb) AS result',
+        [JSON.stringify(payload)]
+      );
+      data = res.rows[0]?.result;
+    } catch (e: any) {
+      console.error('[Postgres cancel_or_replace_delivery replace]', e);
+      throw parseCancellationDbError(e);
+    }
+    return readCorrectionResult(
+      deliveryId,
+      replacement.id,
+      !!data?.duplicate
+    );
+  }
+
+  throw new DeliveryDbError(
+    'REMOTE_REQUIRED',
+    'Düzenleme yalnızca merkezi veritabanı bağlantısı varken yapılabilir. Lütfen bağlantıyı kontrol edin.'
+  );
 }
 
 // Yönetici tarafından kapatılmış seferi denetim kaydıyla yeniden açar.

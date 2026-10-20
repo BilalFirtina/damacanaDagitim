@@ -202,9 +202,13 @@ DECLARE
   v_next_qty            INTEGER;
   v_replacement_id      TEXT;
   v_replacement         JSONB;
-  v_replacement_dispatch TEXT;
-  v_replacement_customer TEXT;
-  v_replacement_driver  TEXT;
+  v_old_empty_deltas    JSONB := '{}'::jsonb;
+  v_new_empty_deltas    JSONB := '{}'::jsonb;
+  v_apply_payload       JSONB;
+  v_delta_type          TEXT;
+  v_old_delta           INTEGER;
+  v_new_delta           INTEGER;
+  v_final_qty           INTEGER;
   v_audit_id            BIGINT;
   v_snapshot            JSONB;
   v_apply_result        JSONB;
@@ -356,40 +360,59 @@ BEGIN
   FROM public.customer_empty_balances
   WHERE customer_id = v_customer_id;
 
-  -- Boş kap deltalarını geri al. Sonradan yapılan hareketler negatife
-  -- düşürecekse hiçbir değişiklik uygulanmaz; transaction tamamen geri alınır.
-  FOR v_row IN
-    SELECT deposit_type, diff_qty
-    FROM public.delivery_container_returns
-    WHERE delivery_id = v_id
-    ORDER BY deposit_type
+  SELECT COALESCE(jsonb_object_agg(deposit_type, diff_qty), '{}'::jsonb)
+    INTO v_old_empty_deltas
+  FROM public.delivery_container_returns
+  WHERE delivery_id = v_id;
+
+  IF v_mode = 'replace' THEN
+    SELECT COALESCE(jsonb_object_agg(
+             r->>'deposit_type',
+             COALESCE((r->>'diff_qty')::int, 0)
+           ), '{}'::jsonb)
+      INTO v_new_empty_deltas
+    FROM jsonb_array_elements(
+      COALESCE(v_replacement->'container_returns', '[]'::jsonb)
+    ) AS r;
+  END IF;
+
+  -- Boş kap net etkisi: mevcut - eski delta + yeni delta. Düzenlemede
+  -- eski teslimat geri alınıp yenisi uygulanırken ara adım negatife düşse
+  -- bile nihai bakiye negatif değilse işlem geçerlidir. Nihai bakiye
+  -- negatifse hiçbir değişiklik yazılmaz; transaction tamamen geri alınır.
+  FOR v_delta_type IN
+    SELECT key FROM jsonb_each(COALESCE(v_old_empty_deltas, '{}'::jsonb))
+    UNION
+    SELECT key FROM jsonb_each(COALESCE(v_new_empty_deltas, '{}'::jsonb))
   LOOP
-    IF COALESCE(v_row.diff_qty, 0) = 0 THEN
-      CONTINUE;
-    END IF;
+    v_old_delta := COALESCE((v_old_empty_deltas->>v_delta_type)::int, 0);
+    v_new_delta := COALESCE((v_new_empty_deltas->>v_delta_type)::int, 0);
+    CONTINUE WHEN v_old_delta = 0 AND v_new_delta = 0;
 
     SELECT quantity INTO v_current_qty
     FROM public.customer_empty_balances
-    WHERE customer_id = v_customer_id AND deposit_type = v_row.deposit_type
+    WHERE customer_id = v_customer_id AND deposit_type = v_delta_type
     FOR UPDATE;
 
     IF NOT FOUND THEN
       v_current_qty := 0;
     END IF;
 
-    v_next_qty := v_current_qty - v_row.diff_qty;
-    IF v_next_qty < 0 THEN
-      RAISE EXCEPTION 'EMPTY_REVERSAL_CONFLICT:%', v_row.deposit_type;
+    v_final_qty := v_current_qty - v_old_delta + v_new_delta;
+    IF v_final_qty < 0 THEN
+      RAISE EXCEPTION 'EMPTY_REVERSAL_CONFLICT:%', v_delta_type;
     END IF;
 
     INSERT INTO public.customer_empty_balances (customer_id, deposit_type, quantity)
-    VALUES (v_customer_id, v_row.deposit_type, v_next_qty)
+    VALUES (v_customer_id, v_delta_type, v_final_qty)
     ON CONFLICT (customer_id, deposit_type)
     DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = now();
 
-    v_reversed_empty := v_reversed_empty || jsonb_build_object(
-      v_row.deposit_type, v_row.diff_qty
-    );
+    IF v_old_delta <> 0 THEN
+      v_reversed_empty := v_reversed_empty || jsonb_build_object(
+        v_delta_type, v_old_delta
+      );
+    END IF;
   END LOOP;
 
   IF v_applied_delta <> 0 THEN
@@ -418,7 +441,16 @@ BEGIN
   END IF;
 
   IF v_mode = 'replace' THEN
-    v_apply_result := public.apply_delivery(v_replacement);
+    -- Boş kap bakiyeleri yukarıda eski+yeni net etkiyle zaten yazıldı.
+    -- apply_delivery yalnızca teslimat/kalem/fiyat/bakiye yazsın diye
+    -- empty_deltas boşaltılır; container_returns gerçek değerleriyle kalır.
+    v_apply_payload := jsonb_set(
+      v_replacement,
+      '{empty_deltas}',
+      '{}'::jsonb,
+      true
+    );
+    v_apply_result := public.apply_delivery(v_apply_payload);
     IF COALESCE((v_apply_result->>'duplicate')::boolean, false) THEN
       RAISE EXCEPTION 'REPLACEMENT_ID_CONFLICT';
     END IF;
@@ -707,6 +739,176 @@ BEGIN
   END LOOP;
 
   RETURN jsonb_build_object('duplicate', false, 'delivery_id', v_id);
+END;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- 5. close_dispatch: iptal edilmiş teslimatları tüm hesaplardan hariç tut
+--
+-- Aksi halde iptal edilen teslimatlar gün sonu ciro, tahsilat, cari borç ve
+-- araç stok mutabakatına yansımaya devam ederdi.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.close_dispatch(p JSONB)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+DECLARE
+  v_dispatch_id   TEXT := p->>'dispatch_id';
+  v_status        TEXT;
+  v_total_value   NUMERIC := 0;
+  v_total_cash    NUMERIC := 0;
+  v_total_pos     NUMERIC := 0;
+  v_total_credit  NUMERIC := 0;
+  v_loaded        RECORD;
+  v_delivered     INTEGER;
+  v_expected      INTEGER;
+  v_counted       INTEGER;
+  v_user_id       TEXT := p->>'closed_by_user_id';
+  v_user_name     TEXT;
+  v_updated       INTEGER;
+BEGIN
+  IF v_dispatch_id IS NULL OR btrim(v_dispatch_id) = '' THEN
+    RAISE EXCEPTION 'VALIDATION_ERROR: dispatch id required';
+  END IF;
+  IF v_user_id IS NULL OR btrim(v_user_id) = '' THEN
+    RAISE EXCEPTION 'VALIDATION_ERROR: closer id required';
+  END IF;
+
+  SELECT name INTO v_user_name
+  FROM public.users
+  WHERE id = v_user_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'NOT_AUTHORIZED';
+  END IF;
+
+  SELECT status INTO v_status
+  FROM public.dispatches
+  WHERE id = v_dispatch_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'DISPATCH_NOT_FOUND';
+  END IF;
+  IF v_status = 'completed' THEN
+    RAISE EXCEPTION 'DISPATCH_ALREADY_COMPLETED';
+  END IF;
+  IF v_status IS NULL OR v_status <> 'in_transit' THEN
+    RAISE EXCEPTION 'INVALID_DISPATCH_STATE';
+  END IF;
+
+  -- Eski şema kayıtlarında kalem veya ödeme alanları eksikse kapatma
+  -- varsayılan 0 değerlerle yapılmaz; düzeltme süreci gerekir.
+  IF EXISTS (
+    SELECT 1
+    FROM public.deliveries d
+    WHERE d.dispatch_id = v_dispatch_id
+      AND d.cancelled_at IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM public.delivery_items di WHERE di.delivery_id = d.id
+      )
+  ) THEN
+    RAISE EXCEPTION 'HISTORICAL_DELIVERY_ITEMS_MISSING';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM public.deliveries d
+    WHERE d.dispatch_id = v_dispatch_id
+      AND d.cancelled_at IS NULL
+      AND (
+        abs(COALESCE(d.total_collected, 0)
+            - COALESCE(d.cash_amount, 0)
+            - COALESCE(d.pos_amount, 0)) > 0.01
+        OR abs(COALESCE(d.total_collected, 0)
+               + COALESCE(d.diff_uncollected, 0)
+               - COALESCE(d.delivered_grand_total, 0)) > 0.01
+      )
+  ) THEN
+    RAISE EXCEPTION 'PAYMENT_DATA_INCONSISTENT';
+  END IF;
+
+  -- Cariye eklenen borç yalnızca hesap müşterileri içindir. Hesap dışı
+  -- müşterilerde kalan tutar tahsil edilmemiş satıştır; cari borç değildir.
+  SELECT
+    COALESCE(SUM(COALESCE(d.delivered_grand_total, 0)), 0),
+    COALESCE(SUM(COALESCE(d.cash_amount, 0)), 0),
+    COALESCE(SUM(COALESCE(d.pos_amount, 0)), 0),
+    COALESCE(SUM(
+      CASE WHEN COALESCE(c.is_account_customer, false)
+           THEN GREATEST(COALESCE(d.diff_uncollected, 0), 0)
+           ELSE 0 END
+    ), 0)
+  INTO v_total_value, v_total_cash, v_total_pos, v_total_credit
+  FROM public.deliveries d
+  LEFT JOIN public.customers c ON c.id = d.customer_id
+  WHERE d.dispatch_id = v_dispatch_id
+    AND d.cancelled_at IS NULL;
+
+  DELETE FROM public.dispatch_reconciliation_items
+  WHERE dispatch_id = v_dispatch_id;
+
+  FOR v_loaded IN
+    SELECT product_id, quantity
+    FROM public.dispatch_items
+    WHERE dispatch_id = v_dispatch_id
+  LOOP
+    SELECT COALESCE(SUM(di.quantity), 0)
+    INTO v_delivered
+    FROM public.delivery_items di
+    JOIN public.deliveries d ON d.id = di.delivery_id
+    WHERE d.dispatch_id = v_dispatch_id
+      AND d.cancelled_at IS NULL
+      AND di.product_id = v_loaded.product_id;
+
+    v_expected := GREATEST(COALESCE(v_loaded.quantity, 0) - v_delivered, 0);
+    v_counted := GREATEST(
+      COALESCE((p->'remaining_full_counted'->>(v_loaded.product_id))::int, 0),
+      0
+    );
+
+    INSERT INTO public.dispatch_reconciliation_items (
+      dispatch_id, product_id, expected_qty, counted_qty
+    ) VALUES (
+      v_dispatch_id, v_loaded.product_id, v_expected, v_counted
+    );
+  END LOOP;
+
+  UPDATE public.dispatches
+     SET status = 'completed',
+         closed_at = now(),
+         closed_by_user_id = v_user_id,
+         closed_by_user_name = v_user_name,
+         total_delivered_value = v_total_value,
+         total_cash_collected = v_total_cash,
+         total_pos_collected = v_total_pos,
+         total_credit_added = v_total_credit,
+         actual_cash_in_pocket = GREATEST(COALESCE((p->>'actual_cash_in_pocket')::numeric, 0), 0),
+         actual_pos_slips_total = GREATEST(COALESCE((p->>'actual_pos_slips_total')::numeric, 0), 0),
+         collected_empty_damacana = GREATEST(COALESCE((p->>'collected_empty_damacana')::int, 0), 0),
+         collected_empty_cam_damacana = GREATEST(COALESCE((p->>'collected_empty_cam_damacana')::int, 0), 0),
+         collected_empty_tup = GREATEST(COALESCE((p->>'collected_empty_tup')::int, 0), 0),
+         reconciliation_notes = COALESCE(p->>'notes', '')
+   WHERE id = v_dispatch_id;
+
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
+  IF v_updated = 0 THEN
+    RAISE EXCEPTION 'CLOSE_WRITE_NOT_APPLIED';
+  END IF;
+
+  RETURN jsonb_build_object(
+    'closed', true,
+    'dispatch_id', v_dispatch_id,
+    'status', 'completed',
+    'closed_by_user_id', v_user_id,
+    'closed_by_user_name', v_user_name,
+    'total_delivered_value', v_total_value,
+    'total_cash_collected', v_total_cash,
+    'total_pos_collected', v_total_pos,
+    'total_credit_added', v_total_credit
+  );
 END;
 $$;
 

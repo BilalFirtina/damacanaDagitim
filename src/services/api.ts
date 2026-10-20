@@ -480,6 +480,62 @@ export async function createDelivery(deliveryData: any): Promise<{ delivery: Del
   }
 }
 
+export interface DeliveryCorrectionResponse {
+  delivery: Delivery | null;
+  replacement: Delivery | null;
+  updatedCustomer: Customer | null;
+  duplicate: boolean;
+}
+
+// İptal/düzenleme çevrimdışı kuyruğa ALINMAZ: stok ve cari bakiye
+// doğrulaması güncel sunucu verisiyle yapılmak zorundadır.
+export async function cancelDelivery(
+  deliveryId: string,
+  reason: string
+): Promise<DeliveryCorrectionResponse> {
+  if (!navigator.onLine) {
+    throw new Error(
+      'Çevrimdışıyken teslimat iptal edilemez. Lütfen bağlantı kurulduktan sonra tekrar deneyin.'
+    );
+  }
+  const res = await apiFetch(`/api/deliveries/${encodeURIComponent(deliveryId)}/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) await throwServerError(res, 'Teslimat iptal edilemedi.');
+  return res.json();
+}
+
+export async function replaceDelivery(
+  deliveryId: string,
+  replacementId: string,
+  reason: string,
+  replacementData: {
+    deliveredItems: any[];
+    collectedPayment: any;
+    emptyContainersReceived: any;
+    notes?: string;
+  }
+): Promise<DeliveryCorrectionResponse> {
+  if (!navigator.onLine) {
+    throw new Error(
+      'Çevrimdışıyken teslimat düzenlenemez. Lütfen bağlantı kurulduktan sonra tekrar deneyin.'
+    );
+  }
+  const res = await apiFetch(`/api/deliveries/${encodeURIComponent(deliveryId)}/replace`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      replacementId,
+      reason,
+      ...replacementData,
+    }),
+  });
+  if (!res.ok) await throwServerError(res, 'Teslimat düzenlenemedi.');
+  return res.json();
+}
+
 export interface OfflineSyncSummary {
   synced: number;
   conflicts: number;

@@ -174,6 +174,12 @@ function refMapDelivery(row: any, itemRows: any[] = [], containerRows: any[] = [
     emptyContainersDiff,
     notes: row.notes || '',
     isOfflineSync: Boolean(row.is_offline_sync),
+    status: row.status === 'cancelled' ? 'cancelled' : 'active',
+    cancelledAt: row.cancelled_at || null,
+    cancelledByUserId: row.cancelled_by_user_id || null,
+    cancelledByUserName: row.cancelled_by_user_name || null,
+    cancelReason: row.cancel_reason || null,
+    replacedByDeliveryId: row.replaced_by_delivery_id || null,
   };
 }
 

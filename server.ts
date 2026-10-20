@@ -10,7 +10,6 @@ import {
   Product,
   Customer,
   Dispatch,
-  Delivery,
   LoadedItem,
 } from './src/types/index.ts';
 import {
@@ -34,12 +33,12 @@ import {
   getDeliveries,
   getDeliveryById,
   createDeliveryRecord,
+  cancelDeliveryAtomic,
+  replaceDeliveryAtomic,
   reopenDispatch,
   DeliveryDbError,
   DispatchDbError,
   assertRpcAuthorizationReady,
-  computeDeliveredDeposits,
-  computeEmptyContainersDiff,
   runRetentionCleanup,
   getCleanupStats,
   getRetentionHealth,
@@ -48,6 +47,12 @@ import {
   ensureSupabaseSeeded,
   configureSupabase,
 } from './src/server/db.ts';
+import {
+  DeliveryInputError,
+  normalizeDeliveryInput,
+  assertVehicleStockAvailable,
+  assertEmptyBalanceForReplacement,
+} from './src/server/deliveryInput.ts';
 import {
   isDispatchOpenForDelivery,
   validateReopenRequest,
@@ -292,6 +297,45 @@ function sendDispatchDbError(res: Response, err: any) {
     error: err?.message || 'İşlem gerçekleştirilemedi.',
     code: code || 'DISPATCH_FAILED',
     ...(err?.details ? { details: err.details } : {}),
+  });
+}
+
+function sendDeliveryCorrectionError(res: Response, err: any) {
+  if (err instanceof DeliveryInputError) {
+    return res.status(err.status).json({
+      error: err.message,
+      ...(err.code ? { code: err.code } : {}),
+    });
+  }
+
+  const code = err instanceof DeliveryDbError ? err.code : err?.code;
+  const status =
+    code === 'DELIVERY_NOT_FOUND' ||
+    code === 'DISPATCH_NOT_FOUND' ||
+    code === 'CUSTOMER_NOT_FOUND'
+      ? 404
+      : code === 'NOT_AUTHORIZED'
+        ? 403
+        : code === 'REASON_REQUIRED'
+          ? 400
+          : code === 'VALIDATION_ERROR' || code === 'EMPTY_BALANCE_NEGATIVE'
+            ? 422
+            : code === 'CANCEL_HISTORICAL_UNSUPPORTED' ||
+                code === 'EMPTY_REVERSAL_CONFLICT' ||
+                code === 'DELIVERY_ALREADY_CANCELLED' ||
+                code === 'REPLACEMENT_ID_CONFLICT' ||
+                code === 'DISPATCH_CLOSED' ||
+                code === 'INSUFFICIENT_VEHICLE_STOCK' ||
+                code === 'PAYMENT_DATA_INCONSISTENT'
+              ? 409
+              : code === 'MIGRATION_REQUIRED' ||
+                  code === 'RPC_AUTH_REQUIRED' ||
+                  code === 'REMOTE_REQUIRED'
+                ? 503
+                : 500;
+  return res.status(status).json({
+    error: err?.message || 'Teslimat düzeltilemedi.',
+    code: code || 'DELIVERY_CORRECTION_FAILED',
   });
 }
 
@@ -952,130 +996,20 @@ app.post('/api/deliveries', async (req, res) => {
       });
     }
 
-    if (deliveredItems !== undefined && !Array.isArray(deliveredItems)) {
-      return res.status(400).json({ error: 'Teslimat kalemleri geçersiz.' });
-    }
-    const items = Array.isArray(deliveredItems) ? deliveredItems : [];
-
-    const unknownItem = items.find(
-      (item: any) => !allProducts.some((p) => p.id === item.productId)
-    );
-    if (unknownItem) {
-      return res.status(400).json({ error: `Bilinmeyen ürün kaydı: ${unknownItem.productId}` });
-    }
-
-    const invalidItem = items.find((item: any) => {
-      const quantity = Number(item?.quantity);
-      const unitPrice = Number(item?.unitPrice);
-      return (
-        !Number.isInteger(quantity) ||
-        quantity <= 0 ||
-        !Number.isFinite(unitPrice) ||
-        unitPrice < 0
-      );
+    const { delivery: newDelivery, priceUpdates } = normalizeDeliveryInput({
+      id:
+        clientDeliveryId ||
+        `del_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      dispatch,
+      driver,
+      customer,
+      products: allProducts,
+      deliveredItems,
+      collectedPayment,
+      emptyContainersReceived,
+      notes,
+      isOfflineSync,
     });
-    if (invalidItem) {
-      return res.status(400).json({ error: 'Teslimat kalemlerinde geçersiz miktar veya tutar var.' });
-    }
-    const seenDeliveryProducts = new Set<string>();
-    for (const item of items) {
-      const productId = String(item?.productId || '');
-      if (seenDeliveryProducts.has(productId)) {
-        return res.status(400).json({
-          error: 'Aynı ürün teslimat kalemlerinde birden fazla kez yer alamaz.',
-          code: 'VALIDATION_ERROR',
-        });
-      }
-      seenDeliveryProducts.add(productId);
-    }
-
-    // Satır tutarı istemciden GÜVENİLMEZ; miktar × birim fiyat sunucuda
-    // hesaplanır. Böylece düşük tutar bildirilerek borç azaltılamaz.
-    const normalizedItems = items.map((item: any) => {
-      const quantity = Number(item.quantity);
-      const unitPrice = Number(item.unitPrice);
-      return {
-        ...item,
-        quantity,
-        unitPrice,
-        lineTotal: Math.round(quantity * unitPrice * 100) / 100,
-      };
-    });
-
-    let deliveredGrandTotal = 0;
-    const priceUpdates: Record<string, number> = {};
-
-    normalizedItems.forEach((item: any) => {
-      deliveredGrandTotal += item.lineTotal;
-      const prod = allProducts.find((p) => p.id === item.productId);
-
-      // Müşteri profilindeki son fiyat, tekrar kontrolünden SONRA uygulanır.
-      if (item.unitPrice > 0 && prod) {
-        priceUpdates[item.productId] = item.unitPrice;
-      }
-    });
-
-    const emptiesRecv = {
-      damacana: Math.max(0, Math.floor(Number(emptyContainersReceived?.damacana) || 0)),
-      camDamacana: Math.max(
-        0,
-        Math.floor(
-          Number(emptyContainersReceived?.camDamacana ?? emptyContainersReceived?.cam_damacana) || 0
-        )
-      ),
-      tup: Math.max(0, Math.floor(Number(emptyContainersReceived?.tup) || 0)),
-    };
-
-    const deposited = computeDeliveredDeposits(normalizedItems, allProducts);
-    const emptyContainersDiff = computeEmptyContainersDiff(deposited, emptiesRecv);
-
-    const payment = collectedPayment || {
-      method: 'UNPAID',
-      cashAmount: 0,
-      posAmount: 0,
-      totalCollected: 0,
-    };
-
-    const cash = Math.max(0, Number(payment.cashAmount) || 0);
-    const pos = Math.max(0, Number(payment.posAmount) || 0);
-    const totalCollected = cash + pos;
-    const diffUncollected = deliveredGrandTotal - totalCollected;
-
-    let paymentStatus: any = 'unpaid';
-    if (totalCollected >= deliveredGrandTotal && deliveredGrandTotal > 0) {
-      paymentStatus = totalCollected > deliveredGrandTotal ? 'overpaid' : 'paid_full';
-    } else if (totalCollected > 0 && totalCollected < deliveredGrandTotal) {
-      paymentStatus = 'partial';
-    }
-
-    const normalizedPayment = {
-      method: payment.method || (cash > 0 && pos > 0 ? 'MIXED' : pos > 0 ? 'POS' : cash > 0 ? 'CASH' : 'UNPAID'),
-      cashAmount: cash,
-      posAmount: pos,
-      totalCollected,
-      status: paymentStatus,
-      diffUncollected,
-    };
-
-    const newDelivery: Delivery = {
-      id: clientDeliveryId || `del_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      dispatchId: dispatch.id,
-      driverId: driver.id,
-      driverName: driver.name,
-      vehiclePlate: dispatch.vehiclePlate,
-      customerId: customer.id,
-      customerName: customer.name,
-      customerAddress: customer.address,
-      customerPhone: customer.phone,
-      timestamp: new Date().toISOString(),
-      deliveredItems: normalizedItems,
-      deliveredGrandTotal,
-      collectedPayment: normalizedPayment,
-      emptyContainersReceived: emptiesRecv,
-      emptyContainersDiff,
-      notes: notes || '',
-      isOfflineSync: !!isOfflineSync,
-    };
 
     // Tekrarlanan istek (retry / çevrimdışı senkron) koruması:
     // Aynı kimlik daha önce kaydedildiyse hiçbir stok/bakiye işlemi YAPILMAZ.
@@ -1112,25 +1046,7 @@ app.post('/api/deliveries', async (req, res) => {
     // Araç stoğu: yüklenen miktardan, bu seferde daha önce teslim edilenler
     // düşülür. Kesin kontrol DB RPC'sinde kilit altında tekrarlanır.
     const existingDispatchDeliveries = await getDeliveries({ dispatchId: dispatch.id });
-    const alreadyDelivered: Record<string, number> = {};
-    for (const existing of existingDispatchDeliveries) {
-      for (const item of existing.deliveredItems || []) {
-        alreadyDelivered[item.productId] =
-          (alreadyDelivered[item.productId] || 0) + (Number(item.quantity) || 0);
-      }
-    }
-    for (const item of normalizedItems) {
-      const loaded = dispatch.loadedItems.find((li) => li.productId === item.productId);
-      const available =
-        (Number(loaded?.quantity) || 0) - (alreadyDelivered[item.productId] || 0);
-      if (item.quantity > available) {
-        return res.status(409).json({
-          error:
-            'Araçta bu üründen yeterli stok yok. Teslimat miktarı yüklenen miktarı aşamaz.',
-          code: 'INSUFFICIENT_VEHICLE_STOCK',
-        });
-      }
-    }
+    assertVehicleStockAvailable(newDelivery, dispatch, existingDispatchDeliveries);
 
     // Aşağıdaki mutasyonlar yalnızca yerel (fallback) yansıma içindir; merkezi
     // bakiyeyi DB'de apply_delivery delta olarak günceller. Tekrar kontrolünden
@@ -1141,11 +1057,18 @@ app.post('/api/deliveries', async (req, res) => {
 
     const currentEmpty = customer.emptyDepositBalance || { damacana: 0, camDamacana: 0, tup: 0 };
     const nextEmpty = {
-      damacana: (Number(currentEmpty.damacana) || 0) + emptyContainersDiff.damacana,
+      damacana:
+        (Number(currentEmpty.damacana) || 0) +
+        newDelivery.emptyContainersDiff.damacana,
       camDamacana:
         (Number(currentEmpty.camDamacana ?? (currentEmpty as any).cam_damacana) || 0) +
-        emptyContainersDiff.camDamacana,
-      tup: (Number(currentEmpty.tup) || 0) + emptyContainersDiff.tup,
+        Number(
+          newDelivery.emptyContainersDiff.camDamacana ??
+            newDelivery.emptyContainersDiff.cam_damacana ??
+            0
+        ),
+      tup:
+        (Number(currentEmpty.tup) || 0) + newDelivery.emptyContainersDiff.tup,
     };
     if (nextEmpty.damacana < 0 || nextEmpty.camDamacana < 0 || nextEmpty.tup < 0) {
       return res.status(422).json({
@@ -1157,7 +1080,9 @@ app.post('/api/deliveries', async (req, res) => {
     customer.emptyDepositBalance = nextEmpty;
 
     if (customer.isAccountCustomer) {
-      customer.currentBalanceTL = (Number(customer.currentBalanceTL) || 0) + diffUncollected;
+      customer.currentBalanceTL =
+        (Number(customer.currentBalanceTL) || 0) +
+        newDelivery.collectedPayment.diffUncollected;
     }
 
     const result = await createDeliveryRecord(newDelivery, customer);
@@ -1174,6 +1099,12 @@ app.post('/api/deliveries', async (req, res) => {
 
     res.status(result.duplicate ? 200 : 201).json(result);
   } catch (err: any) {
+    if (err instanceof DeliveryInputError) {
+      return res.status(err.status).json({
+        error: err.message,
+        ...(err.code ? { code: err.code } : {}),
+      });
+    }
     const code = err instanceof DeliveryDbError ? err.code : err?.code;
     if (code === 'DISPATCH_CLOSED' || code === 'ID_CONFLICT') {
       return res.status(409).json({ error: err.message, code });
@@ -1191,6 +1122,188 @@ app.post('/api/deliveries', async (req, res) => {
       return res.status(503).json({ error: err.message, code });
     }
     res.status(500).json({ error: err.message, code: code || 'DELIVERY_FAILED' });
+  }
+});
+
+// 5b. Teslimat iptali (soft-cancel) — yalnızca teslimatı yapan şoför
+app.post('/api/deliveries/:id/cancel', async (req, res) => {
+  const deliveryId = String(req.params.id || '');
+  const reason = String(req.body?.reason || '').trim();
+
+  if (reason.length < 3) {
+    return res.status(400).json({
+      error: 'İptal için en az 3 karakterlik bir gerekçe girin.',
+      code: 'REASON_REQUIRED',
+    });
+  }
+
+  try {
+    const session = getAuthUser(req);
+    if (!session || session.role !== 'driver') {
+      return res.status(403).json({
+        error: 'Teslimat iptali yalnızca şoför oturumuyla yapılabilir.',
+        code: 'NOT_AUTHORIZED',
+      });
+    }
+
+    const [existing, allDispatches] = await Promise.all([
+      getDeliveryById(deliveryId),
+      getDispatches(),
+    ]);
+    if (!existing) {
+      return res.status(404).json({
+        error: 'Teslimat bulunamadı.',
+        code: 'DELIVERY_NOT_FOUND',
+      });
+    }
+    const dispatch = allDispatches.find((d) => d.id === existing.dispatchId);
+    if (!dispatch) {
+      return res.status(404).json({
+        error: 'Sefer bulunamadı.',
+        code: 'DISPATCH_NOT_FOUND',
+      });
+    }
+
+    if (session.userId !== existing.driverId || dispatch.driverId !== session.userId) {
+      return res.status(403).json({
+        error: 'Yalnızca kendi seferinizdeki teslimatı iptal edebilirsiniz.',
+        code: 'NOT_AUTHORIZED',
+      });
+    }
+    if (!isDispatchOpenForDelivery(dispatch.status)) {
+      return res.status(409).json({
+        error: 'Sefer kapatılmış. Düzeltme için yönetici seferi yeniden açmalıdır.',
+        code: 'DISPATCH_CLOSED',
+      });
+    }
+
+    const result = await cancelDeliveryAtomic(deliveryId, session.userId, reason);
+    res.json({
+      delivery: result.delivery,
+      replacement: null,
+      updatedCustomer: result.updatedCustomer,
+      duplicate: result.duplicate,
+    });
+  } catch (err: any) {
+    sendDeliveryCorrectionError(res, err);
+  }
+});
+
+// 5c. Teslimat düzenlemesi — eski kayıt iptal + yeni kayıt tek transaction
+app.post('/api/deliveries/:id/replace', async (req, res) => {
+  const deliveryId = String(req.params.id || '');
+  const reason = String(req.body?.reason || '').trim();
+  const replacementId = String(req.body?.replacementId || '');
+
+  if (reason.length < 3) {
+    return res.status(400).json({
+      error: 'Düzenleme için en az 3 karakterlik bir gerekçe girin.',
+      code: 'REASON_REQUIRED',
+    });
+  }
+  if (
+    !/^(del_|offline_)[A-Za-z0-9_-]+$/.test(replacementId) ||
+    replacementId.length > 100 ||
+    replacementId === deliveryId
+  ) {
+    return res.status(400).json({
+      error: 'Geçersiz düzenleme kimliği.',
+      code: 'VALIDATION_ERROR',
+    });
+  }
+
+  try {
+    const session = getAuthUser(req);
+    if (!session || session.role !== 'driver') {
+      return res.status(403).json({
+        error: 'Teslimat düzenlemesi yalnızca şoför oturumuyla yapılabilir.',
+        code: 'NOT_AUTHORIZED',
+      });
+    }
+
+    const [existing, allDispatches, allUsers, allCustomers, allProducts] =
+      await Promise.all([
+        getDeliveryById(deliveryId),
+        getDispatches(),
+        getUsers(),
+        getCustomers(),
+        getProducts(),
+      ]);
+
+    if (!existing) {
+      return res.status(404).json({
+        error: 'Teslimat bulunamadı.',
+        code: 'DELIVERY_NOT_FOUND',
+      });
+    }
+    const dispatch = allDispatches.find((d) => d.id === existing.dispatchId);
+    const driver = allUsers.find((u) => u.id === existing.driverId);
+    const customer = allCustomers.find((c) => c.id === existing.customerId);
+    if (!dispatch || !driver || !customer) {
+      return res.status(404).json({
+        error: 'Teslimatın sefer, şoför veya müşteri bilgisi bulunamadı.',
+        code: 'DELIVERY_NOT_FOUND',
+      });
+    }
+    if (session.userId !== existing.driverId || dispatch.driverId !== session.userId) {
+      return res.status(403).json({
+        error: 'Yalnızca kendi seferinizdeki teslimatı düzenleyebilirsiniz.',
+        code: 'NOT_AUTHORIZED',
+      });
+    }
+
+    if (existing.status === 'cancelled') {
+      if (existing.replacedByDeliveryId !== replacementId) {
+        return res.status(409).json({
+          error: 'Bu teslimat başka bir işlemle iptal edilmiş.',
+          code: 'DELIVERY_ALREADY_CANCELLED',
+        });
+      }
+    } else if (!isDispatchOpenForDelivery(dispatch.status)) {
+      return res.status(409).json({
+        error: 'Sefer kapatılmış. Düzeltme için yönetici seferi yeniden açmalıdır.',
+        code: 'DISPATCH_CLOSED',
+      });
+    }
+
+    const { delivery: replacement } = normalizeDeliveryInput({
+      id: replacementId,
+      dispatch,
+      driver,
+      customer,
+      products: allProducts,
+      deliveredItems: req.body?.deliveredItems,
+      collectedPayment: req.body?.collectedPayment,
+      emptyContainersReceived: req.body?.emptyContainersReceived,
+      notes: req.body?.notes,
+      isOfflineSync: false,
+    });
+
+    if (existing.status !== 'cancelled') {
+      const activeDeliveries = await getDeliveries({ dispatchId: dispatch.id });
+      assertVehicleStockAvailable(
+        replacement,
+        dispatch,
+        activeDeliveries,
+        existing.id
+      );
+      assertEmptyBalanceForReplacement(customer, existing, replacement);
+    }
+
+    const result = await replaceDeliveryAtomic(
+      deliveryId,
+      session.userId,
+      reason,
+      replacement
+    );
+    res.json({
+      delivery: result.delivery,
+      replacement: result.replacement,
+      updatedCustomer: result.updatedCustomer,
+      duplicate: result.duplicate,
+    });
+  } catch (err: any) {
+    sendDeliveryCorrectionError(res, err);
   }
 });
 

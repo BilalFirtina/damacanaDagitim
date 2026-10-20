@@ -243,6 +243,12 @@ export interface Delivery {
   };
   notes?: string;
   isOfflineSync?: boolean;
+  status?: 'active' | 'cancelled';
+  cancelledAt?: string | null;
+  cancelledByUserId?: string | null;
+  cancelledByUserName?: string | null;
+  cancelReason?: string | null;
+  replacedByDeliveryId?: string | null;
 }
 
 export interface CleanupStatus {
