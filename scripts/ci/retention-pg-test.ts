@@ -377,13 +377,41 @@ async function scenarioAudit(c: Client): Promise<void> {
     INSERT INTO public.customer_financial_audit (customer_id, changed_by_user_id, changed_by_user_name, reason)
     VALUES ('c1', 'u_admin', 'Yönetici', 'CI test');
   `);
+  await c.query(`
+    INSERT INTO public.deliveries
+      (id, dispatch_id, driver_id, driver_name, vehicle_plate, customer_id, customer_name,
+       timestamp, delivered_grand_total, payment_method, cash_amount, total_collected,
+       payment_status, status, cancelled_at, cancelled_by_user_id, cancelled_by_user_name,
+       cancel_reason, applied_balance_delta_tl)
+    VALUES
+      ('DEL61CANC', 'D61', 'u_driver', 'Şoför', '34 CI 061', 'c1', 'Test Müşteri',
+       now() - interval '61 day', 100, 'CASH', 100, 100,
+       'paid', 'cancelled', now() - interval '60 day', 'u_driver', 'Şoför',
+       'CI iptal testi', 0);
+  `);
+  await c.query(`
+    INSERT INTO public.delivery_cancellation_audit
+      (delivery_id, dispatch_id, customer_id, action, performed_by_user_id,
+       performed_by_user_name, reason, reversed_balance)
+    VALUES
+      ('DEL61CANC', 'D61', 'c1', 'cancel', 'u_driver', 'Şoför', 'CI iptal testi', 0);
+  `);
   const a1 = await count(c, 'dispatch_reopen_audit');
   const a2 = await count(c, 'dispatch_loading_audit');
   const a3 = await count(c, 'customer_financial_audit');
+  const a4 = await count(c, 'delivery_cancellation_audit');
   await purge(c, false, await eligibleDispatchIds(c));
   check('dispatch_reopen_audit degismedi', (await count(c, 'dispatch_reopen_audit')) === a1 && a1 >= 1);
   check('dispatch_loading_audit degismedi', (await count(c, 'dispatch_loading_audit')) === a2 && a2 >= 1);
   check('customer_financial_audit degismedi', (await count(c, 'customer_financial_audit')) === a3 && a3 >= 1);
+  check('delivery_cancellation_audit degismedi', (await count(c, 'delivery_cancellation_audit')) === a4 && a4 >= 1);
+  check(
+    'iptal edilen teslimat temizlendi, denetim kaydi kaldi',
+    (await deliveryIds(c)).every((id) => id !== 'DEL61CANC') &&
+      (await c.query(
+        "SELECT count(*)::int n FROM public.delivery_cancellation_audit WHERE delivery_id = 'DEL61CANC'"
+      )).rows[0].n === 1
+  );
 }
 
 async function scenarioPrivileges(c: Client): Promise<void> {
