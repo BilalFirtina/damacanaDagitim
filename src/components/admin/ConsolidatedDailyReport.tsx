@@ -218,6 +218,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
           <div className="text-xs font-black uppercase tracking-wider mb-2 border-b border-black pb-1">
             I. GÜNLÜK GENEL İCMAL VE KASA TOPLAMLARI
           </div>
+          <div className="overflow-x-auto print:overflow-visible">
           <table className="w-full text-xs border border-black border-collapse">
             <tbody>
               <tr className="border-b border-black">
@@ -248,6 +249,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
 
         {/* 3. Product-Level Delivered Quantities Summary */}
@@ -255,6 +257,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
           <div className="text-xs font-black uppercase tracking-wider mb-2 border-b border-black pb-1">
             II. GÜN İÇİNDE TESLİM EDİLEN ÜRÜN VE ADET DÖKÜMÜ
           </div>
+          <div className="overflow-x-auto print:overflow-visible">
           <table className="w-full text-xs border border-black border-collapse text-left">
             <thead>
               <tr className="border-b border-black bg-white">
@@ -296,6 +299,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
               )}
             </tbody>
           </table>
+          </div>
         </div>
 
         {/* 4. Driver-by-Driver Customer and Collection Details */}
@@ -369,7 +373,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                   </div>
 
                   {/* Customer Deliveries Table */}
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto print:overflow-visible">
                     <table className="w-full text-xs border-collapse text-left">
                       <thead>
                         <tr className="border-b border-black bg-white">

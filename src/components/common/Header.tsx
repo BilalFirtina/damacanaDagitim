@@ -40,6 +40,25 @@ export const Header: React.FC<HeaderProps> = ({
   const nameFallback = currentUser.title || (currentUser.role === 'admin' ? 'Depo Yöneticisi' : 'Şoför');
   const firstName = getFirstName(currentUser.name, nameFallback);
 
+  const mobileNavItems: Array<{
+    tab: HeaderProps['activeTab'];
+    label: string;
+    ariaLabel: string;
+    icon: React.ComponentType<{ className?: string }>;
+    iconClass: string;
+    activeClass: string;
+    adminOnly?: boolean;
+  }> = [
+    { tab: 'delivery', label: 'Dağıtım', ariaLabel: 'Saha Dağıtımı', icon: Truck, iconClass: 'text-sky-600', activeClass: 'bg-sky-600' },
+    { tab: 'team_feed', label: 'Canlı Akış', ariaLabel: 'Ekip Canlı Akışı', icon: Activity, iconClass: 'text-emerald-500', activeClass: 'bg-sky-600' },
+    { tab: 'eod', label: 'Gün Sonu', ariaLabel: 'Gün Sonu Kapatma', icon: CheckCircle2, iconClass: 'text-amber-500', activeClass: 'bg-sky-600' },
+    { tab: 'customers', label: 'Müşteriler', ariaLabel: 'Müşteriler & Borçlar', icon: Users, iconClass: 'text-indigo-500', activeClass: 'bg-sky-600' },
+    { tab: 'products', label: 'Ürünler', ariaLabel: 'Ürünler & Fiyatlar', icon: Package, iconClass: 'text-violet-500', activeClass: 'bg-sky-600' },
+    { tab: 'reports', label: 'Raporlar', ariaLabel: 'Gün Sonu Dökümü (PDF/Excel)', icon: FileText, iconClass: 'text-blue-500', activeClass: 'bg-sky-600' },
+    { tab: 'admin_loads', label: 'Yükleme', ariaLabel: 'Araç Yüklemeleri & Yetki', icon: ShieldCheck, iconClass: 'text-indigo-600', activeClass: 'bg-indigo-600', adminOnly: true },
+    { tab: 'retention', label: 'Temizlik', ariaLabel: '60 Günlük Temizlik', icon: CalendarCheck, iconClass: 'text-amber-600', activeClass: 'bg-amber-600', adminOnly: true },
+  ];
+
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs w-full max-w-full">
       {/* Top Bar Header */}
@@ -53,7 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
           />
           <div className="min-w-0">
             <span className="text-sm sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
-              Fırtına <span className="text-sky-600 font-extrabold ml-0.5">Gıda</span>
+              Fırtına<span className="hidden min-[360px]:inline text-sky-600 font-extrabold ml-0.5">Gıda</span>
             </span>
           </div>
         </div>
@@ -183,7 +202,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onRefreshData}
             disabled={isRefreshing}
-            className="flex items-center justify-center min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 p-1.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
+            className="flex items-center justify-center min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 p-1.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
             title="Verileri Yenile"
             aria-label="Verileri Yenile"
           >
@@ -209,7 +228,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Explicit Always-Visible Logout Button in Top Bar */}
           <button
             onClick={onLogout}
-            className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl border border-red-200 dark:border-red-900/60 transition-colors shrink-0 cursor-pointer"
+            className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl border border-red-200 dark:border-red-900/60 transition-colors shrink-0 cursor-pointer"
             title="Oturumu Kapat (Çıkış Yap)"
             aria-label="Oturumu Kapat (Çıkış Yap)"
           >
@@ -219,139 +238,31 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Mobile Flat Responsive Grid Navigation (Always visible directly, no open/close toggle, multiple columns side by side, wrapping vertically, no horizontal scrolling) */}
-      <div className="lg:hidden w-full max-w-full box-border border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900/95 px-2.5 sm:px-4 py-2.5 grid grid-cols-1 min-[360px]:grid-cols-2 gap-2 overflow-x-hidden overflow-y-visible">
-        {/* Item 1: Saha Dağıtımı */}
-        <button
-          type="button"
-          onClick={() => setActiveTab('delivery')}
-          className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition-all text-left cursor-pointer box-border ${
-            activeTab === 'delivery'
-              ? 'bg-sky-600 text-white shadow-sm ring-1 ring-sky-500 font-bold'
-              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700/60'
-          }`}
-        >
-          <Truck className={`w-4 h-4 shrink-0 ${activeTab === 'delivery' ? 'text-white' : 'text-sky-600'}`} />
-          <span className="truncate">Saha Dağıtımı</span>
-        </button>
-
-        {/* Item 2: Ekip Canlı Akışı */}
-        <button
-          type="button"
-          onClick={() => setActiveTab('team_feed')}
-          className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 transition-all text-left cursor-pointer box-border ${
-            activeTab === 'team_feed'
-              ? 'bg-sky-600 text-white shadow-sm ring-1 ring-sky-500 font-bold'
-              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700/60'
-          }`}
-        >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <Activity
-              className={`w-4 h-4 shrink-0 ${activeTab === 'team_feed' ? 'text-white' : 'text-emerald-500'}`}
-            />
-            <span className="truncate">Ekip Canlı Akışı</span>
-          </div>
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-        </button>
-
-        {/* Item 3: Gün Sonu Kapatma */}
-        <button
-          type="button"
-          onClick={() => setActiveTab('eod')}
-          className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition-all text-left cursor-pointer box-border ${
-            activeTab === 'eod'
-              ? 'bg-sky-600 text-white shadow-sm ring-1 ring-sky-500 font-bold'
-              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700/60'
-          }`}
-        >
-          <CheckCircle2
-            className={`w-4 h-4 shrink-0 ${activeTab === 'eod' ? 'text-white' : 'text-amber-500'}`}
-          />
-          <span className="truncate">Gün Sonu Kapatma</span>
-        </button>
-
-        {/* Item 4: Müşteriler & Borçlar */}
-        <button
-          type="button"
-          onClick={() => setActiveTab('customers')}
-          className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition-all text-left cursor-pointer box-border ${
-            activeTab === 'customers'
-              ? 'bg-sky-600 text-white shadow-sm ring-1 ring-sky-500 font-bold'
-              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700/60'
-          }`}
-        >
-          <Users
-            className={`w-4 h-4 shrink-0 ${activeTab === 'customers' ? 'text-white' : 'text-indigo-500'}`}
-          />
-          <span className="truncate">Müşteriler & Borçlar</span>
-        </button>
-
-        {/* Item 5: Ürünler & Fiyatlar */}
-        <button
-          type="button"
-          onClick={() => setActiveTab('products')}
-          className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition-all text-left cursor-pointer box-border ${
-            activeTab === 'products'
-              ? 'bg-sky-600 text-white shadow-sm ring-1 ring-sky-500 font-bold'
-              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700/60'
-          }`}
-        >
-          <Package
-            className={`w-4 h-4 shrink-0 ${activeTab === 'products' ? 'text-white' : 'text-violet-500'}`}
-          />
-          <span className="truncate">Ürünler & Fiyatlar</span>
-        </button>
-
-        {/* Item 6: Gün Sonu Dökümü */}
-        <button
-          type="button"
-          onClick={() => setActiveTab('reports')}
-          className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition-all text-left cursor-pointer box-border ${
-            activeTab === 'reports'
-              ? 'bg-sky-600 text-white shadow-sm ring-1 ring-sky-500 font-bold'
-              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700/60'
-          }`}
-        >
-          <FileText
-            className={`w-4 h-4 shrink-0 ${activeTab === 'reports' ? 'text-white' : 'text-blue-500'}`}
-          />
-          <span className="truncate">Gün Sonu Dökümü</span>
-        </button>
-
-        {/* Admin Items (flat layout, role-based visibility) */}
-        {isAdmin && (
-          <>
-            <button
-              type="button"
-              onClick={() => setActiveTab('admin_loads')}
-              className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition-all text-left cursor-pointer box-border ${
-                activeTab === 'admin_loads'
-                  ? 'bg-indigo-600 text-white shadow-sm ring-1 ring-indigo-500 font-bold'
-                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700/60'
-              }`}
-            >
-              <ShieldCheck
-                className={`w-4 h-4 shrink-0 ${activeTab === 'admin_loads' ? 'text-white' : 'text-indigo-600'}`}
-              />
-              <span className="truncate">Yüklemeler & Yetki</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('retention')}
-              className={`w-full min-h-[44px] px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition-all text-left cursor-pointer box-border ${
-                activeTab === 'retention'
-                  ? 'bg-amber-600 text-white shadow-sm ring-1 ring-amber-500 font-bold'
-                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700/60'
-              }`}
-            >
-              <CalendarCheck
-                className={`w-4 h-4 shrink-0 ${activeTab === 'retention' ? 'text-white' : 'text-amber-600'}`}
-              />
-              <span className="truncate">60 Günlük Temizlik</span>
-            </button>
-          </>
-        )}
+      {/* Compact mobile navigation: four columns, two rows, no horizontal scrolling */}
+      <div className="lg:hidden w-full max-w-full box-border border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900/95 px-2 py-2 grid grid-cols-4 gap-1.5 overflow-x-hidden">
+        {mobileNavItems
+          .filter((item) => !item.adminOnly || isAdmin)
+          .map((item) => {
+            const active = activeTab === item.tab;
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.tab}
+                type="button"
+                onClick={() => setActiveTab(item.tab)}
+                aria-label={item.ariaLabel}
+                title={item.ariaLabel}
+                className={`w-full min-h-[52px] px-1 py-1.5 rounded-lg text-[11px] font-semibold flex flex-col items-center justify-center gap-1 transition-all text-center cursor-pointer box-border ${
+                  active
+                    ? `${item.activeClass} text-white shadow-sm ring-1 ring-white/20 font-bold`
+                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700/60'
+                }`}
+              >
+                <Icon className={`w-5 h-5 shrink-0 ${active ? 'text-white' : item.iconClass}`} />
+                <span className="w-full leading-tight break-words">{item.label}</span>
+              </button>
+            );
+          })}
       </div>
     </header>
   );

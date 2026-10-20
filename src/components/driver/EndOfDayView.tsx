@@ -370,8 +370,8 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+        <div className="overflow-x-auto print:overflow-visible">
+          <table className="w-full min-w-[460px] text-left text-xs">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-semibold">
                 <th className="pb-2.5">Ürün Adı</th>

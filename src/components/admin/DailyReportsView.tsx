@@ -322,27 +322,27 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
   return (
     <div className="space-y-6 w-full max-w-full min-w-0">
       {/* Sub-tab Navigation */}
-      <div className="print:hidden flex items-center gap-2 p-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-2xl w-fit max-w-full overflow-x-auto">
+      <div className="print:hidden flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 p-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-2xl w-full sm:w-fit max-w-full">
         <button
           onClick={() => setSubTab('consolidated')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+          className={`w-full sm:w-auto min-h-11 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center sm:justify-start gap-2 text-left ${
             subTab === 'consolidated'
               ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          <FileText className="w-4 h-4" />
+          <FileText className="w-4 h-4 shrink-0" />
           <span>Konsolide Gün Sonu Raporu (A4 / PDF Baskı)</span>
         </button>
         <button
           onClick={() => setSubTab('detailed')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+          className={`w-full sm:w-auto min-h-11 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center sm:justify-start gap-2 text-left ${
             subTab === 'detailed'
               ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          <FileSpreadsheet className="w-4 h-4" />
+          <FileSpreadsheet className="w-4 h-4 shrink-0" />
           <span>Detaylı Teslimat Listesi & Excel</span>
         </button>
       </div>
@@ -509,7 +509,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
             Seçilen tarih ve kriterlere uygun teslimat kaydı bulunamadı.
           </div>
         ) : (
-          <div className="overflow-x-auto w-full max-w-full">
+          <div className="overflow-x-auto print:overflow-visible w-full max-w-full">
             <table className="w-full text-left text-xs border-collapse min-w-[700px]">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold bg-slate-50/50 dark:bg-slate-800/50">

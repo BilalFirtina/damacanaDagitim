@@ -358,7 +358,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                               [p.id]: Math.max(0, currentQty - step),
                             }))
                           }
-                          className="w-8 h-8 rounded-lg bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center text-sm active:scale-90"
+                          className="w-11 h-11 rounded-lg bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center text-base active:scale-90"
                         >
                           -
                         </button>
@@ -372,7 +372,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                             }))
                           }
                           placeholder="0"
-                          className="w-16 h-8 rounded-lg border border-slate-200 dark:border-slate-700 text-center font-bold font-mono text-xs dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                          className="w-16 h-11 rounded-lg border border-slate-200 dark:border-slate-700 text-center font-bold font-mono text-sm dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-sky-500"
                         />
                         <button
                           type="button"
@@ -382,7 +382,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                               [p.id]: currentQty + step,
                             }))
                           }
-                          className="w-8 h-8 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 font-bold flex items-center justify-center text-sm active:scale-90"
+                          className="w-11 h-11 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 font-bold flex items-center justify-center text-base active:scale-90"
                         >
                           +
                         </button>

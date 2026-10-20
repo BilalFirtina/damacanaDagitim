@@ -443,7 +443,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                                 [p.id]: Math.max(0, currentQty - (p.category === 'damacana' ? 10 : 5)),
                               }))
                             }
-                            className="w-8 h-8 rounded-lg bg-white dark:bg-slate-700 border text-xs font-bold"
+                            className="w-11 h-11 rounded-lg bg-white dark:bg-slate-700 border text-sm font-bold"
                           >
                             -
                           </button>
@@ -457,7 +457,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                               }))
                             }
                             placeholder="0"
-                            className="w-16 h-8 rounded-lg border text-center font-mono font-bold text-xs bg-white dark:bg-slate-800"
+                            className="w-16 h-11 rounded-lg border text-center font-mono font-bold text-sm bg-white dark:bg-slate-800"
                           />
                           <button
                             type="button"
@@ -467,7 +467,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                                 [p.id]: currentQty + (p.category === 'damacana' ? 10 : 5),
                               }))
                             }
-                            className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 text-xs font-bold"
+                            className="w-11 h-11 rounded-lg bg-indigo-50 text-indigo-600 text-sm font-bold"
                           >
                             +
                           </button>

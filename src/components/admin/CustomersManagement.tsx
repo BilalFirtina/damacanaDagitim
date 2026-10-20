@@ -360,9 +360,9 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
             >
               <div>
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
                     <Building2 className="w-4 h-4 text-sky-600 shrink-0" />
-                    <h3 className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                    <h3 className="font-bold text-sm text-slate-900 dark:text-white truncate min-w-0" title={c.name}>
                       {c.name}
                     </h3>
                   </div>

@@ -28,3 +28,28 @@ img, svg, video, canvas, audio, iframe, embed, object {
   max-width: 100%;
   height: auto;
 }
+
+/* Mobile readability and touch targets */
+@media (max-width: 639px) {
+  button,
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    min-height: 44px;
+  }
+
+  button[aria-label],
+  button[title] {
+    min-width: 44px;
+  }
+
+  .text-\[10px\] {
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+  }
+
+  .text-\[11px\] {
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+  }
+}
