@@ -793,6 +793,9 @@ async function scenarioApplyRegression(c: Client): Promise<void> {
       c,
       applyPayload('DEL_OVER', {
         delivered_grand_total: 600,
+        cash_amount: 600,
+        total_collected: 600,
+        diff_uncollected: 0,
         items: [
           {
             line_no: 1,
