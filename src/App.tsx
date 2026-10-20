@@ -256,6 +256,7 @@ export default function App() {
             products={products}
             onDispatchUpdated={handleDispatchUpdated}
             onDeliveryCreated={handleDeliveryCreated}
+            onDeliveryCorrected={loadData}
             onCustomerCreated={handleCustomerCreated}
             onNavigateTab={setActiveTab}
           />

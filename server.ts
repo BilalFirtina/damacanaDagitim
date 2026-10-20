@@ -1170,7 +1170,10 @@ app.post('/api/deliveries/:id/cancel', async (req, res) => {
         code: 'NOT_AUTHORIZED',
       });
     }
-    if (!isDispatchOpenForDelivery(dispatch.status)) {
+    if (
+      existing.status !== 'cancelled' &&
+      !isDispatchOpenForDelivery(dispatch.status)
+    ) {
       return res.status(409).json({
         error: 'Sefer kapatılmış. Düzeltme için yönetici seferi yeniden açmalıdır.',
         code: 'DISPATCH_CLOSED',

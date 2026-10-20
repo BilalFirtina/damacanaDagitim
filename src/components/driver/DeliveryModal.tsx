@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Customer,
   Product,
   Dispatch,
+  Delivery,
   User,
   ProductCategory,
   getProductCategoryCodes,
@@ -20,7 +21,12 @@ import {
   Building2,
   X
 } from 'lucide-react';
-import { createDelivery, createCustomer, createProduct } from '../../services/api';
+import {
+  createDelivery,
+  createCustomer,
+  createProduct,
+  replaceDelivery,
+} from '../../services/api';
 import {
   computeStockWarnings,
   getStockWarningSignature,
@@ -37,6 +43,8 @@ interface DeliveryModalProps {
   products: Product[];
   onDeliveryCreated: (delivery: any, updatedCustomer?: Customer) => void;
   onCustomerCreated?: (customer: Customer) => void;
+  editDelivery?: Delivery | null;
+  onDeliveryUpdated?: () => void;
 }
 
 export const DeliveryModal: React.FC<DeliveryModalProps> = ({
@@ -48,7 +56,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   products,
   onDeliveryCreated,
   onCustomerCreated,
+  editDelivery,
+  onDeliveryUpdated,
 }) => {
+  const isEdit = !!editDelivery;
+  const initializedKeyRef = useRef<string | null>(null);
   // Local products list so newly created products are immediately selectable
   const [allProducts, setAllProducts] = useState<Product[]>(products);
 
@@ -62,6 +74,79 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   useEffect(() => {
     setAllCustomers(customers);
   }, [customers]);
+
+  // Modal her açıldığında bir kez başlatılır. Arka plan yenilemeleri açık
+  // formdaki kullanıcı girişlerini sıfırlamaz.
+  useEffect(() => {
+    const key = isOpen ? (editDelivery ? `edit:${editDelivery.id}` : 'new') : null;
+    if (!key) {
+      initializedKeyRef.current = null;
+      return;
+    }
+    if (initializedKeyRef.current === key) return;
+    initializedKeyRef.current = key;
+
+    setShowNewCustomerForm(false);
+    setCustomerSearch('');
+    setProductSearch('');
+    setErrorPersistent(false);
+    setErrorMsg(null);
+    setShowNewProductForm(false);
+
+    if (editDelivery) {
+      const customer =
+        customers.find((c) => c.id === editDelivery.customerId) || null;
+      setSelectedCustomer(customer);
+
+      const quantitiesFromDelivery: Record<string, number> = {};
+      const pricesFromDelivery: Record<string, number> = {};
+      editDelivery.deliveredItems.forEach((item) => {
+        quantitiesFromDelivery[item.productId] = item.quantity;
+        pricesFromDelivery[item.productId] = item.unitPrice;
+      });
+      setQuantities(quantitiesFromDelivery);
+      setUnitPrices(pricesFromDelivery);
+      setEmptyDamacanaReturned(
+        Number(editDelivery.emptyContainersReceived?.damacana) || 0
+      );
+      setEmptyCamDamacanaReturned(
+        Number(
+          editDelivery.emptyContainersReceived?.camDamacana ??
+            editDelivery.emptyContainersReceived?.cam_damacana
+        ) || 0
+      );
+      setEmptyTupReturned(
+        Number(editDelivery.emptyContainersReceived?.tup) || 0
+      );
+
+      const cash = Number(editDelivery.collectedPayment?.cashAmount) || 0;
+      const pos = Number(editDelivery.collectedPayment?.posAmount) || 0;
+      setPaymentType('custom');
+      setPaymentMethod(cash > 0 && pos > 0 ? 'MIXED' : pos > 0 ? 'POS' : 'CASH');
+      setCashAmountInput(String(cash));
+      setPosAmountInput(String(pos));
+      setNotes(editDelivery.notes || '');
+      setCorrectionReason('');
+      setReplacementId(
+        `del_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
+      );
+    } else {
+      setSelectedCustomer(null);
+      setQuantities({});
+      setUnitPrices({});
+      setEmptyDamacanaReturned(0);
+      setEmptyCamDamacanaReturned(0);
+      setEmptyTupReturned(0);
+      setPaymentType('full');
+      setPaymentMethod('CASH');
+      setCashAmountInput('0');
+      setPosAmountInput('0');
+      setNotes('');
+      setCorrectionReason('');
+      setReplacementId('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, editDelivery]);
 
   // Step 1: Customer selection
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -101,6 +186,8 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const [cashAmountInput, setCashAmountInput] = useState<string>('0');
   const [posAmountInput, setPosAmountInput] = useState<string>('0');
   const [notes, setNotes] = useState('');
+  const [correctionReason, setCorrectionReason] = useState('');
+  const [replacementId, setReplacementId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingCustomer, setIsSubmittingCustomer] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -120,8 +207,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     return () => clearTimeout(timeout);
   }, [errorMsg, errorPersistent]);
 
-  // When customer is selected, initialize prices with customer's custom prices or product defaults
+  // When customer is selected, initialize prices with customer's custom prices or product defaults.
+  // Düzenlemede kaydedilmiş teslimat fiyatları korunur.
   useEffect(() => {
+    if (isEdit) return;
     if (selectedCustomer) {
       const initialPrices: Record<string, number> = {};
       allProducts.forEach((p) => {
@@ -130,7 +219,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       });
       setUnitPrices(initialPrices);
     }
-  }, [selectedCustomer, allProducts]);
+  }, [selectedCustomer, allProducts, isEdit]);
 
   // Delivered items calculation
   const deliveredItems = Object.entries(quantities)
@@ -163,6 +252,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const handleQuantityChange = (productId: string, newQty: number) => {
     setQuantities((prev) => {
       const updated = { ...prev, [productId]: Math.max(0, newQty) };
+      if (isEdit) return updated;
       const p = allProducts.find((prod) => prod.id === productId);
       if (p?.depositType === 'damacana') {
         let totalDam = 0;
@@ -293,11 +383,51 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       showTransientError('Lütfen teslim edilecek en az bir ürün seçiniz ve adedini giriniz');
       return;
     }
+    if (isEdit && correctionReason.trim().length < 3) {
+      setErrorPersistent(true);
+      setErrorMsg('Düzenleme için en az 3 karakterlik bir gerekçe girin.');
+      return;
+    }
 
     try {
       setIsSubmitting(true);
       setErrorPersistent(false);
       setErrorMsg(null);
+
+      const collectedPayment = {
+        method:
+          paymentType === 'unpaid'
+            ? 'UNPAID'
+            : cashVal > 0 && posVal > 0
+            ? 'MIXED'
+            : posVal > 0
+            ? 'POS'
+            : 'CASH',
+        cashAmount: cashVal,
+        posAmount: posVal,
+        totalCollected: totalCollectedVal,
+      };
+      const emptyContainersReceived = {
+        damacana: emptyDamacanaReturned,
+        camDamacana: emptyCamDamacanaReturned,
+        tup: emptyTupReturned,
+      };
+
+      if (isEdit && editDelivery) {
+        const rid =
+          replacementId ||
+          `del_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+        if (!replacementId) setReplacementId(rid);
+        await replaceDelivery(editDelivery.id, rid, correctionReason.trim(), {
+          deliveredItems,
+          collectedPayment,
+          emptyContainersReceived,
+          notes: notes.trim(),
+        });
+        onDeliveryUpdated?.();
+        onClose();
+        return;
+      }
 
       const payload = {
         dispatchId: dispatch.id,
@@ -309,24 +439,8 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         customerAddress: selectedCustomer.address,
         customerPhone: selectedCustomer.phone,
         deliveredItems,
-        collectedPayment: {
-          method:
-            paymentType === 'unpaid'
-              ? 'UNPAID'
-              : cashVal > 0 && posVal > 0
-              ? 'MIXED'
-              : posVal > 0
-              ? 'POS'
-              : 'CASH',
-          cashAmount: cashVal,
-          posAmount: posVal,
-          totalCollected: totalCollectedVal,
-        },
-        emptyContainersReceived: {
-          damacana: emptyDamacanaReturned,
-          camDamacana: emptyCamDamacanaReturned,
-          tup: emptyTupReturned,
-        },
+        collectedPayment,
+        emptyContainersReceived,
         notes: notes.trim(),
       };
 
@@ -335,7 +449,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       onClose();
     } catch (err: any) {
       setErrorPersistent(true);
-      setErrorMsg(err.message || 'Teslimat kaydedilemedi');
+      setErrorMsg(
+        err.message ||
+          (isEdit ? 'Teslimat düzenlenemedi' : 'Teslimat kaydedilemedi')
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -404,14 +521,18 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
           <div>
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <span>Yeni Teslimat Girişi</span>
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
+              <span>{isEdit ? 'Teslimatı Düzenle' : 'Yeni Teslimat Girişi'}</span>
               <span className="text-xs px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-mono font-bold">
                 {dispatch.vehiclePlate}
               </span>
             </h2>
             <p className="text-xs text-slate-500">
-              {selectedCustomer ? 'Müşteri seçildi, teslim edilecek ürünleri belirleyiniz' : 'Adım 1: Önce teslimat yapılacak müşteriyi seçiniz'}
+              {isEdit
+                ? 'Müşteri değiştirilemez. Tutar, ürün, boş kap ve tahsilat düzeltilebilir.'
+                : selectedCustomer
+                ? 'Müşteri seçildi, teslim edilecek ürünleri belirleyiniz'
+                : 'Adım 1: Önce teslimat yapılacak müşteriyi seçiniz'}
             </p>
           </div>
           <button
@@ -425,6 +546,16 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
         {/* Scrollable Body */}
         <div className="p-4 sm:p-5 overflow-y-auto space-y-5 flex-1 min-h-0">
+          {isEdit && (
+            <div className="p-3.5 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 text-xs space-y-1">
+              <p className="font-bold">Eski teslimat iptal edilip yenisi oluşturulacak.</p>
+              <p>
+                Cari bakiye ve boş kap bakiyeleri net fark kadar düzeltilir. İşlem
+                değiştirilemez denetim kaydına yazılır.
+              </p>
+            </div>
+          )}
+
           {/* ============================================================== */}
           {/* STEP 1: CUSTOMER SELECTION (ALWAYS FIRST)                     */}
           {/* ============================================================== */}
@@ -434,7 +565,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] flex items-center justify-center font-bold">1</span>
                 <span>Müşteri Seçimi</span>
               </label>
-              {selectedCustomer && (
+              {selectedCustomer && !isEdit && (
                 <button
                   type="button"
                   onClick={() => setSelectedCustomer(null)}
@@ -649,13 +780,15 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setSelectedCustomer(null)}
-                  className="px-2.5 py-1 rounded-lg border border-sky-300 text-sky-700 hover:bg-sky-100 text-xs font-semibold shrink-0"
-                >
-                  Değiştir
-                </button>
+                {!isEdit && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCustomer(null)}
+                    className="px-2.5 py-1 rounded-lg border border-sky-300 text-sky-700 hover:bg-sky-100 text-xs font-semibold shrink-0"
+                  >
+                    Değiştir
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1225,6 +1358,26 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs bg-slate-50 dark:bg-slate-800"
                 />
               </div>
+
+              {isEdit && (
+                <div>
+                  <label className="text-xs font-bold text-amber-800 dark:text-amber-300 block mb-1">
+                    Düzenleme Gerekçesi *
+                  </label>
+                  <textarea
+                    required
+                    minLength={3}
+                    rows={3}
+                    placeholder="Örn: Müşteriye 2 adet yerine 3 adet teslim edilmiş."
+                    value={correctionReason}
+                    onChange={(e) => setCorrectionReason(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-amber-300 dark:border-amber-800 text-xs bg-amber-50/50 dark:bg-amber-950/20 text-slate-900 dark:text-white resize-y"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    En az 3 karakter. Gerekçe denetim kaydında saklanır.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1298,7 +1451,12 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
           <button
             type="button"
             onClick={handleSubmitDelivery}
-            disabled={isSubmitting || !selectedCustomer || deliveredItems.length === 0}
+            disabled={
+              isSubmitting ||
+              !selectedCustomer ||
+              deliveredItems.length === 0 ||
+              (isEdit && correctionReason.trim().length < 3)
+            }
             className="w-full sm:w-auto sm:flex-1 min-h-12 px-6 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold text-sm shadow-md shadow-sky-600/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <Check className="w-4 h-4 shrink-0" />
@@ -1309,6 +1467,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 ? 'Önce Müşteri Seçiniz'
                 : deliveredItems.length === 0
                 ? 'Ürün Seçiniz'
+                : isEdit && correctionReason.trim().length < 3
+                ? 'Düzenleme Gerekçesi Giriniz'
+                : isEdit
+                ? `Düzenlemeyi Kaydet (${totalCollectedVal.toLocaleString('tr-TR')} ₺)`
                 : `Teslimatı Kaydet (${totalCollectedVal.toLocaleString('tr-TR')} ₺)`}
             </span>
           </button>
