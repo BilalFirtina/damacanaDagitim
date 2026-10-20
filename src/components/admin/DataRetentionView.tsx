@@ -222,47 +222,6 @@ SELECT public.purge_retention(
         </div>
       )}
 
-      {/* Safe Data Guarantee Card */}
-      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 rounded-2xl border border-emerald-200 dark:border-emerald-800 p-5 shadow-xs space-y-3">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-          <h3 className="text-sm font-bold text-emerald-950 dark:text-emerald-200">
-            Müşteri Bakiyeleri ve Cari Borç Güvenlik Garantisi
-          </h3>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-emerald-900 dark:text-emerald-300">
-          <div className="p-3 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-emerald-200/60 dark:border-emerald-800/60">
-            <div className="font-bold mb-1 text-slate-900 dark:text-white flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span>Müşteri Cari Borçları</span>
-            </div>
-            <p className="text-[11px] text-slate-600 dark:text-slate-300">
-              Müşterilerin kalan borç bakiyeleri (TL) kesinlikle silinmez, eksiksiz korunur.
-            </p>
-          </div>
-
-          <div className="p-3 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-emerald-200/60 dark:border-emerald-800/60">
-            <div className="font-bold mb-1 text-slate-900 dark:text-white flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span>Depozitolu Damacana Sayıları</span>
-            </div>
-            <p className="text-[11px] text-slate-600 dark:text-slate-300">
-              Müşterilerde bulunan depozito damacana ve tüp sayıları kalıcı olarak saklanır.
-            </p>
-          </div>
-
-          <div className="p-3 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-emerald-200/60 dark:border-emerald-800/60">
-            <div className="font-bold mb-1 text-slate-900 dark:text-white flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span>Müşteri & Ürün Listeleri</span>
-            </div>
-            <p className="text-[11px] text-slate-600 dark:text-slate-300">
-              Müşteri kartları, adresleri, özel fiyatları ve ürün kataloğu asla silinmez.
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Supabase Direct SQL Cron Reference Box */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-3">
         <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">

@@ -253,39 +253,6 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
         </div>
       )}
 
-      {/* Guidance Cards for Multiple Brands & Cup Packaging */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Damacana Brand Guidance */}
-        <div className="bg-sky-50/60 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900/40 rounded-2xl p-4 flex gap-3">
-          <div className="w-8 h-8 rounded-xl bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 flex items-center justify-center shrink-0">
-            <Droplet className="w-4 h-4" />
-          </div>
-          <div className="text-xs">
-            <h4 className="font-bold text-sky-900 dark:text-sky-200 mb-1">
-              Damacana Markaları (Hayat vs. Sırma)
-            </h4>
-            <p className="text-sky-800/80 dark:text-sky-300/80 leading-relaxed">
-              Her su markası (<strong>Hayat 19L</strong> ve <strong>Sırma 19L</strong>) sistemde kendi adı ve kendi birim fiyatıyla ayrı bir ürün olarak yer alır. Her ikisi de <em>"Damacana Depozitosu"</em>na bağlı olduğu için şoför araçtan hangi markayı verirse versin, boş 19L damacana iadesi tek bir ortak emanet havuzunda müşteriden otomatik tahsil edilir.
-            </p>
-          </div>
-        </div>
-
-        {/* Paper Cup Packaging Guidance */}
-        <div className="bg-amber-50/60 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/40 rounded-2xl p-4 flex gap-3">
-          <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
-            <Coffee className="w-4 h-4" />
-          </div>
-          <div className="text-xs">
-            <h4 className="font-bold text-amber-900 dark:text-amber-200 mb-1">
-              Karton Bardak (3000'li Koli vs. 50'li Paket)
-            </h4>
-            <p className="text-amber-800/80 dark:text-amber-300/80 leading-relaxed">
-              Toptan koli satışları (<strong>3000'li Koli</strong>, birim: <em>Koli</em>) ile perakende rulo satışları (<strong>50'li Paket</strong>, birim: <em>Paket</em>) <strong>iki ayrı ürün</strong> olarak işlenir. Şoför sahada teslimat yaparken müşterinin ihtiyacına göre koli veya paket seçer, tutarlar ve araç yükleme sayımları ayrı ayrı hesaplanır.
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Filter and Search Bar */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
         {/* Category Pills */}
