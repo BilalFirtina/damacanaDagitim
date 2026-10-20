@@ -24,6 +24,7 @@ const RPC = 'public.cancel_or_replace_delivery(jsonb)';
 
 let passed = 0;
 let failed = 0;
+const failureDetails: string[] = [];
 
 function check(name: string, ok: boolean, detail = ''): void {
   if (ok) {
@@ -31,7 +32,9 @@ function check(name: string, ok: boolean, detail = ''): void {
     console.log(`  PASS  ${name}`);
   } else {
     failed++;
-    console.log(`  FAIL  ${name}${detail ? ` -- ${detail}` : ''}`);
+    const message = `${name}${detail ? ` -- ${detail}` : ''}`;
+    failureDetails.push(message);
+    console.log(`  FAIL  ${message}`);
   }
 }
 
@@ -996,10 +999,16 @@ async function main(): Promise<void> {
   }
 
   console.log(`\nSONUC: ${passed} gecti, ${failed} basarisiz`);
-  if (failed > 0) process.exit(1);
+  if (failed > 0) {
+    const detail = failureDetails.join(' | ').slice(0, 60000);
+    console.log(`::error title=PG_TEST_FAIL::${detail}`);
+    process.exit(1);
+  }
 }
 
 main().catch((e) => {
+  const detail = String(e?.stack ?? e).slice(0, 60000);
+  console.log(`::error title=PG_TEST_ERROR::${detail}`);
   console.error('BEKLENMEYEN HATA:', e);
   process.exit(1);
 });
