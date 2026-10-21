@@ -267,6 +267,16 @@ function legacyNormalize(input: any): NormalizedDeliveryInput {
     tup: Math.max(0, Math.floor(Number(emptyContainersReceived?.tup) || 0)),
   };
 
+  const receivedEmptyTotal =
+    emptiesRecv.damacana + emptiesRecv.camDamacana + emptiesRecv.tup;
+  if (normalizedItems.length === 0 && receivedEmptyTotal === 0) {
+    throw new OracleHttpError(
+      400,
+      'Teslimat için en az bir ürün veya müşteriden alınan boş kap girilmelidir.',
+      'EMPTY_DELIVERY'
+    );
+  }
+
   const deposited = computeDeliveredDeposits(normalizedItems, products);
   const emptyContainersDiff = computeEmptyContainersDiff(deposited, emptiesRecv);
 
@@ -390,6 +400,7 @@ interface EquivalenceCase {
   existing?: any[];
   expect: Expectation;
   expectedCamReceived?: number;
+  expectedCode?: string;
 }
 
 const cases: EquivalenceCase[] = [
@@ -407,9 +418,29 @@ const cases: EquivalenceCase[] = [
   {
     name: 'bos kalem dizisi',
     overrides: { deliveredItems: [], collectedPayment: { method: 'UNPAID', cashAmount: 0, posAmount: 0 } },
+    expect: 'normalize-error',
+    expectedCode: 'EMPTY_DELIVERY',
+  },
+  {
+    name: 'eksik deliveredItems',
+    overrides: { deliveredItems: undefined },
+    expect: 'normalize-error',
+    expectedCode: 'EMPTY_DELIVERY',
+  },
+  {
+    name: 'yalniz bos kap teslimati',
+    overrides: {
+      deliveredItems: [],
+      emptyContainersReceived: { damacana: 2 },
+      collectedPayment: { method: 'UNPAID', cashAmount: 0, posAmount: 0 },
+    },
     expect: 'ok',
   },
-  { name: 'eksik deliveredItems', overrides: { deliveredItems: undefined }, expect: 'ok' },
+  {
+    name: 'bos kap ve kalem birlikte',
+    overrides: { emptyContainersReceived: { damacana: 2 } },
+    expect: 'ok',
+  },
   { name: 'null deliveredItems', overrides: { deliveredItems: null }, expect: 'normalize-error' },
   { name: 'obje deliveredItems', overrides: { deliveredItems: { productId: 'p_water' } }, expect: 'normalize-error' },
   {
@@ -718,7 +749,8 @@ const cases: EquivalenceCase[] = [
       deliveredItems: [],
       collectedPayment: { method: 'CASH', cashAmount: 10, posAmount: 0 },
     },
-    expect: 'ok',
+    expect: 'normalize-error',
+    expectedCode: 'EMPTY_DELIVERY',
   },
 ];
 
@@ -742,6 +774,13 @@ for (const testCase of cases) {
       errorShape(oracle.error),
       errorShape(actual.error)
     );
+    if (testCase.expectedCode !== undefined) {
+      check(
+        `${testCase.name}: beklenen hata kodu`,
+        actual.error.code === testCase.expectedCode,
+        `expected=${testCase.expectedCode} actual=${actual.error.code}`
+      );
+    }
   } else if (oracle.ok && actual.ok) {
     compareValues(
       `${testCase.name}: delivery ciktisi`,

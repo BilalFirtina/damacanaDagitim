@@ -9,7 +9,11 @@ import {
   Edit2,
   Mail
 } from 'lucide-react';
-import { createCustomer, updateCustomer } from '../../services/api';
+import {
+  createCustomer,
+  updateCustomer,
+  type CustomerUpdate,
+} from '../../services/api';
 
 interface CustomersManagementProps {
   customers: Customer[];
@@ -48,6 +52,9 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
   const [editEmailInput, setEditEmailInput] = useState('');
   const [editIsAccount, setEditIsAccount] = useState(true);
   const [editNotes, setEditNotes] = useState('');
+  const [editEmptyDamacana, setEditEmptyDamacana] = useState('0');
+  const [editEmptyCamDamacana, setEditEmptyCamDamacana] = useState('0');
+  const [editEmptyTup, setEditEmptyTup] = useState('0');
 
   // Helper to add emails from input (supports comma/semicolon/space separation)
   const addEmailsToNewList = () => {
@@ -122,6 +129,16 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
     setEditEmailInput('');
     setEditIsAccount(cust.isAccountCustomer);
     setEditNotes(cust.notes || '');
+    setEditEmptyDamacana(String(Number(cust.emptyDepositBalance?.damacana) || 0));
+    setEditEmptyCamDamacana(
+      String(
+        Number(
+          cust.emptyDepositBalance?.camDamacana ??
+            cust.emptyDepositBalance?.cam_damacana
+        ) || 0
+      )
+    );
+    setEditEmptyTup(String(Number(cust.emptyDepositBalance?.tup) || 0));
   };
 
   const handleCreateCustomer = async (e: React.FormEvent) => {
@@ -177,15 +194,48 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       });
     }
 
+    const originalEmpty = {
+      damacana: Number(editingCustomer.emptyDepositBalance?.damacana) || 0,
+      camDamacana:
+        Number(
+          editingCustomer.emptyDepositBalance?.camDamacana ??
+            editingCustomer.emptyDepositBalance?.cam_damacana
+        ) || 0,
+      tup: Number(editingCustomer.emptyDepositBalance?.tup) || 0,
+    };
+    const nextEmpty = {
+      damacana: Number(editEmptyDamacana),
+      camDamacana: Number(editEmptyCamDamacana),
+      tup: Number(editEmptyTup),
+    };
+    if (
+      !Number.isInteger(nextEmpty.damacana) ||
+      !Number.isInteger(nextEmpty.camDamacana) ||
+      !Number.isInteger(nextEmpty.tup)
+    ) {
+      alert('Boş kap bakiyeleri tam sayı olmalıdır.');
+      return;
+    }
+    const emptyChanged =
+      nextEmpty.damacana !== originalEmpty.damacana ||
+      nextEmpty.camDamacana !== originalEmpty.camDamacana ||
+      nextEmpty.tup !== originalEmpty.tup;
+
+    const updates: CustomerUpdate = {
+      name: editName.trim(),
+      phone: editPhone.trim(),
+      address: editAddress.trim(),
+      emails: finalEmails,
+      isAccountCustomer: editIsAccount,
+      notes: editNotes.trim(),
+    };
+    if (emptyChanged) {
+      updates.emptyDepositBalance = nextEmpty;
+      updates.expectedEmptyDepositBalance = originalEmpty;
+    }
+
     try {
-      const updated = await updateCustomer(editingCustomer.id, {
-        name: editName.trim(),
-        phone: editPhone.trim(),
-        address: editAddress.trim(),
-        emails: finalEmails,
-        isAccountCustomer: editIsAccount,
-        notes: editNotes.trim(),
-      });
+      const updated = await updateCustomer(editingCustomer.id, updates);
       onCustomersUpdated(customers.map((c) => (c.id === editingCustomer.id ? updated : c)));
       setEditingCustomer(null);
     } catch (err: any) {
@@ -791,6 +841,55 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                   onChange={(e) => setEditNotes(e.target.value)}
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
                 />
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-orange-50/50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/60 space-y-2">
+                <div>
+                  <label className="font-bold text-orange-900 dark:text-orange-300 block">
+                    Emanet Boş Kap Bakiyesi
+                  </label>
+                  <p className="text-[10px] text-orange-700 dark:text-orange-400 mt-0.5">
+                    Negatif değer, müşteriye borcumuz olan boş kap sayısını gösterir.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                      Boş Damacana
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      value={editEmptyDamacana}
+                      onChange={(e) => setEditEmptyDamacana(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-orange-200 dark:border-orange-800 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                      Boş Cam Damacana
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      value={editEmptyCamDamacana}
+                      onChange={(e) => setEditEmptyCamDamacana(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-orange-200 dark:border-orange-800 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                      Boş Tüp
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      value={editEmptyTup}
+                      onChange={(e) => setEditEmptyTup(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-orange-200 dark:border-orange-800 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="pt-1">

@@ -143,6 +143,16 @@ export function normalizeDeliveryInput(
     tup: Math.max(0, Math.floor(Number(emptyContainersReceived?.tup) || 0)),
   };
 
+  const receivedEmptyTotal =
+    emptiesRecv.damacana + emptiesRecv.camDamacana + emptiesRecv.tup;
+  if (normalizedItems.length === 0 && receivedEmptyTotal === 0) {
+    throw new DeliveryInputError(
+      400,
+      'Teslimat için en az bir ürün veya müşteriden alınan boş kap girilmelidir.',
+      'EMPTY_DELIVERY'
+    );
+  }
+
   const deposited = computeDeliveredDeposits(normalizedItems, products);
   const emptyContainersDiff = computeEmptyContainersDiff(deposited, emptiesRecv);
 
@@ -228,63 +238,6 @@ export function assertVehicleStockAvailable(
         409,
         'Araçta bu üründen yeterli stok yok. Teslimat miktarı yüklenen miktarı aşamaz.',
         'INSUFFICIENT_VEHICLE_STOCK'
-      );
-    }
-  }
-}
-
-const EMPTY_TYPE_LABELS: Record<string, string> = {
-  damacana: 'Damacana',
-  cam_damacana: 'Cam damacana',
-  tup: 'Tüp',
-};
-
-/**
- * Düzenlemede boş kap net etkisini önceden doğrular:
- * mevcut - eski teslimatın deltası + yeni teslimatın deltası >= 0.
- * Kesin kontrol DB RPC'sinde müşteri satırı kilitliyken yapılır.
- */
-export function assertEmptyBalanceForReplacement(
-  customer: Customer,
-  oldDelivery: Delivery,
-  newDelivery: Delivery
-): void {
-  const current: Record<string, number> = {
-    damacana: Number(customer.emptyDepositBalance?.damacana) || 0,
-    cam_damacana:
-      Number(
-        customer.emptyDepositBalance?.camDamacana ??
-          customer.emptyDepositBalance?.cam_damacana
-      ) || 0,
-    tup: Number(customer.emptyDepositBalance?.tup) || 0,
-  };
-  const oldDiff: Record<string, number> = {
-    damacana: Number(oldDelivery.emptyContainersDiff?.damacana) || 0,
-    cam_damacana:
-      Number(
-        oldDelivery.emptyContainersDiff?.camDamacana ??
-          oldDelivery.emptyContainersDiff?.cam_damacana
-      ) || 0,
-    tup: Number(oldDelivery.emptyContainersDiff?.tup) || 0,
-  };
-  const newDiff: Record<string, number> = {
-    damacana: Number(newDelivery.emptyContainersDiff?.damacana) || 0,
-    cam_damacana:
-      Number(
-        newDelivery.emptyContainersDiff?.camDamacana ??
-          newDelivery.emptyContainersDiff?.cam_damacana
-      ) || 0,
-    tup: Number(newDelivery.emptyContainersDiff?.tup) || 0,
-  };
-
-  for (const type of ['damacana', 'cam_damacana', 'tup']) {
-    const finalQty = current[type] - oldDiff[type] + newDiff[type];
-    if (finalQty < 0) {
-      const label = EMPTY_TYPE_LABELS[type] || type;
-      throw new DeliveryInputError(
-        409,
-        `${label} boş kap bakiyesi bu düzenlemede negatife düşüyor. Lütfen yöneticiyle iletişime geçin.`,
-        'EMPTY_REVERSAL_CONFLICT'
       );
     }
   }

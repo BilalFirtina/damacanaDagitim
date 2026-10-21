@@ -237,6 +237,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     });
 
   const grandTotal = deliveredItems.reduce((acc, item) => acc + item.lineTotal, 0);
+  const receivedEmptyTotal =
+    emptyDamacanaReturned + emptyCamDamacanaReturned + emptyTupReturned;
+  const hasDeliveryContent = deliveredItems.length > 0 || receivedEmptyTotal > 0;
 
   // Calculate delivered deposit items
   let deliveredDepositDamacana = 0;
@@ -267,6 +270,13 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
           if (allProducts.find((x) => x.id === pId)?.depositType === 'cam_damacana') totalCam += q;
         });
         setEmptyCamDamacanaReturned(totalCam);
+      }
+      if (p?.depositType === 'tup') {
+        let totalTup = 0;
+        Object.entries(updated).forEach(([pId, q]) => {
+          if (allProducts.find((x) => x.id === pId)?.depositType === 'tup') totalTup += q;
+        });
+        setEmptyTupReturned(totalTup);
       }
       return updated;
     });
@@ -379,8 +389,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       showTransientError('Lütfen önce bir müşteri seçiniz');
       return;
     }
-    if (deliveredItems.length === 0) {
-      showTransientError('Lütfen teslim edilecek en az bir ürün seçiniz ve adedini giriniz');
+    if (!hasDeliveryContent) {
+      showTransientError(
+        'Teslimat için en az bir ürün veya müşteriden alınan boş kap girilmelidir.'
+      );
       return;
     }
     if (isEdit && correctionReason.trim().length < 3) {
@@ -1044,16 +1056,15 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
           {/* ============================================================== */}
           {/* STEP 3: DELIVERY DETAILS, STOCK WARNING & PAYMENT              */}
           {/* ============================================================== */}
-          {selectedCustomer && deliveredItems.length > 0 && (
+          {selectedCustomer && (
             <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
               <label className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
                 <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] flex items-center justify-center font-bold">3</span>
-                <span>Teslimat & Tahsilat Detayları</span>
+                <span>Teslimat, Boş Kap & Tahsilat Detayları</span>
               </label>
 
               {/* Deposit Empties Returned */}
-              {(deliveredDepositDamacana > 0 || deliveredDepositCamDamacana > 0 || deliveredDepositTup > 0) && (
-                <div className="p-3.5 rounded-xl border border-orange-200 dark:border-orange-900/60 bg-orange-50/40 dark:bg-orange-950/20 space-y-3">
+              <div className="p-3.5 rounded-xl border border-orange-200 dark:border-orange-900/60 bg-orange-50/40 dark:bg-orange-950/20 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-orange-900 dark:text-orange-300 flex items-center gap-1.5">
                       <RotateCcw className="w-4 h-4 text-orange-600" />
@@ -1064,127 +1075,134 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {deliveredDepositDamacana > 0 && (
-                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-orange-100 dark:border-orange-800">
-                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                          Alınan Boş Damacana
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setEmptyDamacanaReturned((prev) => Math.max(0, prev - 1))}
-                            className="w-7 h-7 rounded bg-slate-100 dark:bg-slate-700 text-xs font-bold"
-                          >
-                            -
-                          </button>
-                          <input
-                            type="number"
-                            value={emptyDamacanaReturned}
-                            onChange={(e) => setEmptyDamacanaReturned(parseInt(e.target.value) || 0)}
-                            className="w-12 h-7 rounded border border-orange-200 text-center font-mono font-bold text-xs"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setEmptyDamacanaReturned((prev) => prev + 1)}
-                            className="w-7 h-7 rounded bg-orange-50 text-orange-600 text-xs font-bold"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {deliveredDepositCamDamacana > 0 && (
-                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-amber-100 dark:border-amber-800">
-                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                          Alınan Boş Cam Damacana
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setEmptyCamDamacanaReturned((prev) => Math.max(0, prev - 1))}
-                            className="w-7 h-7 rounded bg-slate-100 dark:bg-slate-700 text-xs font-bold"
-                          >
-                            -
-                          </button>
-                          <input
-                            type="number"
-                            value={emptyCamDamacanaReturned}
-                            onChange={(e) => setEmptyCamDamacanaReturned(parseInt(e.target.value) || 0)}
-                            className="w-12 h-7 rounded border border-amber-200 text-center font-mono font-bold text-xs"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setEmptyCamDamacanaReturned((prev) => prev + 1)}
-                            className="w-7 h-7 rounded bg-amber-50 text-amber-600 text-xs font-bold"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {deliveredDepositTup > 0 && (
-                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-orange-100 dark:border-orange-800">
-                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                          Alınan Boş Tüp
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setEmptyTupReturned((prev) => Math.max(0, prev - 1))}
-                            className="w-7 h-7 rounded bg-slate-100 dark:bg-slate-700 text-xs font-bold"
-                          >
-                            -
-                          </button>
-                          <input
-                            type="number"
-                            value={emptyTupReturned}
-                            onChange={(e) => setEmptyTupReturned(parseInt(e.target.value) || 0)}
-                            className="w-12 h-7 rounded border border-orange-200 text-center font-mono font-bold text-xs"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setEmptyTupReturned((prev) => prev + 1)}
-                            className="w-7 h-7 rounded bg-orange-50 text-orange-600 text-xs font-bold"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-orange-100 dark:border-orange-800">
+                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      Alınan Boş Damacana
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setEmptyDamacanaReturned((prev) => Math.max(0, prev - 1))}
+                        className="w-7 h-7 rounded bg-slate-100 dark:bg-slate-700 text-xs font-bold"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        value={emptyDamacanaReturned}
+                        onChange={(e) => setEmptyDamacanaReturned(parseInt(e.target.value) || 0)}
+                        className="w-12 h-7 rounded border border-orange-200 text-center font-mono font-bold text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEmptyDamacanaReturned((prev) => prev + 1)}
+                        className="w-7 h-7 rounded bg-orange-50 text-orange-600 text-xs font-bold"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
 
-                  {deliveredDepositDamacana - emptyDamacanaReturned !== 0 && (
-                    <div className="text-[11px] text-orange-800 dark:text-orange-300">
-                      {deliveredDepositDamacana - emptyDamacanaReturned > 0 ? (
-                        <span>
-                          ⚠️ <strong>{deliveredDepositDamacana - emptyDamacanaReturned} adet boş damacana eksik alındı.</strong> Müşterinin emanet boş borcuna işlenecektir.
-                        </span>
-                      ) : (
-                        <span>
-                          ℹ️ Müşteri fazladan <strong>{emptyDamacanaReturned - deliveredDepositDamacana} adet boş damacana teslim etti.</strong> Emanet borcundan düşülecektir.
-                        </span>
-                      )}
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-amber-100 dark:border-amber-800">
+                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      Alınan Boş Cam Damacana
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setEmptyCamDamacanaReturned((prev) => Math.max(0, prev - 1))}
+                        className="w-7 h-7 rounded bg-slate-100 dark:bg-slate-700 text-xs font-bold"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        value={emptyCamDamacanaReturned}
+                        onChange={(e) => setEmptyCamDamacanaReturned(parseInt(e.target.value) || 0)}
+                        className="w-12 h-7 rounded border border-amber-200 text-center font-mono font-bold text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEmptyCamDamacanaReturned((prev) => prev + 1)}
+                        className="w-7 h-7 rounded bg-amber-50 text-amber-600 text-xs font-bold"
+                      >
+                        +
+                      </button>
                     </div>
-                  )}
+                  </div>
 
-                  {deliveredDepositCamDamacana - emptyCamDamacanaReturned !== 0 && (
-                    <div className="text-[11px] text-amber-800 dark:text-amber-300">
-                      {deliveredDepositCamDamacana - emptyCamDamacanaReturned > 0 ? (
-                        <span>
-                          ⚠️ <strong>{deliveredDepositCamDamacana - emptyCamDamacanaReturned} adet boş cam damacana eksik alındı.</strong> Müşterinin emanet boş cam damacana borcuna işlenecektir.
-                        </span>
-                      ) : (
-                        <span>
-                          ℹ️ Müşteri fazladan <strong>{emptyCamDamacanaReturned - deliveredDepositCamDamacana} adet boş cam damacana teslim etti.</strong> Emanet borcundan düşülecektir.
-                        </span>
-                      )}
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-orange-100 dark:border-orange-800">
+                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      Alınan Boş Tüp
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setEmptyTupReturned((prev) => Math.max(0, prev - 1))}
+                        className="w-7 h-7 rounded bg-slate-100 dark:bg-slate-700 text-xs font-bold"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        value={emptyTupReturned}
+                        onChange={(e) => setEmptyTupReturned(parseInt(e.target.value) || 0)}
+                        className="w-12 h-7 rounded border border-orange-200 text-center font-mono font-bold text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEmptyTupReturned((prev) => prev + 1)}
+                        className="w-7 h-7 rounded bg-orange-50 text-orange-600 text-xs font-bold"
+                      >
+                        +
+                      </button>
                     </div>
-                  )}
+                  </div>
                 </div>
-              )}
+
+                {deliveredDepositDamacana - emptyDamacanaReturned !== 0 && (
+                  <div className="text-[11px] text-orange-800 dark:text-orange-300">
+                    {deliveredDepositDamacana - emptyDamacanaReturned > 0 ? (
+                      <span>
+                        ⚠️ <strong>{deliveredDepositDamacana - emptyDamacanaReturned} adet boş damacana eksik alındı.</strong> Müşterinin emanet boş borcuna işlenecektir.
+                      </span>
+                    ) : (
+                      <span>
+                        ℹ️ Müşteri fazladan <strong>{emptyDamacanaReturned - deliveredDepositDamacana} adet boş damacana teslim etti.</strong> Emanet borcundan düşülecektir.
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {deliveredDepositCamDamacana - emptyCamDamacanaReturned !== 0 && (
+                  <div className="text-[11px] text-amber-800 dark:text-amber-300">
+                    {deliveredDepositCamDamacana - emptyCamDamacanaReturned > 0 ? (
+                      <span>
+                        ⚠️ <strong>{deliveredDepositCamDamacana - emptyCamDamacanaReturned} adet boş cam damacana eksik alındı.</strong> Müşterinin emanet boş cam damacana borcuna işlenecektir.
+                      </span>
+                    ) : (
+                      <span>
+                        ℹ️ Müşteri fazladan <strong>{emptyCamDamacanaReturned - deliveredDepositCamDamacana} adet boş cam damacana teslim etti.</strong> Emanet borcundan düşülecektir.
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {deliveredDepositTup - emptyTupReturned !== 0 && (
+                  <div className="text-[11px] text-orange-800 dark:text-orange-300">
+                    {deliveredDepositTup - emptyTupReturned > 0 ? (
+                      <span>
+                        ⚠️ <strong>{deliveredDepositTup - emptyTupReturned} adet boş tüp eksik alındı.</strong> Müşterinin emanet boş tüp borcuna işlenecektir.
+                      </span>
+                    ) : (
+                      <span>
+                        ℹ️ Müşteri fazladan <strong>{emptyTupReturned - deliveredDepositTup} adet boş tüp teslim etti.</strong> Emanet borcundan düşülecektir.
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Payment Section */}
               <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 space-y-3">
@@ -1454,7 +1472,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
             disabled={
               isSubmitting ||
               !selectedCustomer ||
-              deliveredItems.length === 0 ||
+              !hasDeliveryContent ||
               (isEdit && correctionReason.trim().length < 3)
             }
             className="w-full sm:w-auto sm:flex-1 min-h-12 px-6 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold text-sm shadow-md shadow-sky-600/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
@@ -1465,8 +1483,8 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 ? 'Kaydediliyor...'
                 : !selectedCustomer
                 ? 'Önce Müşteri Seçiniz'
-                : deliveredItems.length === 0
-                ? 'Ürün Seçiniz'
+                : !hasDeliveryContent
+                ? 'Ürün veya Boş Kap Giriniz'
                 : isEdit && correctionReason.trim().length < 3
                 ? 'Düzenleme Gerekçesi Giriniz'
                 : isEdit

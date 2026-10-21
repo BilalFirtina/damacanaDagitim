@@ -52,7 +52,6 @@ import {
   DeliveryInputError,
   normalizeDeliveryInput,
   assertVehicleStockAvailable,
-  assertEmptyBalanceForReplacement,
 } from './src/server/deliveryInput.ts';
 import {
   isDispatchOpenForDelivery,
@@ -277,7 +276,9 @@ function sendDispatchDbError(res: Response, err: any) {
       ? 404
       : code === 'NOT_AUTHORIZED'
         ? 403
-        : code === 'MIGRATION_REQUIRED' || code === 'RPC_AUTH_REQUIRED'
+        : code === 'MIGRATION_REQUIRED' ||
+            code === 'RPC_AUTH_REQUIRED' ||
+            code === 'REMOTE_REQUIRED'
           ? 503
           : code === 'VALIDATION_ERROR' || code === 'EXPECTATION_REQUIRED'
             ? 400
@@ -319,10 +320,9 @@ function sendDeliveryCorrectionError(res: Response, err: any) {
         ? 403
         : code === 'REASON_REQUIRED'
           ? 400
-          : code === 'VALIDATION_ERROR' || code === 'EMPTY_BALANCE_NEGATIVE'
+          : code === 'VALIDATION_ERROR'
             ? 422
             : code === 'CANCEL_HISTORICAL_UNSUPPORTED' ||
-                code === 'EMPTY_REVERSAL_CONFLICT' ||
                 code === 'DELIVERY_ALREADY_CANCELLED' ||
                 code === 'REPLACEMENT_ID_CONFLICT' ||
                 code === 'DISPATCH_CLOSED' ||
@@ -1071,13 +1071,6 @@ app.post('/api/deliveries', async (req, res) => {
       tup:
         (Number(currentEmpty.tup) || 0) + newDelivery.emptyContainersDiff.tup,
     };
-    if (nextEmpty.damacana < 0 || nextEmpty.camDamacana < 0 || nextEmpty.tup < 0) {
-      return res.status(422).json({
-        error:
-          'Boş kap bakiyesi negatife düşeceği için işlem reddedildi. Lütfen miktarları kontrol edin.',
-        code: 'EMPTY_BALANCE_NEGATIVE',
-      });
-    }
     customer.emptyDepositBalance = nextEmpty;
 
     if (customer.isAccountCustomer) {
@@ -1113,7 +1106,7 @@ app.post('/api/deliveries', async (req, res) => {
     if (code === 'CUSTOMER_NOT_FOUND' || code === 'DISPATCH_NOT_FOUND') {
       return res.status(404).json({ error: err.message, code });
     }
-    if (code === 'EMPTY_BALANCE_NEGATIVE' || code === 'VALIDATION_ERROR') {
+    if (code === 'VALIDATION_ERROR') {
       return res.status(422).json({ error: err.message, code });
     }
     if (code === 'INSUFFICIENT_VEHICLE_STOCK' || code === 'PAYMENT_DATA_INCONSISTENT') {
@@ -1291,7 +1284,6 @@ app.post('/api/deliveries/:id/replace', async (req, res) => {
         activeDeliveries,
         existing.id
       );
-      assertEmptyBalanceForReplacement(customer, existing, replacement);
     }
 
     const result = await replaceDeliveryAtomic(

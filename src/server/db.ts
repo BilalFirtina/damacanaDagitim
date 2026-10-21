@@ -2547,20 +2547,18 @@ export async function adminUpdateCustomerAtomic(
     const empty: any = updates.emptyDepositBalance || {};
     const expectedEmpty: any = expected.empty || {};
     payload.new_empty = {
-      damacana: Math.max(0, Math.floor(Number(empty.damacana) || 0)),
-      cam_damacana: Math.max(
-        0,
-        Math.floor(Number(empty.camDamacana ?? empty.cam_damacana) || 0)
+      damacana: Math.floor(Number(empty.damacana) || 0),
+      cam_damacana: Math.floor(
+        Number(empty.camDamacana ?? empty.cam_damacana) || 0
       ),
-      tup: Math.max(0, Math.floor(Number(empty.tup) || 0)),
+      tup: Math.floor(Number(empty.tup) || 0),
     };
     payload.expected_empty = {
-      damacana: Math.max(0, Math.floor(Number(expectedEmpty.damacana) || 0)),
-      cam_damacana: Math.max(
-        0,
-        Math.floor(Number(expectedEmpty.camDamacana ?? expectedEmpty.cam_damacana) || 0)
+      damacana: Math.floor(Number(expectedEmpty.damacana) || 0),
+      cam_damacana: Math.floor(
+        Number(expectedEmpty.camDamacana ?? expectedEmpty.cam_damacana) || 0
       ),
-      tup: Math.max(0, Math.floor(Number(expectedEmpty.tup) || 0)),
+      tup: Math.floor(Number(expectedEmpty.tup) || 0),
     };
   }
 
@@ -2664,17 +2662,14 @@ export async function adminUpdateCustomerAtomic(
     emptyDepositBalance:
       updates.emptyDepositBalance !== undefined
         ? {
-            damacana: Math.max(0, Math.floor(Number(updates.emptyDepositBalance.damacana) || 0)),
-            camDamacana: Math.max(
-              0,
-              Math.floor(
-                Number(
-                  updates.emptyDepositBalance.camDamacana ??
-                    (updates.emptyDepositBalance as any).cam_damacana
-                ) || 0
-              )
+            damacana: Math.floor(Number(updates.emptyDepositBalance.damacana) || 0),
+            camDamacana: Math.floor(
+              Number(
+                updates.emptyDepositBalance.camDamacana ??
+                  (updates.emptyDepositBalance as any).cam_damacana
+              ) || 0
             ),
-            tup: Math.max(0, Math.floor(Number(updates.emptyDepositBalance.tup) || 0)),
+            tup: Math.floor(Number(updates.emptyDepositBalance.tup) || 0),
           }
         : current.emptyDepositBalance,
   };
@@ -3276,12 +3271,6 @@ function parseDeliveryDbError(e: any): DeliveryDbError {
   if (/DISPATCH_NOT_FOUND/.test(raw)) {
     return new DeliveryDbError('DISPATCH_NOT_FOUND', 'Sefer bulunamadı.');
   }
-  if (/EMPTY_BALANCE_NEGATIVE/.test(raw)) {
-    return new DeliveryDbError(
-      'EMPTY_BALANCE_NEGATIVE',
-      'Boş kap bakiyesi negatife düşeceği için işlem reddedildi. Lütfen miktarları kontrol edin.'
-    );
-  }
   if (/INSUFFICIENT_VEHICLE_STOCK/.test(raw)) {
     return new DeliveryDbError(
       'INSUFFICIENT_VEHICLE_STOCK',
@@ -3506,19 +3495,6 @@ function parseCancellationDbError(e: any): DeliveryDbError {
       'Bu teslimat eski sürümle kaydedildiği için güvenli biçimde iptal edilemez. Lütfen yöneticiyle iletişime geçin.'
     );
   }
-  if (/EMPTY_REVERSAL_CONFLICT/.test(raw)) {
-    const match = raw.match(/EMPTY_REVERSAL_CONFLICT:([a-z_]+)/i);
-    const labels: Record<string, string> = {
-      damacana: 'Damacana',
-      cam_damacana: 'Cam damacana',
-      tup: 'Tüp',
-    };
-    const label = (match && labels[match[1]]) || 'Boş kap';
-    return new DeliveryDbError(
-      'EMPTY_REVERSAL_CONFLICT',
-      `${label} boş kap bakiyesi bu işlemde negatife düşüyor. Lütfen yöneticiyle iletişime geçin.`
-    );
-  }
   if (/DELIVERY_ALREADY_CANCELLED/.test(raw)) {
     return new DeliveryDbError(
       'DELIVERY_ALREADY_CANCELLED',
@@ -3569,12 +3545,6 @@ function parseCancellationDbError(e: any): DeliveryDbError {
   }
   if (/VALIDATION_ERROR/.test(raw)) {
     return new DeliveryDbError('VALIDATION_ERROR', 'Teslimat bilgileri geçersiz.');
-  }
-  if (/EMPTY_BALANCE_NEGATIVE/.test(raw)) {
-    return new DeliveryDbError(
-      'EMPTY_BALANCE_NEGATIVE',
-      'Boş kap bakiyesi negatife düşeceği için işlem reddedildi.'
-    );
   }
   if (hasRpcMissingSignature(e)) {
     return new DeliveryDbError(

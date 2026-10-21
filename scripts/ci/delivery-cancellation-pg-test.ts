@@ -191,7 +191,7 @@ async function seedDelivery(c: Client, opts: DeliverySeed = {}): Promise<void> {
       [id, emptyDiff]
     );
   }
-  const emptyBalance = opts.emptyBalance ?? Math.max(emptyDiff, 0);
+  const emptyBalance = opts.emptyBalance ?? emptyDiff;
   if (emptyBalance !== 0) {
     await c.query(
       `INSERT INTO public.customer_empty_balances (customer_id, deposit_type, quantity)
@@ -256,7 +256,7 @@ async function setEmptyBalances(
   ]);
   for (const type of POOL_TYPES) {
     const qty = Number(balances[type] ?? 0);
-    if (!Number.isInteger(qty) || qty < 0) {
+    if (!Number.isInteger(qty)) {
       throw new Error(`Gecersiz bos kap bakiyesi: ${type}=${qty}`);
     }
     if (qty === 0) continue;
@@ -682,17 +682,17 @@ async function scenarioHistorical(c: Client): Promise<void> {
 }
 
 async function scenarioEmptyConflict(c: Client): Promise<void> {
-  console.log('\n[4] Bos kap cakismasi: negatif bakiye reddedilir, rollback');
+  console.log('\n[4] Bos kap iptali negatif bakiyeye izin verir');
   await resetTransactional(c);
   await seedDispatch(c);
   await seedDelivery(c, { emptyDiff: 5, emptyBalance: 2 });
 
-  const err = await errorOf(() => callRpc(c, cancelPayload()));
-  check('EMPTY_REVERSAL_CONFLICT', /EMPTY_REVERSAL_CONFLICT/.test(err), err);
-  check('teslimat active kaldi', (await deliveryRow(c, 'DEL1')).status === 'active');
-  check('bakiye degismedi', (await balance(c)) === 300);
-  check('bos kap degismedi', (await empty(c)) === 2);
-  check('denetim yazilmadi', (await auditCount(c, 'DEL1')) === 0);
+  const res = await callRpc(c, cancelPayload());
+  check('iptal basarili', res.cancelled === true && res.duplicate === false);
+  check('teslimat cancelled', (await deliveryRow(c, 'DEL1')).status === 'cancelled');
+  check('bakiye sifirlandi', (await balance(c)) === 0);
+  check('bos kap negatif -3', (await empty(c)) === -3);
+  check('denetim yazildi', (await auditCount(c, 'DEL1')) === 1);
 }
 
 async function scenarioValidation(c: Client): Promise<void> {
@@ -925,22 +925,20 @@ async function scenarioApplyRegression(c: Client): Promise<void> {
 
   await resetTransactional(c);
   await seedDispatch(c, 20);
-  const negErr = await errorOf(() =>
-    callApply(
-      c,
-      applyPayload('DEL_NEG', {
-        container_returns: [
-          { deposit_type: 'damacana', received_qty: 6, diff_qty: -1 },
-        ],
-        empty_deltas: { damacana: -1 },
-      })
-    )
+  const negRes = await callApply(
+    c,
+    applyPayload('DEL_NEG', {
+      container_returns: [
+        { deposit_type: 'damacana', received_qty: 6, diff_qty: -1 },
+      ],
+      empty_deltas: { damacana: -1 },
+    })
   );
-  check('negatif bos kap EMPTY_BALANCE_NEGATIVE', /EMPTY_BALANCE_NEGATIVE/.test(negErr), negErr);
-  check('negatif bos kap teslimat yazmadi', (await deliveryCount(c)) === 0);
-  check('negatif bos kap kalem yazmadi', (await deliveryItemQty(c, 'DEL_NEG')) === 0);
-  check('negatif bos kap bakiye yazmadi', (await balance(c)) === 0);
-  check('negatif bos kap bakiye satiri yok', (await empty(c)) === 0);
+  check('negatif bos kap kabul edilir', negRes.duplicate === false);
+  check('negatif bos kap teslimat yazildi', (await deliveryCount(c)) === 1);
+  check('negatif bos kap kalem yazildi', (await deliveryItemQty(c, 'DEL_NEG')) === 5);
+  check('negatif bos kap cari bakiye 300', (await balance(c)) === 300);
+  check('negatif bos kap bakiyesi -1', (await empty(c)) === -1);
   check('negatif bos kap denetim yazmadi', (await auditTotal(c)) === 0);
 
   await resetTransactional(c);
@@ -1327,7 +1325,7 @@ async function scenarioReplacementSeparatesPools(c: Client): Promise<void> {
 }
 
 async function scenarioPoolFailureIsolation(c: Client): Promise<void> {
-  console.log('\n[17] Hata izolasyonu: bir havuz hatasi digerlerini degistirmez');
+  console.log('\n[17] Negatif havuzlar bagimsizdir ve diger havuzlari degistirmez');
   await resetTransactional(c);
   await seedDispatch(c);
   await seedPoolDelivery(c, {
@@ -1337,46 +1335,126 @@ async function scenarioPoolFailureIsolation(c: Client): Promise<void> {
   });
   await setEmptyBalances(c, { damacana: 5, cam_damacana: 0, tup: 1 });
 
-  const cancelErr = await errorOf(() => callRpc(c, cancelPayload('POOL_CONFLICT')));
+  const cancelRes = await callRpc(c, cancelPayload('POOL_CONFLICT'));
+  check('cam ters kaydi basarili', cancelRes.cancelled === true);
   check(
-    'cam ters kaydi EMPTY_REVERSAL_CONFLICT',
-    /EMPTY_REVERSAL_CONFLICT:cam_damacana/.test(cancelErr),
-    cancelErr
-  );
-  check(
-    'iptal hatasi plastik/tup havuzlarini degistirmedi',
-    countsMatch(await emptyBalances(c), { damacana: 5, cam_damacana: 0, tup: 1 }),
+    'cam havuzu -2, plastik/tup degismedi',
+    countsMatch(await emptyBalances(c), { damacana: 5, cam_damacana: -2, tup: 1 }),
     JSON.stringify(await emptyBalances(c))
   );
-  check('iptal hatasi teslimati active birakti', (await deliveryRow(c, 'POOL_CONFLICT')).status === 'active');
-  check('iptal hatasi denetim yazmadi', (await auditCount(c, 'POOL_CONFLICT')) === 0);
+  check('iptal teslimati kapatti', (await deliveryRow(c, 'POOL_CONFLICT')).status === 'cancelled');
+  check('iptal denetim yazdi', (await auditCount(c, 'POOL_CONFLICT')) === 1);
 
   await resetTransactional(c);
   await seedDispatch(c);
   await setEmptyBalances(c, { damacana: 0, cam_damacana: 3, tup: 1 });
-  const applyErr = await errorOf(() =>
-    callApply(
-      c,
-      poolApplyPayload(
-        'POOL_NEG',
-        [{ productId: 'p_cam', productName: 'Cam Damacana', quantity: 1 }],
-        { damacana: -2, cam_damacana: 1, tup: 0 },
-        { damacana: 2 }
-      )
+  const applyRes = await callApply(
+    c,
+    poolApplyPayload(
+      'POOL_NEG',
+      [{ productId: 'p_cam', productName: 'Cam Damacana', quantity: 1 }],
+      { damacana: -2, cam_damacana: 1, tup: 0 },
+      { damacana: 2 }
+    )
+  );
+  check('negatif plastik havuzu basarili', applyRes.duplicate === false);
+  check(
+    'apply sonrasi havuzlar -2/4/1',
+    countsMatch(await emptyBalances(c), { damacana: -2, cam_damacana: 4, tup: 1 }),
+    JSON.stringify(await emptyBalances(c))
+  );
+  check('apply teslimat yazdi', (await deliveryCount(c)) === 1);
+  check('apply denetim yazmadi', (await auditTotal(c)) === 0);
+}
+
+async function scenarioNegativeConstraint(c: Client): Promise<void> {
+  console.log('\n[18] Negatif bos kap bakiyesi dogrudan yazilabilir');
+  await resetTransactional(c);
+  await c.query(
+    `INSERT INTO public.customer_empty_balances (customer_id, deposit_type, quantity)
+     VALUES ('c1', 'damacana', -7)
+     ON CONFLICT (customer_id, deposit_type)
+     DO UPDATE SET quantity = EXCLUDED.quantity`
+  );
+  check('negatif bakiye -7 yazildi', (await empty(c)) === -7);
+
+  const constraints = await c.query(
+    `SELECT conname
+       FROM pg_constraint
+      WHERE conrelid = 'public.customer_empty_balances'::regclass
+        AND contype = 'c'
+        AND pg_get_constraintdef(oid) ILIKE '%quantity%'`
+  );
+  check('quantity CHECK kalmadi', constraints.rows.length === 0);
+}
+
+async function scenarioEmptiesOnlyClose(c: Client): Promise<void> {
+  console.log('\n[19] Yalniz bos kap teslimati gün sonu kapatmasini engellemez');
+  await resetTransactional(c);
+  await seedDispatch(c);
+  const applied = await callApply(
+    c,
+    applyPayload('DEL_EMPTY_ONLY', {
+      delivered_grand_total: 0,
+      cash_amount: 0,
+      pos_amount: 0,
+      total_collected: 0,
+      diff_uncollected: 0,
+      payment_status: 'paid_full',
+      items: [],
+      container_returns: [
+        { deposit_type: 'damacana', received_qty: 3, diff_qty: -3 },
+      ],
+      empty_deltas: { damacana: -3 },
+    })
+  );
+  check('kalemsiz bos kap teslimati yazildi', applied.duplicate === false);
+  check('kalemsiz teslimat kalemi yok', (await deliveryItemQty(c, 'DEL_EMPTY_ONLY')) === 0);
+  check('bos kap -3', (await empty(c)) === -3);
+
+  const closed = await c.query(
+    `SELECT public.close_dispatch($1::jsonb) AS r`,
+    [
+      JSON.stringify({
+        dispatch_id: 'D1',
+        closed_by_user_id: 'u_admin',
+        remaining_full_counted: {},
+        actual_cash_in_pocket: 0,
+        actual_pos_slips_total: 0,
+        collected_empty_damacana: 3,
+        collected_empty_cam_damacana: 0,
+        collected_empty_tup: 0,
+        notes: '',
+      }),
+    ]
+  );
+  check('gün sonu kapandi', closed.rows[0]?.r?.closed === true);
+  check(
+    'sefer completed',
+    (await c.query(`SELECT status FROM public.dispatches WHERE id = 'D1'`)).rows[0]
+      ?.status === 'completed'
+  );
+
+  await resetTransactional(c);
+  await seedDispatch(c);
+  await seedPoolDelivery(c, { id: 'DEL_HISTORY_BLANK', items: [] });
+  const closeErr = await errorOf(() =>
+    c.query(
+      `SELECT public.close_dispatch($1::jsonb) AS r`,
+      [
+        JSON.stringify({
+          dispatch_id: 'D1',
+          closed_by_user_id: 'u_admin',
+          remaining_full_counted: {},
+        }),
+      ]
     )
   );
   check(
-    'negatif plastik EMPTY_BALANCE_NEGATIVE',
-    /EMPTY_BALANCE_NEGATIVE:damacana/.test(applyErr),
-    applyErr
+    'kalemsiz ve bos kapsiz eski kayit kapatmayi engeller',
+    /HISTORICAL_DELIVERY_ITEMS_MISSING/.test(closeErr),
+    closeErr
   );
-  check(
-    'apply hatasi cam/tup havuzlarini degistirmedi',
-    countsMatch(await emptyBalances(c), { damacana: 0, cam_damacana: 3, tup: 1 }),
-    JSON.stringify(await emptyBalances(c))
-  );
-  check('apply hatasi teslimat yazmadi', (await deliveryCount(c)) === 0);
-  check('apply hatasi denetim yazmadi', (await auditTotal(c)) === 0);
 }
 
 async function main(): Promise<void> {
@@ -1405,6 +1483,8 @@ async function main(): Promise<void> {
     await scenarioMixedThreePools(c);
     await scenarioReplacementSeparatesPools(c);
     await scenarioPoolFailureIsolation(c);
+    await scenarioNegativeConstraint(c);
+    await scenarioEmptiesOnlyClose(c);
   } finally {
     await c.end();
   }
