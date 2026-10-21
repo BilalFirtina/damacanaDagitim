@@ -33,6 +33,8 @@ import {
   shouldShowStockWarning,
   STOCK_WARNING_DURATION_MS,
 } from '../../services/stockWarning';
+import { computeDeliveredDeposits } from '../../services/depositRules';
+import { negativeEmptyMessages } from '../../services/emptyBalanceDisplay';
 
 interface DeliveryModalProps {
   isOpen: boolean;
@@ -46,6 +48,98 @@ interface DeliveryModalProps {
   editDelivery?: Delivery | null;
   onDeliveryUpdated?: () => void;
 }
+
+type DepositKey = 'damacana' | 'cam_damacana' | 'tup';
+
+interface EmptyContainerRowProps {
+  label: string;
+  delivered: number;
+  value: number;
+  manual: boolean;
+  onToggle: (manual: boolean) => void;
+  onChange: (value: number) => void;
+}
+
+const EmptyContainerRow: React.FC<EmptyContainerRowProps> = ({
+  label,
+  delivered,
+  value,
+  manual,
+  onToggle,
+  onChange,
+}) => {
+  const normalize = (quantity: number) =>
+    Math.max(0, Math.floor(Number(quantity) || 0));
+
+  return (
+    <div className="p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-orange-100 dark:border-orange-800 space-y-2 min-w-0">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 break-words">
+            {label}
+          </div>
+          <div className="text-[10px] text-slate-500 dark:text-slate-400">
+            Bırakılan dolu: {delivered}
+          </div>
+        </div>
+        <label className="flex items-center gap-1.5 min-h-11 px-1 cursor-pointer shrink-0">
+          <input
+            type="checkbox"
+            checked={manual}
+            onChange={(event) => onToggle(event.target.checked)}
+            className="w-4 h-4 rounded border-orange-300 text-orange-600 focus:ring-orange-500"
+          />
+          <span className="text-[10px] font-bold text-orange-800 dark:text-orange-300">
+            Manuel
+          </span>
+        </label>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span
+          className={`text-[10px] ${
+            manual
+              ? 'font-semibold text-orange-700 dark:text-orange-300'
+              : 'text-slate-500 dark:text-slate-400'
+          }`}
+        >
+          {manual ? 'Elle girilen miktar' : 'Otomatik: dolu kadar'}
+        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            disabled={!manual}
+            onClick={() => onChange(normalize(value - 1))}
+            aria-label={`${label} azalt`}
+            className="min-w-11 min-h-11 rounded-lg bg-slate-100 dark:bg-slate-700 text-sm font-bold disabled:opacity-40"
+          >
+            -
+          </button>
+          <input
+            type="number"
+            min={0}
+            step={1}
+            inputMode="numeric"
+            aria-label={label}
+            value={value}
+            disabled={!manual}
+            onChange={(event) => onChange(normalize(event.target.valueAsNumber))}
+            className="w-14 h-11 rounded-lg border border-orange-200 dark:border-orange-700 text-center font-mono font-bold text-sm dark:bg-slate-900 dark:text-white disabled:bg-slate-50 dark:disabled:bg-slate-800 disabled:text-slate-500"
+          />
+          <button
+            type="button"
+            disabled={!manual}
+            onClick={() => onChange(normalize(value + 1))}
+            aria-label={`${label} artır`}
+            className="min-w-11 min-h-11 rounded-lg bg-orange-50 dark:bg-orange-950 text-orange-600 dark:text-orange-300 text-sm font-bold disabled:opacity-40"
+          >
+            +
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   isOpen,
@@ -106,18 +200,29 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       });
       setQuantities(quantitiesFromDelivery);
       setUnitPrices(pricesFromDelivery);
-      setEmptyDamacanaReturned(
-        Number(editDelivery.emptyContainersReceived?.damacana) || 0
+
+      const editDelivered = computeDeliveredDeposits(
+        editDelivery.deliveredItems,
+        allProducts
       );
-      setEmptyCamDamacanaReturned(
-        Number(
-          editDelivery.emptyContainersReceived?.camDamacana ??
-            editDelivery.emptyContainersReceived?.cam_damacana
-        ) || 0
-      );
-      setEmptyTupReturned(
-        Number(editDelivery.emptyContainersReceived?.tup) || 0
-      );
+      const editReceived = {
+        damacana: Number(editDelivery.emptyContainersReceived?.damacana) || 0,
+        camDamacana:
+          Number(
+            editDelivery.emptyContainersReceived?.camDamacana ??
+              editDelivery.emptyContainersReceived?.cam_damacana
+          ) || 0,
+        tup: Number(editDelivery.emptyContainersReceived?.tup) || 0,
+      };
+      setEmptyDamacanaReturned(editReceived.damacana);
+      setEmptyCamDamacanaReturned(editReceived.camDamacana);
+      setEmptyTupReturned(editReceived.tup);
+      setManualEmpty({
+        damacana: editReceived.damacana !== editDelivered.damacana,
+        cam_damacana:
+          editReceived.camDamacana !== editDelivered.camDamacana,
+        tup: editReceived.tup !== editDelivered.tup,
+      });
 
       const cash = Number(editDelivery.collectedPayment?.cashAmount) || 0;
       const pos = Number(editDelivery.collectedPayment?.posAmount) || 0;
@@ -137,6 +242,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       setEmptyDamacanaReturned(0);
       setEmptyCamDamacanaReturned(0);
       setEmptyTupReturned(0);
+      setManualEmpty({
+        damacana: false,
+        cam_damacana: false,
+        tup: false,
+      });
       setPaymentType('full');
       setPaymentMethod('CASH');
       setCashAmountInput('0');
@@ -179,6 +289,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const [emptyDamacanaReturned, setEmptyDamacanaReturned] = useState<number>(0);
   const [emptyCamDamacanaReturned, setEmptyCamDamacanaReturned] = useState<number>(0);
   const [emptyTupReturned, setEmptyTupReturned] = useState<number>(0);
+  const [manualEmpty, setManualEmpty] = useState<Record<DepositKey, boolean>>({
+    damacana: false,
+    cam_damacana: false,
+    tup: false,
+  });
 
   // Payment
   const [paymentType, setPaymentType] = useState<'full' | 'unpaid' | 'custom'>('full');
@@ -240,44 +355,49 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const receivedEmptyTotal =
     emptyDamacanaReturned + emptyCamDamacanaReturned + emptyTupReturned;
   const hasDeliveryContent = deliveredItems.length > 0 || receivedEmptyTotal > 0;
+  const selectedNegativeEmptyMessages = selectedCustomer
+    ? negativeEmptyMessages(selectedCustomer.emptyDepositBalance)
+    : [];
 
   // Calculate delivered deposit items
-  let deliveredDepositDamacana = 0;
-  let deliveredDepositCamDamacana = 0;
-  let deliveredDepositTup = 0;
-  deliveredItems.forEach((item) => {
-    const p = allProducts.find((prod) => prod.id === item.productId);
-    if (p?.depositType === 'damacana') deliveredDepositDamacana += item.quantity;
-    if (p?.depositType === 'cam_damacana') deliveredDepositCamDamacana += item.quantity;
-    if (p?.depositType === 'tup') deliveredDepositTup += item.quantity;
-  });
+  const deliveredDeposits = computeDeliveredDeposits(
+    deliveredItems,
+    allProducts
+  );
+  const deliveredDepositDamacana = deliveredDeposits.damacana;
+  const deliveredDepositCamDamacana = deliveredDeposits.camDamacana;
+  const deliveredDepositTup = deliveredDeposits.tup;
+
+  // Otomatik modda alınan boş kap, bırakılan dolu miktarını canlı takip eder.
+  const syncAutomaticEmpties = (
+    nextQuantities: Record<string, number>,
+    productList: Product[] = allProducts
+  ) => {
+    const deposits = computeDeliveredDeposits(
+      Object.entries(nextQuantities).map(([productId, quantity]) => ({
+        productId,
+        quantity,
+      })),
+      productList
+    );
+    if (!manualEmpty.damacana) {
+      setEmptyDamacanaReturned(deposits.damacana);
+    }
+    if (!manualEmpty.cam_damacana) {
+      setEmptyCamDamacanaReturned(deposits.camDamacana);
+    }
+    if (!manualEmpty.tup) {
+      setEmptyTupReturned(deposits.tup);
+    }
+  };
 
   const handleQuantityChange = (productId: string, newQty: number) => {
     setQuantities((prev) => {
-      const updated = { ...prev, [productId]: Math.max(0, newQty) };
-      if (isEdit) return updated;
-      const p = allProducts.find((prod) => prod.id === productId);
-      if (p?.depositType === 'damacana') {
-        let totalDam = 0;
-        Object.entries(updated).forEach(([pId, q]) => {
-          if (allProducts.find((x) => x.id === pId)?.depositType === 'damacana') totalDam += q;
-        });
-        setEmptyDamacanaReturned(totalDam);
-      }
-      if (p?.depositType === 'cam_damacana') {
-        let totalCam = 0;
-        Object.entries(updated).forEach(([pId, q]) => {
-          if (allProducts.find((x) => x.id === pId)?.depositType === 'cam_damacana') totalCam += q;
-        });
-        setEmptyCamDamacanaReturned(totalCam);
-      }
-      if (p?.depositType === 'tup') {
-        let totalTup = 0;
-        Object.entries(updated).forEach(([pId, q]) => {
-          if (allProducts.find((x) => x.id === pId)?.depositType === 'tup') totalTup += q;
-        });
-        setEmptyTupReturned(totalTup);
-      }
+      const updated = {
+        ...prev,
+        [productId]: Math.max(0, Math.floor(Number(newQty) || 0)),
+      };
+      syncAutomaticEmpties(updated);
       return updated;
     });
   };
@@ -371,8 +491,13 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       });
 
       // Update local product list and auto-select product with quantity 1
-      setAllProducts((prev) => [...prev, created]);
-      setQuantities((prev) => ({ ...prev, [created.id]: 1 }));
+      const nextProducts = [...allProducts, created];
+      setAllProducts(nextProducts);
+      setQuantities((prev) => {
+        const updated = { ...prev, [created.id]: 1 };
+        syncAutomaticEmpties(updated, nextProducts);
+        return updated;
+      });
       setUnitPrices((prev) => ({ ...prev, [created.id]: created.defaultUnitPrice }));
       setShowNewProductForm(false);
       setNewProdName('');
@@ -729,6 +854,16 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                               {c.emptyDepositBalance.camDamacana} Boş Cam Borcu
                             </div>
                           )}
+                          {negativeEmptyMessages(c.emptyDepositBalance).map(
+                            (message) => (
+                              <div
+                                key={message}
+                                className="text-[10px] font-semibold text-sky-700 dark:text-sky-300"
+                              >
+                                ℹ️ {message}
+                              </div>
+                            )
+                          )}
                         </div>
                       </button>
                     ))
@@ -766,6 +901,15 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 mt-2">
+                    {selectedNegativeEmptyMessages.map((message) => (
+                      <span
+                        key={message}
+                        className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300"
+                      >
+                        ℹ️ {message}
+                      </span>
+                    ))}
+
                     {(selectedCustomer.emptyDepositBalance?.damacana > 0 ||
                       selectedCustomer.emptyDepositBalance?.camDamacana > 0 ||
                       selectedCustomer.emptyDepositBalance?.tup > 0) && (
@@ -1076,89 +1220,50 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-orange-100 dark:border-orange-800">
-                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                      Alınan Boş Damacana
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setEmptyDamacanaReturned((prev) => Math.max(0, prev - 1))}
-                        className="w-7 h-7 rounded bg-slate-100 dark:bg-slate-700 text-xs font-bold"
-                      >
-                        -
-                      </button>
-                      <input
-                        type="number"
-                        value={emptyDamacanaReturned}
-                        onChange={(e) => setEmptyDamacanaReturned(parseInt(e.target.value) || 0)}
-                        className="w-12 h-7 rounded border border-orange-200 text-center font-mono font-bold text-xs"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setEmptyDamacanaReturned((prev) => prev + 1)}
-                        className="w-7 h-7 rounded bg-orange-50 text-orange-600 text-xs font-bold"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-amber-100 dark:border-amber-800">
-                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                      Alınan Boş Cam Damacana
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setEmptyCamDamacanaReturned((prev) => Math.max(0, prev - 1))}
-                        className="w-7 h-7 rounded bg-slate-100 dark:bg-slate-700 text-xs font-bold"
-                      >
-                        -
-                      </button>
-                      <input
-                        type="number"
-                        value={emptyCamDamacanaReturned}
-                        onChange={(e) => setEmptyCamDamacanaReturned(parseInt(e.target.value) || 0)}
-                        className="w-12 h-7 rounded border border-amber-200 text-center font-mono font-bold text-xs"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setEmptyCamDamacanaReturned((prev) => prev + 1)}
-                        className="w-7 h-7 rounded bg-amber-50 text-amber-600 text-xs font-bold"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-orange-100 dark:border-orange-800">
-                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                      Alınan Boş Tüp
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setEmptyTupReturned((prev) => Math.max(0, prev - 1))}
-                        className="w-7 h-7 rounded bg-slate-100 dark:bg-slate-700 text-xs font-bold"
-                      >
-                        -
-                      </button>
-                      <input
-                        type="number"
-                        value={emptyTupReturned}
-                        onChange={(e) => setEmptyTupReturned(parseInt(e.target.value) || 0)}
-                        className="w-12 h-7 rounded border border-orange-200 text-center font-mono font-bold text-xs"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setEmptyTupReturned((prev) => prev + 1)}
-                        className="w-7 h-7 rounded bg-orange-50 text-orange-600 text-xs font-bold"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
+                  <EmptyContainerRow
+                    label="Alınan Boş Damacana"
+                    delivered={deliveredDepositDamacana}
+                    value={emptyDamacanaReturned}
+                    manual={manualEmpty.damacana}
+                    onToggle={(manual) => {
+                      setManualEmpty((prev) => ({ ...prev, damacana: manual }));
+                      if (!manual) {
+                        setEmptyDamacanaReturned(deliveredDepositDamacana);
+                      }
+                    }}
+                    onChange={setEmptyDamacanaReturned}
+                  />
+                  <EmptyContainerRow
+                    label="Alınan Boş Cam Damacana"
+                    delivered={deliveredDepositCamDamacana}
+                    value={emptyCamDamacanaReturned}
+                    manual={manualEmpty.cam_damacana}
+                    onToggle={(manual) => {
+                      setManualEmpty((prev) => ({
+                        ...prev,
+                        cam_damacana: manual,
+                      }));
+                      if (!manual) {
+                        setEmptyCamDamacanaReturned(
+                          deliveredDepositCamDamacana
+                        );
+                      }
+                    }}
+                    onChange={setEmptyCamDamacanaReturned}
+                  />
+                  <EmptyContainerRow
+                    label="Alınan Boş Tüp"
+                    delivered={deliveredDepositTup}
+                    value={emptyTupReturned}
+                    manual={manualEmpty.tup}
+                    onToggle={(manual) => {
+                      setManualEmpty((prev) => ({ ...prev, tup: manual }));
+                      if (!manual) {
+                        setEmptyTupReturned(deliveredDepositTup);
+                      }
+                    }}
+                    onChange={setEmptyTupReturned}
+                  />
                 </div>
 
                 {deliveredDepositDamacana - emptyDamacanaReturned !== 0 && (
@@ -1169,7 +1274,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       </span>
                     ) : (
                       <span>
-                        ℹ️ Müşteri fazladan <strong>{emptyDamacanaReturned - deliveredDepositDamacana} adet boş damacana teslim etti.</strong> Emanet borcundan düşülecektir.
+                        ℹ️ Müşteriye <strong>{emptyDamacanaReturned - deliveredDepositDamacana} adet boş damacana borcumuz oluşur.</strong> Emanet bakiyesine işlenecektir.
                       </span>
                     )}
                   </div>
@@ -1183,7 +1288,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       </span>
                     ) : (
                       <span>
-                        ℹ️ Müşteri fazladan <strong>{emptyCamDamacanaReturned - deliveredDepositCamDamacana} adet boş cam damacana teslim etti.</strong> Emanet borcundan düşülecektir.
+                        ℹ️ Müşteriye <strong>{emptyCamDamacanaReturned - deliveredDepositCamDamacana} adet boş cam damacana borcumuz oluşur.</strong> Emanet bakiyesine işlenecektir.
                       </span>
                     )}
                   </div>
@@ -1197,7 +1302,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       </span>
                     ) : (
                       <span>
-                        ℹ️ Müşteri fazladan <strong>{emptyTupReturned - deliveredDepositTup} adet boş tüp teslim etti.</strong> Emanet borcundan düşülecektir.
+                        ℹ️ Müşteriye <strong>{emptyTupReturned - deliveredDepositTup} adet boş tüp borcumuz oluşur.</strong> Emanet bakiyesine işlenecektir.
                       </span>
                     )}
                   </div>

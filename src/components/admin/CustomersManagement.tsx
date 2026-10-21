@@ -14,6 +14,7 @@ import {
   updateCustomer,
   type CustomerUpdate,
 } from '../../services/api';
+import { negativeEmptyMessages } from '../../services/emptyBalanceDisplay';
 
 interface CustomersManagementProps {
   customers: Customer[];
@@ -402,6 +403,18 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map((c) => {
           const emails = c.emails || [];
+          const negativeEmpty = negativeEmptyMessages(c.emptyDepositBalance);
+          const positiveEmptyParts = [
+            (c.emptyDepositBalance?.damacana || 0) > 0
+              ? `${c.emptyDepositBalance.damacana} Damacana`
+              : null,
+            (c.emptyDepositBalance?.camDamacana || 0) > 0
+              ? `${c.emptyDepositBalance.camDamacana} Cam Damacana`
+              : null,
+            (c.emptyDepositBalance?.tup || 0) > 0
+              ? `${c.emptyDepositBalance.tup} Tüp`
+              : null,
+          ].filter((part): part is string => part !== null);
 
           return (
             <div
@@ -476,13 +489,31 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
                 {/* Balances */}
                 <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                  <div>
+                  <div className="min-w-0">
                     <span className="text-[10px] text-slate-400 block">Emanet Boş Kap:</span>
-                    <span className="font-mono font-bold text-orange-600">
-                      {c.emptyDepositBalance?.damacana || 0} Damacana
-                      {(c.emptyDepositBalance?.camDamacana || 0) > 0 ? `, ${c.emptyDepositBalance.camDamacana} Cam Damacana` : ''}
-                      {(c.emptyDepositBalance?.tup || 0) > 0 ? `, ${c.emptyDepositBalance.tup} Tüp` : ''}
-                    </span>
+                    {negativeEmpty.length > 0 && (
+                      <div className="space-y-0.5">
+                        {negativeEmpty.map((message) => (
+                          <span
+                            key={message}
+                            className="block font-semibold text-sky-700 dark:text-sky-300"
+                          >
+                            ℹ️ {message}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {positiveEmptyParts.length > 0 ? (
+                      <span className="font-mono font-bold text-orange-600">
+                        {positiveEmptyParts.join(', ')}
+                      </span>
+                    ) : (
+                      negativeEmpty.length === 0 && (
+                        <span className="font-mono font-bold text-orange-600">
+                          0 Damacana
+                        </span>
+                      )
+                    )}
                   </div>
 
                   <div className="text-right">
@@ -518,9 +549,9 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
               {/* Quick Actions (bakiye/boş kap sıfırlama yalnızca yöneticiye) */}
               {isAdmin && (
                 <div className="mt-4 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
-                  {((c.emptyDepositBalance?.damacana || 0) > 0 ||
-                    (c.emptyDepositBalance?.camDamacana || 0) > 0 ||
-                    (c.emptyDepositBalance?.tup || 0) > 0) && (
+                  {((c.emptyDepositBalance?.damacana || 0) !== 0 ||
+                    (c.emptyDepositBalance?.camDamacana || 0) !== 0 ||
+                    (c.emptyDepositBalance?.tup || 0) !== 0) && (
                     <button
                       onClick={() => handleClearDeposit(c)}
                       className="text-orange-600 hover:underline"
