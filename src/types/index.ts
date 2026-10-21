@@ -155,6 +155,31 @@ export interface Customer {
   createdDate: string;
 }
 
+export interface CustomerDispenser {
+  id: string;
+  customerId: string;
+  brand: string;
+  model: string;
+  quantity: number;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+  updatedByUserId: string;
+  updatedByUserName: string;
+}
+
+export interface CustomerDispenserInput {
+  brand: string;
+  model: string;
+  quantity: number;
+  note?: string | null;
+}
+
+export interface CustomerDispenserSuggestions {
+  brands: string[];
+  models: string[];
+}
+
 export interface LoadedItem {
   productId: string;
   quantity: number;

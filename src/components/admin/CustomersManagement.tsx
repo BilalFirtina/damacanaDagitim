@@ -15,6 +15,7 @@ import {
   type CustomerUpdate,
 } from '../../services/api';
 import { negativeEmptyMessages } from '../../services/emptyBalanceDisplay';
+import { CustomerDispensersSection } from '../common/CustomerDispensersSection';
 
 interface CustomersManagementProps {
   customers: Customer[];
@@ -453,19 +454,19 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                   </div>
                 </div>
 
-                {/* Contact Info: Address, Phone, Emails */}
+                {/* Contact Info: Phone, Address, Emails */}
                 <div className="mt-2.5 space-y-1.5 text-xs text-slate-500">
-                  <div className="flex items-start gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                    <span className="line-clamp-2">{c.address || 'Adres belirtilmemiş'}</span>
-                  </div>
-
                   {c.phone && (
                     <div className="flex items-center gap-1.5">
                       <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span>{c.phone}</span>
                     </div>
                   )}
+
+                  <div className="flex items-start gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                    <span className="line-clamp-2">{c.address || 'Adres belirtilmemiş'}</span>
+                  </div>
 
                   {/* Multiple Email Addresses Display */}
                   <div className="flex items-start gap-1.5 pt-0.5">
@@ -544,6 +545,12 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                     </div>
                   </div>
                 )}
+
+                <CustomerDispensersSection
+                  customerId={c.id}
+                  customerName={c.name}
+                  className="mt-3"
+                />
               </div>
 
               {/* Quick Actions (bakiye/boş kap sıfırlama yalnızca yöneticiye) */}

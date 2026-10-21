@@ -22,6 +22,9 @@ import {
   DatabaseStatus,
   RetentionHealth,
   RetentionRunResult,
+  CustomerDispenser,
+  CustomerDispenserInput,
+  CustomerDispenserSuggestions,
 } from '../types/index.ts';
 import {
   utcDayQueryWindow,
@@ -31,6 +34,7 @@ import {
   retentionCutoffInstant,
 } from '../services/dateWindow.ts';
 import { applyRetentionToLocal } from '../services/retentionRules.ts';
+import { buildCustomerDispenserSuggestions } from '../services/customerDispenserRules.ts';
 
 const { Pool } = pg;
 
@@ -1974,6 +1978,230 @@ export async function updateCustomer(id: string, updates: Partial<Customer>): Pr
   db.customers[idx] = { ...db.customers[idx], ...updates };
   saveLocalDatabase(db);
   return db.customers[idx];
+}
+
+function getCustomerDispenserSupabase(): SupabaseClient {
+  if (!isSupabaseOperational() || !supabase) {
+    throw new DispatchDbError(
+      'REMOTE_REQUIRED',
+      'Sebil kayıtları yalnızca merkezi veritabanı bağlantısı varken kullanılabilir. Lütfen bağlantıyı kontrol edin.'
+    );
+  }
+  return supabase;
+}
+
+function parseCustomerDispenserDbError(e: any): DispatchDbError {
+  if (e instanceof DispatchDbError) return e;
+
+  const raw = `${e?.message || ''} ${e?.details || ''} ${e?.hint || ''}`.trim();
+  if (
+    String(e?.code || '') === '42P01' ||
+    String(e?.code || '') === 'PGRST205' ||
+    /customer_dispensers.*(does not exist|bulunamadı|could not find)/i.test(raw) ||
+    /could not find the table[\s\S]*customer_dispensers/i.test(raw)
+  ) {
+    return new DispatchDbError(
+      'MIGRATION_REQUIRED',
+      'Sebil tablosu bulunamadı. Sunucu veritabanı güncellemesi eksik; sistem yöneticisine bildirin.'
+    );
+  }
+  if (
+    String(e?.code || '') === '23514' ||
+    /check constraint|violates check/i.test(raw)
+  ) {
+    return new DispatchDbError(
+      'VALIDATION_ERROR',
+      'Sebil adedi 1 veya daha büyük bir tam sayı olmalıdır.'
+    );
+  }
+  if (
+    String(e?.code || '') === '23502' ||
+    /not-null|null value/i.test(raw)
+  ) {
+    return new DispatchDbError(
+      'VALIDATION_ERROR',
+      'Zorunlu sebil alanları boş bırakılamaz.'
+    );
+  }
+
+  return new DispatchDbError(
+    'DB_ERROR',
+    toTurkishDbError(
+      e,
+      'Sebil kaydı veritabanına kaydedilemedi. Lütfen tekrar deneyin.'
+    )
+  );
+}
+
+function mapCustomerDispenserFromDb(row: any): CustomerDispenser {
+  return {
+    id: String(row.id),
+    customerId: String(row.customer_id),
+    brand: String(row.brand),
+    model: String(row.model),
+    quantity: Number(row.quantity),
+    note: row.note === null || row.note === undefined ? null : String(row.note),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+    updatedByUserId: String(row.updated_by_user_id),
+    updatedByUserName: String(row.updated_by_user_name),
+  };
+}
+
+async function assertDispenserCustomerExists(
+  client: SupabaseClient,
+  customerId: string
+): Promise<void> {
+  const { data, error } = await client
+    .from('customers')
+    .select('id')
+    .eq('id', customerId)
+    .maybeSingle();
+
+  if (error) throw parseCustomerDispenserDbError(error);
+  if (!data) {
+    throw new DispatchDbError('CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
+  }
+}
+
+export async function listCustomerDispensers(
+  customerId: string
+): Promise<CustomerDispenser[]> {
+  const client = getCustomerDispenserSupabase();
+
+  try {
+    await assertDispenserCustomerExists(client, customerId);
+    const { data, error } = await client
+      .from('customer_dispensers')
+      .select('*')
+      .eq('customer_id', customerId)
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true });
+
+    if (error) throw parseCustomerDispenserDbError(error);
+    return (data || []).map(mapCustomerDispenserFromDb);
+  } catch (e) {
+    throw parseCustomerDispenserDbError(e);
+  }
+}
+
+export async function getCustomerDispenserSuggestions(): Promise<CustomerDispenserSuggestions> {
+  const client = getCustomerDispenserSupabase();
+
+  try {
+    const { data, error } = await client
+      .from('customer_dispensers')
+      .select('brand, model');
+
+    if (error) throw parseCustomerDispenserDbError(error);
+    return buildCustomerDispenserSuggestions(data || []);
+  } catch (e) {
+    throw parseCustomerDispenserDbError(e);
+  }
+}
+
+export async function createCustomerDispenser(
+  customerId: string,
+  input: CustomerDispenserInput,
+  actor: { id: string; name: string }
+): Promise<CustomerDispenser> {
+  const client = getCustomerDispenserSupabase();
+
+  try {
+    await assertDispenserCustomerExists(client, customerId);
+
+    const now = new Date().toISOString();
+    const { data, error } = await client
+      .from('customer_dispensers')
+      .insert({
+        id: `cdsp_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        customer_id: customerId,
+        brand: input.brand,
+        model: input.model,
+        quantity: input.quantity,
+        note: input.note ?? null,
+        created_at: now,
+        updated_at: now,
+        updated_by_user_id: actor.id,
+        updated_by_user_name: actor.name,
+      })
+      .select('*')
+      .maybeSingle();
+
+    if (error) throw parseCustomerDispenserDbError(error);
+    if (!data) {
+      throw new DispatchDbError(
+        'DB_ERROR',
+        'Sebil kaydı oluşturulamadı. Lütfen tekrar deneyin.'
+      );
+    }
+    return mapCustomerDispenserFromDb(data);
+  } catch (e) {
+    throw parseCustomerDispenserDbError(e);
+  }
+}
+
+export async function updateCustomerDispenser(
+  customerId: string,
+  dispenserId: string,
+  input: CustomerDispenserInput,
+  actor: { id: string; name: string }
+): Promise<CustomerDispenser> {
+  const client = getCustomerDispenserSupabase();
+
+  try {
+    await assertDispenserCustomerExists(client, customerId);
+
+    const { data, error } = await client
+      .from('customer_dispensers')
+      .update({
+        brand: input.brand,
+        model: input.model,
+        quantity: input.quantity,
+        note: input.note ?? null,
+        updated_at: new Date().toISOString(),
+        updated_by_user_id: actor.id,
+        updated_by_user_name: actor.name,
+      })
+      .eq('id', dispenserId)
+      .eq('customer_id', customerId)
+      .select('*')
+      .maybeSingle();
+
+    if (error) throw parseCustomerDispenserDbError(error);
+    if (!data) {
+      throw new DispatchDbError('DISPENSER_NOT_FOUND', 'Sebil kaydı bulunamadı.');
+    }
+    return mapCustomerDispenserFromDb(data);
+  } catch (e) {
+    throw parseCustomerDispenserDbError(e);
+  }
+}
+
+export async function deleteCustomerDispenser(
+  customerId: string,
+  dispenserId: string
+): Promise<void> {
+  const client = getCustomerDispenserSupabase();
+
+  try {
+    await assertDispenserCustomerExists(client, customerId);
+
+    const { data, error } = await client
+      .from('customer_dispensers')
+      .delete()
+      .eq('id', dispenserId)
+      .eq('customer_id', customerId)
+      .select('id')
+      .maybeSingle();
+
+    if (error) throw parseCustomerDispenserDbError(error);
+    if (!data) {
+      throw new DispatchDbError('DISPENSER_NOT_FOUND', 'Sebil kaydı bulunamadı.');
+    }
+  } catch (e) {
+    throw parseCustomerDispenserDbError(e);
+  }
 }
 
 // 4. Dispatches

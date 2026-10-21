@@ -36,7 +36,7 @@ jobs:
         run: npm run build
 
   retention-db:
-    name: PostgreSQL SQL (retention + iptal/düzenleme)
+    name: PostgreSQL SQL (retention + iptal/düzenleme + sebil)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -74,3 +74,6 @@ jobs:
 
       - name: Teslimat iptal/düzenleme semantiğini doğrula
         run: npx tsx scripts/ci/delivery-cancellation-pg-test.ts
+
+      - name: Müşteri sebil tablosu semantiğini doğrula
+        run: npx tsx scripts/ci/customer-dispensers-pg-test.ts

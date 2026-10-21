@@ -7,6 +7,9 @@ import {
   ProductCategoryInfo,
   CleanupStatus,
   PaymentStatus,
+  CustomerDispenser,
+  CustomerDispenserInput,
+  CustomerDispenserSuggestions,
 } from '../types';
 import {
   classifyDeliverySyncResponse,
@@ -265,6 +268,78 @@ export async function updateCustomer(id: string, updates: CustomerUpdate): Promi
   }
   const json = await res.json();
   return json.customer;
+}
+
+export async function fetchCustomerDispensers(customerId: string): Promise<{
+  dispensers: CustomerDispenser[];
+  suggestions: CustomerDispenserSuggestions;
+}> {
+  const res = await apiFetch(
+    `/api/customers/${encodeURIComponent(customerId)}/dispensers`
+  );
+  if (!res.ok) {
+    await throwServerError(res, 'Sebil kayıtları alınamadı.');
+  }
+  const json = await res.json();
+  return {
+    dispensers: Array.isArray(json.dispensers) ? json.dispensers : [],
+    suggestions: {
+      brands: Array.isArray(json.suggestions?.brands) ? json.suggestions.brands : [],
+      models: Array.isArray(json.suggestions?.models) ? json.suggestions.models : [],
+    },
+  };
+}
+
+export async function addCustomerDispenser(
+  customerId: string,
+  input: CustomerDispenserInput
+): Promise<CustomerDispenser> {
+  const res = await apiFetch(
+    `/api/customers/${encodeURIComponent(customerId)}/dispensers`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    }
+  );
+  if (!res.ok) {
+    await throwServerError(res, 'Sebil eklenemedi.');
+  }
+  const json = await res.json();
+  return json.dispenser as CustomerDispenser;
+}
+
+export async function editCustomerDispenser(
+  customerId: string,
+  dispenserId: string,
+  input: CustomerDispenserInput
+): Promise<CustomerDispenser> {
+  const res = await apiFetch(
+    `/api/customers/${encodeURIComponent(customerId)}/dispensers/${encodeURIComponent(dispenserId)}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    }
+  );
+  if (!res.ok) {
+    await throwServerError(res, 'Sebil güncellenemedi.');
+  }
+  const json = await res.json();
+  return json.dispenser as CustomerDispenser;
+}
+
+export async function removeCustomerDispenser(
+  customerId: string,
+  dispenserId: string
+): Promise<void> {
+  const res = await apiFetch(
+    `/api/customers/${encodeURIComponent(customerId)}/dispensers/${encodeURIComponent(dispenserId)}`,
+    { method: 'DELETE' }
+  );
+  if (!res.ok) {
+    await throwServerError(res, 'Sebil silinemedi.');
+  }
 }
 
 export async function fetchDispatches(date?: string): Promise<Dispatch[]> {

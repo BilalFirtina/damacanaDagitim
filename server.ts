@@ -24,6 +24,11 @@ import {
   getCustomers,
   createCustomer,
   updateCustomer,
+  listCustomerDispensers,
+  getCustomerDispenserSuggestions,
+  createCustomerDispenser,
+  updateCustomerDispenser,
+  deleteCustomerDispenser,
   getDispatches,
   createDispatch,
   updateDispatchLoading,
@@ -65,6 +70,10 @@ import {
   DispatchRuleResult,
 } from './src/services/dispatchRules.ts';
 import { todayUtcDateStr } from './src/services/dateWindow.ts';
+import {
+  CustomerDispenserValidationError,
+  normalizeCustomerDispenserInput,
+} from './src/services/customerDispenserRules.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -233,6 +242,17 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+function requireAdminOrDriver(req: Request, res: Response, next: NextFunction) {
+  const session = getAuthUser(req);
+  if (!session) {
+    return res.status(401).json({ error: 'Oturum geçersiz.' });
+  }
+  if (session.role === 'admin' || session.role === 'driver') {
+    return next();
+  }
+  return res.status(403).json({ error: 'Bu işlem için yönetici veya şoför yetkisi gereklidir.' });
+}
+
 function requireAdminOrLoader(req: Request, res: Response, next: NextFunction) {
   const session = getAuthUser(req);
   if (!session) {
@@ -272,7 +292,9 @@ function sendDispatchDbError(res: Response, err: any) {
   const code =
     err instanceof DispatchDbError || err instanceof DeliveryDbError ? err.code : err?.code;
   const status =
-    code === 'DISPATCH_NOT_FOUND' || code === 'CUSTOMER_NOT_FOUND'
+    code === 'DISPATCH_NOT_FOUND' ||
+    code === 'CUSTOMER_NOT_FOUND' ||
+    code === 'DISPENSER_NOT_FOUND'
       ? 404
       : code === 'NOT_AUTHORIZED'
         ? 403
@@ -300,6 +322,13 @@ function sendDispatchDbError(res: Response, err: any) {
     code: code || 'DISPATCH_FAILED',
     ...(err?.details ? { details: err.details } : {}),
   });
+}
+
+function sendCustomerDispenserError(res: Response, err: any) {
+  if (err instanceof CustomerDispenserValidationError) {
+    return res.status(400).json({ error: err.message, code: err.code });
+  }
+  return sendDispatchDbError(res, err);
 }
 
 function sendDeliveryCorrectionError(res: Response, err: any) {
@@ -670,6 +699,66 @@ app.put('/api/customers/:id', requireAdmin, async (req, res) => {
     sendDispatchDbError(res, err);
   }
 });
+
+app.get('/api/customers/:id/dispensers', requireAdminOrDriver, async (req, res) => {
+  try {
+    const [dispensers, suggestions] = await Promise.all([
+      listCustomerDispensers(req.params.id),
+      getCustomerDispenserSuggestions(),
+    ]);
+    res.json({ dispensers, suggestions });
+  } catch (err: any) {
+    sendCustomerDispenserError(res, err);
+  }
+});
+
+app.post('/api/customers/:id/dispensers', requireAdminOrDriver, async (req, res) => {
+  try {
+    const input = normalizeCustomerDispenserInput(req.body);
+    const actor = getAuthUser(req)!;
+    const dispenser = await createCustomerDispenser(
+      req.params.id,
+      input,
+      { id: actor.userId, name: actor.name }
+    );
+    res.status(201).json({ dispenser, message: 'Sebil eklendi.' });
+  } catch (err: any) {
+    sendCustomerDispenserError(res, err);
+  }
+});
+
+app.put(
+  '/api/customers/:customerId/dispensers/:dispenserId',
+  requireAdminOrDriver,
+  async (req, res) => {
+    try {
+      const input = normalizeCustomerDispenserInput(req.body);
+      const actor = getAuthUser(req)!;
+      const dispenser = await updateCustomerDispenser(
+        req.params.customerId,
+        req.params.dispenserId,
+        input,
+        { id: actor.userId, name: actor.name }
+      );
+      res.json({ dispenser, message: 'Sebil güncellendi.' });
+    } catch (err: any) {
+      sendCustomerDispenserError(res, err);
+    }
+  }
+);
+
+app.delete(
+  '/api/customers/:customerId/dispensers/:dispenserId',
+  requireAdminOrDriver,
+  async (req, res) => {
+    try {
+      await deleteCustomerDispenser(req.params.customerId, req.params.dispenserId);
+      res.json({ success: true, message: 'Sebil silindi.' });
+    } catch (err: any) {
+      sendCustomerDispenserError(res, err);
+    }
+  }
+);
 
 // 4. Dispatches (Seferler & Yüklemeler)
 app.get('/api/dispatches', async (req, res) => {

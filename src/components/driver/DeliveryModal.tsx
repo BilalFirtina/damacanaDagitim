@@ -35,6 +35,7 @@ import {
 } from '../../services/stockWarning';
 import { computeDeliveredDeposits } from '../../services/depositRules';
 import { negativeEmptyMessages } from '../../services/emptyBalanceDisplay';
+import { CustomerDispensersSection } from '../common/CustomerDispensersSection';
 
 interface DeliveryModalProps {
   isOpen: boolean;
@@ -830,12 +831,12 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] text-slate-500 truncate max-w-sm">{c.address || 'Adres bilgisi yok'}</div>
                           {c.phone && (
                             <div className="text-[10px] text-slate-400 font-mono">
                               📞 {c.phone}
                             </div>
                           )}
+                          <div className="text-[11px] text-slate-500 truncate max-w-sm">{c.address || 'Adres bilgisi yok'}</div>
                         </div>
 
                         <div className="text-right shrink-0">
@@ -888,16 +889,16 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-3 mt-1 text-[11px] text-slate-600 dark:text-slate-300">
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-slate-400" />
-                      {selectedCustomer.address || 'Adres yok'}
-                    </span>
                     {selectedCustomer.phone && (
                       <span className="flex items-center gap-1 font-mono">
                         <Phone className="w-3 h-3 text-slate-400" />
                         {selectedCustomer.phone}
                       </span>
                     )}
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-slate-400" />
+                      {selectedCustomer.address || 'Adres yok'}
+                    </span>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 mt-2">
@@ -946,6 +947,13 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   </button>
                 )}
               </div>
+            )}
+
+            {selectedCustomer && (
+              <CustomerDispensersSection
+                customerId={selectedCustomer.id}
+                customerName={selectedCustomer.name}
+              />
             )}
           </div>
 
