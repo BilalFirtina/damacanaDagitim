@@ -9,7 +9,7 @@
 import {
   computeDeliveredDeposits,
   computeEmptyContainersDiff,
-} from '../src/server/db.ts';
+} from '../src/services/depositRules.ts';
 
 interface FixtureProduct {
   id: string;

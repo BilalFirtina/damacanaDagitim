@@ -8,7 +8,7 @@ import type {
 import {
   computeDeliveredDeposits,
   computeEmptyContainersDiff,
-} from './db.ts';
+} from '../services/depositRules.ts';
 
 export class DeliveryInputError extends Error {
   status: number;

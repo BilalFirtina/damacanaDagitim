@@ -8,7 +8,7 @@ import {
 import {
   computeDeliveredDeposits,
   computeEmptyContainersDiff,
-} from '../src/server/db.ts';
+} from '../src/services/depositRules.ts';
 
 let passed = 0;
 let failed = 0;
