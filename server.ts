@@ -36,6 +36,7 @@ import {
   closeDispatchAtomic,
   adminUpdateCustomerAtomic,
   getDeliveries,
+  getCustomerFinancialAudit,
   getDeliveryById,
   getDeliveryCorrections,
   createDeliveryRecord,
@@ -70,6 +71,7 @@ import {
   DispatchRuleResult,
 } from './src/services/dispatchRules.ts';
 import { todayUtcDateStr } from './src/services/dateWindow.ts';
+import { buildCustomerStatement } from './src/services/statementRules.ts';
 import {
   CustomerDispenserValidationError,
   normalizeCustomerDispenserInput,
@@ -697,6 +699,80 @@ app.put('/api/customers/:id', requireAdmin, async (req, res) => {
     res.json({ customer: updated });
   } catch (err: any) {
     sendDispatchDbError(res, err);
+  }
+});
+
+app.get('/api/customers/:id/statement', requireAdmin, async (req, res) => {
+  try {
+    const customerId = req.params.id;
+    const customers = await getCustomers();
+    const customer = customers.find((c) => c.id === customerId);
+    if (!customer) {
+      return res.status(404).json({ error: 'Müşteri bulunamadı' });
+    }
+
+    const today = getTodayDateStr();
+    const isDate = (v: unknown): v is string =>
+      typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+    const defaultFrom = new Date(new Date(`${today}T00:00:00.000Z`).getTime() - 29 * 86400000)
+      .toISOString()
+      .slice(0, 10);
+
+    const from = isDate(req.query.from) ? req.query.from : defaultFrom;
+    const to = isDate(req.query.to) ? req.query.to : today;
+
+    if (from > to) {
+      return res.status(400).json({ error: 'Başlangıç tarihi bitiş tarihinden sonra olamaz.' });
+    }
+
+    const [deliveries, audits, dispensers] = await Promise.all([
+      getDeliveries({ customerId }),
+      getCustomerFinancialAudit(customerId),
+      listCustomerDispensers(customerId).catch(() => []),
+    ]);
+
+    const statement = buildCustomerStatement({
+      currentBalance: Number(customer.currentBalanceTL) || 0,
+      deliveries: deliveries.map((d) => ({
+        id: d.id,
+        timestamp: d.timestamp,
+        deliveredGrandTotal: Number(d.deliveredGrandTotal) || 0,
+        collectedPayment: {
+          totalCollected: Number(d.collectedPayment?.totalCollected) || 0,
+          cashAmount: Number(d.collectedPayment?.cashAmount) || 0,
+          posAmount: Number(d.collectedPayment?.posAmount) || 0,
+        },
+        deliveredItems: (d.deliveredItems || []).map((i) => ({
+          productId: i.productId,
+          productName: i.productName,
+          quantity: Number(i.quantity) || 0,
+          unitPrice: Number(i.unitPrice) || 0,
+          lineTotal: Number(i.lineTotal) || 0,
+        })),
+      })),
+      audits,
+      from,
+      to,
+    });
+
+    res.json({
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        phone: customer.phone,
+        address: customer.address,
+        isAccountCustomer: customer.isAccountCustomer,
+        currentBalanceTL: Number(customer.currentBalanceTL) || 0,
+      },
+      statement,
+      returnables: {
+        emptyDepositBalance: customer.emptyDepositBalance || { damacana: 0, camDamacana: 0, tup: 0 },
+        dispensers,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Cari hesap ekstresi oluşturulamadı.' });
   }
 });
 

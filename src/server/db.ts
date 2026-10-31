@@ -3179,6 +3179,7 @@ export async function updateDispatch(id: string, updates: Partial<Dispatch>): Pr
 export async function getDeliveries(params?: {
   dispatchId?: string;
   driverId?: string;
+  customerId?: string;
   date?: string;
   includeCancelled?: boolean;
 }): Promise<Delivery[]> {
@@ -3188,6 +3189,7 @@ export async function getDeliveries(params?: {
       if (!params?.includeCancelled) query = query.neq('status', 'cancelled');
       if (params?.dispatchId) query = query.eq('dispatch_id', params.dispatchId);
       if (params?.driverId) query = query.eq('driver_id', params.driverId);
+      if (params?.customerId) query = query.eq('customer_id', params.customerId);
       if (params?.date) {
         // Gün filtresi sunucu tarafında dar bir aralığa indirilir; kesin gün
         // eşleşmesi aşağıda bellekte doğrulanır. Böylece tüm geçmiş çekilmez
@@ -3244,9 +3246,73 @@ export async function getDeliveries(params?: {
   if (!params?.includeCancelled) list = list.filter((d) => d.status !== 'cancelled');
   if (params?.dispatchId) list = list.filter((d) => d.dispatchId === params.dispatchId);
   if (params?.driverId) list = list.filter((d) => d.driverId === params.driverId);
+  if (params?.customerId) list = list.filter((d) => d.customerId === params.customerId);
   if (params?.date) list = list.filter((d) => isSameUtcDate(d.timestamp, params.date!));
   list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   return list;
+}
+
+// Müşteri finansal düzeltme denetim kayıtları — AGENTS.md Bölüm 6 ve 13.
+// Bakiye/boş kap düzeltmeleri silinemez; ekstrede "düzeltme" hareketi olarak
+// görünür ve açılış/kapanış bakiyesine yansır.
+export interface CustomerFinancialAuditRow {
+  id: string;
+  customerId: string;
+  changedByUserId: string;
+  changedByUserName: string;
+  reason: string;
+  previousBalance: number | null;
+  newBalance: number | null;
+  changedAt: string;
+}
+
+export async function getCustomerFinancialAudit(customerId: string): Promise<CustomerFinancialAuditRow[]> {
+  if (isSupabaseOperational() && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('customer_financial_audit')
+        .select(
+          'id, customer_id, changed_by_user_id, changed_by_user_name, reason, previous_balance, new_balance, changed_at'
+        )
+        .eq('customer_id', customerId)
+        .order('changed_at', { ascending: true });
+      if (!error && data) {
+        return data.map((row: any) => ({
+          id: String(row.id),
+          customerId: row.customer_id,
+          changedByUserId: row.changed_by_user_id || '',
+          changedByUserName: row.changed_by_user_name || '',
+          reason: row.reason || '',
+          previousBalance:
+            row.previous_balance === null || row.previous_balance === undefined
+              ? null
+              : Number(row.previous_balance),
+          newBalance:
+            row.new_balance === null || row.new_balance === undefined
+              ? null
+              : Number(row.new_balance),
+          changedAt: row.changed_at,
+        }));
+      }
+      console.error('[Supabase getCustomerFinancialAudit]', error);
+    } catch (e) {
+      console.error('[Supabase getCustomerFinancialAudit Exception]', e);
+    }
+  }
+
+  const db = loadLocalDatabase();
+  return (db.financialAudit || [])
+    .filter((row) => row.customerId === customerId)
+    .map((row, idx) => ({
+      id: `local_${idx}`,
+      customerId: row.customerId,
+      changedByUserId: row.changedByUserId,
+      changedByUserName: row.changedByUserName,
+      reason: row.reason,
+      previousBalance: row.previousBalance ?? null,
+      newBalance: row.newBalance ?? null,
+      changedAt: row.changedAt,
+    }));
 }
 
 // Tek bir teslimatı satırları ve boş kap hareketleriyle okur.

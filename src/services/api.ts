@@ -245,6 +245,42 @@ export async function fetchCustomers(): Promise<Customer[]> {
   }
 }
 
+// Müşteri cari hesap ekstresi — AGENTS.md Bölüm 10.1.
+export interface CustomerStatementResponse {
+  customer: {
+    id: string;
+    name: string;
+    phone: string;
+    address: string;
+    isAccountCustomer: boolean;
+    currentBalanceTL: number;
+  };
+  statement: import('./statementRules').CustomerStatementResult;
+  returnables: {
+    emptyDepositBalance: { damacana: number; camDamacana: number; tup: number };
+    dispensers: Array<{
+      id: string;
+      brand: string;
+      model: string;
+      quantity: number;
+      note?: string | null;
+    }>;
+  };
+}
+
+export async function fetchCustomerStatement(
+  customerId: string,
+  from: string,
+  to: string
+): Promise<CustomerStatementResponse> {
+  const query = new URLSearchParams({ from, to });
+  const res = await apiFetch(
+    `/api/customers/${encodeURIComponent(customerId)}/statement?${query.toString()}`
+  );
+  if (!res.ok) await throwServerError(res, 'Cari hesap ekstresi alınamadı');
+  return res.json();
+}
+
 export async function createCustomer(customer: Partial<Customer>): Promise<Customer> {
   const res = await apiFetch('/api/customers', {
     method: 'POST',
