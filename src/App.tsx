@@ -10,6 +10,8 @@ import {
   logoutUser,
   normalizeDelivery,
   getAuthToken,
+  clearCachedData,
+  getOfflineQueue,
 } from './services/api';
 import { LoginView } from './components/auth/LoginView';
 import { todayUtcDateStr } from './services/dateWindow';
@@ -21,6 +23,7 @@ import {
 import { StaleDispatchWarning } from './components/driver/StaleDispatchWarning';
 import { Header } from './components/common/Header';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
+import { UpdateAvailableBanner } from './components/common/UpdateAvailableBanner';
 import { DriverView } from './components/driver/DriverView';
 import { LiveTeamFeed } from './components/driver/LiveTeamFeed';
 import { EndOfDayView } from './components/driver/EndOfDayView';
@@ -77,6 +80,9 @@ export default function App() {
 
   // Uyarıdan "Gün Sonunu Tamamla" seçildiğinde gün sonu ekranında açılacak sefer.
   const [eodTargetDispatchId, setEodTargetDispatchId] = useState<string | null>(null);
+
+  // Yeni servis çalışanı devreye girdiğinde (uygulama güncellemesi) gösterilir.
+  const [isUpdateReady, setIsUpdateReady] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -164,10 +170,19 @@ export default function App() {
     const onAuthExpired = () => {
       localStorage.removeItem(REMEMBERED_USER_KEY);
       sessionStorage.removeItem(SESSION_USER_KEY);
+      // Yetki kaybında önbelleğe alınmış müşteri verisi cihazda kalmaz.
+      // Senkronize edilmemiş teslimat kuyruğu korunur (sessiz silme yasak).
+      clearCachedData();
       setCurrentUser(null);
     };
     window.addEventListener('auth_expired', onAuthExpired);
     return () => window.removeEventListener('auth_expired', onAuthExpired);
+  }, []);
+
+  useEffect(() => {
+    const onUpdateReady = () => setIsUpdateReady(true);
+    window.addEventListener('app:update-ready', onUpdateReady);
+    return () => window.removeEventListener('app:update-ready', onUpdateReady);
   }, []);
 
   const handleLoginSuccess = (user: User, rememberMe: boolean) => {
@@ -183,8 +198,21 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    // AGENTS.md Bölüm 12.3: senkronize edilmemiş kayıtlar sessizce silinemez.
+    // Kuyruk varsa kullanıcıya sorulur; vazgeçerse çıkış yapılmaz.
+    const pendingCount = getOfflineQueue().length;
+    if (pendingCount > 0) {
+      const confirmed = window.confirm(
+        `Senkronize edilmemiş ${pendingCount} teslimat kaydı var. Çıkış yaparsanız bu kayıtlar ` +
+          'bu cihazda kalır ve bir sonraki oturumda gönderilmeye çalışılır. Çıkış yapılsın mı?'
+      );
+      if (!confirmed) return;
+    }
+
     localStorage.removeItem(REMEMBERED_USER_KEY);
     sessionStorage.removeItem(SESSION_USER_KEY);
+    // Kullanıcıya özel önbellek temizlenir; kuyruk korunur.
+    clearCachedData();
     setCurrentUser(null);
     logoutUser();
   };
@@ -282,6 +310,12 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 pb-20 min-w-0 overflow-x-hidden">
+        {isUpdateReady && (
+          <div className="mb-4">
+            <UpdateAvailableBanner />
+          </div>
+        )}
+
         {/* AGENTS.md Bölüm 9.1: kapatılamaz uyarı, sefer sonlandırılana kadar her girişte görünür */}
         {currentUser.role === 'driver' && staleDispatch && activeTab !== 'eod' && (
           <div className="mb-4">

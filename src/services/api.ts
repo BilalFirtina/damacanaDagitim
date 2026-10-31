@@ -114,6 +114,17 @@ export function getCache(key: string): any | null {
   }
 }
 
+// Kullanıcıya özel önbelleğe alınmış okuma verilerini (müşteri bakiyeleri,
+// teslimatlar, seferler) temizler. AGENTS.md Bölüm 12.3: oturum kapanınca
+// yetkisiz kullanıcıya önceki kullanıcının finansal verisi gösterilmemeli.
+// DİKKAT: Senkronize edilmemiş teslimat kuyruğuna (OFFLINE_QUEUE_KEY) DOKUNMAZ;
+// o kayıtlar sessizce silinemez (Bölüm 12.3).
+export function clearCachedData() {
+  try {
+    localStorage.removeItem(CACHED_DATA_KEY);
+  } catch {}
+}
+
 // REST API Methods
 export async function loginUser(username: string, pin: string): Promise<User> {
   const res = await apiFetch('/api/auth/login', {
