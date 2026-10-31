@@ -28,6 +28,7 @@ import {
   replaceDelivery,
   addCustomerDispenser,
 } from '../../services/api';
+import { CustomerDispenserInfo } from '../common/CustomerDispenserInfo';
 import {
   computeStockWarnings,
   getStockWarningSignature,
@@ -984,6 +985,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
               </div>
             )}
 
+            {selectedCustomer && (
+              <CustomerDispenserInfo customerId={selectedCustomer.id} />
+            )}
           </div>
 
           {/* ============================================================== */}
@@ -1351,7 +1355,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                           onChange={(e) => setSebilNote(e.target.value)}
                           maxLength={300}
                           rows={2}
-                          placeholder="Örn: Giriş katı mutfak yanı, güvenlikçiye teslim edildi"
+                          placeholder="Örn: Müşterinin giriş katındaki mutfağında, tezgâhın yanında bırakıldı; teslim eden kişi: güvenlik görevlisi"
                           className="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white resize-y"
                         />
                       </label>

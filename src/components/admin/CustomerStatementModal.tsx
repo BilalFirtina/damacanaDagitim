@@ -281,15 +281,6 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
                   <span className="px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-200 font-mono">
                     {Number((data?.returnables.emptyDepositBalance as any)?.sebil) || 0} Su Sebili
                   </span>
-                  {(data?.returnables.dispensers || []).map((d) => (
-                    <span
-                      key={d.id}
-                      className="px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-200 font-mono break-words"
-                    >
-                      {d.quantity} Sebil {d.brand ? `(${d.brand}${d.model ? ` ${d.model}` : ''})` : ''}
-                      {d.note ? ` · ${d.note}` : ''}
-                    </span>
-                  ))}
                 </div>
               </div>
 

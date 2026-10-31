@@ -47,8 +47,7 @@ export const BalancesReportView: React.FC = () => {
         r.empty.damacana !== 0 ||
         r.empty.camDamacana !== 0 ||
         r.empty.tup !== 0 ||
-        r.empty.sebil !== 0 ||
-        r.dispensers.length > 0
+        r.empty.sebil !== 0
     );
   }, [data, search, mode]);
 
@@ -229,15 +228,6 @@ export const BalancesReportView: React.FC = () => {
                       {row.empty.sebil} Su Sebili
                     </span>
                   )}
-                  {row.dispensers.map((d) => (
-                    <span
-                      key={d.id}
-                      className="px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-200 font-mono break-words"
-                    >
-                      {d.quantity} Sebil{d.brand ? ` (${d.brand}${d.model ? ` ${d.model}` : ''})` : ''}
-                      {d.note ? ` · ${d.note}` : ''}
-                    </span>
-                  ))}
                 </div>
               )}
             </div>

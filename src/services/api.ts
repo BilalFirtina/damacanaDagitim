@@ -258,13 +258,6 @@ export interface CustomerStatementResponse {
   statement: import('./statementRules').CustomerStatementResult;
   returnables: {
     emptyDepositBalance: { damacana: number; camDamacana: number; tup: number; sebil?: number };
-    dispensers: Array<{
-      id: string;
-      brand: string;
-      model: string;
-      quantity: number;
-      note?: string | null;
-    }>;
   };
 }
 
@@ -289,13 +282,6 @@ export interface BalancesReportRow {
   isAccountCustomer: boolean;
   balance: number;
   empty: { damacana: number; camDamacana: number; tup: number; sebil: number };
-  dispensers: Array<{
-    id: string;
-    brand: string;
-    model: string;
-    quantity: number;
-    note?: string | null;
-  }>;
 }
 
 export interface BalancesReportResponse {
@@ -307,7 +293,6 @@ export interface BalancesReportResponse {
     emptyCamDamacana: number;
     emptyTup: number;
     emptySebil: number;
-    dispenserCount: number;
   };
 }
 

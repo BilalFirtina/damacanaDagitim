@@ -25,7 +25,6 @@ import {
   createCustomer,
   updateCustomer,
   listCustomerDispensers,
-  listAllCustomerDispensers,
   getCustomerDispenserSuggestions,
   createCustomerDispenser,
   updateCustomerDispenser,
@@ -759,17 +758,7 @@ app.post('/api/customers/:id/payments', requireAdmin, async (req, res) => {
 
 app.get('/api/reports/balances', requireAdmin, async (_req, res) => {
   try {
-    const [customers, dispensers] = await Promise.all([
-      getCustomers(),
-      listAllCustomerDispensers(),
-    ]);
-
-    const dispensersByCustomer = new Map<string, typeof dispensers>();
-    for (const d of dispensers) {
-      const list = dispensersByCustomer.get(d.customerId) || [];
-      list.push(d);
-      dispensersByCustomer.set(d.customerId, list);
-    }
+    const customers = await getCustomers();
 
     const rows = customers
       .map((c) => {
@@ -787,15 +776,12 @@ app.get('/api/reports/balances', requireAdmin, async (_req, res) => {
             tup: Number(empty.tup) || 0,
             sebil: Number((empty as any).sebil) || 0,
           },
-          dispensers: dispensersByCustomer.get(c.id) || [],
         };
       })
       .filter((row) => {
         const emptyTotal =
           row.empty.damacana + row.empty.camDamacana + row.empty.tup + row.empty.sebil;
-        return (
-          Math.abs(row.balance) > 0.005 || emptyTotal !== 0 || row.dispensers.length > 0
-        );
+        return Math.abs(row.balance) > 0.005 || emptyTotal !== 0;
       })
       .sort((a, b) => b.balance - a.balance || a.name.localeCompare(b.name, 'tr'));
 
@@ -806,10 +792,6 @@ app.get('/api/reports/balances', requireAdmin, async (_req, res) => {
       emptyCamDamacana: rows.reduce((sum, r) => sum + r.empty.camDamacana, 0),
       emptyTup: rows.reduce((sum, r) => sum + r.empty.tup, 0),
       emptySebil: rows.reduce((sum, r) => sum + r.empty.sebil, 0),
-      dispenserCount: rows.reduce(
-        (sum, r) => sum + r.dispensers.reduce((s, d) => s + (Number(d.quantity) || 0), 0),
-        0
-      ),
     };
 
     res.json({ rows, totals });
@@ -842,10 +824,9 @@ app.get('/api/customers/:id/statement', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Başlangıç tarihi bitiş tarihinden sonra olamaz.' });
     }
 
-    const [deliveries, audits, dispensers] = await Promise.all([
+    const [deliveries, audits] = await Promise.all([
       getDeliveries({ customerId }),
       getCustomerFinancialAudit(customerId),
-      listCustomerDispensers(customerId).catch(() => []),
     ]);
 
     const statement = buildCustomerStatement({
@@ -884,7 +865,6 @@ app.get('/api/customers/:id/statement', requireAdmin, async (req, res) => {
       statement,
       returnables: {
         emptyDepositBalance: customer.emptyDepositBalance || { damacana: 0, camDamacana: 0, tup: 0 },
-        dispensers,
       },
     });
   } catch (err: any) {
