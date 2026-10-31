@@ -2085,6 +2085,28 @@ export async function listCustomerDispensers(
   }
 }
 
+// Raporlama için tüm müşterilerin sebil kayıtları — AGENTS.md Bölüm 10.2.
+// Sebil tablosu yalnızca merkezi veritabanında tutulur; yerel modda boş döner
+// ve rapor diğer iade edilebilir kalemlerle çalışmaya devam eder.
+export async function listAllCustomerDispensers(): Promise<CustomerDispenser[]> {
+  if (!isSupabaseOperational() || !supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('customer_dispensers')
+      .select('*')
+      .order('customer_id', { ascending: true })
+      .order('id', { ascending: true });
+    if (error) {
+      console.error('[Supabase listAllCustomerDispensers]', error);
+      return [];
+    }
+    return (data || []).map(mapCustomerDispenserFromDb);
+  } catch (e) {
+    console.error('[Supabase listAllCustomerDispensers Exception]', e);
+    return [];
+  }
+}
+
 export async function getCustomerDispenserSuggestions(): Promise<CustomerDispenserSuggestions> {
   const client = getCustomerDispenserSupabase();
 

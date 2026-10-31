@@ -18,6 +18,7 @@ import { fetchDailyReport } from '../../services/api';
 import { todayUtcDateStr } from '../../services/dateWindow';
 import { ConsolidatedDailyReport } from './ConsolidatedDailyReport';
 import { DeliveryCorrectionsView } from './DeliveryCorrectionsView';
+import { BalancesReportView } from './BalancesReportView';
 
 interface DailyReportsViewProps {
   users: User[];
@@ -32,7 +33,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
 }) => {
   const isDriver = currentUser?.role === 'driver';
   const todayStr = todayUtcDateStr();
-  const [subTab, setSubTab] = useState<'consolidated' | 'detailed' | 'corrections'>(
+  const [subTab, setSubTab] = useState<'consolidated' | 'detailed' | 'balances' | 'corrections'>(
     'consolidated'
   );
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
@@ -350,6 +351,17 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
           <span>Detaylı Teslimat Listesi & Excel</span>
         </button>
         <button
+          onClick={() => setSubTab('balances')}
+          className={`w-full sm:w-auto min-h-11 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center sm:justify-start gap-2 text-left ${
+            subTab === 'balances'
+              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <Wallet className="w-4 h-4 shrink-0" />
+          <span>Cari & İade Edilebilir Bakiyeler</span>
+        </button>
+        <button
           onClick={() => setSubTab('corrections')}
           className={`w-full sm:w-auto min-h-11 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center sm:justify-start gap-2 text-left ${
             subTab === 'corrections'
@@ -364,6 +376,8 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
 
       {subTab === 'consolidated' ? (
         <ConsolidatedDailyReport users={users} products={products} />
+      ) : subTab === 'balances' ? (
+        <BalancesReportView />
       ) : subTab === 'corrections' ? (
         <DeliveryCorrectionsView />
       ) : (

@@ -25,6 +25,7 @@ import {
   createCustomer,
   updateCustomer,
   listCustomerDispensers,
+  listAllCustomerDispensers,
   getCustomerDispenserSuggestions,
   createCustomerDispenser,
   updateCustomerDispenser,
@@ -699,6 +700,64 @@ app.put('/api/customers/:id', requireAdmin, async (req, res) => {
     res.json({ customer: updated });
   } catch (err: any) {
     sendDispatchDbError(res, err);
+  }
+});
+
+app.get('/api/reports/balances', requireAdmin, async (_req, res) => {
+  try {
+    const [customers, dispensers] = await Promise.all([
+      getCustomers(),
+      listAllCustomerDispensers(),
+    ]);
+
+    const dispensersByCustomer = new Map<string, typeof dispensers>();
+    for (const d of dispensers) {
+      const list = dispensersByCustomer.get(d.customerId) || [];
+      list.push(d);
+      dispensersByCustomer.set(d.customerId, list);
+    }
+
+    const rows = customers
+      .map((c) => {
+        const empty = c.emptyDepositBalance || { damacana: 0, camDamacana: 0, tup: 0 };
+        const camDamacana = Number((empty as any).camDamacana ?? (empty as any).cam_damacana) || 0;
+        return {
+          id: c.id,
+          name: c.name,
+          phone: c.phone,
+          isAccountCustomer: c.isAccountCustomer,
+          balance: Number(c.currentBalanceTL) || 0,
+          empty: {
+            damacana: Number(empty.damacana) || 0,
+            camDamacana,
+            tup: Number(empty.tup) || 0,
+          },
+          dispensers: dispensersByCustomer.get(c.id) || [],
+        };
+      })
+      .filter((row) => {
+        const emptyTotal = row.empty.damacana + row.empty.camDamacana + row.empty.tup;
+        return (
+          Math.abs(row.balance) > 0.005 || emptyTotal !== 0 || row.dispensers.length > 0
+        );
+      })
+      .sort((a, b) => b.balance - a.balance || a.name.localeCompare(b.name, 'tr'));
+
+    const totals = {
+      totalDebt: rows.reduce((sum, r) => sum + (r.balance > 0 ? r.balance : 0), 0),
+      totalAdvance: rows.reduce((sum, r) => sum + (r.balance < 0 ? -r.balance : 0), 0),
+      emptyDamacana: rows.reduce((sum, r) => sum + r.empty.damacana, 0),
+      emptyCamDamacana: rows.reduce((sum, r) => sum + r.empty.camDamacana, 0),
+      emptyTup: rows.reduce((sum, r) => sum + r.empty.tup, 0),
+      dispenserCount: rows.reduce(
+        (sum, r) => sum + r.dispensers.reduce((s, d) => s + (Number(d.quantity) || 0), 0),
+        0
+      ),
+    };
+
+    res.json({ rows, totals });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Bakiye raporu oluşturulamadı.' });
   }
 });
 

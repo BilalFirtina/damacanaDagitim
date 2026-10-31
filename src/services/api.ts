@@ -281,6 +281,35 @@ export async function fetchCustomerStatement(
   return res.json();
 }
 
+// Bekleyen müşteri borçları ve iade edilebilir kalem bakiyeleri — Bölüm 10.2.
+export interface BalancesReportRow {
+  id: string;
+  name: string;
+  phone: string;
+  isAccountCustomer: boolean;
+  balance: number;
+  empty: { damacana: number; camDamacana: number; tup: number };
+  dispensers: Array<{ id: string; brand: string; model: string; quantity: number }>;
+}
+
+export interface BalancesReportResponse {
+  rows: BalancesReportRow[];
+  totals: {
+    totalDebt: number;
+    totalAdvance: number;
+    emptyDamacana: number;
+    emptyCamDamacana: number;
+    emptyTup: number;
+    dispenserCount: number;
+  };
+}
+
+export async function fetchBalancesReport(): Promise<BalancesReportResponse> {
+  const res = await apiFetch('/api/reports/balances');
+  if (!res.ok) await throwServerError(res, 'Bakiye raporu alınamadı');
+  return res.json();
+}
+
 export async function createCustomer(customer: Partial<Customer>): Promise<Customer> {
   const res = await apiFetch('/api/customers', {
     method: 'POST',
