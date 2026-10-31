@@ -13,6 +13,12 @@ import {
 } from './services/api';
 import { LoginView } from './components/auth/LoginView';
 import { todayUtcDateStr } from './services/dateWindow';
+import {
+  findOldestStaleOpenDispatch,
+  findStaleOpenDispatch,
+  isStaleDispatch,
+} from './services/dispatchRules';
+import { StaleDispatchWarning } from './components/driver/StaleDispatchWarning';
 import { Header } from './components/common/Header';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
 import { DriverView } from './components/driver/DriverView';
@@ -26,6 +32,27 @@ import { DataRetentionView } from './components/admin/DataRetentionView';
 
 const REMEMBERED_USER_KEY = 'sudagitim_remembered_user';
 const SESSION_USER_KEY = 'sudagitim_session_user';
+
+// Bugünün teslimatlarına ek olarak, tarihi geçmiş ve hâlâ açık seferlerin
+// teslimatları da yüklenir. Aksi hâlde dünün açık seferi kapatılırken gün sonu
+// mutabakatı eksik teslimatla hesaplanır (AGENTS.md Bölüm 9.1).
+async function fetchDeliveriesForDispatches(dispatchList: Dispatch[]): Promise<Delivery[]> {
+  const today = todayUtcDateStr();
+  const todayDeliveries = await fetchDeliveries({ date: today });
+  const pastOpenDispatches = dispatchList.filter((d) => isStaleDispatch(d, today));
+  const pastDeliveryLists = await Promise.all(
+    pastOpenDispatches.map((d) =>
+      fetchDeliveries({ dispatchId: d.id }).catch(() => [] as Delivery[])
+    )
+  );
+
+  const byId = new Map<string, Delivery>();
+  for (const raw of [...todayDeliveries, ...pastDeliveryLists.flat()]) {
+    const normalized = normalizeDelivery(raw);
+    byId.set(normalized.id, normalized);
+  }
+  return Array.from(byId.values());
+}
 
 export default function App() {
   const [users, setUsers] = useState<User[]>([]);
@@ -48,6 +75,9 @@ export default function App() {
     'delivery' | 'team_feed' | 'eod' | 'customers' | 'products' | 'reports' | 'admin_loads' | 'retention'
   >('delivery');
 
+  // Uyarıdan "Gün Sonunu Tamamla" seçildiğinde gün sonu ekranında açılacak sefer.
+  const [eodTargetDispatchId, setEodTargetDispatchId] = useState<string | null>(null);
+
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -55,13 +85,13 @@ export default function App() {
   const loadData = useCallback(async () => {
     try {
       setIsRefreshing(true);
-      const [uList, pList, cList, dList, delList] = await Promise.all([
+      const [uList, pList, cList, dList] = await Promise.all([
         fetchUsers(),
         fetchProducts(),
         fetchCustomers(),
         fetchDispatches(),
-        fetchDeliveries({ date: todayUtcDateStr() }),
       ]);
+      const delList = await fetchDeliveriesForDispatches(dList);
 
       // Kategori tanımlarını veritabanından yükle (veri odaklı sıralama/etiketleme).
       try {
@@ -75,7 +105,7 @@ export default function App() {
       setProducts(pList);
       setCustomers(cList);
       setDispatches(dList);
-      setDeliveries(delList.map((d) => normalizeDelivery(d)));
+      setDeliveries(delList);
 
       // Verify and sync active session against freshly retrieved users list
       const savedUserRaw =
@@ -118,12 +148,11 @@ export default function App() {
       if (!getAuthToken()) return;
       try {
         // Gün her tetikte yeniden hesaplanır; gece yarısı geçişinde yeni gün
-        // verisi çekilir ve önceki günün kayıtları state'te kalmaz.
-        const [latestDeliveries, latestDispatches] = await Promise.all([
-          fetchDeliveries({ date: todayUtcDateStr() }),
-          fetchDispatches(),
-        ]);
-        setDeliveries(latestDeliveries.map((d) => normalizeDelivery(d)));
+        // verisi çekilir ve önceki günün kayıtları state'te kalmaz. Tarihi
+        // geçmiş açık seferlerin teslimatları da mutabakat için birlikte gelir.
+        const latestDispatches = await fetchDispatches();
+        const latestDeliveries = await fetchDeliveriesForDispatches(latestDispatches);
+        setDeliveries(latestDeliveries);
         setDispatches(latestDispatches);
       } catch {}
     }, 8000);
@@ -160,9 +189,17 @@ export default function App() {
     logoutUser();
   };
 
-  // Find active dispatch for the current user (if driver) or first active dispatch for admin
+  // Find active dispatch for the current user (if driver) or first active dispatch for admin.
+  // AGENTS.md Bölüm 9.1: tarihi geçmiş ve hâlâ açık olan sefer, bugünün açık
+  // seferinden önce gelir; şoför kilitli kalmaz ve uyarıdan o sefere ulaşır.
   const todayStr = todayUtcDateStr();
+  const staleDispatch =
+    currentUser?.role === 'driver'
+      ? findStaleOpenDispatch(dispatches, currentUser.id, todayStr)
+      : findOldestStaleOpenDispatch(dispatches, todayStr);
+
   const currentDispatch =
+    staleDispatch ||
     dispatches.find((d) => {
       if (d.date !== todayStr) return false;
       if (d.status === 'completed') return false;
@@ -245,6 +282,19 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 pb-20 min-w-0 overflow-x-hidden">
+        {/* AGENTS.md Bölüm 9.1: kapatılamaz uyarı, sefer sonlandırılana kadar her girişte görünür */}
+        {currentUser.role === 'driver' && staleDispatch && activeTab !== 'eod' && (
+          <div className="mb-4">
+            <StaleDispatchWarning
+              dispatch={staleDispatch}
+              onCompleteEndOfDay={() => {
+                setEodTargetDispatchId(staleDispatch.id);
+                setActiveTab('eod');
+              }}
+            />
+          </div>
+        )}
+
         {activeTab === 'delivery' && (
           <DriverView
             currentUser={currentUser}
@@ -273,6 +323,7 @@ export default function App() {
           <EndOfDayView
             dispatch={currentDispatch}
             dispatches={dispatches}
+            selectedDispatchId={eodTargetDispatchId}
             deliveries={deliveries}
             products={products}
             currentUser={currentUser}

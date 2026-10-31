@@ -7,7 +7,8 @@ import {
   Check
 } from 'lucide-react';
 import { createDispatch, updateUser } from '../../services/api';
-import { todayUtcDateStr } from '../../services/dateWindow';
+import { todayUtcDateStr, formatDateTr } from '../../services/dateWindow';
+import { isStaleDispatch } from '../../services/dispatchRules';
 
 interface VehicleLoadManagementProps {
   dispatches: Dispatch[];
@@ -179,8 +180,16 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                   <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                     <span>{driver.name}</span>
                     {isBusy ? (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                        Dağıtımda ({activeRun?.vehiclePlate})
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                          activeRun && isStaleDispatch(activeRun, todayStr)
+                            ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200'
+                            : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                        }`}
+                      >
+                        {activeRun && isStaleDispatch(activeRun, todayStr)
+                          ? `Önceki gün sonlandırılmadı (${activeRun.vehiclePlate})`
+                          : `Dağıtımda (${activeRun?.vehiclePlate})`}
                       </span>
                     ) : completedRuns.length > 0 ? (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
@@ -226,7 +235,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
       {/* Today's Dispatches / Vehicle Loads Table */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-3">
         <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-          Günün Sefer ve Araç Yüklemeleri ({dispatches.length} Araç)
+          Sefer ve Araç Yüklemeleri ({dispatches.length} Sefer)
         </h3>
 
         <div className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
@@ -238,6 +247,11 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                     {disp.vehiclePlate}
                   </span>
                   <span className="font-bold text-slate-800 dark:text-slate-200">{disp.driverName}</span>
+                  {isStaleDispatch(disp, todayStr) && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200">
+                      Önceki gün sonlandırılmadı
+                    </span>
+                  )}
                   {disp.status === 'in_transit' ? (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
                       Şoför Onayladı (Sahada / Dağıtımda)
@@ -254,7 +268,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                 </div>
 
                 <div className="text-[11px] text-slate-500">
-                  Yükleyen: <strong>{disp.loadedByUserName}</strong>
+                  Tarih: <strong>{formatDateTr(disp.date)}</strong> · Yükleyen: <strong>{disp.loadedByUserName}</strong>
                   {disp.driverConfirmedAt && ` · Onay Zamanı: ${new Date(disp.driverConfirmedAt).toLocaleTimeString('tr-TR')}`}
                 </div>
 

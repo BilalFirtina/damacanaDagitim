@@ -414,6 +414,13 @@ export async function reopenDispatch(
 }
 
 export async function fetchDeliveries(params?: { dispatchId?: string; driverId?: string; date?: string }): Promise<Delivery[]> {
+  // Önbellek anahtarı sorguya özgüdür; farklı sefer/gün sorguları birbirinin
+  // önbelleğini ezmez (çevrimdışıyken yanlış teslimat gösterilmez).
+  const cacheKey = `deliveries_${params?.dispatchId || 'all'}_${params?.date || 'all'}`;
+  // Geriye dönük uyumluluk: sefere özel olmayan (gün) sorgular eski anahtara da
+  // yazılır. Sefere özel sorgular eski anahtarı ASLA ezmez.
+  const legacyKey = params?.dispatchId ? null : 'deliveries_latest';
+
   try {
     const query = new URLSearchParams();
     if (params?.dispatchId) query.set('dispatchId', params.dispatchId);
@@ -423,10 +430,11 @@ export async function fetchDeliveries(params?: { dispatchId?: string; driverId?:
     const res = await apiFetch(`/api/deliveries?${query.toString()}`);
     if (!res.ok) throw new Error('Teslimatlar alınamadı');
     const json = await res.json();
-    saveCache('deliveries_latest', json.deliveries);
+    saveCache(cacheKey, json.deliveries);
+    if (legacyKey) saveCache(legacyKey, json.deliveries);
     return json.deliveries;
   } catch (err) {
-    const cached = getCache('deliveries_latest');
+    const cached = getCache(cacheKey) ?? (legacyKey ? getCache(legacyKey) : null);
     if (cached) return cached;
     throw err;
   }
