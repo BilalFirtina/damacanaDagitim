@@ -526,7 +526,8 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
             Seçilen tarih ve kriterlere uygun teslimat kaydı bulunamadı.
           </div>
         ) : (
-          <div className="overflow-x-auto print:overflow-visible w-full max-w-full">
+          <>
+          <div className="hidden md:block overflow-x-auto print:overflow-visible w-full max-w-full">
             <table className="w-full text-left text-xs border-collapse min-w-[700px]">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold bg-slate-50/50 dark:bg-slate-800/50">
@@ -643,6 +644,124 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
               </tbody>
             </table>
           </div>
+
+          {/* Mobil: geniş tablo yerine yığılmış kartlar (AGENTS.md Bölüm 11).
+              Yatay sayfa kaydırması gerekmez; tüm tutarlar görünür kalır. */}
+          <div className="md:hidden space-y-3">
+            {filteredDeliveries.map((del) => {
+              const timeStr = new Date(del.timestamp).toLocaleTimeString('tr-TR', {
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+              const hasEmpties =
+                del.emptyContainersReceived.damacana > 0 ||
+                (del.emptyContainersReceived.camDamacana || 0) > 0 ||
+                del.emptyContainersReceived.tup > 0;
+
+              return (
+                <div
+                  key={del.id}
+                  className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 space-y-2.5 min-w-0"
+                >
+                  <div className="flex items-start justify-between gap-2 min-w-0">
+                    <div className="min-w-0">
+                      <div className="font-bold text-slate-900 dark:text-white break-words">
+                        {del.customerName}
+                      </div>
+                      <div className="text-[11px] text-slate-500 break-words">
+                        {del.customerAddress}
+                      </div>
+                    </div>
+                    <span className="shrink-0 font-mono text-[11px] text-slate-500">
+                      {timeStr}
+                    </span>
+                  </div>
+
+                  <div className="text-[11px] text-slate-600 dark:text-slate-300 break-words">
+                    {del.driverName} · <span className="font-mono">{del.vehiclePlate}</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1">
+                    {del.deliveredItems.map((item, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[11px] break-words"
+                      >
+                        <strong>{item.quantity}</strong> {item.productName}{' '}
+                        <span className="text-slate-500">({item.unitPrice} ₺)</span>
+                      </span>
+                    ))}
+                  </div>
+
+                  {hasEmpties && (
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-mono font-bold">
+                      {del.emptyContainersReceived.damacana > 0 && (
+                        <span className="text-orange-600">
+                          {del.emptyContainersReceived.damacana} Boş
+                        </span>
+                      )}
+                      {(del.emptyContainersReceived.camDamacana || 0) > 0 && (
+                        <span className="text-amber-600">
+                          {del.emptyContainersReceived.camDamacana} Boş Cam
+                        </span>
+                      )}
+                      {del.emptyContainersReceived.tup > 0 && (
+                        <span className="text-slate-600">
+                          {del.emptyContainersReceived.tup} Boş Tüp
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <dl className="grid grid-cols-2 gap-2 text-[11px] border-t border-slate-100 dark:border-slate-800 pt-2">
+                    <div className="min-w-0">
+                      <dt className="text-slate-500">Mal Tutarı</dt>
+                      <dd className="font-mono font-bold text-slate-900 dark:text-white tabular-nums break-words">
+                        {del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺
+                      </dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-slate-500">Nakit</dt>
+                      <dd className="font-mono font-bold tabular-nums break-words">
+                        {del.collectedPayment.cashAmount > 0 ? (
+                          <span className="text-emerald-600">
+                            {del.collectedPayment.cashAmount.toLocaleString('tr-TR')} ₺
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">0 ₺</span>
+                        )}
+                      </dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-slate-500">POS Kart</dt>
+                      <dd className="font-mono font-bold tabular-nums break-words">
+                        {del.collectedPayment.posAmount > 0 ? (
+                          <span className="text-indigo-600">
+                            {del.collectedPayment.posAmount.toLocaleString('tr-TR')} ₺
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">0 ₺</span>
+                        )}
+                      </dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-slate-500">Cari Borç</dt>
+                      <dd className="font-mono font-bold tabular-nums break-words">
+                        {del.collectedPayment.diffUncollected > 0 ? (
+                          <span className="text-amber-600">
+                            +{del.collectedPayment.diffUncollected.toLocaleString('tr-TR')} ₺
+                          </span>
+                        ) : (
+                          <span className="text-emerald-600">Kapandı</span>
+                        )}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              );
+            })}
+          </div>
+          </>
         )}
       </div>
         </>
