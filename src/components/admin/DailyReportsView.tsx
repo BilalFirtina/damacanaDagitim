@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Delivery, User, Product } from '../../types';
+import { Delivery, Dispatch, User, Product } from '../../types';
 import {
   FileSpreadsheet,
   Printer,
@@ -13,6 +13,7 @@ import {
   RefreshCw,
   FileText,
   History,
+  AlertTriangle,
   Truck
 } from 'lucide-react';
 import { fetchDailyReport } from '../../services/api';
@@ -21,21 +22,24 @@ import { ConsolidatedDailyReport } from './ConsolidatedDailyReport';
 import { DeliveryCorrectionsView } from './DeliveryCorrectionsView';
 import { BalancesReportView } from './BalancesReportView';
 import { DriverActivityReport } from './DriverActivityReport';
+import { DiscrepancyReport } from './DiscrepancyReport';
 
 interface DailyReportsViewProps {
   users: User[];
   products: Product[];
   currentUser?: User;
+  dispatches?: Dispatch[];
 }
 
 export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
   users,
   products,
   currentUser,
+  dispatches = [],
 }) => {
   const isDriver = currentUser?.role === 'driver';
   const todayStr = todayUtcDateStr();
-  const [subTab, setSubTab] = useState<'consolidated' | 'detailed' | 'drivers' | 'balances' | 'corrections'>(
+  const [subTab, setSubTab] = useState<'consolidated' | 'detailed' | 'drivers' | 'discrepancies' | 'balances' | 'corrections'>(
     'consolidated'
   );
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
@@ -368,6 +372,17 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
           <span>Şoför Faaliyet Raporu</span>
         </button>
         <button
+          onClick={() => setSubTab('discrepancies')}
+          className={`w-full sm:w-auto min-h-11 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center sm:justify-start gap-2 text-left ${
+            subTab === 'discrepancies'
+              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span>Araçta Kalan & Kasa Uyuşmazlıkları</span>
+        </button>
+        <button
           onClick={() => setSubTab('balances')}
           className={`w-full sm:w-auto min-h-11 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center sm:justify-start gap-2 text-left ${
             subTab === 'balances'
@@ -395,6 +410,8 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
         <ConsolidatedDailyReport users={users} products={products} />
       ) : subTab === 'balances' ? (
         <BalancesReportView />
+      ) : subTab === 'discrepancies' ? (
+        <DiscrepancyReport dispatches={dispatches} products={products} />
       ) : subTab === 'drivers' ? (
         <DriverActivityReport
           dispatches={reportData?.dispatches || []}
