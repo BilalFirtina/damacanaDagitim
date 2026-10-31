@@ -11,7 +11,6 @@ import {
   Package,
   FileText,
   CalendarCheck,
-  Boxes,
 } from 'lucide-react';
 
 export function getFirstName(fullName: string, fallback: string): string {
@@ -23,7 +22,7 @@ export function getFirstName(fullName: string, fallback: string): string {
 interface HeaderProps {
   currentUser: User;
   onLogout: () => void;
-  activeTab: 'delivery' | 'team_feed' | 'eod' | 'customers' | 'products' | 'stock' | 'admin_loads' | 'reports' | 'retention';
+  activeTab: 'delivery' | 'team_feed' | 'eod' | 'customers' | 'products' | 'admin_loads' | 'reports' | 'retention';
   setActiveTab: (tab: any) => void;
   onRefreshData: () => void;
   isRefreshing?: boolean;
@@ -55,7 +54,6 @@ export const Header: React.FC<HeaderProps> = ({
     { tab: 'eod', label: 'Gün Sonu', ariaLabel: 'Gün Sonu Kapatma', icon: CheckCircle2, iconClass: 'text-amber-500', activeClass: 'bg-sky-600' },
     { tab: 'customers', label: 'Müşteriler', ariaLabel: 'Müşteriler & Borçlar', icon: Users, iconClass: 'text-indigo-500', activeClass: 'bg-sky-600' },
     { tab: 'products', label: 'Ürünler', ariaLabel: 'Ürünler & Fiyatlar', icon: Package, iconClass: 'text-violet-500', activeClass: 'bg-sky-600' },
-    { tab: 'stock', label: 'Depo', ariaLabel: 'Depo Stok Yönetimi', icon: Boxes, iconClass: 'text-teal-600', activeClass: 'bg-teal-600', adminOnly: true },
     { tab: 'reports', label: 'Raporlar', ariaLabel: 'Gün Sonu Dökümü (PDF/Excel)', icon: FileText, iconClass: 'text-blue-500', activeClass: 'bg-sky-600' },
     { tab: 'admin_loads', label: 'Yükleme', ariaLabel: 'Araç Yüklemeleri & Yetki', icon: ShieldCheck, iconClass: 'text-indigo-600', activeClass: 'bg-indigo-600', adminOnly: true },
     { tab: 'retention', label: 'Temizlik', ariaLabel: '60 Günlük Temizlik', icon: CalendarCheck, iconClass: 'text-amber-600', activeClass: 'bg-amber-600', adminOnly: true },

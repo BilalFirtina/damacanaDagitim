@@ -1,6 +1,12 @@
 -- =============================================================================
 -- DEPO STOĞU VE STOK HAREKET DEFTERİ
 --
+-- !! BU ÖZELLİK KALDIRILDI !!
+-- Depo stoğu bu projenin iş modeline dahil değildir; araç merkezli model
+-- geçerlidir. Bu dosya yalnızca tarihsel kayıt için tutulmuştur.
+-- Kaldırma: migrations/20261102_drop_warehouse_stock.sql
+-- =============================================================================
+--
 -- AGENTS.md Bölüm 4 ve 8:
 --   * Depo stoku ürün bazında tutulur.
 --   * Onaylanan yükleme depo stoğundan düşer.

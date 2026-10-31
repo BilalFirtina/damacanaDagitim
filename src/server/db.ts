@@ -4532,31 +4532,11 @@ export async function getDatabaseStatus(): Promise<DatabaseStatus> {
 }
 
 // =============================================================================
-// DEPO STOĞU VE MÜŞTERİ TAHSİLATI — AGENTS.md Bölüm 4, 6, 8
+// MÜŞTERİ TAHSİLATI (teslimat dışı ödeme) — AGENTS.md Bölüm 6
 //
-// Stok ve tahsilat yalnızca merkezi veritabanında, kilitli RPC'ler üzerinden
-// yürütülür. Böylece eşzamanlı yüklemelerde stok negatife düşemez ve aynı
-// ödeme iki kez bakiyeye işlenemez.
+// Tahsilat yalnızca merkezi veritabanında, kilitli RPC üzerinden yürütülür.
+// Böylece aynı ödeme iki kez bakiyeye işlenemez.
 // =============================================================================
-
-export interface WarehouseStockItem {
-  productId: string;
-  quantity: number;
-  updatedAt: string;
-}
-
-export interface StockMovementRow {
-  id: string;
-  productId: string;
-  delta: number;
-  quantityAfter: number;
-  reason: string;
-  sourceType: string;
-  sourceId: string | null;
-  userId: string;
-  userName: string;
-  createdAt: string;
-}
 
 export interface CustomerPaymentRow {
   id: string;
@@ -4571,16 +4551,10 @@ export interface CustomerPaymentRow {
 
 function stockError(e: any, fallback: string): Error {
   const raw = `${e?.message || ''} ${e?.details || ''} ${e?.hint || ''}`.trim();
-  if (/INSUFFICIENT_WAREHOUSE_STOCK/i.test(raw)) {
-    return new DispatchDbError(
-      'INSUFFICIENT_WAREHOUSE_STOCK',
-      'Depoda bu ürün için yeterli stok yok. Yükleme miktarını azaltın veya önce depo stok girişi yapın.'
-    );
-  }
   if (/MIGRATION|42P01|PGRST205|does not exist|could not find the table/i.test(raw)) {
     return new DispatchDbError(
       'MIGRATION_REQUIRED',
-      'Stok/tahsilat tabloları bulunamadı. Sunucu veritabanı güncellemesi eksik; sistem yöneticisine bildirin.'
+      'Tahsilat tablosu bulunamadı. Sunucu veritabanı güncellemesi eksik; sistem yöneticisine bildirin.'
     );
   }
   if (/PAYMENT_AMOUNT_INVALID/i.test(raw)) {
@@ -4614,120 +4588,6 @@ async function callJsonbRpc(fn: string, payload: unknown): Promise<any> {
     'REMOTE_REQUIRED',
     'Depo stoku ve tahsilat yalnızca merkezi veritabanı bağlantısı varken kullanılabilir.'
   );
-}
-
-export async function getWarehouseStock(): Promise<WarehouseStockItem[]> {
-  if (isSupabaseOperational() && supabase) {
-    const { data, error } = await supabase
-      .from('warehouse_stock')
-      .select('product_id, quantity, updated_at');
-    if (error) throw stockError(error, 'Depo stoğu okunamadı.');
-    return (data || []).map((row: any) => ({
-      productId: row.product_id,
-      quantity: Number(row.quantity) || 0,
-      updatedAt: row.updated_at,
-    }));
-  }
-  if (pgPool) {
-    const res = await pgPool.query(
-      'SELECT product_id, quantity, updated_at FROM public.warehouse_stock'
-    );
-    return res.rows.map((row: any) => ({
-      productId: row.product_id,
-      quantity: Number(row.quantity) || 0,
-      updatedAt: row.updated_at,
-    }));
-  }
-  return [];
-}
-
-export async function getStockMovements(limit = 100): Promise<StockMovementRow[]> {
-  const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 500);
-  if (isSupabaseOperational() && supabase) {
-    const { data, error } = await supabase
-      .from('stock_movements')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(safeLimit);
-    if (error) throw stockError(error, 'Stok hareketleri okunamadı.');
-    return (data || []).map(mapStockMovement);
-  }
-  if (pgPool) {
-    const res = await pgPool.query(
-      'SELECT * FROM public.stock_movements ORDER BY created_at DESC LIMIT $1',
-      [safeLimit]
-    );
-    return res.rows.map(mapStockMovement);
-  }
-  return [];
-}
-
-function mapStockMovement(row: any): StockMovementRow {
-  return {
-    id: String(row.id),
-    productId: row.product_id,
-    delta: Number(row.delta) || 0,
-    quantityAfter: Number(row.quantity_after) || 0,
-    reason: row.reason || '',
-    sourceType: row.source_type || '',
-    sourceId: row.source_id || null,
-    userId: row.user_id || '',
-    userName: row.user_name || '',
-    createdAt: row.created_at,
-  };
-}
-
-export async function adjustWarehouseStock(input: {
-  productId: string;
-  delta: number;
-  reason: string;
-  actor: { id: string; name: string };
-}): Promise<{ productId: string; quantity: number }> {
-  const result = await callJsonbRpc('adjust_warehouse_stock', {
-    product_id: input.productId,
-    delta: input.delta,
-    reason: input.reason,
-    user_id: input.actor.id,
-    user_name: input.actor.name,
-  });
-  return {
-    productId: result?.product_id || input.productId,
-    quantity: Number(result?.quantity) || 0,
-  };
-}
-
-export async function consumeWarehouseStock(input: {
-  sourceId: string;
-  items: Array<{ productId: string; quantity: number }>;
-  actor: { id: string; name: string };
-  reason?: string;
-}): Promise<void> {
-  await callJsonbRpc('consume_warehouse_stock', {
-    source_id: input.sourceId,
-    items: input.items
-      .filter((i) => Number(i.quantity) > 0)
-      .map((i) => ({ product_id: i.productId, quantity: Number(i.quantity) })),
-    user_id: input.actor.id,
-    user_name: input.actor.name,
-    reason: input.reason || 'Araç yüklemesi',
-  });
-}
-
-export async function releaseWarehouseStock(input: {
-  sourceId: string;
-  items: Array<{ productId: string; quantity: number }>;
-  actor: { id: string; name: string };
-  reason?: string;
-}): Promise<void> {
-  await callJsonbRpc('release_warehouse_stock', {
-    source_id: input.sourceId,
-    items: input.items
-      .filter((i) => Number(i.quantity) > 0)
-      .map((i) => ({ product_id: i.productId, quantity: Number(i.quantity) })),
-    user_id: input.actor.id,
-    user_name: input.actor.name,
-    reason: input.reason || 'Yükleme iptali',
-  });
 }
 
 export async function createCustomerPayment(input: {
@@ -4775,6 +4635,32 @@ export async function getCustomerPayments(
       [customerId, safeLimit]
     );
     return res.rows.map(mapCustomerPayment);
+  }
+  return [];
+}
+
+// Günlük rapor için: bir güne ait teslimat dışı tahsilatlar.
+export async function getCustomerPaymentsByDate(date: string): Promise<CustomerPaymentRow[]> {
+  const window = utcDayQueryWindow(date);
+  if (!window) return [];
+  if (isSupabaseOperational() && supabase) {
+    const { data, error } = await supabase
+      .from('customer_payments')
+      .select('*')
+      .gte('collected_at', window.lower)
+      .lt('collected_at', window.upper)
+      .order('collected_at', { ascending: false });
+    if (error) throw stockError(error, 'Tahsilat kayıtları okunamadı.');
+    return (data || [])
+      .filter((row: any) => isSameUtcDate(row.collected_at, date))
+      .map(mapCustomerPayment);
+  }
+  if (pgPool) {
+    const res = await pgPool.query(
+      'SELECT * FROM public.customer_payments WHERE collected_at >= $1 AND collected_at < $2 ORDER BY collected_at DESC',
+      [window.lower, window.upper]
+    );
+    return res.rows.filter((row: any) => isSameUtcDate(row.collected_at, date)).map(mapCustomerPayment);
   }
   return [];
 }

@@ -160,6 +160,10 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
     totalEmptyDamacanaCollected: 0,
     totalEmptyCamDamacanaCollected: 0,
     totalEmptyTupCollected: 0,
+    totalStandaloneCash: 0,
+    totalStandalonePos: 0,
+    totalStandaloneTransfer: 0,
+    totalStandaloneCollected: 0,
   };
 
   // Calculation of actual collections received by driver for the business day
@@ -502,6 +506,20 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
             {summary.totalPosCollected.toLocaleString('tr-TR')} ₺
           </div>
           <span className="text-[10px] text-indigo-600/80 font-medium">Banka POS Çekimleri</span>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-teal-200 dark:border-teal-900 bg-teal-50/20 shadow-xs">
+          <span className="text-[11px] font-semibold text-teal-700 dark:text-teal-400 uppercase tracking-wider block">
+            Teslimat Dışı Tahsilat
+          </span>
+          <div className="text-xl font-extrabold font-mono text-teal-600 mt-1 tabular-nums">
+            {(summary.totalStandaloneCollected || 0).toLocaleString('tr-TR')} ₺
+          </div>
+          <span className="text-[10px] text-teal-600/80 font-medium break-words">
+            Nakit {(summary.totalStandaloneCash || 0).toLocaleString('tr-TR')} ₺ · POS{' '}
+            {(summary.totalStandalonePos || 0).toLocaleString('tr-TR')} ₺ · Havale{' '}
+            {(summary.totalStandaloneTransfer || 0).toLocaleString('tr-TR')} ₺
+          </span>
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50/20 shadow-xs">

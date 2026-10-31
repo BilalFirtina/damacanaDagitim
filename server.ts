@@ -38,13 +38,9 @@ import {
   adminUpdateCustomerAtomic,
   getDeliveries,
   getCustomerFinancialAudit,
-  getWarehouseStock,
-  getStockMovements,
-  adjustWarehouseStock,
-  consumeWarehouseStock,
-  releaseWarehouseStock,
   createCustomerPayment,
   getCustomerPayments,
+  getCustomerPaymentsByDate,
   getDeliveryById,
   getDeliveryCorrections,
   createDeliveryRecord,
@@ -710,80 +706,6 @@ app.put('/api/customers/:id', requireAdmin, async (req, res) => {
   }
 });
 
-app.get('/api/stock', requireAdmin, async (_req, res) => {
-  try {
-    const [items, movements, products] = await Promise.all([
-      getWarehouseStock(),
-      getStockMovements(100),
-      getProducts(),
-    ]);
-    const productById = new Map(products.map((p) => [p.id, p]));
-    const rows = products
-      .filter((p) => !p.isDeposit)
-      .map((p) => {
-        const stock = items.find((s) => s.productId === p.id);
-        return {
-          productId: p.id,
-          name: p.name,
-          unit: p.unit,
-          category: p.category,
-          quantity: stock ? stock.quantity : 0,
-          updatedAt: stock?.updatedAt || null,
-        };
-      })
-      .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
-
-    res.json({
-      items: rows,
-      movements: movements.map((m) => ({
-        ...m,
-        productName: productById.get(m.productId)?.name || m.productId,
-      })),
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message || 'Depo stoğu okunamadı.' });
-  }
-});
-
-app.post('/api/stock/adjust', requireAdmin, async (req, res) => {
-  try {
-    const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const productId = typeof body.productId === 'string' ? body.productId.trim() : '';
-    const delta = Number(body.delta);
-    const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
-
-    if (!productId) {
-      return res.status(400).json({ error: 'Ürün seçilmelidir.' });
-    }
-    if (!Number.isInteger(delta) || delta === 0) {
-      return res.status(400).json({ error: 'Miktar sıfırdan farklı bir tam sayı olmalıdır.' });
-    }
-    if (!reason) {
-      return res.status(400).json({ error: 'Stok düzeltmesi için gerekçe zorunludur.' });
-    }
-
-    const products = await getProducts();
-    if (!products.some((p) => p.id === productId)) {
-      return res.status(404).json({ error: 'Ürün bulunamadı.' });
-    }
-
-    const session = getAuthUser(req)!;
-    const result = await adjustWarehouseStock({
-      productId,
-      delta,
-      reason,
-      actor: { id: session.userId, name: session.name },
-    });
-
-    res.json({
-      ...result,
-      message: `Depo stoğu güncellendi. Yeni miktar: ${result.quantity} ${products.find((p) => p.id === productId)?.unit || ''}`.trim(),
-    });
-  } catch (err: any) {
-    res.status(400).json({ error: err?.message || 'Stok düzeltmesi yapılamadı.' });
-  }
-});
-
 app.get('/api/customers/:id/payments', requireAdmin, async (req, res) => {
   try {
     const payments = await getCustomerPayments(req.params.id, 100);
@@ -1130,35 +1052,8 @@ app.post('/api/dispatches', requireAdminOrLoader, async (req, res) => {
       createdAt: new Date().toISOString(),
     };
 
-    const actor = { id: session.userId, name: session.name };
-    // AGENTS.md Bölüm 4/8: onaylı yükleme depo stoğundan düşer. Stok düşümü
-    // kilitli RPC'de yapılır; sefer kaydı başarısız olursa stok telafi edilir.
-    let stockConsumed = false;
-    try {
-      if (normalizedItems.length > 0) {
-        await consumeWarehouseStock({
-          sourceId: newDispatch.id,
-          items: normalizedItems,
-          actor,
-        });
-        stockConsumed = true;
-      }
-
-      const saved = await createDispatch(newDispatch);
-      res.status(201).json({ dispatch: saved });
-    } catch (stockErr) {
-      if (stockConsumed) {
-        await releaseWarehouseStock({
-          sourceId: newDispatch.id,
-          items: normalizedItems,
-          actor,
-          reason: 'Sefer kaydı başarısız — stok telafisi',
-        }).catch((releaseErr) => {
-          console.error('[dispatch stock compensation]', releaseErr);
-        });
-      }
-      throw stockErr;
-    }
+    const saved = await createDispatch(newDispatch);
+    res.status(201).json({ dispatch: saved });
   } catch (err: any) {
     const raw = `${err?.message || ''} ${err?.details || ''}`;
     if (String(err?.code || '') === '23505' || /duplicate key|unique constraint/i.test(raw)) {
@@ -1726,6 +1621,20 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
       deliveries = deliveries.filter((del) => del.driverId === driverId);
     }
 
+    // Teslimat dışı (sonraki ziyaret) tahsilatlar yönetici tarafından alınır;
+    // şoför filtresi uygulandığında bu toplamlara dahil edilmez.
+    const isAllDrivers = !driverId || driverId === 'all';
+    const customerPayments = isAllDrivers ? await getCustomerPaymentsByDate(date) : [];
+    const totalStandaloneCash = customerPayments
+      .filter((p) => p.method === 'CASH')
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const totalStandalonePos = customerPayments
+      .filter((p) => p.method === 'POS')
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const totalStandaloneTransfer = customerPayments
+      .filter((p) => p.method === 'TRANSFER')
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
     let totalDeliveries = deliveries.length;
     let totalCustomersVisited = new Set(deliveries.map((d) => d.customerId)).size;
     let totalDeliveredValue = 0;
@@ -1777,8 +1686,14 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
         totalEmptyDamacanaCollected,
         totalEmptyCamDamacanaCollected,
         totalEmptyTupCollected,
+        totalStandaloneCash,
+        totalStandalonePos,
+        totalStandaloneTransfer,
+        totalStandaloneCollected:
+          totalStandaloneCash + totalStandalonePos + totalStandaloneTransfer,
         deliveredProductQuantities,
       },
+      customerPayments,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
