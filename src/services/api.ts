@@ -310,6 +310,91 @@ export async function fetchBalancesReport(): Promise<BalancesReportResponse> {
   return res.json();
 }
 
+// Depo stoğu — AGENTS.md Bölüm 4 ve 8.
+export interface StockItem {
+  productId: string;
+  name: string;
+  unit: string;
+  category: string;
+  quantity: number;
+  updatedAt: string | null;
+}
+
+export interface StockMovement {
+  id: string;
+  productId: string;
+  productName: string;
+  delta: number;
+  quantityAfter: number;
+  reason: string;
+  sourceType: string;
+  sourceId: string | null;
+  userName: string;
+  createdAt: string;
+}
+
+export interface StockResponse {
+  items: StockItem[];
+  movements: StockMovement[];
+}
+
+export async function fetchStock(): Promise<StockResponse> {
+  const res = await apiFetch('/api/stock');
+  if (!res.ok) await throwServerError(res, 'Depo stoğu alınamadı');
+  return res.json();
+}
+
+export async function adjustStock(input: {
+  productId: string;
+  delta: number;
+  reason: string;
+}): Promise<{ productId: string; quantity: number; message: string }> {
+  const res = await apiFetch('/api/stock/adjust', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) await throwServerError(res, 'Stok düzeltmesi yapılamadı');
+  return res.json();
+}
+
+// Teslimat dışı müşteri tahsilatı — AGENTS.md Bölüm 6.
+export interface CustomerPaymentInput {
+  amount: number;
+  method: 'CASH' | 'POS' | 'TRANSFER';
+  note?: string;
+  paymentId?: string;
+}
+
+export async function createCustomerPayment(
+  customerId: string,
+  input: CustomerPaymentInput
+): Promise<{ paymentId: string; balance: number; alreadyApplied: boolean; message: string }> {
+  const res = await apiFetch(`/api/customers/${encodeURIComponent(customerId)}/payments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) await throwServerError(res, 'Tahsilat kaydedilemedi');
+  return res.json();
+}
+
+export async function fetchCustomerPayments(customerId: string): Promise<
+  Array<{
+    id: string;
+    amount: number;
+    method: string;
+    note: string;
+    collectedByUserName: string;
+    collectedAt: string;
+  }>
+> {
+  const res = await apiFetch(`/api/customers/${encodeURIComponent(customerId)}/payments`);
+  if (!res.ok) await throwServerError(res, 'Tahsilat kayıtları alınamadı');
+  const json = await res.json();
+  return json.payments || [];
+}
+
 export async function createCustomer(customer: Partial<Customer>): Promise<Customer> {
   const res = await apiFetch('/api/customers', {
     method: 'POST',

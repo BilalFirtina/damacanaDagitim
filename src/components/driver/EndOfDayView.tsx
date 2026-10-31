@@ -275,7 +275,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                       : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200'
                   }`}
                 >
-                  {disp.status === 'completed' ? 'Kapatıldı' : 'Açık'}
+                  {disp.status === 'completed' ? 'Dağıtım Tamamlandı' : 'Açık'}
                 </span>
               </button>
             ))}

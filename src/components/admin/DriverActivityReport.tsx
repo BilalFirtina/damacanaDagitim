@@ -12,9 +12,9 @@ function money(value: number): string {
 }
 
 const statusLabel: Record<string, string> = {
-  pending_confirmation: 'Yükleme Onayı Bekliyor',
+  pending_confirmation: 'Yükleme Bekleniyor',
   in_transit: 'Dağıtımda',
-  completed: 'Kapatıldı',
+  completed: 'Dağıtım Tamamlandı',
 };
 
 interface DriverActivityReportProps {

@@ -30,6 +30,7 @@ import { EndOfDayView } from './components/driver/EndOfDayView';
 import { DailyReportsView } from './components/admin/DailyReportsView';
 import { CustomersManagement } from './components/admin/CustomersManagement';
 import { ProductManagement } from './components/admin/ProductManagement';
+import { StockView } from './components/admin/StockView';
 import { VehicleLoadManagement } from './components/admin/VehicleLoadManagement';
 import { DataRetentionView } from './components/admin/DataRetentionView';
 
@@ -75,7 +76,7 @@ export default function App() {
   const [dispatches, setDispatches] = useState<Dispatch[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [activeTab, setActiveTab] = useState<
-    'delivery' | 'team_feed' | 'eod' | 'customers' | 'products' | 'reports' | 'admin_loads' | 'retention'
+    'delivery' | 'team_feed' | 'eod' | 'customers' | 'products' | 'stock' | 'reports' | 'admin_loads' | 'retention'
   >('delivery');
 
   // Uyarıdan "Gün Sonunu Tamamla" seçildiğinde gün sonu ekranında açılacak sefer.
@@ -382,6 +383,10 @@ export default function App() {
             onProductsUpdated={setProducts}
             currentUser={currentUser}
           />
+        )}
+
+        {activeTab === 'stock' && currentUser.role === 'admin' && (
+          <StockView products={products} currentUser={currentUser} />
         )}
 
         {activeTab === 'reports' && (

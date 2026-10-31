@@ -8,6 +8,7 @@ import {
   Plus,
   Edit2,
   FileText,
+  Wallet,
   Mail
 } from 'lucide-react';
 import {
@@ -18,6 +19,7 @@ import {
 import { negativeEmptyMessages } from '../../services/emptyBalanceDisplay';
 import { CustomerDispensersSection } from '../common/CustomerDispensersSection';
 import { CustomerStatementModal } from './CustomerStatementModal';
+import { CustomerPaymentModal } from './CustomerPaymentModal';
 
 interface CustomersManagementProps {
   customers: Customer[];
@@ -38,6 +40,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [statementCustomer, setStatementCustomer] = useState<Customer | null>(null);
+  const [paymentCustomer, setPaymentCustomer] = useState<Customer | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // New customer form state
@@ -435,6 +438,14 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => setPaymentCustomer(c)}
+                      className="p-1.5 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                      title="Tahsilat Al"
+                    >
+                      <Wallet className="w-3.5 h-3.5" />
+                    </button>
+
                     <button
                       onClick={() => setStatementCustomer(c)}
                       className="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
@@ -977,6 +988,20 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
         <CustomerStatementModal
           customer={statementCustomer}
           onClose={() => setStatementCustomer(null)}
+        />
+      )}
+
+      {paymentCustomer && (
+        <CustomerPaymentModal
+          customer={paymentCustomer}
+          onClose={() => setPaymentCustomer(null)}
+          onSaved={(newBalance) => {
+            onCustomersUpdated(
+              customers.map((c) =>
+                c.id === paymentCustomer.id ? { ...c, currentBalanceTL: newBalance } : c
+              )
+            );
+          }}
         />
       )}
     </div>
