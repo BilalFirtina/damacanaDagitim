@@ -289,7 +289,13 @@ export interface BalancesReportRow {
   isAccountCustomer: boolean;
   balance: number;
   empty: { damacana: number; camDamacana: number; tup: number; sebil: number };
-  dispensers: Array<{ id: string; brand: string; model: string; quantity: number }>;
+  dispensers: Array<{
+    id: string;
+    brand: string;
+    model: string;
+    quantity: number;
+    note?: string | null;
+  }>;
 }
 
 export interface BalancesReportResponse {

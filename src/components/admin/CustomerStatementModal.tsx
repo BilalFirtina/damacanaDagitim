@@ -287,6 +287,7 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
                       className="px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-200 font-mono break-words"
                     >
                       {d.quantity} Sebil {d.brand ? `(${d.brand}${d.model ? ` ${d.model}` : ''})` : ''}
+                      {d.note ? ` · ${d.note}` : ''}
                     </span>
                   ))}
                 </div>
