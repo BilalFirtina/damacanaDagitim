@@ -4,6 +4,7 @@ const NEGATIVE_LABELS: Record<keyof EmptiesCounts, string> = {
   damacana: 'boş damacana',
   camDamacana: 'boş cam damacana',
   tup: 'boş tüp',
+  sebil: 'su sebili',
 };
 
 export function negativeEmptyMessages(

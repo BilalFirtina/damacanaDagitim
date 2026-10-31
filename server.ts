@@ -785,12 +785,14 @@ app.get('/api/reports/balances', requireAdmin, async (_req, res) => {
             damacana: Number(empty.damacana) || 0,
             camDamacana,
             tup: Number(empty.tup) || 0,
+            sebil: Number((empty as any).sebil) || 0,
           },
           dispensers: dispensersByCustomer.get(c.id) || [],
         };
       })
       .filter((row) => {
-        const emptyTotal = row.empty.damacana + row.empty.camDamacana + row.empty.tup;
+        const emptyTotal =
+          row.empty.damacana + row.empty.camDamacana + row.empty.tup + row.empty.sebil;
         return (
           Math.abs(row.balance) > 0.005 || emptyTotal !== 0 || row.dispensers.length > 0
         );
@@ -803,6 +805,7 @@ app.get('/api/reports/balances', requireAdmin, async (_req, res) => {
       emptyDamacana: rows.reduce((sum, r) => sum + r.empty.damacana, 0),
       emptyCamDamacana: rows.reduce((sum, r) => sum + r.empty.camDamacana, 0),
       emptyTup: rows.reduce((sum, r) => sum + r.empty.tup, 0),
+      emptySebil: rows.reduce((sum, r) => sum + r.empty.sebil, 0),
       dispenserCount: rows.reduce(
         (sum, r) => sum + r.dispensers.reduce((s, d) => s + (Number(d.quantity) || 0), 0),
         0

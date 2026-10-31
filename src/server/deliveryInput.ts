@@ -141,10 +141,11 @@ export function normalizeDeliveryInput(
       )
     ),
     tup: Math.max(0, Math.floor(Number(emptyContainersReceived?.tup) || 0)),
+    sebil: Math.max(0, Math.floor(Number(emptyContainersReceived?.sebil) || 0)),
   };
 
   const receivedEmptyTotal =
-    emptiesRecv.damacana + emptiesRecv.camDamacana + emptiesRecv.tup;
+    emptiesRecv.damacana + emptiesRecv.camDamacana + emptiesRecv.tup + emptiesRecv.sebil;
   if (normalizedItems.length === 0 && receivedEmptyTotal === 0) {
     throw new DeliveryInputError(
       400,

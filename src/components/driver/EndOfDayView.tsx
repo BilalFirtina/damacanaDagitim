@@ -133,6 +133,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
   let totalEmptyDamacanaCollected = 0;
   let totalEmptyCamDamacanaCollected = 0;
   let totalEmptyTupCollected = 0;
+  let totalEmptySebilCollected = 0;
 
   dispatchDeliveries.forEach((del) => {
     totalDeliveredValue += del.deliveredGrandTotal;
@@ -144,6 +145,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
     totalEmptyDamacanaCollected += del.emptyContainersReceived.damacana || 0;
     totalEmptyCamDamacanaCollected += Number(del.emptyContainersReceived.camDamacana || del.emptyContainersReceived.cam_damacana) || 0;
     totalEmptyTupCollected += del.emptyContainersReceived.tup || 0;
+    totalEmptySebilCollected += Number(del.emptyContainersReceived?.sebil) || 0;
 
     del.deliveredItems.forEach((item) => {
       deliveredTotals[item.productId] =
@@ -186,6 +188,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
         collectedEmptyDamacana: totalEmptyDamacanaCollected,
         collectedEmptyCamDamacana: totalEmptyCamDamacanaCollected,
         collectedEmptyTup: totalEmptyTupCollected,
+        collectedEmptySebil: totalEmptySebilCollected,
         actualCashInPocket: Number(actualCashInPocket) || 0,
         actualPosSlipsTotal: Number(actualPosSlipsTotal) || 0,
         notes: closureNotes || currentViewDispatch.endOfDayReconciliation?.notes || '',
@@ -492,6 +495,14 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
               {totalEmptyTupCollected} Adet
             </div>
             <span className="text-[10px] text-slate-400">Depoya teslim edilecek tüpler</span>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800">
+            <span className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-400 uppercase">Toplanan Su Sebili</span>
+            <div className="text-xl font-bold font-mono text-indigo-700 dark:text-indigo-300 mt-1">
+              {totalEmptySebilCollected} Adet
+            </div>
+            <span className="text-[10px] text-indigo-600/80">Emanet sebiller (fiyatsız)</span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800">

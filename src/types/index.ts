@@ -15,8 +15,8 @@ export interface User {
   phone?: string;
 }
 
-export type ProductCategory = 'damacana' | 'pet' | 'soda' | 'tup' | 'bardak';
-export type DepositType = 'damacana' | 'cam_damacana' | 'tup' | 'none';
+export type ProductCategory = 'damacana' | 'pet' | 'soda' | 'tup' | 'bardak' | 'sebil';
+export type DepositType = 'damacana' | 'cam_damacana' | 'tup' | 'sebil' | 'none';
 
 export const PRODUCT_CATEGORY_ORDER: Record<ProductCategory, number> = {
   damacana: 1,
@@ -24,6 +24,7 @@ export const PRODUCT_CATEGORY_ORDER: Record<ProductCategory, number> = {
   tup: 3,
   soda: 4,
   bardak: 5,
+  sebil: 6,
 };
 
 export const PRODUCT_CATEGORY_TITLES: Record<ProductCategory, string> = {
@@ -32,6 +33,7 @@ export const PRODUCT_CATEGORY_TITLES: Record<ProductCategory, string> = {
   tup: 'Tüp',
   soda: 'Maden Suyu / İçecek',
   bardak: 'Bardak & Sarf Malzeme',
+  sebil: 'Su Sebili',
 };
 
 // Kategoriler veritabanından yüklenemezse (çevrimdışı/hata) kullanılacak
@@ -45,6 +47,7 @@ export const PRODUCT_CATEGORY_DEFAULTS: Record<
   tup: { unit: 'Adet', isDeposit: true, depositType: 'tup' },
   soda: { unit: 'Koli', isDeposit: false, depositType: 'none' },
   bardak: { unit: 'Paket', isDeposit: false, depositType: 'none' },
+  sebil: { unit: 'Adet', isDeposit: true, depositType: 'sebil' },
 };
 
 // Kategoriler artık veritabanındaki product_categories tablosundan beslenir.
@@ -148,6 +151,7 @@ export interface Customer {
     damacana: number; // Plastik / polikarbon damacana
     camDamacana: number; // Cam damacana
     tup: number; // Gaz tüpü
+    sebil?: number; // Ücretsiz emanet su sebili (adet)
     cam_damacana?: number;
   };
   customPrices: Record<string, number>; // Product ID -> agreed custom unit price
@@ -196,6 +200,7 @@ export interface EndOfDayReconciliation {
   collectedEmptyDamacana: number; // Empty standard carboys to drop at warehouse
   collectedEmptyCamDamacana?: number; // Empty glass jugs to drop at warehouse
   collectedEmptyTup: number; // Empty gas cylinders to drop at warehouse
+  collectedEmptySebil?: number; // Emanet su sebilleri toplanan adet
   actualCashInPocket: number; // Actual physical cash driver turns in
   actualPosSlipsTotal: number; // Total sum of credit card slips
   totalDeliveredValue: number;
@@ -259,12 +264,14 @@ export interface Delivery {
     camDamacana?: number;
     cam_damacana?: number;
     tup: number;
+    sebil?: number;
   };
   emptyContainersDiff: {
     damacana: number; // delivered deposit items - received empty containers
     camDamacana?: number;
     cam_damacana?: number;
     tup: number;
+    sebil?: number;
   };
   notes?: string;
   isOfflineSync?: boolean;

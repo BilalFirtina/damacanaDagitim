@@ -71,10 +71,14 @@ const PRODUCT_CATEGORIES_REF: Array<{
   { code: 'bardak', title_tr: 'Bardak & Sarf Malzeme', sort_order: 5, default_unit: 'Paket', default_is_deposit: false, default_deposit_type: 'none' },
 ];
 
-const DEPOSIT_BUCKETS: Array<{ depositType: string; key: 'damacana' | 'camDamacana' | 'tup' }> = [
+const DEPOSIT_BUCKETS: Array<{
+  depositType: string;
+  key: 'damacana' | 'camDamacana' | 'tup' | 'sebil';
+}> = [
   { depositType: 'damacana', key: 'damacana' },
   { depositType: 'cam_damacana', key: 'camDamacana' },
   { depositType: 'tup', key: 'tup' },
+  { depositType: 'sebil', key: 'sebil' },
 ];
 
 // ----------------------------------------------------------------------
@@ -2802,6 +2806,9 @@ export async function adminUpdateCustomerAtomic(
         Number(empty.camDamacana ?? empty.cam_damacana) || 0
       ),
       tup: Math.floor(Number(empty.tup) || 0),
+      sebil: Math.floor(
+        Number((empty as any).sebil ?? (expected.empty as any)?.sebil) || 0
+      ),
     };
     payload.expected_empty = {
       damacana: Math.floor(Number(expectedEmpty.damacana) || 0),
@@ -2809,6 +2816,7 @@ export async function adminUpdateCustomerAtomic(
         Number(expectedEmpty.camDamacana ?? expectedEmpty.cam_damacana) || 0
       ),
       tup: Math.floor(Number(expectedEmpty.tup) || 0),
+      sebil: Math.floor(Number((expectedEmpty as any).sebil) || 0),
     };
   }
 
@@ -2920,6 +2928,13 @@ export async function adminUpdateCustomerAtomic(
               ) || 0
             ),
             tup: Math.floor(Number(updates.emptyDepositBalance.tup) || 0),
+            // Sebil ayrı bir emanet türüdür; gönderilmediyse mevcut değer korunur.
+            sebil: Math.floor(
+              Number(
+                (updates.emptyDepositBalance as any).sebil ??
+                  (current.emptyDepositBalance as any)?.sebil
+              ) || 0
+            ),
           }
         : current.emptyDepositBalance,
   };

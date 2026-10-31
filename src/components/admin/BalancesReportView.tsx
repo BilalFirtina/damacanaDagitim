@@ -47,6 +47,7 @@ export const BalancesReportView: React.FC = () => {
         r.empty.damacana !== 0 ||
         r.empty.camDamacana !== 0 ||
         r.empty.tup !== 0 ||
+        r.empty.sebil !== 0 ||
         r.dispensers.length > 0
     );
   }, [data, search, mode]);
@@ -106,9 +107,9 @@ export const BalancesReportView: React.FC = () => {
               </div>
             </div>
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-2.5 min-w-0">
-              <div className="text-[10px] font-semibold text-slate-500">Müşteride Sebil</div>
+              <div className="text-[10px] font-semibold text-slate-500">Müşteride Su Sebili</div>
               <div className="font-mono font-bold text-xs text-indigo-700 dark:text-indigo-300 tabular-nums">
-                {data.totals.dispenserCount}
+                {data.totals.emptySebil}
               </div>
             </div>
           </div>
@@ -221,6 +222,11 @@ export const BalancesReportView: React.FC = () => {
                   {row.empty.tup !== 0 && (
                     <span className="px-2 py-1 rounded-lg bg-cyan-50 dark:bg-cyan-950/40 text-cyan-800 dark:text-cyan-200 font-mono">
                       {row.empty.tup} Boş Tüp
+                    </span>
+                  )}
+                  {row.empty.sebil !== 0 && (
+                    <span className="px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-200 font-mono">
+                      {row.empty.sebil} Su Sebili
                     </span>
                   )}
                   {row.dispensers.map((d) => (

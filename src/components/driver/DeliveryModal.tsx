@@ -35,7 +35,6 @@ import {
 } from '../../services/stockWarning';
 import { computeDeliveredDeposits } from '../../services/depositRules';
 import { negativeEmptyMessages } from '../../services/emptyBalanceDisplay';
-import { CustomerDispensersSection } from '../common/CustomerDispensersSection';
 
 interface DeliveryModalProps {
   isOpen: boolean;
@@ -50,7 +49,7 @@ interface DeliveryModalProps {
   onDeliveryUpdated?: () => void;
 }
 
-type DepositKey = 'damacana' | 'cam_damacana' | 'tup';
+type DepositKey = 'damacana' | 'cam_damacana' | 'tup' | 'sebil';
 
 interface EmptyContainerRowProps {
   label: string;
@@ -214,15 +213,18 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
               editDelivery.emptyContainersReceived?.cam_damacana
           ) || 0,
         tup: Number(editDelivery.emptyContainersReceived?.tup) || 0,
+        sebil: Number(editDelivery.emptyContainersReceived?.sebil) || 0,
       };
       setEmptyDamacanaReturned(editReceived.damacana);
       setEmptyCamDamacanaReturned(editReceived.camDamacana);
       setEmptyTupReturned(editReceived.tup);
+      setEmptySebilReturned(editReceived.sebil);
       setManualEmpty({
         damacana: editReceived.damacana !== editDelivered.damacana,
         cam_damacana:
           editReceived.camDamacana !== editDelivered.camDamacana,
         tup: editReceived.tup !== editDelivered.tup,
+        sebil: editReceived.sebil !== editDelivered.sebil,
       });
 
       const cash = Number(editDelivery.collectedPayment?.cashAmount) || 0;
@@ -243,10 +245,12 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       setEmptyDamacanaReturned(0);
       setEmptyCamDamacanaReturned(0);
       setEmptyTupReturned(0);
+      setEmptySebilReturned(0);
       setManualEmpty({
         damacana: false,
         cam_damacana: false,
         tup: false,
+        sebil: false,
       });
       setPaymentType('full');
       setPaymentMethod('CASH');
@@ -290,10 +294,12 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const [emptyDamacanaReturned, setEmptyDamacanaReturned] = useState<number>(0);
   const [emptyCamDamacanaReturned, setEmptyCamDamacanaReturned] = useState<number>(0);
   const [emptyTupReturned, setEmptyTupReturned] = useState<number>(0);
+  const [emptySebilReturned, setEmptySebilReturned] = useState<number>(0);
   const [manualEmpty, setManualEmpty] = useState<Record<DepositKey, boolean>>({
     damacana: false,
     cam_damacana: false,
     tup: false,
+    sebil: false,
   });
 
   // Payment
@@ -354,7 +360,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
   const grandTotal = deliveredItems.reduce((acc, item) => acc + item.lineTotal, 0);
   const receivedEmptyTotal =
-    emptyDamacanaReturned + emptyCamDamacanaReturned + emptyTupReturned;
+    emptyDamacanaReturned + emptyCamDamacanaReturned + emptyTupReturned + emptySebilReturned;
   const hasDeliveryContent = deliveredItems.length > 0 || receivedEmptyTotal > 0;
   const selectedNegativeEmptyMessages = selectedCustomer
     ? negativeEmptyMessages(selectedCustomer.emptyDepositBalance)
@@ -368,6 +374,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const deliveredDepositDamacana = deliveredDeposits.damacana;
   const deliveredDepositCamDamacana = deliveredDeposits.camDamacana;
   const deliveredDepositTup = deliveredDeposits.tup;
+  const deliveredDepositSebil = deliveredDeposits.sebil;
 
   // Otomatik modda alınan boş kap, bırakılan dolu miktarını canlı takip eder.
   const syncAutomaticEmpties = (
@@ -389,6 +396,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     }
     if (!manualEmpty.tup) {
       setEmptyTupReturned(deposits.tup);
+    }
+    if (!manualEmpty.sebil) {
+      setEmptySebilReturned(deposits.sebil);
     }
   };
 
@@ -549,6 +559,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         damacana: emptyDamacanaReturned,
         camDamacana: emptyCamDamacanaReturned,
         tup: emptyTupReturned,
+        sebil: emptySebilReturned,
       };
 
       if (isEdit && editDelivery) {
@@ -949,12 +960,6 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
               </div>
             )}
 
-            {selectedCustomer && (
-              <CustomerDispensersSection
-                customerId={selectedCustomer.id}
-                customerName={selectedCustomer.name}
-              />
-            )}
           </div>
 
           {/* ============================================================== */}
@@ -1271,6 +1276,19 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       }
                     }}
                     onChange={setEmptyTupReturned}
+                  />
+                  <EmptyContainerRow
+                    label="Alınan Su Sebili"
+                    delivered={deliveredDepositSebil}
+                    value={emptySebilReturned}
+                    manual={manualEmpty.sebil}
+                    onToggle={(manual) => {
+                      setManualEmpty((prev) => ({ ...prev, sebil: manual }));
+                      if (!manual) {
+                        setEmptySebilReturned(deliveredDepositSebil);
+                      }
+                    }}
+                    onChange={setEmptySebilReturned}
                   />
                 </div>
 

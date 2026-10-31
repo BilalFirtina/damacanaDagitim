@@ -257,7 +257,7 @@ export interface CustomerStatementResponse {
   };
   statement: import('./statementRules').CustomerStatementResult;
   returnables: {
-    emptyDepositBalance: { damacana: number; camDamacana: number; tup: number };
+    emptyDepositBalance: { damacana: number; camDamacana: number; tup: number; sebil?: number };
     dispensers: Array<{
       id: string;
       brand: string;
@@ -288,7 +288,7 @@ export interface BalancesReportRow {
   phone: string;
   isAccountCustomer: boolean;
   balance: number;
-  empty: { damacana: number; camDamacana: number; tup: number };
+  empty: { damacana: number; camDamacana: number; tup: number; sebil: number };
   dispensers: Array<{ id: string; brand: string; model: string; quantity: number }>;
 }
 
@@ -300,6 +300,7 @@ export interface BalancesReportResponse {
     emptyDamacana: number;
     emptyCamDamacana: number;
     emptyTup: number;
+    emptySebil: number;
     dispenserCount: number;
   };
 }

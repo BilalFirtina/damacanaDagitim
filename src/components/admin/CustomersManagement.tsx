@@ -17,7 +17,6 @@ import {
   type CustomerUpdate,
 } from '../../services/api';
 import { negativeEmptyMessages } from '../../services/emptyBalanceDisplay';
-import { CustomerDispensersSection } from '../common/CustomerDispensersSection';
 import { CustomerStatementModal } from './CustomerStatementModal';
 import { CustomerPaymentModal } from './CustomerPaymentModal';
 
@@ -270,7 +269,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
     if (!confirm(`${cust.name} için boş kap bakiyesini sıfırlamak istediğinize emin misiniz?`)) return;
     try {
       const updated = await updateCustomer(cust.id, {
-        emptyDepositBalance: { damacana: 0, camDamacana: 0, tup: 0 },
+        emptyDepositBalance: { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 },
         expectedEmptyDepositBalance: {
           damacana: cust.emptyDepositBalance?.damacana || 0,
           camDamacana:
@@ -278,6 +277,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
             cust.emptyDepositBalance?.cam_damacana ??
             0,
           tup: cust.emptyDepositBalance?.tup || 0,
+          sebil: cust.emptyDepositBalance?.sebil || 0,
         },
       });
       onCustomersUpdated(customers.map((c) => (c.id === cust.id ? updated : c)));
@@ -420,6 +420,9 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
               : null,
             (c.emptyDepositBalance?.tup || 0) > 0
               ? `${c.emptyDepositBalance.tup} Tüp`
+              : null,
+            (c.emptyDepositBalance?.sebil || 0) > 0
+              ? `${c.emptyDepositBalance.sebil} Su Sebili`
               : null,
           ].filter((part): part is string => part !== null);
 
@@ -568,11 +571,6 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                   </div>
                 )}
 
-                <CustomerDispensersSection
-                  customerId={c.id}
-                  customerName={c.name}
-                  className="mt-3"
-                />
               </div>
 
               {/* Quick Actions (bakiye/boş kap sıfırlama yalnızca yöneticiye) */}

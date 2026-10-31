@@ -141,7 +141,7 @@ const existingWater2: any = {
     status: 'paid_full',
     diffUncollected: 0,
   },
-  emptyContainersReceived: { damacana: 0, camDamacana: 0, tup: 0 },
+  emptyContainersReceived: { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 },
   emptyContainersDiff: { damacana: 2, camDamacana: 0, tup: 0 },
   notes: '',
   isOfflineSync: false,
@@ -265,6 +265,7 @@ function legacyNormalize(input: any): NormalizedDeliveryInput {
       )
     ),
     tup: Math.max(0, Math.floor(Number(emptyContainersReceived?.tup) || 0)),
+    sebil: Math.max(0, Math.floor(Number(emptyContainersReceived?.sebil) || 0)),
   };
 
   const receivedEmptyTotal =
