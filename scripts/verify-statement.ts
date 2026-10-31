@@ -178,5 +178,29 @@ console.log('8) Müşteri avansı (negatif bakiye) korunur');
   check('tahsilat 750', r.totalPayments, 750);
 }
 
+console.log('9) Teslimat dışı tahsilat, düzeltme değil tahsilat olarak sınıflanır');
+{
+  const r = buildCustomerStatement({
+    currentBalance: 300,
+    deliveries: [delivery('d1', '2026-10-05', 500, 0)],
+    audits: [
+      {
+        id: 7,
+        changedAt: '2026-10-20T12:00:00.000Z',
+        changedByUserName: 'Depo Yöneticisi',
+        reason: 'Tahsilat (CASH): Geçen haftaki borç',
+        previousBalance: 500,
+        newBalance: 300,
+      },
+    ],
+    from: '2026-10-01',
+    to: '2026-10-31',
+  });
+  check('tahsilat türü', r.entries[1].type, 'payment');
+  check('tahsilat toplamı 200', r.totalPayments, 200);
+  check('düzeltme toplamı 0', r.totalAdjustments, 0);
+  check('kapanış 300', r.closingBalance, 300);
+}
+
 console.log(`\nSonuç: ${passed} başarılı, ${failed} başarısız`);
 if (failed > 0) process.exit(1);

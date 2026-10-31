@@ -142,10 +142,13 @@ export function buildCustomerStatement(params: {
     if (audit.previousBalance === null || audit.newBalance === null) continue;
     const delta = money(Number(audit.newBalance) - Number(audit.previousBalance));
     if (Math.abs(delta) < EPSILON) continue;
+    // Teslimat dışı tahsilatlar da denetim tablosuna yazılır; ekstrede doğru
+    // türde (tahsilat) görünmeleri için gerekçeden ayrıştırılır.
+    const isStandalonePayment = /^tahsilat\b/i.test(audit.reason || '');
     allEntries.push({
       id: `adjustment_${audit.id ?? audit.changedAt}`,
       timestamp: audit.changedAt,
-      type: 'adjustment',
+      type: isStandalonePayment ? 'payment' : 'adjustment',
       description: audit.reason || 'Yetkili bakiye düzeltmesi',
       items: [],
       debit: delta > 0 ? delta : 0,
