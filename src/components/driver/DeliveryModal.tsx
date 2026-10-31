@@ -26,6 +26,7 @@ import {
   createCustomer,
   createProduct,
   replaceDelivery,
+  addCustomerDispenser,
 } from '../../services/api';
 import {
   computeStockWarnings,
@@ -246,6 +247,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       setEmptyCamDamacanaReturned(0);
       setEmptyTupReturned(0);
       setEmptySebilReturned(0);
+      setSebilBrand('');
+      setSebilModel('');
+      setSebilNote('');
       setManualEmpty({
         damacana: false,
         cam_damacana: false,
@@ -295,6 +299,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const [emptyCamDamacanaReturned, setEmptyCamDamacanaReturned] = useState<number>(0);
   const [emptyTupReturned, setEmptyTupReturned] = useState<number>(0);
   const [emptySebilReturned, setEmptySebilReturned] = useState<number>(0);
+  // Verilen sebilin marka/modeli ve bırakıldığı yer (AGENTS.md 7.1).
+  const [sebilBrand, setSebilBrand] = useState('');
+  const [sebilModel, setSebilModel] = useState('');
+  const [sebilNote, setSebilNote] = useState('');
   const [manualEmpty, setManualEmpty] = useState<Record<DepositKey, boolean>>({
     damacana: false,
     cam_damacana: false,
@@ -594,6 +602,22 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       };
 
       const result = await createDelivery(payload);
+
+      // Sebil emanet detayı: marka + model girildiyse müşteri sebil kaydı oluştur.
+      if (deliveredDepositSebil > 0 && sebilBrand.trim() && sebilModel.trim()) {
+        try {
+          await addCustomerDispenser(selectedCustomer.id, {
+            brand: sebilBrand.trim(),
+            model: sebilModel.trim(),
+            quantity: deliveredDepositSebil,
+            note: sebilNote.trim() || null,
+          });
+        } catch (dispenserErr) {
+          // Teslimat kaydı başarılı; detay kaydı başarısızsa kullanıcı bilgilendirilir.
+          console.error('[delivery dispenser detail]', dispenserErr);
+        }
+      }
+
       onDeliveryCreated(result.delivery, result.updatedCustomer);
       onClose();
     } catch (err: any) {
@@ -1290,6 +1314,49 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     }}
                     onChange={setEmptySebilReturned}
                   />
+
+                  {deliveredDepositSebil > 0 && (
+                    <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/20">
+                      <div className="sm:col-span-2 text-[11px] font-semibold text-indigo-800 dark:text-indigo-200">
+                        Verilen su sebili bilgileri (isteğe bağlı)
+                      </div>
+                      <label className="min-w-0">
+                        <span className="text-[11px] text-slate-600 dark:text-slate-300 block mb-1">Marka</span>
+                        <input
+                          type="text"
+                          value={sebilBrand}
+                          onChange={(e) => setSebilBrand(e.target.value)}
+                          maxLength={60}
+                          placeholder="Örn: Arçelik"
+                          className="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                        />
+                      </label>
+                      <label className="min-w-0">
+                        <span className="text-[11px] text-slate-600 dark:text-slate-300 block mb-1">Model</span>
+                        <input
+                          type="text"
+                          value={sebilModel}
+                          onChange={(e) => setSebilModel(e.target.value)}
+                          maxLength={60}
+                          placeholder="Örn: 1200 A"
+                          className="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                        />
+                      </label>
+                      <label className="min-w-0 sm:col-span-2">
+                        <span className="text-[11px] text-slate-600 dark:text-slate-300 block mb-1">
+                          Nereye bırakıldı / açıklama
+                        </span>
+                        <textarea
+                          value={sebilNote}
+                          onChange={(e) => setSebilNote(e.target.value)}
+                          maxLength={300}
+                          rows={2}
+                          placeholder="Örn: Giriş katı mutfak yanı, güvenlikçiye teslim edildi"
+                          className="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white resize-y"
+                        />
+                      </label>
+                    </div>
+                  )}
                 </div>
 
                 {deliveredDepositDamacana - emptyDamacanaReturned !== 0 && (
