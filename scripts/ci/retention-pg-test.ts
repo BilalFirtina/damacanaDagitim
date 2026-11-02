@@ -92,7 +92,9 @@ async function seedReference(c: Client): Promise<void> {
   await c.query(`
     INSERT INTO public.users (id, name, username, role, can_load_vehicle, pin) VALUES
       ('u_admin', 'Yönetici', 'ci_admin', 'admin', true, '0000'),
-      ('u_driver', 'Şoför', 'ci_driver', 'driver', true, '1111')
+      ('u_driver', 'Şoför', 'ci_driver', 'driver', true, '1111'),
+      ('u_driver_2', 'Şoför 2', 'ci_driver_2', 'driver', true, '2222'),
+      ('u_driver_3', 'Şoför 3', 'ci_driver_3', 'driver', true, '3333')
     ON CONFLICT (id) DO NOTHING;
   `);
   await c.query(`
@@ -135,8 +137,8 @@ async function seedScenario(c: Client): Promise<void> {
       ('D61', to_char((now() AT TIME ZONE 'UTC')::date - 61, 'YYYY-MM-DD'), 'u_driver', 'Şoför', '34 CI 061', 'u_admin', 'Yönetici', 'completed', now() - interval '61 day', 'u_admin', 'Yönetici'),
       ('D60', to_char((now() AT TIME ZONE 'UTC')::date - 60, 'YYYY-MM-DD'), 'u_driver', 'Şoför', '34 CI 060', 'u_admin', 'Yönetici', 'completed', now() - interval '60 day', 'u_admin', 'Yönetici'),
       ('D59', to_char((now() AT TIME ZONE 'UTC')::date - 59, 'YYYY-MM-DD'), 'u_driver', 'Şoför', '34 CI 059', 'u_admin', 'Yönetici', 'completed', now() - interval '59 day', 'u_admin', 'Yönetici'),
-      ('DOPEN', to_char((now() AT TIME ZONE 'UTC')::date - 100, 'YYYY-MM-DD'), 'u_driver', 'Şoför', '34 CI 100', 'u_admin', 'Yönetici', 'in_transit', NULL, NULL, NULL),
-      ('DPENDING', to_char((now() AT TIME ZONE 'UTC')::date - 100, 'YYYY-MM-DD'), 'u_driver', 'Şoför', '34 CI 101', 'u_admin', 'Yönetici', 'pending_confirmation', NULL, NULL, NULL);
+      ('DOPEN', to_char((now() AT TIME ZONE 'UTC')::date - 100, 'YYYY-MM-DD'), 'u_driver_2', 'Şoför 2', '34 CI 100', 'u_admin', 'Yönetici', 'in_transit', NULL, NULL, NULL),
+      ('DPENDING', to_char((now() AT TIME ZONE 'UTC')::date - 100, 'YYYY-MM-DD'), 'u_driver_3', 'Şoför 3', '34 CI 101', 'u_admin', 'Yönetici', 'pending_confirmation', NULL, NULL, NULL);
   `);
   await c.query(`
     INSERT INTO public.dispatch_items (dispatch_id, product_id, quantity)
@@ -155,7 +157,7 @@ async function seedScenario(c: Client): Promise<void> {
       ('DEL61NEW', 'D61', 'u_driver', 'Şoför', '34 CI 061', 'c1', 'Test Müşteri', now(), 100, 'CASH', 100, 100, 'paid'),
       ('DEL60', 'D60', 'u_driver', 'Şoför', '34 CI 060', 'c1', 'Test Müşteri', now() - interval '60 day', 100, 'CASH', 100, 100, 'paid'),
       ('DEL59', 'D59', 'u_driver', 'Şoför', '34 CI 059', 'c1', 'Test Müşteri', now() - interval '59 day', 100, 'CASH', 100, 100, 'paid'),
-      ('DELOPEN', 'DOPEN', 'u_driver', 'Şoför', '34 CI 100', 'c1', 'Test Müşteri', now(), 100, 'CASH', 100, 100, 'paid');
+      ('DELOPEN', 'DOPEN', 'u_driver_2', 'Şoför 2', '34 CI 100', 'c1', 'Test Müşteri', now(), 100, 'CASH', 100, 100, 'paid');
   `);
   await c.query(`
     INSERT INTO public.delivery_items (delivery_id, line_no, product_id, product_name, quantity, unit_price, line_total)
