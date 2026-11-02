@@ -860,6 +860,9 @@ app.get('/api/customers/:id/statement', requireAdmin, async (req, res) => {
     if (from > to) {
       return res.status(400).json({ error: 'Başlangıç tarihi bitiş tarihinden sonra olamaz.' });
     }
+    if (to > today) {
+      return res.status(400).json({ error: 'Gelecek bir tarih aralığı için ekstre alınamaz.' });
+    }
 
     const [deliveries, audits] = await Promise.all([
       getDeliveries({ customerId }),
@@ -1684,6 +1687,15 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
   try {
     const date = (req.query.date as string) || getTodayDateStr();
     const driverId = req.query.driverId as string;
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ error: 'Geçersiz tarih.' });
+    }
+    if (date > getTodayDateStr()) {
+      return res.status(400).json({
+        error: 'Gelecek bir tarih için rapor alınamaz. Henüz gerçekleşmemiş bir günün dağıtımı olamaz.',
+      });
+    }
 
     const [allDispatches, allCustomers] = await Promise.all([
       getDispatches(date),

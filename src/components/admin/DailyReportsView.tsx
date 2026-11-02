@@ -217,6 +217,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
               <input
                 type="date"
                 value={selectedDate}
+                max={todayStr}
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="w-full sm:w-auto pl-8 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none"
               />
@@ -454,6 +455,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
             <input
               type="date"
               value={selectedDate}
+              max={todayStr}
               onChange={(e) => setSelectedDate(e.target.value)}
               className="pl-8 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none"
             />
