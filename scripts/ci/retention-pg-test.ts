@@ -10,12 +10,12 @@
  *   DATABASE_URL=postgres://... npx tsx scripts/ci/retention-pg-test.ts --apply-only
  *
  * Kontrol edilenler (AGENTS.md 15 ve retention tasarimi):
- *   1. Dry-run hicbir satiri silmez, arsive YAZMAZ.
- *   2. Gercek calisma: arsiv-once silme sirasi (deliveries -> dispatches),
+ *   1. Dry-run hicbir satiri silmez, arsiv kullanmaz.
+ *   2. Gercek calisma: dogrudan silme sirasi (deliveries -> dispatches),
  *      FK ihlali olmadan, dogru satirlar silinir.
  *   3. Uygun seferin esikten YENI teslimati da silinir; sinirdaki (esik gunu)
  *      ve -59 gun seferleri korunur; acik (in_transit) sefer korunur.
- *   4. Enjekte edilen hata TUM islemi (arsiv satirlari dahil) geri alir.
+ *   4. Enjekte edilen hata TUM islemi geri alir.
  *   5. Eszamanli calisma advisory lock ile RETENTION_LOCKED dondurur.
  *   6. Denetim (audit) tablolari temizlikten etkilenmez.
  *   7. anon/authenticated purge_retention'u calistiramaz, retention tablolarini
@@ -135,7 +135,8 @@ async function seedScenario(c: Client): Promise<void> {
       ('D61', to_char((now() AT TIME ZONE 'UTC')::date - 61, 'YYYY-MM-DD'), 'u_driver', 'Şoför', '34 CI 061', 'u_admin', 'Yönetici', 'completed', now() - interval '61 day', 'u_admin', 'Yönetici'),
       ('D60', to_char((now() AT TIME ZONE 'UTC')::date - 60, 'YYYY-MM-DD'), 'u_driver', 'Şoför', '34 CI 060', 'u_admin', 'Yönetici', 'completed', now() - interval '60 day', 'u_admin', 'Yönetici'),
       ('D59', to_char((now() AT TIME ZONE 'UTC')::date - 59, 'YYYY-MM-DD'), 'u_driver', 'Şoför', '34 CI 059', 'u_admin', 'Yönetici', 'completed', now() - interval '59 day', 'u_admin', 'Yönetici'),
-      ('DOPEN', to_char((now() AT TIME ZONE 'UTC')::date - 100, 'YYYY-MM-DD'), 'u_driver', 'Şoför', '34 CI 100', 'u_admin', 'Yönetici', 'in_transit', NULL, NULL, NULL);
+      ('DOPEN', to_char((now() AT TIME ZONE 'UTC')::date - 100, 'YYYY-MM-DD'), 'u_driver', 'Şoför', '34 CI 100', 'u_admin', 'Yönetici', 'in_transit', NULL, NULL, NULL),
+      ('DPENDING', to_char((now() AT TIME ZONE 'UTC')::date - 100, 'YYYY-MM-DD'), 'u_driver', 'Şoför', '34 CI 101', 'u_admin', 'Yönetici', 'pending_confirmation', NULL, NULL, NULL);
   `);
   await c.query(`
     INSERT INTO public.dispatch_items (dispatch_id, product_id, quantity)
@@ -170,8 +171,7 @@ async function eligibleDispatchIds(c: Client): Promise<string[]> {
   const r = await c.query(`
     SELECT COALESCE(array_agg(id), ARRAY[]::text[]) AS ids
     FROM public.dispatches
-    WHERE status = 'completed' AND closed_at IS NOT NULL
-      AND date < to_char((now() AT TIME ZONE 'UTC')::date - ${RETENTION_DAYS}, 'YYYY-MM-DD');
+    WHERE date < to_char((now() AT TIME ZONE 'UTC')::date - ${RETENTION_DAYS}, 'YYYY-MM-DD');
   `);
   return r.rows[0].ids;
 }
@@ -209,9 +209,6 @@ async function installOrderTriggers(c: Client): Promise<void> {
   await c.query(`
     CREATE OR REPLACE FUNCTION ci_log_del() RETURNS trigger LANGUAGE plpgsql AS $$
     BEGIN
-      IF NOT EXISTS (SELECT 1 FROM public.retention_archive WHERE table_name = TG_TABLE_NAME) THEN
-        RAISE EXCEPTION 'ARCHIVE_BEFORE_DELETE_VIOLATED: %', TG_TABLE_NAME;
-      END IF;
       INSERT INTO ci_del_log(tbl) VALUES (TG_TABLE_NAME);
       RETURN OLD;
     END $$;
@@ -262,27 +259,24 @@ async function scenarioRealRun(c: Client): Promise<void> {
   check('uygun sefer (D61) silindi', !dIds.includes('D61'));
   check('sinirdaki sefer (D60) korundu', dIds.includes('D60'));
   check('D59 seferi korundu', dIds.includes('D59'));
-  check('acik sefer (DOPEN) korundu', dIds.includes('DOPEN'));
+  check('acik sefer (DOPEN) da silindi', !dIds.includes('DOPEN'));
+  check('askida sefer (DPENDING) da silindi', !dIds.includes('DPENDING'));
 
   const dli = await deliveryIds(c);
   check('esikten eski teslimat silindi', !dli.includes('DEL61OLD'));
   check('esikten YENI ama uygun sefere ait teslimat da silindi', !dli.includes('DEL61NEW'));
   check('sinirdaki teslimat korundu', dli.includes('DEL60'));
-  check('acik seferin teslimati korundu', dli.includes('DELOPEN'));
+  check('acik seferin teslimati da silindi', !dli.includes('DELOPEN'));
 
   check(
-    'rapor edilen silme sayilari (1 sefer, 2 teslimat)',
-    Number(res.purged_dispatches) === 1 && Number(res.purged_deliveries) === 2,
+    'rapor edilen silme sayilari (3 sefer, 3 teslimat)',
+    Number(res.purged_dispatches) === 3 && Number(res.purged_deliveries) === 3,
     JSON.stringify({ d: res.purged_dispatches, del: res.purged_deliveries })
   );
 
-  const archSum = Number(
-    (await c.query('SELECT COALESCE(sum(row_count),0)::int AS n FROM public.retention_archive')).rows[0].n
-  );
-  check('arsiv satir sayisi toplami = 7', archSum === 7, `bulunan=${archSum}`);
-  check('her iki tablo arsivlendi',
-    Number((await c.query("SELECT count(*)::int n FROM public.retention_archive WHERE table_name='dispatches'")).rows[0].n) >= 1 &&
-    Number((await c.query("SELECT count(*)::int n FROM public.retention_archive WHERE table_name='deliveries'")).rows[0].n) >= 1
+  check(
+    'arsiv kullanilmadi (0 satir)',
+    (await count(c, 'retention_archive')) === 0
   );
   check('musteri bakiye/boş kap degismedi', (await balancesSnapshot(c)) === before);
 
@@ -343,7 +337,7 @@ async function scenarioLock(c: Client): Promise<void> {
     check('kilitliyken arsiv bos', (await count(c, 'retention_archive')) === 0);
     await holder.query('ROLLBACK');
     const after = await purge(c, false, await eligibleDispatchIds(c));
-    check('kilit birakilinca purge basarili', Number(after.purged_dispatches) === 1);
+    check('kilit birakilinca purge basarili', Number(after.purged_dispatches) === 3);
   } finally {
     await holder.end();
   }

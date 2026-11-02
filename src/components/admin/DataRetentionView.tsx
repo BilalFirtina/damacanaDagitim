@@ -56,13 +56,15 @@ export const DataRetentionView: React.FC = () => {
     }
   };
 
-  const supabaseSqlCode = `-- 60 Günlük Saklama Temizliği (atomik + arşiv-önce + kilitli)
+  const supabaseSqlCode = `-- 60 Günlük Saklama Temizliği (atomik + doğrudan silme + kilitli)
 -- Gerçek silme için p_dry_run = false; test için true bırakın.
--- Silinen satırlar public.retention_archive tablosuna JSONB olarak yazılır.
+-- p_dispatch_ids sunucu tarafından eşikten eski tüm seferler için doldurulur.
+-- Arşivleme yoktur; satırlar doğrudan silinir. Müşteri bakiyesi, emanet
+-- adetleri, son alış fiyatı ve tahsilatlar korunur.
 SELECT public.purge_retention(
-  true,                 -- p_dry_run
-  ARRAY[]::text[],      -- p_dispatch_ids (boş: fonksiyon eşikten eskileri seçer)
-  ARRAY[]::text[],      -- p_delivery_ids (boş: sefere bağlı teslimatlar)
+  false,                -- p_dry_run
+  ARRAY['disp_...'],    -- p_dispatch_ids (eşikten eski seferler)
+  ARRAY[]::text[],      -- p_delivery_ids (sefere bağlı teslimatlar)
   60                    -- p_retention_days
 );`;
 
@@ -87,7 +89,7 @@ SELECT public.purge_retention(
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Dağıtım üzerinden 60 gün (2 ay) geçtikten sonra eski sefer ve teslimat fişleri önce kalıcı arşive (retention_archive) yazılır, ardından atomik olarak silinir. Varsayılan mod DRY-RUN'dır; gerçek silme yalnızca RETENTION_DRY_RUN=false iken yapılır.
+            Dağıtım üzerinden 60 gün (2 ay) geçtikten sonra eski sefer ve teslimat fişleri doğrudan ve atomik olarak silinir. Askıda kalan seferler de bu kapsama girer. Müşteri bakiyesi, emanet adetleri, son alış fiyatı ve tahsilatlar korunur. Varsayılan mod DRY-RUN'dır; gerçek silme yalnızca RETENTION_DRY_RUN=false iken yapılır.
           </p>
         </div>
 
@@ -213,7 +215,7 @@ SELECT public.purge_retention(
               </span>
             </div>
             <p className="text-[11px]">
-              Sefer: <strong>{purgeResult.purgedDispatches}</strong> · Teslimat Fişi: <strong>{purgeResult.purgedDeliveries}</strong> · Arşivlenen Satır: <strong>{purgeResult.archivedRows ?? 0}</strong> · Eşik: <strong>{purgeResult.thresholdDate}</strong>
+              Sefer: <strong>{purgeResult.purgedDispatches}</strong> · Teslimat Fişi: <strong>{purgeResult.purgedDeliveries}</strong> · Eşik: <strong>{purgeResult.thresholdDate}</strong>
             </p>
           </div>
           <span className="text-[10px] text-emerald-600 font-mono">

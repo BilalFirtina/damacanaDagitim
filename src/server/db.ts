@@ -4185,8 +4185,8 @@ export async function getRetentionHealth(): Promise<RetentionHealth> {
 
 // 60 günlük temizlik. Varsayılan olarak DRY-RUN'dır; gerçek silme için
 // RETENTION_DRY_RUN=false ayarlanmalıdır. Gerçek işlem sunucudaki
-// public.purge_retention RPC'si ile tek transaction içinde, arşiv-önce
-// mantığıyla ve advisory lock altında yürütülür.
+// public.purge_retention RPC'si ile tek transaction içinde, arşivsiz
+// doğrudan silme ve advisory lock altında yürütülür.
 export async function runRetentionCleanup(): Promise<RetentionRunResult> {
   const dryRun = process.env.RETENTION_DRY_RUN !== 'false';
   const nowIso = new Date().toISOString();
@@ -4218,17 +4218,11 @@ export async function runRetentionCleanup(): Promise<RetentionRunResult> {
       // Sınırlı okuma: yalnızca eşikten eski seferler çekilir.
       const { data: rows, error } = await supabase
         .from('dispatches')
-        .select('id, status, closed_at, date')
+        .select('id, date')
         .lt('date', thresholdDateStr);
       if (error) throw error;
       const dispatchIds = (rows || [])
-        .filter(
-          (r: any) =>
-            r.status === 'completed' &&
-            r.closed_at &&
-            typeof r.date === 'string' &&
-            r.date < thresholdDateStr
-        )
+        .filter((r: any) => typeof r.date === 'string' && r.date < thresholdDateStr)
         .map((r: any) => r.id);
 
       const { data: rpcData, error: rpcErr } = await supabase.rpc('purge_retention', {
@@ -4248,7 +4242,7 @@ export async function runRetentionCleanup(): Promise<RetentionRunResult> {
         Number(remoteCounts?.purged_deliveries ?? remoteCounts?.counts?.deliveries) || 0;
       result.archivedRows = Number(remoteCounts?.archived_rows) || 0;
       console.log(
-        `[Retention] ${dryRun ? 'DRY-RUN' : 'PURGE'} cutoff=${thresholdDateStr} dispatches=${result.purgedDispatches} deliveries=${result.purgedDeliveries} archived=${result.archivedRows}`
+        `[Retention] ${dryRun ? 'DRY-RUN' : 'PURGE'} cutoff=${thresholdDateStr} dispatches=${result.purgedDispatches} deliveries=${result.purgedDeliveries} archive=disabled`
       );
     } catch (e: any) {
       const msg = e?.message || e?.details || String(e);
@@ -4264,7 +4258,7 @@ export async function runRetentionCleanup(): Promise<RetentionRunResult> {
   } else if (pgPool) {
     try {
       const rows = await pgPool.query(
-        "SELECT id FROM public.dispatches WHERE status = 'completed' AND closed_at IS NOT NULL AND date < $1",
+        'SELECT id FROM public.dispatches WHERE date < $1',
         [thresholdDateStr]
       );
       const dispatchIds = rows.rows.map((r: any) => r.id);
@@ -4304,17 +4298,8 @@ export async function runRetentionCleanup(): Promise<RetentionRunResult> {
   );
 
   if (!dryRun) {
-    if (!Array.isArray(db.retentionArchive)) db.retentionArchive = [];
-    const archivedDispatches = local.archivedDispatches.length;
-    const archivedDeliveries = local.archivedDeliveries.length;
-    if (archivedDispatches > 0 || archivedDeliveries > 0) {
-      db.retentionArchive.push({
-        runId: nowIso,
-        purgeDate: thresholdDateStr,
-        retentionDays: RETENTION_DAYS,
-        dispatches: local.archivedDispatches,
-        deliveries: local.archivedDeliveries,
-      });
+    // Arşivleme yok: eşikten eski sefer/teslimatlar doğrudan silinir.
+    if (local.archivedDispatches.length > 0 || local.archivedDeliveries.length > 0) {
       db.dispatches = local.dispatches;
       db.deliveries = local.deliveries;
     }

@@ -145,45 +145,56 @@ function partA() {
   const c2 = retentionCutoffDate(new Date('2026-10-19T23:59:59.999Z'));
   check('cutoff stable across the UTC day', c1 === c2, `${c1} vs ${c2}`);
 
-  // Open / unclosed dispatches are never eligible, even if very old.
+  // Eşikten eski açık/askıda seferler de silinir (yeni politika).
+  const oldOpen = makeDispatch({
+    id: 'open',
+    date: dayOffset(now, -400),
+    status: 'in_transit',
+    endOfDayReconciliation: undefined,
+  });
+  check('in_transit old dispatch -> eligible', isDispatchPurgeEligible(oldOpen, cutoff));
   check(
-    'in_transit old dispatch -> never eligible',
-    !isDispatchPurgeEligible(
-      makeDispatch({ id: 'x', date: dayOffset(now, -400), status: 'in_transit' }),
+    'pending_confirmation old dispatch -> eligible',
+    isDispatchPurgeEligible(
+      makeDispatch({
+        id: 'pending',
+        date: dayOffset(now, -400),
+        status: 'pending_confirmation',
+        endOfDayReconciliation: undefined,
+      }),
       cutoff
     )
   );
   check(
-    'pending_confirmation old dispatch -> never eligible',
-    !isDispatchPurgeEligible(
-      makeDispatch({ id: 'y', date: dayOffset(now, -400), status: 'pending_confirmation' }),
-      cutoff
-    )
-  );
-  check(
-    'completed but not closed -> never eligible',
-    !isDispatchPurgeEligible(
+    'completed but not closed -> eligible',
+    isDispatchPurgeEligible(
       makeDispatch({ id: 'z', date: dayOffset(now, -400), endOfDayReconciliation: undefined }),
       cutoff
     )
   );
 
   // Selection: cascading deliveries, orphans, non-eligible protection.
-  const dispatches = [eligible, atBoundary, recent];
+  const dispatches = [eligible, atBoundary, recent, oldOpen];
   const deliveries = [
     makeDelivery({ id: 'del_old', dispatchId: 'old', timestamp: '2020-01-01T00:00:00.000Z' }),
     makeDelivery({ id: 'del_new_of_old', dispatchId: 'old', timestamp: now }), // newer than cutoff, still purged
+    makeDelivery({ id: 'del_open', dispatchId: 'open', timestamp: now }),
     makeDelivery({ id: 'del_kept_disp', dispatchId: 'recent', timestamp: '2020-01-01T00:00:00.000Z' }),
     makeDelivery({ id: 'orphan_old', dispatchId: '', timestamp: cutoffInstant.slice(0, -1) }), // just before cutoff
     makeDelivery({ id: 'orphan_new', dispatchId: '', timestamp: now }),
   ];
   const sel = selectRetentionIds(dispatches, deliveries, cutoff, cutoffInstant);
-  check('only the 61-day dispatch is selected', JSON.stringify(sel.dispatchIds) === '["old"]', JSON.stringify(sel.dispatchIds));
+  check(
+    'eşikten eski kapalı ve açık seferler seçilir',
+    JSON.stringify(sel.dispatchIds) === '["old","open"]',
+    JSON.stringify(sel.dispatchIds)
+  );
   check(
     'delivery of eligible dispatch purged regardless of its own date',
     sel.deliveryIds.includes('del_new_of_old')
   );
   check('old delivery of eligible dispatch purged', sel.deliveryIds.includes('del_old'));
+  check('açık seferin teslimatı da silinir', sel.deliveryIds.includes('del_open'));
   check('delivery of non-eligible dispatch kept', !sel.deliveryIds.includes('del_kept_disp'));
   check('old orphan delivery purged', sel.deliveryIds.includes('orphan_old'));
   check('new orphan delivery kept', !sel.deliveryIds.includes('orphan_new'));
@@ -191,9 +202,12 @@ function partA() {
   // Local application must not touch balances/consignments.
   const local = applyRetentionToLocal(dispatches, deliveries, cutoff, cutoffInstant);
   check('local keeps non-eligible dispatches', local.dispatches.map((d) => d.id).join(',') === 'boundary,recent');
-  check('local archived exactly the eligible dispatch', local.archivedDispatches.map((d) => d.id).join(',') === 'old');
   check(
-    'local archived deliveries are disjoint from retained',
+    'local removes exactly the eligible dispatches',
+    local.archivedDispatches.map((d) => d.id).join(',') === 'old,open'
+  );
+  check(
+    'local removed deliveries are disjoint from retained',
     local.archivedDeliveries.every((a) => !local.deliveries.some((k) => k.id === a.id))
   );
   const customers = [{ id: 'c1', currentBalanceTL: 500, emptyDepositBalance: { damacana: 3, tup: 1 } }];
@@ -206,10 +220,9 @@ function partA() {
 // Part B: orchestration against a mock PostgREST endpoint.
 // ---------------------------------------------------------------------------
 let tables: Record<string, any[]> = {};
-let rpcMode: 'ok' | 'locked' | 'archive_fail' = 'ok';
+let rpcMode: 'ok' | 'locked' | 'error' = 'ok';
 let rpcBody: any = null;
 let statePatches: any[] = [];
-let archiveWrites: any[] = [];
 
 // Eligible rows the SQL function would count. One table is intentionally 0 so
 // the "skip empty tables" behaviour is exercised.
@@ -221,7 +234,6 @@ const MOCK_COUNTS: Record<string, number> = {
   delivery_items: 3,
   delivery_container_returns: 0,
 };
-const MOCK_ARCHIVED_ROWS = Object.values(MOCK_COUNTS).reduce((a, b) => a + b, 0);
 
 async function partB() {
   console.log('\n2) Server orchestration (mock RPC)');
@@ -248,28 +260,20 @@ async function partB() {
           res.end(JSON.stringify({ message: 'RETENTION_LOCKED', code: 'P0001' }));
           return;
         }
-        if (rpcMode === 'archive_fail') {
+        if (rpcMode === 'error') {
           res.statusCode = 500;
-          res.end(JSON.stringify({ message: 'ARCHIVE_COUNT_MISMATCH: expected 5 archived 4', code: 'P0001' }));
+          res.end(JSON.stringify({ message: 'CI_RPC_FAILURE', code: 'P0001' }));
           return;
         }
-        // Emulate the real function: archive ONLY on a real run and ONLY for
-        // tables that actually have eligible rows.
         const dry = body?.p_dry_run === true;
-        if (!dry) {
-          for (const [table_name, row_count] of Object.entries(MOCK_COUNTS)) {
-            if (row_count > 0) archiveWrites.push({ run_id: 'ret_test', table_name, row_count });
-          }
-        }
-        const archived = dry ? 0 : MOCK_ARCHIVED_ROWS;
         res.end(
           JSON.stringify({
             run_id: 'ret_test',
             dry_run: dry,
             threshold_date: '2026-08-20',
             retention_days: 60,
-            counts: { ...MOCK_COUNTS, archived_rows: archived },
-            archived_rows: archived,
+            counts: { ...MOCK_COUNTS, archived_rows: 0 },
+            archived_rows: 0,
             purged_dispatches: dry ? 0 : MOCK_COUNTS.dispatches,
             purged_deliveries: dry ? 0 : MOCK_COUNTS.deliveries,
           })
@@ -345,16 +349,14 @@ async function partB() {
     delete process.env.RETENTION_DRY_RUN;
     rpcMode = 'ok';
     rpcBody = null;
-    archiveWrites = [];
     const dry = await db.runRetentionCleanup();
     check('default is dry-run', dry.dryRun === true);
     check('dry-run sends p_dry_run=true to RPC', rpcBody?.p_dry_run === true);
     check('dry-run reports 0 archived rows', dry.archivedRows === 0);
-    check('dry-run writes NOTHING to retention_archive', archiveWrites.length === 0, `writes=${archiveWrites.length}`);
     check('dry-run reports 0 real deletions', dry.purgedDispatches === 0 && dry.purgedDeliveries === 0);
     check(
-      'only eligible dispatch id passed (open/recent excluded)',
-      JSON.stringify(rpcBody?.p_dispatch_ids) === '["old_completed"]',
+      'eşikten eski tüm seferler (açık dahil) gönderilir',
+      JSON.stringify(rpcBody?.p_dispatch_ids) === '["old_completed","old_open"]',
       JSON.stringify(rpcBody?.p_dispatch_ids)
     );
 
@@ -362,21 +364,11 @@ async function partB() {
     process.env.RETENTION_DRY_RUN = 'false';
     rpcMode = 'ok';
     rpcBody = null;
-    archiveWrites = [];
     const real = await db.runRetentionCleanup();
     check('RETENTION_DRY_RUN=false -> dryRun false', real.dryRun === false);
     check('real run sends p_dry_run=false', rpcBody?.p_dry_run === false);
     check('real run reports purge counts', real.purgedDispatches === 2 && real.purgedDeliveries === 3);
-    check(
-      'real run archives only non-empty tables (skips empty)',
-      archiveWrites.length === 5,
-      `writes=${archiveWrites.length}`
-    );
-    check(
-      'real run archived_rows = sum of non-empty counts',
-      real.archivedRows === MOCK_ARCHIVED_ROWS,
-      `got=${real.archivedRows} expected=${MOCK_ARCHIVED_ROWS}`
-    );
+    check('real run reports 0 archived rows (arşiv yok)', real.archivedRows === 0);
 
     // (3) lock rejection.
     rpcMode = 'locked';
@@ -385,8 +377,8 @@ async function partB() {
     check('lock -> locked result, no throw', locked.locked === true);
     check('lock -> not recorded as an error', !statePatches.some((s) => s && s.last_error));
 
-    // (4) archive failure aborts and records the error.
-    rpcMode = 'archive_fail';
+    // (4) RPC failure aborts and records the error.
+    rpcMode = 'error';
     statePatches = [];
     let threw = false;
     try {
@@ -394,10 +386,10 @@ async function partB() {
     } catch {
       threw = true;
     }
-    check('archive failure throws (zero deletions)', threw);
+    check('RPC failure throws (zero deletions)', threw);
     check(
-      'archive failure recorded last_error',
-      statePatches.some((s) => s && typeof s.last_error === 'string' && s.last_error.includes('ARCHIVE_COUNT_MISMATCH')),
+      'RPC failure recorded last_error',
+      statePatches.some((s) => s && typeof s.last_error === 'string' && s.last_error.includes('CI_RPC_FAILURE')),
       JSON.stringify(statePatches)
     );
   } finally {
@@ -412,34 +404,26 @@ async function partB() {
 // SQL contract is asserted on the source text as a regression guard).
 // ---------------------------------------------------------------------------
 function partC() {
-  console.log('\n3) Migration 20261022 guards');
+  console.log('\n3) Migration 20261105 guards (arsivsiz, durum bagimsiz)');
 
   const mig = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
     '..',
     'migrations',
-    '20261022_fix_retention_dry_run_archive.sql'
+    '20261105_retention_no_archive.sql'
   );
   const sql = fs.readFileSync(mig, 'utf-8');
 
   check('uses CREATE OR REPLACE FUNCTION', /CREATE OR REPLACE FUNCTION public\.purge_retention/.test(sql));
   check('keeps SECURITY INVOKER', /SECURITY INVOKER/.test(sql));
   check('keeps advisory lock', sql.includes('pg_try_advisory_xact_lock(620260102)'));
-  check('re-states service_role-only EXECUTE', /REVOKE EXECUTE ON FUNCTION public\.purge_retention/.test(sql) && /GRANT EXECUTE ON FUNCTION public\.purge_retention[\s\S]*?TO service_role/.test(sql));
-  check('keeps ARCHIVE_COUNT_MISMATCH verification', sql.includes('ARCHIVE_COUNT_MISMATCH'));
   check('keeps batched deletes (LIMIT 500)', sql.includes('LIMIT 500'));
-
-  const inserts = (sql.match(/INSERT INTO public\.retention_archive/g) || []).length;
-  check('exactly 6 archive inserts', inserts === 6, `got=${inserts}`);
-  const emptyGuards = (sql.match(/IF v_\w+ > 0 THEN/g) || []).length;
-  check('every archive insert skips empty tables (6 guards)', emptyGuards === 6, `got=${emptyGuards}`);
-
-  const firstArchive = sql.indexOf('INSERT INTO public.retention_archive');
-  const firstDelete = sql.indexOf('DELETE FROM public.deliveries');
-  const firstDryGuard = sql.indexOf('IF NOT p_dry_run THEN');
-  check('archive happens before any delete', firstArchive > 0 && firstArchive < firstDelete);
-  check('archive is gated by the dry-run guard', firstDryGuard > 0 && firstDryGuard < firstArchive);
-  check('dry-run branch forces archived_rows = 0', /ELSE[\s\S]*?v_arch\s*:=\s*0;/.test(sql));
+  check('does not write to retention_archive', !/INSERT INTO public\.retention_archive/i.test(sql));
+  check('does not restrict to completed status', !/status\s*=\s*'completed'/i.test(sql));
+  check('does not require closed_at', !/closed_at\s+IS\s+NOT\s+NULL/i.test(sql));
+  check('selects all dispatches older than cutoff', /d\.date < v_cutoff::text/.test(sql));
+  check('reports archived_rows as 0', /'archived_rows',\s*v_arch/.test(sql));
+  check('keeps dry-run gate', /IF NOT p_dry_run THEN/.test(sql));
 }
 
 partA();
