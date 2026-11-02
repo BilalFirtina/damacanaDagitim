@@ -80,7 +80,7 @@ SELECT public.purge_retention(
           <div className="flex items-center gap-2">
             <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <Clock className="w-5 h-5 text-amber-600" />
-              <span>60 Günlük Otomatik Veri Temizliği (Her Gece 23:00)</span>
+              <span>60 Günlük Otomatik Veri Temizliği (Her Gece 23:00 Türkiye saati)</span>
             </h2>
             <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
               Aktif Zamanlayıcı: 23:00
@@ -181,12 +181,12 @@ SELECT public.purge_retention(
 
         <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
           <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-            Aktif Sefer & Teslimat
+            Toplam Sefer & Teslimat
           </span>
           <div className="text-lg font-black font-mono text-sky-600 mt-1">
             {status?.totalDispatches || 0} Sefer · {status?.totalDeliveries || 0} Fiş
           </div>
-          <span className="text-[11px] text-slate-400">Son 60 günün operasyonu</span>
+          <span className="text-[11px] text-slate-400">Tüm kayıtlar; eşik altındakiler silinir</span>
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
@@ -250,7 +250,7 @@ SELECT public.purge_retention(
         </div>
 
         <p className="text-xs text-slate-500">
-          Uygulama sunucusu her açılışta ve her gece 23:00'da bu temizliği çalıştırır (varsayılan DRY-RUN). Silme yetkisi yalnızca service_role'a aittir; fonksiyon advisory lock ile eşzamanlı çalışmayı engeller.
+          Uygulama sunucusu her açılışta ve her gece 23:00'da (Türkiye saati) bu temizliği çalıştırır (varsayılan DRY-RUN). Silme yetkisi yalnızca service_role'a aittir; fonksiyon advisory lock ile eşzamanlı çalışmayı engeller.
         </p>
 
         <pre className="p-3.5 rounded-xl bg-slate-900 text-sky-300 font-mono text-xs overflow-x-auto border border-slate-800">

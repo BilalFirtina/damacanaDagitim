@@ -31,6 +31,7 @@ import {
   RETENTION_DAYS,
   retentionCutoffDate,
   retentionCutoffInstant,
+  getNext2300Time,
 } from '../services/dateWindow.ts';
 import { applyRetentionToLocal } from '../services/retentionRules.ts';
 
@@ -4149,20 +4150,6 @@ let inMemoryLastCleanupDate: string | null = null;
 
 const RETENTION_STALE_MS = 3 * 24 * 60 * 60 * 1000;
 
-export function getNext2300Time(): { nextDate: Date; msUntil: number; formatted: string } {
-  const now = new Date();
-  const target = new Date(now);
-  target.setHours(23, 0, 0, 0);
-  if (now.getTime() >= target.getTime()) {
-    // If past 23:00 today, schedule for tomorrow 23:00
-    target.setDate(target.getDate() + 1);
-  }
-  const msUntil = target.getTime() - now.getTime();
-  const hours = Math.floor(msUntil / (1000 * 60 * 60));
-  const minutes = Math.floor((msUntil % (1000 * 60 * 60)) / (1000 * 60));
-  const formatted = `${target.toISOString().split('T')[0]} 23:00 (${hours} saat ${minutes} dk sonra)`;
-  return { nextDate: target, msUntil, formatted };
-}
 
 // Bir hata oluştuğunda durum satırına yazılır. Purge fonksiyonu tek
 // transaction olduğundan hata durumunda kendi durum güncellemesi geri alınır;

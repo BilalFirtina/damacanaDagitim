@@ -54,7 +54,6 @@ import {
   runRetentionCleanup,
   getCleanupStats,
   getRetentionHealth,
-  getNext2300Time,
   getDatabaseStatus,
   ensureSupabaseSeeded,
   configureSupabase,
@@ -75,7 +74,7 @@ import {
   validateCloseTransition,
   DispatchRuleResult,
 } from './src/services/dispatchRules.ts';
-import { todayUtcDateStr } from './src/services/dateWindow.ts';
+import { todayUtcDateStr, getNext2300Time } from './src/services/dateWindow.ts';
 import { buildCustomerStatement } from './src/services/statementRules.ts';
 import { maskCustomerFinancialsForDriver } from './src/services/customerVisibility.ts';
 import {
@@ -149,7 +148,7 @@ async function warnIfRetentionStale() {
 }
 warnIfRetentionStale();
 
-// Schedule recurring daily 60-day cleanup at exactly 23:00:00 every night
+// Schedule recurring daily 60-day cleanup at 23:00 Turkey time (UTC+3)
 function setupDailyRetentionJob() {
   const { msUntil, formatted } = getNext2300Time();
   console.log(`[Retention Scheduler] 60-Day cleanup scheduled for: ${formatted}`);
