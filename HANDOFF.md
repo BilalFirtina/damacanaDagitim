@@ -1,7 +1,7 @@
 # HANDOFF — damacanaDagitim
 
 > Son güncelleme: 2026-11-02
-> Dal: `feat/agents-compliance` (main'e göre 11 commit ileride)
+> Dal: `feat/agents-compliance` (main'e göre 18 commit ileride)
 > Oturum adı: **damacanaDagitim — AGENTS uyum çalışması (sebil + tahsilat)**
 
 ---
