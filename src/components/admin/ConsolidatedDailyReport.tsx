@@ -40,12 +40,29 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
 
   const dispatches: Dispatch[] = reportData?.dispatches || [];
   const deliveries: Delivery[] = reportData?.deliveries || [];
+  const customerPayments: Array<{
+    id: string;
+    customerId: string;
+    customerName?: string;
+    amount: number;
+    method: 'CASH' | 'POS' | 'TRANSFER';
+    note: string;
+    collectedByUserId: string;
+    collectedByUserName: string;
+    collectedAt: string;
+  }> = reportData?.customerPayments || [];
   const drivers = users.filter((u) => u.role === 'driver');
+  const driverIds = new Set(drivers.map((d) => d.id));
 
-  // Identify all drivers who performed deliveries or had dispatches on this date
+  // Identify all drivers who performed deliveries, had dispatches, or collected
+  // a payment without a delivery on this date. Admin collections stay in the
+  // grand totals; they are not listed as a driver.
   const activeDriverIds = new Set([
     ...dispatches.map((d) => d.driverId),
     ...deliveries.map((del) => del.driverId),
+    ...customerPayments
+      .filter((p) => driverIds.has(p.collectedByUserId))
+      .map((p) => p.collectedByUserId),
   ]);
 
   const activeDriversList = drivers.filter((d) => activeDriverIds.has(d.id));
@@ -79,6 +96,18 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
   let grandDamacanaEmpty = 0;
   let grandCamDamacanaEmpty = 0;
   let grandTupEmpty = 0;
+
+  const grandStandaloneCash = customerPayments
+    .filter((p) => p.method === 'CASH')
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const grandStandalonePos = customerPayments
+    .filter((p) => p.method === 'POS')
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const grandStandaloneTransfer = customerPayments
+    .filter((p) => p.method === 'TRANSFER')
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const grandStandaloneCollected =
+    grandStandaloneCash + grandStandalonePos + grandStandaloneTransfer;
 
   const grandProductQuantities: Record<string, { name: string; quantity: number; unit: string }> = {};
 
@@ -240,12 +269,23 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                 <td className="p-2 font-bold bg-white border-r border-l border-black">Banka POS Slip Toplamı:</td>
                 <td className="p-2 font-mono font-bold tabular-nums">{grandPosCollected.toLocaleString('tr-TR')} ₺</td>
               </tr>
-              <tr>
+              <tr className="border-b border-black">
                 <td className="p-2 font-bold bg-white border-r border-black">Açık Hesap / Cariye Kalan Borç:</td>
                 <td className="p-2 font-mono font-bold tabular-nums">{grandCreditAdded.toLocaleString('tr-TR')} ₺</td>
                 <td className="p-2 font-bold bg-white border-r border-l border-black">Toplanan Boş Kaplar:</td>
                 <td className="p-2 font-mono font-bold tabular-nums">
                   {grandDamacanaEmpty} Damacana / {grandCamDamacanaEmpty} Cam Damacana / {grandTupEmpty} Boş Tüp
+                </td>
+              </tr>
+              <tr>
+                <td className="p-2 font-bold bg-white border-r border-black">Teslimat Dışı Tahsilat (Nakit / POS / Havale):</td>
+                <td className="p-2 font-mono font-bold tabular-nums break-words">
+                  {grandStandaloneCash.toLocaleString('tr-TR')} / {grandStandalonePos.toLocaleString('tr-TR')} /{' '}
+                  {grandStandaloneTransfer.toLocaleString('tr-TR')} ₺
+                </td>
+                <td className="p-2 font-bold bg-white border-r border-l border-black">Genel Tahsilat (Teslimat + Tahsilat):</td>
+                <td className="p-2 font-mono font-black text-sm tabular-nums">
+                  {(grandCashCollected + grandPosCollected + grandStandaloneCollected).toLocaleString('tr-TR')} ₺
                 </td>
               </tr>
             </tbody>
@@ -335,6 +375,14 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
               let dDamacana = 0;
               let dCamDamacana = 0;
               let dTup = 0;
+
+              const driverPayments = customerPayments.filter(
+                (p) => p.collectedByUserId === driver.id
+              );
+              const dStandaloneCollected = driverPayments.reduce(
+                (sum, p) => sum + (Number(p.amount) || 0),
+                0
+              );
 
               driverDeliveries.forEach((del) => {
                 dSubTotalVal += del.deliveredGrandTotal;
@@ -617,6 +665,87 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                       </div>
                     </div>
                   </div>
+
+                  {/* Teslimat dışı (ürün verilmeden) tahsilatlar */}
+                  {driverPayments.length > 0 && (
+                    <div className="border-t-2 border-black p-3 space-y-2 print-avoid-break">
+                      <div className="text-xs font-black uppercase tracking-wider flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                        <span>Teslimat Dışı Tahsilatlar ({driverPayments.length} Kayıt)</span>
+                        <span className="font-mono">Toplam: {dStandaloneCollected.toLocaleString('tr-TR')} ₺</span>
+                      </div>
+
+                      <div className="hidden md:block print:block overflow-x-auto print:overflow-visible">
+                        <table className="w-full text-xs border-collapse text-left border border-black">
+                          <thead>
+                            <tr className="border-b border-black bg-white">
+                              <th className="p-2 border-r border-black w-16">Saat</th>
+                              <th className="p-2 border-r border-black">Müşteri</th>
+                              <th className="p-2 border-r border-black w-24">Yöntem</th>
+                              <th className="p-2 border-r border-black text-right w-24">Tutar</th>
+                              <th className="p-2">Not</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {driverPayments.map((payment) => (
+                              <tr key={payment.id} className="border-b border-black">
+                                <td className="p-2 border-r border-black font-mono">
+                                  {new Date(payment.collectedAt).toLocaleTimeString('tr-TR', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </td>
+                                <td className="p-2 border-r border-black font-bold break-words">
+                                  {payment.customerName || payment.customerId}
+                                </td>
+                                <td className="p-2 border-r border-black">
+                                  {payment.method === 'CASH'
+                                    ? 'Nakit'
+                                    : payment.method === 'POS'
+                                      ? 'POS'
+                                      : 'Havale / EFT'}
+                                </td>
+                                <td className="p-2 border-r border-black text-right font-mono font-bold tabular-nums">
+                                  {(Number(payment.amount) || 0).toLocaleString('tr-TR')} ₺
+                                </td>
+                                <td className="p-2 text-[10px] break-words">{payment.note || '-'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div className="md:hidden print:hidden divide-y divide-black border border-black">
+                        {driverPayments.map((payment) => (
+                          <div key={payment.id} className="p-2 space-y-1 text-[11px] min-w-0">
+                            <div className="flex items-start justify-between gap-2 min-w-0">
+                              <span className="font-bold break-words">
+                                {payment.customerName || payment.customerId}
+                              </span>
+                              <span className="font-mono shrink-0">
+                                {new Date(payment.collectedAt).toLocaleTimeString('tr-TR', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            </div>
+                            <div className="flex justify-between gap-2">
+                              <span>
+                                {payment.method === 'CASH'
+                                  ? 'Nakit'
+                                  : payment.method === 'POS'
+                                    ? 'POS'
+                                    : 'Havale / EFT'}
+                              </span>
+                              <span className="font-mono font-bold tabular-nums">
+                                {(Number(payment.amount) || 0).toLocaleString('tr-TR')} ₺
+                              </span>
+                            </div>
+                            {payment.note && <div className="break-words">{payment.note}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })

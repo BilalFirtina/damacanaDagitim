@@ -275,6 +275,15 @@ export default function App() {
     });
   };
 
+  // Teslimat dışı tahsilat sonrası peşin müşterinin bakiyesini güncelle.
+  // Faturalı müşteride sunucu bakiyeyi şoförden gizlediği için null gelir.
+  const handleCustomerBalanceUpdated = (customerId: string, newBalance: number | null) => {
+    if (newBalance === null) return;
+    setCustomers((prev) =>
+      prev.map((c) => (c.id === customerId ? { ...c, currentBalanceTL: newBalance } : c))
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
@@ -344,6 +353,7 @@ export default function App() {
             onDeliveryCreated={handleDeliveryCreated}
             onDeliveryCorrected={loadData}
             onCustomerCreated={handleCustomerCreated}
+            onCustomerBalanceUpdated={handleCustomerBalanceUpdated}
             onNavigateTab={setActiveTab}
           />
         )}

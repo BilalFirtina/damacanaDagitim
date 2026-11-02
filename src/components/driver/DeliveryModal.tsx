@@ -363,14 +363,16 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   }, [errorMsg, errorPersistent]);
 
   // When customer is selected, initialize prices with customer's custom prices or product defaults.
-  // Düzenlemede kaydedilmiş teslimat fiyatları korunur.
+  // Faturalı müşteride önceki (özel) fiyat şoföre gösterilmez; güncel ürün
+  // fiyatı esas alınır. Düzenlemede kaydedilmiş teslimat fiyatları korunur.
   useEffect(() => {
     if (isEdit) return;
     if (selectedCustomer) {
       const initialPrices: Record<string, number> = {};
       allProducts.forEach((p) => {
-        initialPrices[p.id] =
-          selectedCustomer.customPrices?.[p.id] ?? p.defaultUnitPrice;
+        initialPrices[p.id] = selectedCustomer.isAccountCustomer
+          ? p.defaultUnitPrice
+          : (selectedCustomer.customPrices?.[p.id] ?? p.defaultUnitPrice);
       });
       setUnitPrices(initialPrices);
     }
@@ -1230,7 +1232,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     const lineTotal = qty * unitPrice;
                     const vehicleStock = getVehicleStock(p.id);
                     const isEditingPrice = editingPriceProductId === p.id;
+                    // Faturalı müşteride önceki özel fiyat bilgisi gösterilmez.
                     const isCustomerSpecific =
+                      !selectedCustomer?.isAccountCustomer &&
                       selectedCustomer?.customPrices?.[p.id] !== undefined;
 
                     return (
@@ -1719,31 +1723,27 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     </span>
                   </div>
 
-                  {uncollectedDiff !== 0 &&
-                    selectedCustomer?.isAccountCustomer && (
-                      <div className="mt-1 text-[11px] text-sky-800 dark:text-sky-300">
-                        {uncollectedDiff > 0 ? (
-                          <span>
-                            📋 Kalan{" "}
-                            <strong>
-                              {uncollectedDiff.toLocaleString("tr-TR")} ₺
-                            </strong>
-                            , müşterinin cari hesabına borç kaydedilecektir.
-                          </span>
-                        ) : (
-                          <span>
-                            ℹ️ Fazla alınan{" "}
-                            <strong>
-                              {Math.abs(uncollectedDiff).toLocaleString(
-                                "tr-TR",
-                              )}{" "}
-                              ₺
-                            </strong>
-                            , müşterinin cari bakiyesinden düşülecektir.
-                          </span>
-                        )}
-                      </div>
-                    )}
+                  {uncollectedDiff !== 0 && (
+                    <div className="mt-1 text-[11px] text-sky-800 dark:text-sky-300">
+                      {uncollectedDiff > 0 ? (
+                        <span>
+                          📋 Kalan{" "}
+                          <strong>
+                            {uncollectedDiff.toLocaleString("tr-TR")} ₺
+                          </strong>
+                          , müşterinin cari hesabına borç kaydedilecektir.
+                        </span>
+                      ) : (
+                        <span>
+                          ℹ️ Fazla alınan{" "}
+                          <strong>
+                            {Math.abs(uncollectedDiff).toLocaleString("tr-TR")} ₺
+                          </strong>
+                          , müşterinin cari bakiyesinden düşülecektir.
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 

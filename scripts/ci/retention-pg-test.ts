@@ -116,17 +116,29 @@ async function seedReference(c: Client): Promise<void> {
 }
 
 async function resetTransactional(c: Client): Promise<void> {
-  await c.query(`
-    TRUNCATE
-      public.delivery_container_returns,
-      public.delivery_items,
-      public.deliveries,
-      public.dispatch_reconciliation_items,
-      public.dispatch_items,
-      public.dispatches,
-      public.retention_archive
-    RESTART IDENTITY CASCADE;
-  `);
+  // customer_payments denetim izi trigger'ı TRUNCATE'i engeller; yalnızca test
+  // kurulumu sırasında geçici olarak devre dışı bırakılır.
+  await c.query(
+    'ALTER TABLE public.customer_payments DISABLE TRIGGER trg_customer_payments_no_truncate'
+  );
+  try {
+    await c.query(`
+      TRUNCATE
+        public.delivery_container_returns,
+        public.delivery_items,
+        public.deliveries,
+        public.dispatch_reconciliation_items,
+        public.dispatch_items,
+        public.dispatches,
+        public.retention_archive,
+        public.customer_payments
+      RESTART IDENTITY CASCADE;
+    `);
+  } finally {
+    await c.query(
+      'ALTER TABLE public.customer_payments ENABLE TRIGGER trg_customer_payments_no_truncate'
+    );
+  }
 }
 
 async function seedScenario(c: Client): Promise<void> {
@@ -166,6 +178,14 @@ async function seedScenario(c: Client): Promise<void> {
   await c.query(`
     INSERT INTO public.delivery_container_returns (delivery_id, deposit_type, received_qty, diff_qty)
     VALUES ('DEL61OLD', 'damacana', 2, 0);
+  `);
+  // 60 gün sonra sefer silinse bile tahsilat kaydı korunmalı; FK SET NULL.
+  await c.query(`
+    INSERT INTO public.customer_payments
+      (id, customer_id, amount, method, note, collected_by_user_id,
+       collected_by_user_name, dispatch_id)
+    VALUES
+      ('PAY61', 'c1', 250, 'CASH', 'CI tahsilat', 'u_admin', 'Yönetici', 'D61');
   `);
 }
 
@@ -281,6 +301,19 @@ async function scenarioRealRun(c: Client): Promise<void> {
     (await count(c, 'retention_archive')) === 0
   );
   check('musteri bakiye/boş kap degismedi', (await balancesSnapshot(c)) === before);
+
+  const retainedPayment = await c.query(
+    `SELECT amount, dispatch_id FROM public.customer_payments WHERE id = 'PAY61'`
+  );
+  check('silinen sefere bagli tahsilat korundu', retainedPayment.rowCount === 1);
+  check(
+    'tahsilat tutari degismedi',
+    Number(retainedPayment.rows[0]?.amount) === 250
+  );
+  check(
+    'silinen seferin tahsilat baglantisi NULL oldu',
+    retainedPayment.rows[0]?.dispatch_id === null
+  );
 
   const seqs = (await c.query('SELECT tbl FROM ci_del_log ORDER BY seq')).rows.map((x: any) => x.tbl);
   const lastDel = seqs.lastIndexOf('deliveries');

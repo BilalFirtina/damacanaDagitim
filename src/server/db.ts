@@ -2703,8 +2703,7 @@ export async function closeDispatchAtomic(
     totalCashCollected += Number(del.collectedPayment?.cashAmount) || 0;
     totalPosCollected += Number(del.collectedPayment?.posAmount) || 0;
     const diff = Number(del.collectedPayment?.diffUncollected) || 0;
-    const customer = db.customers.find((c) => c.id === del.customerId);
-    if (customer?.isAccountCustomer && diff > 0) totalCreditAdded += diff;
+    if (diff > 0) totalCreditAdded += diff;
     for (const item of del.deliveredItems || []) {
       deliveredTotals[item.productId] = (deliveredTotals[item.productId] || 0) + item.quantity;
     }
@@ -4508,9 +4507,12 @@ export async function getDatabaseStatus(): Promise<DatabaseStatus> {
 export interface CustomerPaymentRow {
   id: string;
   customerId: string;
+  /** Rapor görünümünde sunucu tarafından doldurulur. */
+  customerName?: string;
   amount: number;
   method: 'CASH' | 'POS' | 'TRANSFER';
   note: string;
+  dispatchId?: string | null;
   collectedByUserId: string;
   collectedByUserName: string;
   collectedAt: string;
@@ -4533,6 +4535,15 @@ function paymentError(e: any, fallback: string): Error {
   if (/CUSTOMER_NOT_FOUND/i.test(raw)) {
     return new DispatchDbError('CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
   }
+  if (/DISPATCH_NOT_FOUND/i.test(raw)) {
+    return new DispatchDbError('DISPATCH_NOT_FOUND', 'Tahsilatın bağlanacağı sefer bulunamadı.');
+  }
+  if (/DISPATCH_NOT_OPEN/i.test(raw)) {
+    return new DispatchDbError(
+      'DISPATCH_NOT_OPEN',
+      'Tahsilat yalnızca dağıtım sırasında kaydedilebilir.'
+    );
+  }
   if (/IMMUTABLE/i.test(raw)) {
     return new DispatchDbError('IMMUTABLE', 'Bu kayıt değiştirilemez veya silinemez.');
   }
@@ -4546,10 +4557,14 @@ async function callJsonbRpc(fn: string, payload: unknown): Promise<any> {
     return data;
   }
   if (pgPool) {
-    const res = await pgPool.query(`SELECT public.${fn}($1::jsonb) AS result`, [
-      JSON.stringify(payload),
-    ]);
-    return res.rows?.[0]?.result;
+    try {
+      const res = await pgPool.query(`SELECT public.${fn}($1::jsonb) AS result`, [
+        JSON.stringify(payload),
+      ]);
+      return res.rows?.[0]?.result;
+    } catch (e: any) {
+      throw paymentError(e, 'İşlem tamamlanamadı.');
+    }
   }
   throw new DispatchDbError(
     'REMOTE_REQUIRED',
@@ -4563,14 +4578,22 @@ export async function createCustomerPayment(input: {
   amount: number;
   method: 'CASH' | 'POS' | 'TRANSFER';
   note?: string;
+  /** Şoför tahsilatını aktif sefere bağlar; yönetici tahsilatında boş olabilir. */
+  dispatchId?: string | null;
   actor: { id: string; name: string };
-}): Promise<{ paymentId: string; balance: number; alreadyApplied: boolean }> {
+}): Promise<{
+  paymentId: string;
+  balance: number;
+  alreadyApplied: boolean;
+  dispatchId: string | null;
+}> {
   const result = await callJsonbRpc('record_customer_payment', {
     payment_id: input.paymentId,
     customer_id: input.customerId,
     amount: input.amount,
     method: input.method,
     note: input.note || '',
+    dispatch_id: input.dispatchId || null,
     collected_by_user_id: input.actor.id,
     collected_by_user_name: input.actor.name,
   });
@@ -4578,6 +4601,7 @@ export async function createCustomerPayment(input: {
     paymentId: result?.payment_id || input.paymentId,
     balance: Number(result?.balance) || 0,
     alreadyApplied: Boolean(result?.already_applied),
+    dispatchId: result?.dispatch_id || null,
   };
 }
 
@@ -4632,6 +4656,30 @@ export async function getCustomerPaymentsByDate(date: string): Promise<CustomerP
   return [];
 }
 
+// Bir sefere bağlı teslimat dışı tahsilatlar (gün sonu kasa mutabakatı).
+export async function getCustomerPaymentsByDispatch(
+  dispatchId: string
+): Promise<CustomerPaymentRow[]> {
+  if (!dispatchId) return [];
+  if (isSupabaseOperational() && supabase) {
+    const { data, error } = await supabase
+      .from('customer_payments')
+      .select('*')
+      .eq('dispatch_id', dispatchId)
+      .order('collected_at', { ascending: true });
+    if (error) throw paymentError(error, 'Sefer tahsilatları okunamadı.');
+    return (data || []).map(mapCustomerPayment);
+  }
+  if (pgPool) {
+    const res = await pgPool.query(
+      'SELECT * FROM public.customer_payments WHERE dispatch_id = $1 ORDER BY collected_at ASC',
+      [dispatchId]
+    );
+    return res.rows.map(mapCustomerPayment);
+  }
+  return [];
+}
+
 function mapCustomerPayment(row: any): CustomerPaymentRow {
   return {
     id: row.id,
@@ -4639,6 +4687,7 @@ function mapCustomerPayment(row: any): CustomerPaymentRow {
     amount: Number(row.amount) || 0,
     method: row.method,
     note: row.note || '',
+    dispatchId: row.dispatch_id || null,
     collectedByUserId: row.collected_by_user_id,
     collectedByUserName: row.collected_by_user_name,
     collectedAt: row.collected_at,

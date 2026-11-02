@@ -38,6 +38,7 @@ import {
   createCustomerPayment,
   getCustomerPayments,
   getCustomerPaymentsByDate,
+  getCustomerPaymentsByDispatch,
   getCustomerPaymentById,
   adjustCustomerDispenserQuantity,
   getDeliveryById,
@@ -734,7 +735,37 @@ app.get('/api/customers/:id/payments', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/customers/:id/payments', requireAdmin, async (req, res) => {
+// Bir seferde ürün verilmeden alınan tahsilatlar (gün sonu kasa mutabakatı).
+app.get('/api/dispatches/:id/payments', requireAdminOrDriver, async (req, res) => {
+  try {
+    const session = getAuthUser(req)!;
+    const dispatch = (await getDispatches()).find((d) => d.id === req.params.id);
+    if (!dispatch) {
+      return res.status(404).json({ error: 'Sefer bulunamadı.' });
+    }
+    if (session.role === 'driver' && dispatch.driverId !== session.userId) {
+      return res.status(403).json({
+        error: 'Yalnızca kendi seferinizin tahsilatlarını görüntüleyebilirsiniz.',
+      });
+    }
+
+    const [payments, customers] = await Promise.all([
+      getCustomerPaymentsByDispatch(req.params.id),
+      getCustomers(),
+    ]);
+    const names = new Map(customers.map((c) => [c.id, c.name]));
+    res.json({
+      payments: payments.map((p) => ({
+        ...p,
+        customerName: names.get(p.customerId) || p.customerId,
+      })),
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Sefer tahsilatları okunamadı.' });
+  }
+});
+
+app.post('/api/customers/:id/payments', requireAdminOrDriver, async (req, res) => {
   try {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const amount = Number(body.amount);
@@ -756,19 +787,72 @@ app.post('/api/customers/:id/payments', requireAdmin, async (req, res) => {
     const paymentId =
       requestedId || `pay_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
-    // Aynı kimlik farklı tutar/yöntemle gelirse sessizce eski kaydı döndürme.
+    // Müşteri türü, şoför yanıtında bakiyenin maskelenmesi için gerekli.
+    // Ürün vermeden tahsilat her iki müşteri türünde de yapılabilir.
+    const customers = await getCustomers();
+    const customer = customers.find((c) => c.id === req.params.id);
+    if (!customer) {
+      return res.status(404).json({ error: 'Müşteri bulunamadı.' });
+    }
+
+    // Şoför tahsilatı aktif seferine bağlanır; gün sonu kasa mutabakatı ve
+    // rapor bu bağ üzerinden hesaplanır.
+    const requestedDispatchId =
+      typeof body.dispatchId === 'string' ? body.dispatchId.trim() : '';
+    let dispatchId: string | null = null;
+
+    // Idempotent retry: aynı kimlik daha önce kaydedildiyse sefer kapanmış
+    // olsa bile başarı dönülür; bakiye ikinci kez düşürülmez.
     if (requestedId) {
       const existingPayment = await getCustomerPaymentById(requestedId);
-      if (
-        existingPayment &&
-        (Math.abs(existingPayment.amount - amount) > 0.005 ||
-          existingPayment.method !== method)
-      ) {
-        return res.status(409).json({
-          error:
-            'Bu tahsilat kimliği daha önce farklı tutar veya yöntemle kaydedilmiş. Kayıt değiştirilmedi.',
-          code: 'PAYMENT_ID_CONFLICT',
-        });
+      if (existingPayment) {
+        if (
+          Math.abs(existingPayment.amount - amount) > 0.005 ||
+          existingPayment.method !== method ||
+          (requestedDispatchId &&
+            existingPayment.dispatchId &&
+            requestedDispatchId !== existingPayment.dispatchId)
+        ) {
+          return res.status(409).json({
+            error:
+              'Bu tahsilat kimliği daha önce farklı tutar, yöntem veya seferle kaydedilmiş. Kayıt değiştirilmedi.',
+            code: 'PAYMENT_ID_CONFLICT',
+          });
+        }
+        dispatchId = existingPayment.dispatchId || null;
+      }
+    }
+
+    if (!dispatchId) {
+      if (session.role === 'driver') {
+        if (!requestedDispatchId) {
+          return res.status(400).json({
+            error: 'Tahsilat kaydı için aktif dağıtım seferi gerekir.',
+            code: 'DISPATCH_REQUIRED',
+          });
+        }
+        const dispatches = await getDispatches();
+        const dispatch = dispatches.find((d) => d.id === requestedDispatchId);
+        if (!dispatch || dispatch.driverId !== session.userId) {
+          return res.status(403).json({
+            error: 'Bu sefer için tahsilat kaydedemezsiniz.',
+            code: 'NOT_AUTHORIZED',
+          });
+        }
+        if (dispatch.status !== 'in_transit') {
+          return res.status(409).json({
+            error: 'Tahsilat yalnızca dağıtım sırasında kaydedilebilir.',
+            code: 'DISPATCH_NOT_OPEN',
+          });
+        }
+        dispatchId = dispatch.id;
+      } else if (requestedDispatchId) {
+        const dispatches = await getDispatches();
+        const dispatch = dispatches.find((d) => d.id === requestedDispatchId);
+        if (!dispatch) {
+          return res.status(400).json({ error: 'Geçersiz sefer bilgisi.' });
+        }
+        dispatchId = dispatch.status === 'completed' ? null : dispatch.id;
       }
     }
 
@@ -778,17 +862,31 @@ app.post('/api/customers/:id/payments', requireAdmin, async (req, res) => {
       amount,
       method,
       note,
+      dispatchId,
       actor: { id: session.userId, name: session.name },
     });
 
+    // Faturalı müşterinin bakiyesi şoförden gizlenir (AGENTS.md 6.1).
+    const balanceHidden = session.role === 'driver' && customer.isAccountCustomer;
+
     res.status(201).json({
       ...result,
+      balance: balanceHidden ? null : result.balance,
+      balanceHidden,
+      customerName: customer.name,
       message: result.alreadyApplied
         ? 'Bu tahsilat daha önce kaydedilmiş; bakiye ikinci kez düşürülmedi.'
         : 'Tahsilat kaydedildi.',
     });
   } catch (err: any) {
-    res.status(400).json({ error: err?.message || 'Tahsilat kaydedilemedi.' });
+    const status =
+      err?.code === 'DISPATCH_NOT_OPEN' || err?.code === 'DISPATCH_NOT_FOUND'
+        ? 409
+        : 400;
+    res.status(status).json({
+      error: err?.message || 'Tahsilat kaydedilemedi.',
+      ...(err?.code ? { code: err.code } : {}),
+    });
   }
 });
 
@@ -1118,7 +1216,8 @@ app.post('/api/dispatches/:id/close', async (req, res) => {
     const session = getAuthUser(req)!;
 
     // İstemcinin gönderdiği closedBy* alanları ve toplamlar dikkate ALINMAZ.
-    // Kapatan kullanıcı oturumdan, toplamlar DB içindeki teslimatlardan alınır.
+    // Kapatan kullanıcı oturumdan; toplamlar DB içindeki teslimatlardan ve
+    // sefere bağlı teslimat dışı tahsilatlardan alınır.
     const updated = await closeDispatchAtomic(
       dispatch.id,
       {
@@ -1320,7 +1419,9 @@ app.post('/api/deliveries', async (req, res) => {
     // Aşağıdaki mutasyonlar yalnızca yerel (fallback) yansıma içindir; merkezi
     // bakiyeyi DB'de apply_delivery delta olarak günceller. Tekrar kontrolünden
     // sonra uygulanır ki duplicate yanıtı güncel müşteriyi yanlış göstermesin.
-    if (Object.keys(priceUpdates).length > 0) {
+    // Faturalı müşteride önceki ürün fiyatı takip edilmez; yalnızca peşin
+    // müşteride fiyat güncellemesi yerel yansımaya işlenir.
+    if (!customer.isAccountCustomer && Object.keys(priceUpdates).length > 0) {
       customer.customPrices = { ...(customer.customPrices || {}), ...priceUpdates };
     }
 
@@ -1341,11 +1442,11 @@ app.post('/api/deliveries', async (req, res) => {
     };
     customer.emptyDepositBalance = nextEmpty;
 
-    if (customer.isAccountCustomer) {
-      customer.currentBalanceTL =
-        (Number(customer.currentBalanceTL) || 0) +
-        newDelivery.collectedPayment.diffUncollected;
-    }
+    // Peşin/faturalı ayrımı yalnızca şoförün bakiyeyi görmesini etkiler;
+    // ödenmeyen/kısmi kalan tutar her iki türde de cari borca yazılır.
+    customer.currentBalanceTL =
+      (Number(customer.currentBalanceTL) || 0) +
+      newDelivery.collectedPayment.diffUncollected;
 
     const result = await createDeliveryRecord(newDelivery, customer);
 
@@ -1713,9 +1814,7 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
       getDispatches(date),
       getCustomers(),
     ]);
-    const accountCustomerIds = new Set(
-      allCustomers.filter((c) => c.isAccountCustomer).map((c) => c.id)
-    );
+    const customerNames = new Map(allCustomers.map((c) => [c.id, c.name]));
     let dispatches = allDispatches;
     if (driverId && driverId !== 'all') {
       dispatches = dispatches.filter((d) => d.driverId === driverId);
@@ -1727,10 +1826,19 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
       deliveries = deliveries.filter((del) => del.driverId === driverId);
     }
 
-    // Teslimat dışı (sonraki ziyaret) tahsilatlar yönetici tarafından alınır;
-    // şoför filtresi uygulandığında bu toplamlara dahil edilmez.
+    // Teslimat dışı (sonraki ziyaret) tahsilatlar hem yönetici hem şoför
+    // tarafından alınabilir. Şoför filtresinde yalnızca o şoförün tahsilatları
+    // raporlanır; toplamlar da bu filtreye göre hesaplanır.
     const isAllDrivers = !driverId || driverId === 'all';
-    const customerPayments = isAllDrivers ? await getCustomerPaymentsByDate(date) : [];
+    const allCustomerPayments = await getCustomerPaymentsByDate(date);
+    const customerPayments = (
+      isAllDrivers
+        ? allCustomerPayments
+        : allCustomerPayments.filter((p) => p.collectedByUserId === driverId)
+    ).map((p) => ({
+      ...p,
+      customerName: customerNames.get(p.customerId) || p.customerId,
+    }));
     const totalStandaloneCash = customerPayments
       .filter((p) => p.method === 'CASH')
       .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
@@ -1757,10 +1865,7 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
       totalDeliveredValue += del.deliveredGrandTotal;
       totalCashCollected += del.collectedPayment.cashAmount;
       totalPosCollected += del.collectedPayment.posAmount;
-      if (
-        accountCustomerIds.has(del.customerId) &&
-        del.collectedPayment.diffUncollected > 0
-      ) {
+      if (del.collectedPayment.diffUncollected > 0) {
         totalCreditAdded += del.collectedPayment.diffUncollected;
       }
       totalEmptyDamacanaCollected += del.emptyContainersReceived.damacana || 0;

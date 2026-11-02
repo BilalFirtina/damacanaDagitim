@@ -3,7 +3,8 @@
  *
  * Gerçek PostgreSQL üzerinde teslimat dışı tahsilat RPC'sini doğrular:
  * atomik bakiye güncellemesi, ödeme + denetim kaydı, idempotency,
- * doğrulama hataları ve rol yetkileri. Mock değildir.
+ * doğrulama hataları, rol yetkileri ve sefere bağlı tahsilatların gün sonu
+ * kasa/POS toplamlarına dahil edilmesi. Mock değildir.
  *
  * Kullanım:
  *   DATABASE_URL=postgres://... npx tsx scripts/ci/payments-pg-test.ts
@@ -203,6 +204,105 @@ async function main(): Promise<void> {
       await c.query('RESET ROLE');
     }
     check('anon RPC çağrısı reddedildi', denied);
+  } finally {
+    await c.query('ROLLBACK');
+  }
+
+  console.log('\n[5] Sefere bagli tahsilat ve gun sonu kasa toplami');
+  await c.query('BEGIN');
+  try {
+    await c.query(
+      `INSERT INTO public.users (id, name, username, role, can_load_vehicle, pin)
+       VALUES ('u_driver_pay_ci', 'CI Şoför', 'ci_pay_driver', 'driver', true, '1234')
+       ON CONFLICT (id) DO NOTHING;`
+    );
+    await c.query(
+      `INSERT INTO public.dispatches
+         (id, date, driver_id, driver_name, vehicle_plate, loaded_by_user_id,
+          loaded_by_user_name, status)
+       VALUES
+         ('D_PAY_CI', to_char((now() AT TIME ZONE 'UTC')::date, 'YYYY-MM-DD'),
+          'u_driver_pay_ci', 'CI Şoför', '34 PAY 01', 'u_admin', 'Yönetici',
+          'in_transit')
+       ON CONFLICT (id) DO UPDATE SET status = 'in_transit';`
+    );
+    await c.query(
+      `INSERT INTO public.customers (id, name, current_balance_tl, is_account_customer)
+       VALUES ($1, 'CI Ödeme Müşterisi', 500, true)
+       ON CONFLICT (id) DO UPDATE SET current_balance_tl = 500`,
+      [CUSTOMER_ID]
+    );
+
+    const linked = await callPayment(
+      c,
+      payload({
+        payment_id: 'pay_linked_ci',
+        dispatch_id: 'D_PAY_CI',
+        collected_by_user_id: 'u_driver_pay_ci',
+        collected_by_user_name: 'CI Şoför',
+        amount: 100,
+        method: 'CASH',
+      })
+    );
+    check('sefer baglantili tahsilat uygulandi', linked.already_applied === false);
+    const linkedRow = await c.query(
+      `SELECT dispatch_id FROM ${TABLE} WHERE id = 'pay_linked_ci'`
+    );
+    check('tahsilat dispatch_id ile saklandi', linkedRow.rows[0]?.dispatch_id === 'D_PAY_CI');
+
+    await callPayment(
+      c,
+      payload({
+        payment_id: 'pay_linked_pos_ci',
+        dispatch_id: 'D_PAY_CI',
+        collected_by_user_id: 'u_driver_pay_ci',
+        collected_by_user_name: 'CI Şoför',
+        amount: 50,
+        method: 'POS',
+      })
+    );
+
+    const closed = await c.query(
+      `SELECT public.close_dispatch($1::jsonb) AS r`,
+      [
+        JSON.stringify({
+          dispatch_id: 'D_PAY_CI',
+          closed_by_user_id: 'u_driver_pay_ci',
+          remaining_full_counted: {},
+          actual_cash_in_pocket: 100,
+          actual_pos_slips_total: 50,
+          collected_empty_damacana: 0,
+          collected_empty_cam_damacana: 0,
+          collected_empty_tup: 0,
+          notes: 'CI kasa',
+        }),
+      ]
+    );
+    check(
+      'gun sonu nakit toplami sefer tahsilatini icerir',
+      Number(closed.rows[0]?.r?.total_cash_collected) === 100,
+      JSON.stringify(closed.rows[0]?.r)
+    );
+    check(
+      'gun sonu POS toplami sefer tahsilatini icerir',
+      Number(closed.rows[0]?.r?.total_pos_collected) === 50
+    );
+    check(
+      'standalone nakit ayrica raporlanir',
+      Number(closed.rows[0]?.r?.total_standalone_cash) === 100
+    );
+
+    const closedPayment = await expectError(
+      c,
+      payload({
+        payment_id: 'pay_after_close_ci',
+        dispatch_id: 'D_PAY_CI',
+        collected_by_user_id: 'u_driver_pay_ci',
+        collected_by_user_name: 'CI Şoför',
+      }),
+      /DISPATCH_NOT_OPEN/
+    );
+    check('kapanmis sefere tahsilat reddedildi', closedPayment);
   } finally {
     await c.query('ROLLBACK');
   }

@@ -1002,6 +1002,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
           customer={paymentCustomer}
           onClose={() => setPaymentCustomer(null)}
           onSaved={(newBalance) => {
+            if (newBalance === null) return;
             onCustomersUpdated(
               customers.map((c) =>
                 c.id === paymentCustomer.id ? { ...c, currentBalanceTL: newBalance } : c
