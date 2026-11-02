@@ -84,7 +84,7 @@ Dört temel unsur:
 
 **Doğrulanan (14/14 PASS):**
 - Admin ve şoför girişi (uğur/1993, ergün/2558)
-- Su Sebili ürünü: fiyat **0**, 
+- Su Sebili ürünü: fiyat **0**, `depositType: sebil`
 - Test müşterisi oluşturma
 - Teslimat dışı tahsilat: bakiye düşüşü, **idempotency** (aynı payment_id ikinci kez düşmüyor)
 - Cari hesap ekstresi: tahsilat hareketi + kapanış bakiyesi
@@ -93,7 +93,7 @@ Dört temel unsur:
 - İşlem geçmişi endpoint'i
 
 **Engellenen:** Sebil teslimat/gün sonu zinciri.
-Ergün Orak'ın **2026-10-21 tarihli açık seferi** var (, 01 FV 823). Sunucu doğru şekilde yeni sefer açılmasını engelliyor. Karar gerekiyor:
+Ergün Orak'ın **2026-10-21 tarihli açık seferi** var (`in_transit`, 01 FV 823). Sunucu doğru şekilde yeni sefer açılmasını engelliyor. Karar gerekiyor:
 1. Bu sefer test amaçlı kapatılsın mı (gün sonu mutabakatı ile)?
 2. Yoksa başka bir şoförle mi test edilsin (PIN gerekli)?
 
