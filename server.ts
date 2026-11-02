@@ -92,6 +92,17 @@ app.use(express.json());
 
 const getTodayDateStr = () => todayUtcDateStr();
 
+// Faturalı müşterilerin bakiyesini yalnızca yönetici görür. Şoför oturumunda
+// bakiye sıfırlanır; iade edilebilir kalem miktarları görünmeye devam eder.
+function maskCustomerForDriver(
+  customer: Customer,
+  actor: { role?: string } | undefined
+): Customer {
+  if (!actor || actor.role !== 'driver') return customer;
+  if (!customer.isAccountCustomer) return customer;
+  return { ...customer, currentBalanceTL: 0 };
+}
+
 // Bir teslimatın sebil net etkisi: teslim edilen − geri alınan.
 function sebilNet(delivery: Delivery, products: Product[]): number {
   const sebilIds = new Set(
@@ -588,10 +599,11 @@ app.delete('/api/products/:id', requireAdmin, async (req, res) => {
 });
 
 // 3. Customers
-app.get('/api/customers', async (_req, res) => {
+app.get('/api/customers', async (req, res) => {
   try {
+    const session = getAuthUser(req);
     const customers = await getCustomers();
-    res.json({ customers });
+    res.json({ customers: customers.map((c) => maskCustomerForDriver(c, session)) });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -623,7 +635,9 @@ app.post('/api/customers', async (req, res) => {
 
   try {
     const created = await createCustomer(newCust);
-    res.status(201).json({ customer: created });
+    res.status(201).json({
+      customer: maskCustomerForDriver(created, getAuthUser(req)),
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Müşteri kaydedilemedi' });
   }
@@ -1293,7 +1307,7 @@ app.post('/api/deliveries', async (req, res) => {
         }
         return res.status(200).json({
           delivery: existing,
-          updatedCustomer: customer,
+          updatedCustomer: maskCustomerForDriver(customer, session),
           duplicate: true,
         });
       }
@@ -1368,7 +1382,12 @@ app.post('/api/deliveries', async (req, res) => {
       }
     }
 
-    res.status(result.duplicate ? 200 : 201).json(result);
+    res.status(result.duplicate ? 200 : 201).json({
+      ...result,
+      updatedCustomer: result.updatedCustomer
+        ? maskCustomerForDriver(result.updatedCustomer, session)
+        : null,
+    });
   } catch (err: any) {
     if (err instanceof DeliveryInputError) {
       return res.status(err.status).json({
@@ -1469,7 +1488,9 @@ app.post('/api/deliveries/:id/cancel', async (req, res) => {
     res.json({
       delivery: result.delivery,
       replacement: null,
-      updatedCustomer: result.updatedCustomer,
+      updatedCustomer: result.updatedCustomer
+        ? maskCustomerForDriver(result.updatedCustomer, session)
+        : null,
       duplicate: result.duplicate,
     });
   } catch (err: any) {
@@ -1599,7 +1620,9 @@ app.post('/api/deliveries/:id/replace', async (req, res) => {
     res.json({
       delivery: result.delivery,
       replacement: result.replacement,
-      updatedCustomer: result.updatedCustomer,
+      updatedCustomer: result.updatedCustomer
+        ? maskCustomerForDriver(result.updatedCustomer, session)
+        : null,
       duplicate: result.duplicate,
     });
   } catch (err: any) {

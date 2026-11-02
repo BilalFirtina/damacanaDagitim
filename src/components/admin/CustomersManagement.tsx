@@ -380,7 +380,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
               : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
           }`}
         >
-          Cari Açık Hesaplar ({customers.filter((c) => c.isAccountCustomer).length})
+          Faturalı Müşteriler ({customers.filter((c) => c.isAccountCustomer).length})
         </button>
 
         <button
@@ -391,7 +391,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
               : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
           }`}
         >
-          Boş Kap Borcu Olanlar ({customers.filter((c) => ((c.emptyDepositBalance?.damacana || 0) + (c.emptyDepositBalance?.camDamacana || 0) + (c.emptyDepositBalance?.tup || 0)) > 0).length})
+          Boş Kap Borcu Olanlar ({customers.filter((c) => ((c.emptyDepositBalance?.damacana || 0) + (c.emptyDepositBalance?.camDamacana || 0) + (c.emptyDepositBalance?.tup || 0) + (c.emptyDepositBalance?.sebil || 0)) > 0).length})
         </button>
 
         <button
@@ -474,7 +474,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                       }`}
                       title="Cari Hesap Durumu"
                     >
-                      {c.isAccountCustomer ? 'Cari Yetkili' : 'Peşin Müşteri'}
+                      {c.isAccountCustomer ? 'Faturalı' : 'Peşin'}
                     </button>
                   </div>
                 </div>
@@ -742,12 +742,17 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                 <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-700 dark:text-slate-300">
                   <input
                     type="checkbox"
-                    checked={newIsAccount}
-                    onChange={(e) => setNewIsAccount(e.target.checked)}
+                    checked={!newIsAccount}
+                    onChange={(e) => setNewIsAccount(!e.target.checked)}
                     className="w-4 h-4 rounded text-sky-600"
                   />
-                  <span>Cari Açık Hesap (Tahsil edilmeyen tutarlar borç bakiyesine işlensin)</span>
+                  <span>Peşin Müşteri</span>
                 </label>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Peşin müşterilerde tahsilatı şoför yapar ve bakiyeyi görür. İşaretsiz
+                  müşteriler faturalıdır; bakiyeyi yalnızca yönetici görür, şoför yalnızca
+                  emanet kalemleri görür.
+                </p>
               </div>
 
               <div className="pt-3 flex items-center gap-3">
@@ -954,12 +959,16 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                 <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-700 dark:text-slate-300">
                   <input
                     type="checkbox"
-                    checked={editIsAccount}
-                    onChange={(e) => setEditIsAccount(e.target.checked)}
+                    checked={!editIsAccount}
+                    onChange={(e) => setEditIsAccount(!e.target.checked)}
                     className="w-4 h-4 rounded text-sky-600"
                   />
-                  <span>Cari Açık Hesap (Tahsil edilmeyen tutarlar borç bakiyesine işlensin)</span>
+                  <span>Peşin Müşteri</span>
                 </label>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Peşin müşterilerde tahsilatı şoför yapar ve bakiyeyi görür. İşaretsiz
+                  müşteriler faturalıdır; bakiyeyi yalnızca yönetici görür.
+                </p>
               </div>
 
               <div className="pt-3 flex items-center gap-3">

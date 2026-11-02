@@ -867,13 +867,13 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={newCustIsAccount}
+                          checked={!newCustIsAccount}
                           onChange={(e) =>
-                            setNewCustIsAccount(e.target.checked)
+                            setNewCustIsAccount(!e.target.checked)
                           }
                           className="rounded text-sky-600 focus:ring-sky-500 w-4 h-4"
                         />
-                        <span>Cari / Açık Hesap Müşterisi</span>
+                        <span>Peşin Müşteri</span>
                       </label>
                       <button
                         type="submit"
@@ -919,7 +919,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                             <span>{c.name}</span>
                             {c.isAccountCustomer && (
                               <span className="text-[10px] font-semibold text-sky-700 bg-sky-50 dark:bg-sky-950 px-1.5 py-0.2 rounded">
-                                Cari
+                                Faturalı
                               </span>
                             )}
                           </div>
@@ -934,7 +934,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         </div>
 
                         <div className="text-right shrink-0">
-                          {c.currentBalanceTL > 0 && (
+                          {!c.isAccountCustomer && c.currentBalanceTL > 0 && (
                             <div className="text-[11px] font-mono font-bold text-red-600">
                               {c.currentBalanceTL.toLocaleString("tr-TR")} ₺
                               Borç
@@ -948,6 +948,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                           {c.emptyDepositBalance?.camDamacana > 0 && (
                             <div className="text-[10px] font-semibold text-amber-700">
                               {c.emptyDepositBalance.camDamacana} Boş Cam Borcu
+                            </div>
+                          )}
+                          {(c.emptyDepositBalance?.sebil || 0) > 0 && (
+                            <div className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300">
+                              {c.emptyDepositBalance?.sebil} Sebil
                             </div>
                           )}
                           {negativeEmptyMessages(c.emptyDepositBalance).map(
@@ -977,7 +982,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     </span>
                     {selectedCustomer.isAccountCustomer ? (
                       <span className="text-[10px] font-bold text-sky-700 bg-sky-100 dark:bg-sky-900 px-1.5 py-0.5 rounded">
-                        Cari / Açık Hesap
+                        Faturalı Müşteri
                       </span>
                     ) : (
                       <span className="text-[10px] font-bold text-slate-600 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
@@ -1021,10 +1026,14 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         {selectedCustomer.emptyDepositBalance?.tup > 0
                           ? `, ${selectedCustomer.emptyDepositBalance.tup} Tüp`
                           : ""}
+                        {(selectedCustomer.emptyDepositBalance?.sebil || 0) > 0
+                          ? `, ${selectedCustomer.emptyDepositBalance?.sebil} Sebil`
+                          : ""}
                       </span>
                     )}
 
-                    {selectedCustomer.currentBalanceTL !== 0 && (
+                    {!selectedCustomer.isAccountCustomer &&
+                      selectedCustomer.currentBalanceTL !== 0 && (
                       <span
                         className={`text-[11px] font-mono font-semibold px-2 py-0.5 rounded-md ${
                           selectedCustomer.currentBalanceTL > 0
