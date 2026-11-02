@@ -77,6 +77,7 @@ import {
 } from './src/services/dispatchRules.ts';
 import { todayUtcDateStr } from './src/services/dateWindow.ts';
 import { buildCustomerStatement } from './src/services/statementRules.ts';
+import { maskCustomerFinancialsForDriver } from './src/services/customerVisibility.ts';
 import {
   CustomerDispenserValidationError,
   normalizeCustomerDispenserInput,
@@ -91,17 +92,6 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 app.use(express.json());
 
 const getTodayDateStr = () => todayUtcDateStr();
-
-// Faturalı müşterilerin bakiyesini yalnızca yönetici görür. Şoför oturumunda
-// bakiye sıfırlanır; iade edilebilir kalem miktarları görünmeye devam eder.
-function maskCustomerForDriver(
-  customer: Customer,
-  actor: { role?: string } | undefined
-): Customer {
-  if (!actor || actor.role !== 'driver') return customer;
-  if (!customer.isAccountCustomer) return customer;
-  return { ...customer, currentBalanceTL: 0 };
-}
 
 // Bir teslimatın sebil net etkisi: teslim edilen − geri alınan.
 function sebilNet(delivery: Delivery, products: Product[]): number {
@@ -603,7 +593,7 @@ app.get('/api/customers', async (req, res) => {
   try {
     const session = getAuthUser(req);
     const customers = await getCustomers();
-    res.json({ customers: customers.map((c) => maskCustomerForDriver(c, session)) });
+    res.json({ customers: customers.map((c) => maskCustomerFinancialsForDriver(c, session)) });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -636,7 +626,7 @@ app.post('/api/customers', async (req, res) => {
   try {
     const created = await createCustomer(newCust);
     res.status(201).json({
-      customer: maskCustomerForDriver(created, getAuthUser(req)),
+      customer: maskCustomerFinancialsForDriver(created, getAuthUser(req)),
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Müşteri kaydedilemedi' });
@@ -1307,7 +1297,7 @@ app.post('/api/deliveries', async (req, res) => {
         }
         return res.status(200).json({
           delivery: existing,
-          updatedCustomer: maskCustomerForDriver(customer, session),
+          updatedCustomer: maskCustomerFinancialsForDriver(customer, session),
           duplicate: true,
         });
       }
@@ -1385,7 +1375,7 @@ app.post('/api/deliveries', async (req, res) => {
     res.status(result.duplicate ? 200 : 201).json({
       ...result,
       updatedCustomer: result.updatedCustomer
-        ? maskCustomerForDriver(result.updatedCustomer, session)
+        ? maskCustomerFinancialsForDriver(result.updatedCustomer, session)
         : null,
     });
   } catch (err: any) {
@@ -1489,7 +1479,7 @@ app.post('/api/deliveries/:id/cancel', async (req, res) => {
       delivery: result.delivery,
       replacement: null,
       updatedCustomer: result.updatedCustomer
-        ? maskCustomerForDriver(result.updatedCustomer, session)
+        ? maskCustomerFinancialsForDriver(result.updatedCustomer, session)
         : null,
       duplicate: result.duplicate,
     });
@@ -1621,7 +1611,7 @@ app.post('/api/deliveries/:id/replace', async (req, res) => {
       delivery: result.delivery,
       replacement: result.replacement,
       updatedCustomer: result.updatedCustomer
-        ? maskCustomerForDriver(result.updatedCustomer, session)
+        ? maskCustomerFinancialsForDriver(result.updatedCustomer, session)
         : null,
       duplicate: result.duplicate,
     });
