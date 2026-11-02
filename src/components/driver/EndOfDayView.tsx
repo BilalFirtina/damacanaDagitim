@@ -31,7 +31,7 @@ interface EndOfDayViewProps {
   currentUser: User;
   onDispatchUpdated: (updated: Dispatch) => void;
   onNavigateTab?: (tab: any) => void;
-  onRefreshData?: () => Promise<void> | void;
+  onRefreshData?: () => void | Promise<unknown>;
 }
 
 export const EndOfDayView: React.FC<EndOfDayViewProps> = ({

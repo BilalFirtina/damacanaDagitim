@@ -136,10 +136,12 @@ export default function App() {
       }
     } catch (err) {
       console.error('Failed to load system data', err);
+      return false;
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
+    return true;
   }, [currentUser]);
 
   useEffect(() => {
