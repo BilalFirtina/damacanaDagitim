@@ -183,6 +183,7 @@ async function main(): Promise<void> {
     await c.query('RESET ROLE');
   } finally {
     await c.query('ROLLBACK');
+    await c.query('RESET ROLE');
   }
 
   console.log('\n[4] anon çalışma zamanı erişimi');
@@ -196,8 +197,9 @@ async function main(): Promise<void> {
     } catch (e: any) {
       denied = /permission denied|42501/i.test(String(e?.message ?? e));
     } finally {
-      await c.query('RESET ROLE');
+      // Önce savepoint'e dön: hata sonrası transaction aksi halde kilitli kalır.
       await c.query('ROLLBACK TO SAVEPOINT anon_call');
+      await c.query('RESET ROLE');
     }
     check('anon RPC çağrısı reddedildi', denied);
   } finally {
