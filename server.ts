@@ -9,6 +9,7 @@ import {
   User,
   Product,
   Customer,
+  Delivery,
   Dispatch,
   LoadedItem,
 } from './src/types/index.ts';
@@ -40,6 +41,8 @@ import {
   createCustomerPayment,
   getCustomerPayments,
   getCustomerPaymentsByDate,
+  getCustomerPaymentById,
+  adjustCustomerDispenserQuantity,
   getDeliveryById,
   getDeliveryCorrections,
   getDispatchReopenAudits,
@@ -91,6 +94,18 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 app.use(express.json());
 
 const getTodayDateStr = () => todayUtcDateStr();
+
+// Bir teslimatın sebil net etkisi: teslim edilen − geri alınan.
+function sebilNet(delivery: Delivery, products: Product[]): number {
+  const sebilIds = new Set(
+    products.filter((p) => p.depositType === 'sebil').map((p) => p.id)
+  );
+  const delivered = (delivery.deliveredItems || [])
+    .filter((i) => sebilIds.has(i.productId))
+    .reduce((sum, i) => sum + (Number(i.quantity) || 0), 0);
+  const returned = Number(delivery.emptyContainersReceived?.sebil) || 0;
+  return delivered - returned;
+}
 
 // PWA Manifest and Service Worker static serving with proper headers
 app.get(['/manifest.json', '/manifest.webmanifest'], (_req, res) => {
@@ -741,6 +756,22 @@ app.post('/api/customers/:id/payments', requireAdmin, async (req, res) => {
     const paymentId =
       requestedId || `pay_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
+    // Aynı kimlik farklı tutar/yöntemle gelirse sessizce eski kaydı döndürme.
+    if (requestedId) {
+      const existingPayment = await getCustomerPaymentById(requestedId);
+      if (
+        existingPayment &&
+        (Math.abs(existingPayment.amount - amount) > 0.005 ||
+          existingPayment.method !== method)
+      ) {
+        return res.status(409).json({
+          error:
+            'Bu tahsilat kimliği daha önce farklı tutar veya yöntemle kaydedilmiş. Kayıt değiştirilmedi.',
+          code: 'PAYMENT_ID_CONFLICT',
+        });
+      }
+    }
+
     const result = await createCustomerPayment({
       paymentId,
       customerId: req.params.id,
@@ -1008,7 +1039,7 @@ app.post('/api/dispatches', requireAdminOrLoader, async (req, res) => {
     }
 
     // Plaka dinamiktir; istemciden veya şoför tanımından gelir. Sabit plaka yoktur.
-    const selectedPlate = String(vehiclePlate || driver.assignedPlate || '').trim();
+    const selectedPlate = String(vehiclePlate || '').trim();
     if (!selectedPlate) {
       return res.status(400).json({ error: 'Araç plakası seçilmelidir.' });
     }
@@ -1357,6 +1388,18 @@ app.post('/api/deliveries', async (req, res) => {
       });
     }
 
+    if (!result.duplicate) {
+      const returnedSebil = Number(newDelivery.emptyContainersReceived?.sebil) || 0;
+      if (returnedSebil > 0) {
+        await adjustCustomerDispenserQuantity(
+          customer.id,
+          -returnedSebil,
+          { id: session.userId, name: session.name },
+          'Sebil iadesi'
+        );
+      }
+    }
+
     res.status(result.duplicate ? 200 : 201).json(result);
   } catch (err: any) {
     if (err instanceof DeliveryInputError) {
@@ -1406,9 +1449,10 @@ app.post('/api/deliveries/:id/cancel', async (req, res) => {
       });
     }
 
-    const [existing, allDispatches] = await Promise.all([
+    const [existing, allDispatches, allProducts] = await Promise.all([
       getDeliveryById(deliveryId),
       getDispatches(),
+      getProducts(),
     ]);
     if (!existing) {
       return res.status(404).json({
@@ -1441,6 +1485,19 @@ app.post('/api/deliveries/:id/cancel', async (req, res) => {
     }
 
     const result = await cancelDeliveryAtomic(deliveryId, session.userId, reason);
+
+    if (!result.duplicate) {
+      const net = sebilNet(existing, allProducts);
+      if (net !== 0) {
+        await adjustCustomerDispenserQuantity(
+          existing.customerId,
+          -net,
+          { id: session.userId, name: session.name },
+          'Teslimat iptali'
+        );
+      }
+    }
+
     res.json({
       delivery: result.delivery,
       replacement: null,
@@ -1558,6 +1615,19 @@ app.post('/api/deliveries/:id/replace', async (req, res) => {
       reason,
       replacement
     );
+
+    if (!result.duplicate) {
+      const delta =
+        sebilNet(replacement, allProducts) - sebilNet(existing, allProducts);
+      if (delta !== 0) {
+        await adjustCustomerDispenserQuantity(
+          existing.customerId,
+          delta,
+          { id: session.userId, name: session.name },
+          'Teslimat düzeltmesi'
+        );
+      }
+    }
     res.json({
       delivery: result.delivery,
       replacement: result.replacement,

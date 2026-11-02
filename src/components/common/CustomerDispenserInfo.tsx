@@ -77,7 +77,10 @@ export const CustomerDispenserInfo: React.FC<CustomerDispenserInfoProps> = ({
               className="text-[11px] text-slate-700 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800 last:border-0 pb-2 last:pb-0 min-w-0"
             >
               <div className="font-semibold break-words">
-                {d.quantity} adet · {d.brand} {d.model}
+                {d.quantity} adet
+                {[d.brand, d.model].filter(Boolean).length > 0
+                  ? ` · ${[d.brand, d.model].filter(Boolean).join(' ')}`
+                  : ''}
               </div>
               {d.note && (
                 <div className="text-slate-500 break-words mt-0.5">{d.note}</div>

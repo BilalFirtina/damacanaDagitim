@@ -206,7 +206,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                   Şoför Gün Sonu Tahsilat Özeti
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Şoför: <strong>{currentUser?.name}</strong> · Plaka: <strong>{currentUser?.assignedPlate || 'Araç'}</strong>
+                  Şoför: <strong>{currentUser?.name}</strong>
                 </p>
               </div>
             </div>
@@ -470,7 +470,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
               <option value="all">Tüm Şoförler ({driversList.length})</option>
               {driversList.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.name} ({d.assignedPlate || 'Araçsız'})
+                  {d.name}
                 </option>
               ))}
             </select>

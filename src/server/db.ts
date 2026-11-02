@@ -4827,3 +4827,95 @@ export async function getDispatchLoadingAudits(limit = 100): Promise<DispatchAud
     .sort((a, b) => (a.changedAt < b.changedAt ? 1 : -1))
     .slice(0, safeLimit);
 }
+
+// =============================================================================
+// SEBİL DETAY SENKRONU — AGENTS.md 7.1
+//
+// customer_dispensers tablosu, müşteride BULUNAN sebil adetlerini temsil eder.
+// Sebil teslim edildiğinde satır eklenir; geri alındığında/iptal edildiğinde
+// en eski kayıtlardan başlanarak düşülür. Adet bakiyesinin (customer_empty_balances)
+// yanında yalnızca marka/model/açıklama bilgisini taşır.
+// =============================================================================
+
+export async function adjustCustomerDispenserQuantity(
+  customerId: string,
+  delta: number,
+  actor: { id: string; name: string },
+  reason?: string
+): Promise<void> {
+  if (!delta) return;
+  if (!isSupabaseOperational() || !supabase) return; // yerel modda sebil detayı tutulmaz
+
+  try {
+    const rows = await listCustomerDispensers(customerId);
+
+    if (delta > 0) {
+      await createCustomerDispenser(
+        customerId,
+        {
+          brand: '',
+          model: '',
+          quantity: delta,
+          note: reason || 'Düzeltme ile eklendi',
+        },
+        actor
+      );
+      return;
+    }
+
+    let remaining = Math.abs(delta);
+    for (const row of rows) {
+      if (remaining <= 0) break;
+      const take = Math.min(row.quantity, remaining);
+      if (take >= row.quantity) {
+        await deleteCustomerDispenser(customerId, row.id);
+      } else {
+        await updateCustomerDispenser(
+          customerId,
+          row.id,
+          {
+            brand: row.brand,
+            model: row.model,
+            quantity: row.quantity - take,
+            note: row.note,
+          },
+          actor
+        );
+      }
+      remaining -= take;
+    }
+
+    if (remaining > 0) {
+      console.warn(
+        `[adjustCustomerDispenserQuantity] ${remaining} adet sebil için detay kaydı bulunamadı (müşteri ${customerId}).`
+      );
+    }
+  } catch (e) {
+    console.error('[adjustCustomerDispenserQuantity]', e);
+  }
+}
+
+// Idempotent tahsilat kontrolü: aynı payment_id farklı tutar/yöntemle gelirse
+// sessizce eski kaydı döndürmek yerine çakışma bildirilir.
+export async function getCustomerPaymentById(paymentId: string): Promise<CustomerPaymentRow | null> {
+  if (!paymentId) return null;
+  if (isSupabaseOperational() && supabase) {
+    const { data, error } = await supabase
+      .from('customer_payments')
+      .select('*')
+      .eq('id', paymentId)
+      .maybeSingle();
+    if (error) {
+      if (String(error.code || '') === 'PGRST116') return null;
+      throw stockError(error, 'Tahsilat kaydı sorgulanamadı.');
+    }
+    return data ? mapCustomerPayment(data) : null;
+  }
+  if (pgPool) {
+    const res = await pgPool.query('SELECT * FROM public.customer_payments WHERE id = $1', [
+      paymentId,
+    ]);
+    return res.rows[0] ? mapCustomerPayment(res.rows[0]) : null;
+  }
+  return null;
+}

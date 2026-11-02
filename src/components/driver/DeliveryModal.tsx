@@ -640,8 +640,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
       const result = await createDelivery(payload);
 
-      // Sebil emanet detayı: marka + model girildiyse müşteri sebil kaydı oluştur.
-      if (deliveredDepositSebil > 0 && sebilBrand.trim() && sebilModel.trim()) {
+      // Sebil emanet detayı: marka, model veya açıklamadan en az biri girildiyse kaydet.
+      if (
+        deliveredDepositSebil > 0 &&
+        (sebilBrand.trim() || sebilModel.trim() || sebilNote.trim())
+      ) {
         try {
           await addCustomerDispenser(selectedCustomer.id, {
             brand: sebilBrand.trim(),

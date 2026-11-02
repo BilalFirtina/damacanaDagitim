@@ -202,7 +202,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                     )}
                   </div>
                   <div className="text-[11px] text-slate-400 font-mono">
-                    {driver.assignedPlate || 'Araçsız'} · {driver.phone || 'Tel yok'}
+                    {driver.phone || 'Telefon yok'}
                   </div>
                   <div className="text-[11px] font-semibold mt-1">
                     {driver.canLoadVehicle ? (

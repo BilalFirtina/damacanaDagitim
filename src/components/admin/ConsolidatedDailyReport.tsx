@@ -324,7 +324,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                 ])
               ).filter(Boolean);
 
-              const plateStr = plates.join(', ') || driver.assignedPlate || 'Belirtilmedi';
+              const plateStr = plates.join(', ') || 'Belirtilmedi';
 
               // Driver Subtotals
               let dSubTotalVal = 0;
