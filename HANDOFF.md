@@ -1,5 +1,13 @@
 # HANDOFF — damacanaDagitim
 
+> **2026-11-02 — ÇALIŞMAYA ARA VERİLDİ.**
+> Güncel git durumu, ürün kararları ve devam adımları için önce **`MEMORY.md`** oku.
+>
+> Özet: `origin/main` = `d507a97` (PR #3 merge). `feat/agents-compliance` = `10acd99`
+> (tahsilat modeli; **CI çalışmadı, merge edilmedi**). Yerel çalışma ağacı `68f7fa1`
+> içeriğine geri alınmış; `10acd99` dosyaları diskte yok, git geçmişinde duruyor.
+> `git add -A` yapma — mevcut ağaç implementasyonu silmiş görünür.
+
 > Son güncelleme: 2026-11-02 (uçtan uca test turu)
 > Dal: `feat/agents-compliance` (main'e göre 25 commit ileride)
 > Oturum adı: **damacanaDagitim — AGENTS uyum çalışması (sebil + tahsilat)**
@@ -51,10 +59,6 @@ Dört temel unsur:
 | Sebil detayları sadece kayıtta, raporlarda sadece adet | ✅ | `a8dc325` |
 | Birleşik işlem geçmişi raporu (teslimat/sefer/yükleme) | ✅ | `24701f5` |
 | Sıfır fiyatlı ürün hatası (sebil 100 TL görünüyordu) | ✅ | `e59a50f` |
-| 60 günlük temizlik: arşivsiz, tüm durumlar, 23:00 TR saati | ✅ | `56d4f30` |
-| Tek aktif sefer garantisi (DB unique index + CI testi) | ✅ | `68f7fa1` |
-| Peşin müşteride kısmi/veresiye → cari borç | ✅ | `20261106` |
-| Şoförün ürün vermeden tahsilatı + rapor filtresi | ✅ | bu commit |
 
 ### Eklenen doğrulama betikleri
 
@@ -151,28 +155,9 @@ Aşağıdaki açıklama betiğin ne yaptığını belgeler.
 - Silme engelleyen trigger'lar yalnızca işlem süresince kapatılır, sonunda geri açılır.
 - Tek transaction: hata olursa hiçbir şey silinmez.
 
-### 3.6. Peşin/faturalı tahsilat davranışı — TAMAMLANDI ✅
-
-- Peşin/faturalı ayrımı artık yalnızca **şoförün bakiyeyi görüp görmemesini** belirler.
-- Kısmi veya ödenmemiş teslimatta kalan tutar **her iki müşteri türünde de** cari borca yazılır (`20261106_cash_customer_debt.sql`).
-- Şoför, ürün teslim etmeden de tahsilat kaydedebilir: `POST /api/customers/:id/payments` artık `requireAdminOrDriver`.
-- Faturalı müşteride şoföre bakiye dönmez (`balance: null`, `balanceHidden: true`); peşin müşteride güncel bakiye döner.
-- Günlük raporda teslimat dışı tahsilatlar şoför filtresine göre süzülür; konsolide raporda şoför bazında ayrıntılı liste yer alır.
-- Şoför tahsilatı aktif sefere bağlanır (`customer_payments.dispatch_id`); gün sonu kasa/POS mutabakatına ve sefer raporuna dahil edilir. Sefer 60 günde silinse bile tahsilat korunur (FK `ON DELETE SET NULL`).
-- Faturalı müşteride önceki özel fiyat ön dolgusu ve "Müşteriye Özel Fiyat" rozeti şoför ekranından kaldırıldı.
-
-### Uygulanacak migration'lar (canlı Supabase)
-
-1. `migrations/20261105_retention_no_archive.sql` — arşivsiz, durum bağımsız 60 gün temizliği.
-2. `migrations/20261106_cash_customer_debt.sql` — peşin müşteride kalan tutarın cari borca yazılması.
-3. `migrations/20261107_customer_payment_dispatch.sql` — şoför tahsilatını aktif sefere bağlama ve gün sonu kasa/POS mutabakatına dahil etme.
-
-> Bu üç migration canlıya uygulanmadan ilgili davranışlar üretimde çalışmaz.
-
----
-
 ## 4. Açık uyarılar
 
+- **`src/components/driver/DeliveryModal.tsx` commit edilmemiş.** Diff 401 ekleme / 230 silme; incelendiğinde tırnak/format değişiklikleri (`'` → `"`). `tsc` geçiyor, işlevsel değişiklik görünmüyor. Karar: commit et veya `git checkout -- src/components/driver/DeliveryModal.tsx` ile geri al.
 - **`AGENTS.md` git'te takipli değil** (`.gitignore`'da). İçeriği diskte güncel, sürüm geçmişinde yok. İstenirse `.gitignore`'dan çıkarılıp commit edilmeli.
 - **`DESIGN.md` silindi**; projede tek bir atıf yok (doğrulandı).
 - Depo stoğu tabloları canlıda `20261102_drop_warehouse_stock.sql` ile kaldırıldı. `migrations/20261101_warehouse_stock.sql` yalnızca tarihsel kayıt olarak duruyor.
@@ -206,9 +191,6 @@ Beklenen sağlık yanıtı: `{"status":"ok","database":"supabase_api","connected
 |---|---|
 | `AGENTS.md` | Bağlayıcı gereksinimler (Türkçe, araç merkezli model) |
 | `migrations/20261103_sebil_returnable.sql` | Uygulanacak sebil migration'ı |
-| `migrations/20261105_retention_no_archive.sql` | Arşivsiz 60 gün temizliği |
-| `migrations/20261106_cash_customer_debt.sql` | Peşin müşteride kalan tutarın borca yazılması |
-| `migrations/20261107_customer_payment_dispatch.sql` | Tahsilatın sefere bağlanması + kasa mutabakatı |
 | `src/services/statementRules.ts` | Cari hesap ekstresi hesaplama kuralları |
 | `src/services/depositRules.ts` | İade edilebilir kalem hesapları (damacana, cam, tüp, sebil) |
 | `src/services/dispatchRules.ts` | Sefer durumu ve sonlandırılmamış sefer kuralları |
@@ -216,7 +198,6 @@ Beklenen sağlık yanıtı: `{"status":"ok","database":"supabase_api","connected
 | `src/server/db.ts` | Supabase + yerel mod veri katmanı |
 | `server.ts` | Express rotaları ve yetkilendirme |
 | `src/components/driver/DeliveryModal.tsx` | Teslimat ekranı (sebil detayları burada) |
-| `src/components/driver/DriverPaymentModal.tsx` | Şoförün ürün vermeden tahsilatı |
 | `src/components/driver/EndOfDayView.tsx` | Gün sonu mutabakatı |
 | `src/components/admin/CustomerStatementModal.tsx` | Cari hesap ekstresi |
 | `src/components/admin/BalancesReportView.tsx` | Borç + iade bakiyeleri |
