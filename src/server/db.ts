@@ -640,12 +640,20 @@ interface CustomerRelations {
   pricesByCustomer: Map<string, Record<string, number>>;
 }
 
-function emptyBucket(): { damacana: number; camDamacana: number; tup: number } {
-  return { damacana: 0, camDamacana: 0, tup: 0 };
+function emptyBucket(): {
+  damacana: number;
+  camDamacana: number;
+  tup: number;
+  sebil: number;
+} {
+  return { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 };
 }
 
 function buildCustomerRelations(emptyRows: any[], priceRows: any[]): CustomerRelations {
-  const emptyByCustomer = new Map<string, { damacana: number; camDamacana: number; tup: number }>();
+  const emptyByCustomer = new Map<
+    string,
+    { damacana: number; camDamacana: number; tup: number; sebil: number }
+  >();
   const pricesByCustomer = new Map<string, Record<string, number>>();
 
   for (const r of emptyRows || []) {
@@ -655,6 +663,7 @@ function buildCustomerRelations(emptyRows: any[], priceRows: any[]): CustomerRel
     if (r.deposit_type === 'damacana') bucket.damacana = qty;
     else if (r.deposit_type === 'cam_damacana') bucket.camDamacana = qty;
     else if (r.deposit_type === 'tup') bucket.tup = qty;
+    else if (r.deposit_type === 'sebil') bucket.sebil = qty;
     emptyByCustomer.set(r.customer_id, bucket);
   }
 
@@ -742,6 +751,7 @@ function mapCustomerFromDb(
       damacana: Number(emptyDepositBalance.damacana) || 0,
       camDamacana: Number(emptyDepositBalance.camDamacana) || 0,
       tup: Number(emptyDepositBalance.tup) || 0,
+      sebil: Number((emptyDepositBalance as any).sebil) || 0,
     },
     customPrices,
     notes: row.notes || '',
@@ -882,8 +892,8 @@ function mapDeliveryFromDb(row: any, itemRows: any[] = [], containerRows: any[] 
       lineTotal: Number(r.line_total) || 0,
     }));
 
-  const emptyContainersReceived = { damacana: 0, camDamacana: 0, tup: 0 };
-  const emptyContainersDiff = { damacana: 0, camDamacana: 0, tup: 0 };
+  const emptyContainersReceived = { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 };
+  const emptyContainersDiff = { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 };
   for (const r of containerRows || []) {
     if (!r) continue;
     const recv = Number(r.received_qty) || 0;
@@ -897,6 +907,9 @@ function mapDeliveryFromDb(row: any, itemRows: any[] = [], containerRows: any[] 
     } else if (r.deposit_type === 'tup') {
       emptyContainersReceived.tup = recv;
       emptyContainersDiff.tup = diff;
+    } else if (r.deposit_type === 'sebil') {
+      emptyContainersReceived.sebil = recv;
+      emptyContainersDiff.sebil = diff;
     }
   }
 
