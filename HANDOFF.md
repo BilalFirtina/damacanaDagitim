@@ -80,29 +80,36 @@ Dört temel unsur:
 
 `GET /api/audit/history` + Raporlar > **İşlem Geçmişi** sekmesi. Teslimat iptal/düzeltme, sefer yeniden açma ve yükleme düzeltmeleri tek kronolojik listede; tür filtresi var.
 
-### 3.3. Uçtan uca test — KISMEN TAMAMLANDI
+### 3.3. Uçtan uca test — TAMAMLANDI ✅
 
-**Doğrulanan (14/14 PASS):**
+**Tahsilat/ekstre turu (14/14 PASS):**
 - Admin ve şoför girişi (uğur/1993, ergün/2558)
 - Su Sebili ürünü: fiyat **0**, `depositType: sebil`
-- Test müşterisi oluşturma
-- Teslimat dışı tahsilat: bakiye düşüşü, **idempotency** (aynı payment_id ikinci kez düşmüyor)
-- Cari hesap ekstresi: tahsilat hareketi + kapanış bakiyesi
-- Bakiye raporu: avans negatif
-- Günlük rapor: "Teslimat Dışı Tahsilat" toplamı ve kayıt listesi
-- İşlem geçmişi endpoint'i
+- Teslimat dışı tahsilat + bakiye düşüşü
+- Idempotency: aynı `payment_id` ikinci kez düşmüyor
+- Cari ekstre: tahsilat satırı + kapanış bakiyesi
+- Bakiye raporu, günlük rapor "Teslimat Dışı Tahsilat", işlem geçmişi endpoint'i
 
-**Engellenen:** Sebil teslimat/gün sonu zinciri.
-Ergün Orak'ın **2026-10-21 tarihli açık seferi** var (`in_transit`, 01 FV 823). Sunucu doğru şekilde yeni sefer açılmasını engelliyor. Karar gerekiyor:
-1. Bu sefer test amaçlı kapatılsın mı (gün sonu mutabakatı ile)?
-2. Yoksa başka bir şoförle mi test edilsin (PIN gerekli)?
+**Sebil zinciri turu (19/19 PASS):**
+- Ergün'ün 2026-10-21 açık seferi gün sonu mutabakatıyla kapatıldı (kullanıcı onayıyla)
+- Yükleme: 5 su + 2 sebil → şoför onayı → Dağıtımda
+- Teslimat: 2 su + 1 sebil → müşteride **1 sebil**, satış tutarı yalnızca su
+- İade: 1 sebil geri alındı → müşteride **0 sebil**, satış tutarı 0
+- Gün sonu: araçta 3 su + 1 sebil, **toplanan sebil 1**
+- Ekstre kapanış bakiyesi = su borcu (sebil satışa girmedi)
+- Bakiye raporu ve günlük rapor doğru
 
-> Bu durum aynı zamanda Bölüm 9.1'in gerçek veriyle doğrulanması: şoför uygulamaya girdiğinde "Önceki seferiniz sonlandırılmadı" uyarısını görmeli ve seferi kapatabilmeli.
+**Bu turda yakalanan ve düzeltilen hatalar:**
+- `e59a50f` — sıfır fiyatlı ürün 100 TL'ye düşüyordu (sebil ücretli görünüyordu)
+- `e7c4fa1` — sebil bakiyesi ve teslimat kaydı okuma eşlemesinde kayboluyordu
 
-**Test verileri (temizlenebilir):**
-- `cust_1793596793325_v5fb` — müşteri (ödemesiz)
-- `cust_1793596847719_iky9` — müşteri (ödemesiz)
-- `cust_1793596877990_1kr3` — müşteri + 125,50 TL tahsilat (tahsilat/denetim kaydı silinemez)
+**Test verileri (geliştirme ortamı):**
+- Test müşterileri: `cust_1793596793325_v5fb`, `cust_1793596847719_iky9`,
+  `cust_1793596877990_1kr3` (125,50 TL tahsilat), `cust_1793597127934_2fyp`,
+  `cust_1793597182363_5rvs`, `cust_1793597228128_7r6g` (her biri 220 TL açık borç)
+- Test seferleri: birkaç kapatılmış `disp_...` kaydı
+- Silme endpoint'i yok; gerekirse Supabase'den temizlenebilir. Tahsilat/denetim kayıtları
+  trigger nedeniyle silinemez.
 
 ### 3.4. (Eski) Uçtan uca test adımları
 
