@@ -46,6 +46,12 @@ check(
     sql
   )
 );
+check(
+  'service_role tablo izni tanımlı',
+  /GRANT\s+SELECT,\s*INSERT,\s*UPDATE,\s*DELETE\s+ON\s+TABLE\s+public\.customer_payments\s+TO\s+service_role/i.test(
+    sql
+  )
+);
 check('işlem tek transaction içinde', /BEGIN;/.test(sql) && /COMMIT;/.test(sql));
 
 console.log(`\nSonuç: ${passed} başarılı, ${failed} başarısız`);

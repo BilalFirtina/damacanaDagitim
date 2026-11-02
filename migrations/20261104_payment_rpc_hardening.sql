@@ -28,6 +28,11 @@ BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
     EXECUTE 'REVOKE ALL ON TABLE public.customer_payments FROM authenticated';
   END IF;
+  -- 20261020'deki "ALL TABLES" izni bu tablo oluşturulmadan önce verildiği için
+  -- service_role izni burada açıkça tanımlanır.
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+    EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.customer_payments TO service_role';
+  END IF;
 END $$;
 
 COMMIT;
