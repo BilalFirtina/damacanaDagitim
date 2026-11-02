@@ -867,3 +867,24 @@ export async function triggerManualCleanup(): Promise<any> {
   return res.json();
 }
 
+
+
+// Birleşik işlem geçmişi — AGENTS.md Bölüm 10.2.
+export interface AuditHistoryEvent {
+  id: string;
+  kind: 'delivery_correction' | 'dispatch_reopen' | 'dispatch_loading';
+  at: string;
+  by: string;
+  title: string;
+  reason: string;
+  detail: string;
+  dispatchId: string;
+  deliveryId: string | null;
+}
+
+export async function fetchAuditHistory(limit = 100): Promise<AuditHistoryEvent[]> {
+  const res = await apiFetch(`/api/audit/history?limit=${limit}`);
+  if (!res.ok) await throwServerError(res, 'İşlem geçmişi alınamadı');
+  const json = await res.json();
+  return json.events || [];
+}

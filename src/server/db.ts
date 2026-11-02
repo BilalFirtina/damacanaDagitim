@@ -4693,3 +4693,121 @@ function mapCustomerPayment(row: any): CustomerPaymentRow {
   };
 }
 
+// =============================================================================
+// BİRLEŞİK İŞLEM GEÇMİŞİ — AGENTS.md Bölüm 10.2
+// Teslimat iptal/düzeltme, sefer yeniden açma ve yükleme düzeltme kayıtları.
+// =============================================================================
+
+export interface DispatchAuditRow {
+  id: string;
+  kind: 'dispatch_reopen' | 'dispatch_loading';
+  dispatchId: string;
+  userId: string;
+  userName: string;
+  reason: string;
+  detail: string;
+  changedAt: string;
+}
+
+function mapReopenAudit(row: any): DispatchAuditRow {
+  return {
+    id: `reopen_${row.id}`,
+    kind: 'dispatch_reopen',
+    dispatchId: row.dispatch_id,
+    userId: row.reopened_by_user_id || '',
+    userName: row.reopened_by_user_name || '',
+    reason: row.reason || '',
+    detail: 'Kapatılmış sefer yeniden açıldı; önceki mutabakat arşivlendi.',
+    changedAt: row.reopened_at,
+  };
+}
+
+function mapLoadingAudit(row: any): DispatchAuditRow {
+  const prev = Array.isArray(row.previous_items) ? row.previous_items : [];
+  const next = Array.isArray(row.new_items) ? row.new_items : [];
+  return {
+    id: `loading_${row.id}`,
+    kind: 'dispatch_loading',
+    dispatchId: row.dispatch_id,
+    userId: row.changed_by_user_id || '',
+    userName: row.changed_by_user_name || '',
+    reason: 'Yükleme kalemleri güncellendi',
+    detail: `Yükleme kalemleri güncellendi (${prev.length} → ${next.length} kalem).`,
+    changedAt: row.changed_at,
+  };
+}
+
+export async function getDispatchReopenAudits(limit = 100): Promise<DispatchAuditRow[]> {
+  const safeLimit = Math.min(Math.max(Math.trunc(limit) || 100, 1), 200);
+  if (isSupabaseOperational() && supabase) {
+    const { data, error } = await supabase
+      .from('dispatch_reopen_audit')
+      .select('id, dispatch_id, reopened_by_user_id, reopened_by_user_name, reason, reopened_at')
+      .order('reopened_at', { ascending: false })
+      .limit(safeLimit);
+    if (error) {
+      console.error('[Supabase getDispatchReopenAudits]', error);
+      throw new Error(toTurkishDbError(error, 'Sefer yeniden açma kayıtları sorgulanamadı.'));
+    }
+    return (data || []).map(mapReopenAudit);
+  }
+  if (pgPool) {
+    const result = await pgPool.query(
+      'SELECT id, dispatch_id, reopened_by_user_id, reopened_by_user_name, reason, reopened_at FROM public.dispatch_reopen_audit ORDER BY reopened_at DESC, id DESC LIMIT $1',
+      [safeLimit]
+    );
+    return result.rows.map(mapReopenAudit);
+  }
+  const db = loadLocalDatabase();
+  return (db.reopenAudit || [])
+    .map((row, idx) =>
+      mapReopenAudit({
+        id: idx,
+        dispatch_id: row.dispatchId,
+        reopened_by_user_id: row.reopenedByUserId,
+        reopened_by_user_name: row.reopenedByUserName,
+        reason: row.reason,
+        reopened_at: row.reopenedAt,
+      })
+    )
+    .sort((a, b) => (a.changedAt < b.changedAt ? 1 : -1))
+    .slice(0, safeLimit);
+}
+
+export async function getDispatchLoadingAudits(limit = 100): Promise<DispatchAuditRow[]> {
+  const safeLimit = Math.min(Math.max(Math.trunc(limit) || 100, 1), 200);
+  if (isSupabaseOperational() && supabase) {
+    const { data, error } = await supabase
+      .from('dispatch_loading_audit')
+      .select('id, dispatch_id, changed_by_user_id, changed_by_user_name, previous_items, new_items, changed_at')
+      .order('changed_at', { ascending: false })
+      .limit(safeLimit);
+    if (error) {
+      console.error('[Supabase getDispatchLoadingAudits]', error);
+      throw new Error(toTurkishDbError(error, 'Yükleme düzeltme kayıtları sorgulanamadı.'));
+    }
+    return (data || []).map(mapLoadingAudit);
+  }
+  if (pgPool) {
+    const result = await pgPool.query(
+      'SELECT id, dispatch_id, changed_by_user_id, changed_by_user_name, previous_items, new_items, changed_at FROM public.dispatch_loading_audit ORDER BY changed_at DESC, id DESC LIMIT $1',
+      [safeLimit]
+    );
+    return result.rows.map(mapLoadingAudit);
+  }
+  const db = loadLocalDatabase();
+  return (db.loadingAudit || [])
+    .map((row, idx) =>
+      mapLoadingAudit({
+        id: idx,
+        dispatch_id: row.dispatchId,
+        changed_by_user_id: row.changedByUserId,
+        changed_by_user_name: row.changedByUserName,
+        previous_items: row.previousItems,
+        new_items: row.newItems,
+        changed_at: row.changedAt,
+      })
+    )
+    .sort((a, b) => (a.changedAt < b.changedAt ? 1 : -1))
+    .slice(0, safeLimit);
+}

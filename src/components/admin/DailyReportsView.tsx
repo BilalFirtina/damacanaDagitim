@@ -23,6 +23,7 @@ import { DeliveryCorrectionsView } from './DeliveryCorrectionsView';
 import { BalancesReportView } from './BalancesReportView';
 import { DriverActivityReport } from './DriverActivityReport';
 import { DiscrepancyReport } from './DiscrepancyReport';
+import { AuditHistoryView } from './AuditHistoryView';
 
 interface DailyReportsViewProps {
   users: User[];
@@ -39,7 +40,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
 }) => {
   const isDriver = currentUser?.role === 'driver';
   const todayStr = todayUtcDateStr();
-  const [subTab, setSubTab] = useState<'consolidated' | 'detailed' | 'drivers' | 'discrepancies' | 'balances' | 'corrections'>(
+  const [subTab, setSubTab] = useState<'consolidated' | 'detailed' | 'drivers' | 'discrepancies' | 'balances' | 'corrections' | 'history'>(
     'consolidated'
   );
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
@@ -394,6 +395,17 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
           <span>Cari & İade Edilebilir Bakiyeler</span>
         </button>
         <button
+          onClick={() => setSubTab('history')}
+          className={`w-full sm:w-auto min-h-11 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center sm:justify-start gap-2 text-left ${
+            subTab === 'history'
+              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <History className="w-4 h-4 shrink-0" />
+          <span>İşlem Geçmişi</span>
+        </button>
+        <button
           onClick={() => setSubTab('corrections')}
           className={`w-full sm:w-auto min-h-11 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center sm:justify-start gap-2 text-left ${
             subTab === 'corrections'
@@ -418,6 +430,8 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
           deliveries={deliveries}
           date={selectedDate}
         />
+      ) : subTab === 'history' ? (
+        <AuditHistoryView />
       ) : subTab === 'corrections' ? (
         <DeliveryCorrectionsView />
       ) : (

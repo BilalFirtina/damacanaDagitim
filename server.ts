@@ -42,6 +42,8 @@ import {
   getCustomerPaymentsByDate,
   getDeliveryById,
   getDeliveryCorrections,
+  getDispatchReopenAudits,
+  getDispatchLoadingAudits,
   createDeliveryRecord,
   cancelDeliveryAtomic,
   replaceDeliveryAtomic,
@@ -1577,6 +1579,65 @@ app.get('/api/delivery-corrections', requireAdmin, async (req, res) => {
       error: err.message || 'Teslimat düzeltme kayıtları yüklenemedi.',
       code: 'CORRECTIONS_FAILED',
     });
+  }
+});
+
+// 5e. Birleşik işlem geçmişi — teslimat düzeltme + sefer yeniden açma + yükleme düzeltme
+app.get('/api/audit/history', requireAdmin, async (req, res) => {
+  try {
+    const requested = Number(req.query.limit);
+    const limit = Math.min(Math.max(Number.isFinite(requested) ? requested : 100, 1), 200);
+
+    const [corrections, reopens, loadings] = await Promise.all([
+      getDeliveryCorrections(limit),
+      getDispatchReopenAudits(limit),
+      getDispatchLoadingAudits(limit),
+    ]);
+
+    const events = [
+      ...corrections.map((c) => ({
+        id: `correction_${c.id}`,
+        kind: 'delivery_correction',
+        at: c.createdAt,
+        by: c.performedByUserName,
+        title: c.action === 'cancel' ? 'Teslimat iptali' : 'Teslimat düzeltmesi',
+        reason: c.reason,
+        detail:
+          c.action === 'cancel'
+            ? 'Teslimat iptal edildi; bakiye ve stok geri alındı.'
+            : 'Teslimat yeni içerikle değiştirildi; eski kayıt arşivlendi.',
+        dispatchId: c.dispatchId,
+        deliveryId: c.deliveryId,
+      })),
+      ...reopens.map((r) => ({
+        id: r.id,
+        kind: 'dispatch_reopen',
+        at: r.changedAt,
+        by: r.userName,
+        title: 'Sefer yeniden açıldı',
+        reason: r.reason,
+        detail: r.detail,
+        dispatchId: r.dispatchId,
+        deliveryId: null,
+      })),
+      ...loadings.map((l) => ({
+        id: l.id,
+        kind: 'dispatch_loading',
+        at: l.changedAt,
+        by: l.userName,
+        title: 'Yükleme düzeltmesi',
+        reason: l.reason,
+        detail: l.detail,
+        dispatchId: l.dispatchId,
+        deliveryId: null,
+      })),
+    ]
+      .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
+      .slice(0, limit);
+
+    res.json({ events });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'İşlem geçmişi yüklenemedi.' });
   }
 });
 
