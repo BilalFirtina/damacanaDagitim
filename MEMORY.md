@@ -12,10 +12,15 @@
 | Konum | Commit | Durum |
 |---|---|---|
 | `origin/main` | `d507a97` | PR #3 merge edildi. `56d4f30` + `66dca12` + `68f7fa1` dahil. |
-| `origin/feat/agents-compliance` | `10acd99` | `main`e 1 commit ileride; **push edildi, CI çalışmadı, merge edilmedi.** |
-| Yerel çalışma ağacı | — | `68f7fa1` içeriğine geri alınmış; `10acd99` dosyaları diskte **YOK**. |
+| `origin/feat/agents-compliance` | `48615a0` | `10acd99` (tahsilat implementasyonu) + bu hafıza commit'i. **Merge edilmedi.** |
+| Yerel çalışma ağacı | — | `68f7fa1` içeriğine geri alınmış; implementasyon dosyaları diskte **YOK**. |
 
-`10acd99` = `feat: sofor tahsilati ve pesin musteri borcu`
+- `10acd99` = `feat: sofor tahsilati ve pesin musteri borcu` (implementasyon)
+- `48615a0` = `docs: calismaya ara verildi...` (MEMORY.md + HANDOFF.md + trail learning)
+
+> **CI notu:** `.github/workflows/ci.yml` yalnızca `main`e push ve `main`e açılan
+> PR'larda çalışır. Bu nedenle dal push'unda CI koşmadı; `10acd99`/`48615a0`
+> için henüz yeşil sonuç yok. Test için **main'e PR açılması** gerekir.
 
 ### Working tree uyarısı
 
@@ -34,16 +39,21 @@ silen bir commit oluşturur.
 
 ### İmplementasyonu geri yükleme (devam ederken)
 
-`HANDOFF.md` ve `MEMORY.md`'yi koruyarak `10acd99` dosyalarını geri getir:
+Artık `HEAD` (`48615a0`) implementasyonu ve bu hafıza dosyalarını birlikte
+içeriyor. `.gitignore` kullanıcı değişikliğini koruyarak çalışma ağacını
+`HEAD`e getir:
 
 ```bash
-git diff --name-only 68f7fa1 10acd99 \
-  | grep -v '^HANDOFF.md$' \
-  | xargs git restore --source=10acd99 --
+git restore --source=HEAD -- . ':(exclude).gitignore'
 ```
 
-Sonrasında `git status` ile kontrol et. `.gitignore` kullanıcı değişikliğini
-koru; `10acd99` sürümüyle ezme.
+Bu komut, implementasyonu (`server.ts`, migration'lar, `DriverPaymentModal.tsx`
+vb.) geri getirir; `MEMORY.md` ve güncel `HANDOFF.md`'yi korur; `.gitignore`
+değişikliğine dokunmaz. Sonrasında `git status` ile kontrol et.
+
+> `.gitignore` dışında başka bir kullanıcı değişikliği varsa yukarıdaki komut
+> onu da ezer. Önce `git status` ve `git diff` ile kontrol et; gerekirse
+> dosya bazında `git restore --source=HEAD -- <yol>` kullan.
 
 ### Neden önemli
 
@@ -134,8 +144,9 @@ aşağıdaki eksikler ve CI durumu nedeniyle **kesin tamamlandı kabul etme.**
 
 ## 4. İncelenecekler / eksikler
 
-1. **CI çalışmadı.** `10acd99` için GitHub Actions koşusu yok. `lint`,
-   `verify-*`, `build` ve PG testleri doğrulanmadı.
+1. **CI çalışmadı.** `10acd99` için GitHub Actions koşusu yok; workflow yalnızca
+   `main`e push/PR'da tetikleniyor. `lint`, `verify-*`, `build` ve PG testleri
+   doğrulanmadı. Test için `main`e PR açılmalı.
 2. **Faturalıda birim fiyat girişi hâlâ görünüyor.** Commit yalnızca özel fiyat
    ön dolgusunu/rozetini gizliyor. Son gereksinime göre faturalı müşteride
    birim fiyat alanı tamamen gizlenmeli; sistem son/default fiyatı kullanmalı.

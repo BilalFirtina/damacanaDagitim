@@ -3,10 +3,11 @@
 > **2026-11-02 — ÇALIŞMAYA ARA VERİLDİ.**
 > Güncel git durumu, ürün kararları ve devam adımları için önce **`MEMORY.md`** oku.
 >
-> Özet: `origin/main` = `d507a97` (PR #3 merge). `feat/agents-compliance` = `10acd99`
-> (tahsilat modeli; **CI çalışmadı, merge edilmedi**). Yerel çalışma ağacı `68f7fa1`
-> içeriğine geri alınmış; `10acd99` dosyaları diskte yok, git geçmişinde duruyor.
-> `git add -A` yapma — mevcut ağaç implementasyonu silmiş görünür.
+> Özet: `origin/main` = `d507a97` (PR #3 merge). `feat/agents-compliance` = `48615a0`
+> (`10acd99` tahsilat implementasyonu + hafıza commit'i; **CI çalışmadı, merge
+> edilmedi**). Yerel çalışma ağacı `68f7fa1` içeriğine geri alınmış; implementasyon
+> dosyaları diskte yok, git geçmişinde duruyor. `git add -A` yapma — mevcut ağaç
+> implementasyonu silmiş görünür. Geri yükleme: `MEMORY.md` bölüm 1.
 
 > Son güncelleme: 2026-11-02 (uçtan uca test turu)
 > Dal: `feat/agents-compliance` (main'e göre 25 commit ileride)
