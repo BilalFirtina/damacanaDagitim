@@ -127,6 +127,16 @@ Dört temel unsur:
 
 ---
 
+## 3.5. Operasyonel veri temizliği (hazır betik)
+
+`scripts/cleanup-operational-data.sql` — Supabase SQL Editor'de çalıştırılır.
+
+- **Silinir:** teslimatlar, seferler, tahsilatlar, denetim kayıtları, boş kap bakiyeleri, sebil detayları, saklama arşivi.
+- **Korunur:** kullanıcılar, ürünler, kategoriler, depozito türleri, müşteri listesi ve anlaşılmış fiyatlar.
+- Müşteri cari bakiyeleri 0'a çekilir.
+- Silme engelleyen trigger'lar yalnızca işlem süresince kapatılır, sonunda geri açılır.
+- Tek transaction: hata olursa hiçbir şey silinmez.
+
 ## 4. Açık uyarılar
 
 - **`src/components/driver/DeliveryModal.tsx` commit edilmemiş.** Diff 401 ekleme / 230 silme; incelendiğinde tırnak/format değişiklikleri (`'` → `"`). `tsc` geçiyor, işlevsel değişiklik görünmüyor. Karar: commit et veya `git checkout -- src/components/driver/DeliveryModal.tsx` ile geri al.
