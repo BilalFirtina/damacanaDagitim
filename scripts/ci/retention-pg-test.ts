@@ -452,6 +452,57 @@ async function scenarioPrivileges(c: Client): Promise<void> {
   }
 }
 
+// Tek aktif sefer garantisi: aynı şoför veya aynı plaka için ikinci aktif
+// sefer DB seviyesinde reddedilmelidir. Tamamlanmış seferler indekse girmez.
+async function scenarioActiveDispatchUniqueness(c: Client): Promise<void> {
+  console.log('\n[7] Tek aktif sefer garantisi (unique index)');
+  await resetTransactional(c);
+  await seedReference(c);
+
+  const insertDispatch = (id: string, driverId: string, plate: string, status: string) =>
+    c.query(
+      `INSERT INTO public.dispatches
+         (id, date, driver_id, driver_name, vehicle_plate, loaded_by_user_id, loaded_by_user_name,
+          status, closed_at, closed_by_user_id, closed_by_user_name)
+       VALUES ($1, to_char((now() AT TIME ZONE 'UTC')::date, 'YYYY-MM-DD'), $2, 'Şoför', $3,
+               'u_admin', 'Yönetici', $4,
+               CASE WHEN $4 = 'completed' THEN now() ELSE NULL END,
+               CASE WHEN $4 = 'completed' THEN 'u_admin' ELSE NULL END,
+               CASE WHEN $4 = 'completed' THEN 'Yönetici' ELSE NULL END)`,
+      [id, driverId, plate, status]
+    );
+
+  const violation = async (fn: () => Promise<any>): Promise<string> => {
+    try {
+      await fn();
+      return 'NO_ERROR';
+    } catch (e: any) {
+      return `${e?.code || ''}:${e?.constraint || ''}`;
+    }
+  };
+
+  await insertDispatch('U1', 'u_driver', '34 U 001', 'in_transit');
+  check(
+    'aynı şoför için ikinci aktif sefer reddedildi',
+    (await violation(() => insertDispatch('U2', 'u_driver', '34 U 002', 'pending_confirmation'))) ===
+      '23505:ux_dispatches_active_driver'
+  );
+  check(
+    'aynı plaka için ikinci aktif sefer reddedildi',
+    (await violation(() => insertDispatch('U3', 'u_driver_2', '34 U 001', 'in_transit'))) ===
+      '23505:ux_dispatches_active_plate'
+  );
+
+  await insertDispatch('U4', 'u_driver_2', '34 U 003', 'completed');
+  check(
+    'tamamlanmış sefer indekse girmez; aynı şoför yeni aktif sefer açabilir',
+    (await violation(() => insertDispatch('U5', 'u_driver_2', '34 U 004', 'in_transit'))) ===
+      'NO_ERROR'
+  );
+
+  await resetTransactional(c);
+}
+
 async function main(): Promise<void> {
   const c = await newClient();
   try {
@@ -467,6 +518,7 @@ async function main(): Promise<void> {
     await scenarioLock(c);
     await scenarioBoundary(c);
     await scenarioAudit(c);
+    await scenarioActiveDispatchUniqueness(c);
     await scenarioPrivileges(c);
   } finally {
     await c.end();
