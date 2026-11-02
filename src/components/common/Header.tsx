@@ -154,7 +154,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Desktop navigation: visible labels from lg upwards (no icon-only ambiguity) */}
       <div className="hidden lg:block w-full max-w-full border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900/95">
-        <nav className="w-full px-2.5 sm:px-6 py-1.5 flex flex-wrap items-center justify-between gap-1 min-w-0">
+        <nav className="w-full px-2.5 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-1.5 min-w-0">
           {mobileNavItems
             .filter((item) => !item.adminOnly || isAdmin)
             .map((item) => {
@@ -167,13 +167,15 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => setActiveTab(item.tab)}
                   aria-label={item.ariaLabel}
                   title={item.ariaLabel}
-                  className={`min-h-9 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
+                  className={`min-h-11 px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer border ${
                     active
-                      ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs font-bold'
-                      : 'text-slate-600 dark:text-slate-300 hover:bg-white/80 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
+                      ? `${item.activeClass} text-white border-transparent shadow-md`
+                      : 'bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 shrink-0 ${item.iconClass}`} />
+                  <Icon
+                    className={`w-4 h-4 shrink-0 ${active ? 'text-white' : item.iconClass}`}
+                  />
                   <span>{item.label}</span>
                 </button>
               );
