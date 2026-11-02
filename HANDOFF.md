@@ -1,7 +1,7 @@
 # HANDOFF — damacanaDagitim
 
-> Son güncelleme: 2026-10-31
-> Dal: `feat/agents-compliance` (main'e göre 9 commit ileride)
+> Son güncelleme: 2026-11-02
+> Dal: `feat/agents-compliance` (main'e göre 11 commit ileride)
 > Oturum adı: **damacanaDagitim — AGENTS uyum çalışması (sebil + tahsilat)**
 
 ---
@@ -49,6 +49,7 @@ Dört temel unsur:
 | Su sebili: fiyatsız iade edilebilir kalem | ✅ | `7a1b56f` |
 | Sebil tesliminde marka/model/nereye bırakıldığı | ✅ | `382961e` |
 | Sebil detayları sadece kayıtta, raporlarda sadece adet | ✅ | `a8dc325` |
+| Birleşik işlem geçmişi raporu (teslimat/sefer/yükleme) | ✅ | `24701f5` |
 
 ### Eklenen doğrulama betikleri
 
@@ -60,9 +61,13 @@ Dört temel unsur:
 
 ## 3. Yapılması gereken (öncelik sırası)
 
-### 3.1. ZORUNLU — Sebil migration'ı
+### 3.1. Sebil migration'ı — TAMAMLANDI ✅
 
-`migrations/20261103_sebil_returnable.sql` dosyasını Supabase SQL Editor'de çalıştır.
+`migrations/20261103_sebil_returnable.sql` uygulandı. Canlıda doğrulandı:
+
+- `deposit_types.code = sebil` (Su Sebili)
+- `product_categories.code = sebil` (Su Sebili)
+- `products.id = prod_sebil` — Su Sebili, fiyat **0**, `is_deposit: true`, aktif
 
 İçeriği (tamamen additive):
 
@@ -70,15 +75,13 @@ Dört temel unsur:
 - `product_categories` → `sebil`
 - `products` → `prod_sebil` / "Su Sebili" / fiyat 0 / `is_deposit: true`
 
-> Bu uygulanmadan "Su Sebili" ürünü yükleme ekranında görünmez.
+### 3.2. İşlem geçmişi raporu — TAMAMLANDI ✅
 
-### 3.2. İşlem geçmişi raporu (Bölüm 10.2)
+`GET /api/audit/history` + Raporlar > **İşlem Geçmişi** sekmesi. Teslimat iptal/düzeltme, sefer yeniden açma ve yükleme düzeltmeleri tek kronolojik listede; tür filtresi var.
 
-Teslimat iptal/düzeltme + sefer yeniden açma + yükleme düzeltme denetimlerini tek ekranda birleştirir. Şema gerekmez.
+### 3.3. Uçtan uca test (SIRADAKİ)
 
-### 3.3. Uçtan uca test
-
-Sebil migration'ı uygulandıktan sonra:
+> Not: Canlı veritabanındaki kullanıcı/PIN seed verisinden farklı olduğu için otomatik giriş yapılamadı. Test, proje sahibinin giriş bilgisiyle yapılmalı.
 
 1. Admin ile giriş
 2. Ürünlerde "Su Sebili" görünüyor mu
