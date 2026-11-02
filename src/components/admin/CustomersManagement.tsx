@@ -749,9 +749,8 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                   <span>Peşin Müşteri</span>
                 </label>
                 <p className="text-[10px] text-slate-500 mt-1">
-                  Peşin müşterilerde tahsilatı şoför yapar ve bakiyeyi görür. İşaretsiz
-                  müşteriler faturalıdır; bakiyeyi yalnızca yönetici görür, şoför yalnızca
-                  emanet kalemleri görür.
+                  Tahsilat şoför arkadaşlar tarafından yapılacaksa bu kutucuğu işaretleyin,
+                  eğer fatura toplu kesilecekse kutucuğa tıklamayın.
                 </p>
               </div>
 
@@ -966,8 +965,8 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                   <span>Peşin Müşteri</span>
                 </label>
                 <p className="text-[10px] text-slate-500 mt-1">
-                  Peşin müşterilerde tahsilatı şoför yapar ve bakiyeyi görür. İşaretsiz
-                  müşteriler faturalıdır; bakiyeyi yalnızca yönetici görür.
+                  Tahsilat şoför arkadaşlar tarafından yapılacaksa bu kutucuğu işaretleyin,
+                  eğer fatura toplu kesilecekse kutucuğa tıklamayın.
                 </p>
               </div>
 

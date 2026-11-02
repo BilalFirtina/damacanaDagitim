@@ -885,6 +885,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                           : "Kaydet & Seç"}
                       </button>
                     </div>
+                    <p className="text-[10px] text-slate-500">
+                      Tahsilat şoför arkadaşlar tarafından yapılacaksa bu kutucuğu işaretleyin,
+                      eğer fatura toplu kesilecekse kutucuğa tıklamayın.
+                    </p>
                   </form>
                 )}
 
