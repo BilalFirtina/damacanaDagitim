@@ -1,7 +1,7 @@
 # HANDOFF — damacanaDagitim
 
-> Son güncelleme: 2026-11-02
-> Dal: `feat/agents-compliance` (main'e göre 18 commit ileride)
+> Son güncelleme: 2026-11-02 (uçtan uca test turu)
+> Dal: `feat/agents-compliance` (main'e göre 21 commit ileride)
 > Oturum adı: **damacanaDagitim — AGENTS uyum çalışması (sebil + tahsilat)**
 
 ---
@@ -50,6 +50,7 @@ Dört temel unsur:
 | Sebil tesliminde marka/model/nereye bırakıldığı | ✅ | `382961e` |
 | Sebil detayları sadece kayıtta, raporlarda sadece adet | ✅ | `a8dc325` |
 | Birleşik işlem geçmişi raporu (teslimat/sefer/yükleme) | ✅ | `24701f5` |
+| Sıfır fiyatlı ürün hatası (sebil 100 TL görünüyordu) | ✅ | `e59a50f` |
 
 ### Eklenen doğrulama betikleri
 
@@ -79,7 +80,31 @@ Dört temel unsur:
 
 `GET /api/audit/history` + Raporlar > **İşlem Geçmişi** sekmesi. Teslimat iptal/düzeltme, sefer yeniden açma ve yükleme düzeltmeleri tek kronolojik listede; tür filtresi var.
 
-### 3.3. Uçtan uca test (SIRADAKİ)
+### 3.3. Uçtan uca test — KISMEN TAMAMLANDI
+
+**Doğrulanan (14/14 PASS):**
+- Admin ve şoför girişi (uğur/1993, ergün/2558)
+- Su Sebili ürünü: fiyat **0**, 
+- Test müşterisi oluşturma
+- Teslimat dışı tahsilat: bakiye düşüşü, **idempotency** (aynı payment_id ikinci kez düşmüyor)
+- Cari hesap ekstresi: tahsilat hareketi + kapanış bakiyesi
+- Bakiye raporu: avans negatif
+- Günlük rapor: "Teslimat Dışı Tahsilat" toplamı ve kayıt listesi
+- İşlem geçmişi endpoint'i
+
+**Engellenen:** Sebil teslimat/gün sonu zinciri.
+Ergün Orak'ın **2026-10-21 tarihli açık seferi** var (, 01 FV 823). Sunucu doğru şekilde yeni sefer açılmasını engelliyor. Karar gerekiyor:
+1. Bu sefer test amaçlı kapatılsın mı (gün sonu mutabakatı ile)?
+2. Yoksa başka bir şoförle mi test edilsin (PIN gerekli)?
+
+> Bu durum aynı zamanda Bölüm 9.1'in gerçek veriyle doğrulanması: şoför uygulamaya girdiğinde "Önceki seferiniz sonlandırılmadı" uyarısını görmeli ve seferi kapatabilmeli.
+
+**Test verileri (temizlenebilir):**
+- `cust_1793596793325_v5fb` — müşteri (ödemesiz)
+- `cust_1793596847719_iky9` — müşteri (ödemesiz)
+- `cust_1793596877990_1kr3` — müşteri + 125,50 TL tahsilat (tahsilat/denetim kaydı silinemez)
+
+### 3.4. (Eski) Uçtan uca test adımları
 
 > Not: Canlı veritabanındaki kullanıcı/PIN seed verisinden farklı olduğu için otomatik giriş yapılamadı. Test, proje sahibinin giriş bilgisiyle yapılmalı.
 
