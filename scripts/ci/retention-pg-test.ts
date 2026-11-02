@@ -10,12 +10,12 @@
  *   DATABASE_URL=postgres://... npx tsx scripts/ci/retention-pg-test.ts --apply-only
  *
  * Kontrol edilenler (AGENTS.md 15 ve retention tasarimi):
- *   1. Dry-run hicbir satiri silmez, arsive YAZMAZ.
- *   2. Gercek calisma: arsiv-once silme sirasi (deliveries -> dispatches),
+ *   1. Dry-run hicbir satiri silmez, arsiv kullanmaz.
+ *   2. Gercek calisma: dogrudan silme sirasi (deliveries -> dispatches),
  *      FK ihlali olmadan, dogru satirlar silinir.
  *   3. Uygun seferin esikten YENI teslimati da silinir; sinirdaki (esik gunu)
  *      ve -59 gun seferleri korunur; acik (in_transit) sefer korunur.
- *   4. Enjekte edilen hata TUM islemi (arsiv satirlari dahil) geri alir.
+ *   4. Enjekte edilen hata TUM islemi geri alir.
  *   5. Eszamanli calisma advisory lock ile RETENTION_LOCKED dondurur.
  *   6. Denetim (audit) tablolari temizlikten etkilenmez.
  *   7. anon/authenticated purge_retention'u calistiramaz, retention tablolarini
@@ -92,7 +92,9 @@ async function seedReference(c: Client): Promise<void> {
   await c.query(`
     INSERT INTO public.users (id, name, username, role, can_load_vehicle, pin) VALUES
       ('u_admin', 'Yönetici', 'ci_admin', 'admin', true, '0000'),
-      ('u_driver', 'Şoför', 'ci_driver', 'driver', true, '1111')
+      ('u_driver', 'Şoför', 'ci_driver', 'driver', true, '1111'),
+      ('u_driver_2', 'Şoför 2', 'ci_driver_2', 'driver', true, '2222'),
+      ('u_driver_3', 'Şoför 3', 'ci_driver_3', 'driver', true, '3333')
     ON CONFLICT (id) DO NOTHING;
   `);
   await c.query(`
@@ -135,7 +137,8 @@ async function seedScenario(c: Client): Promise<void> {
       ('D61', to_char((now() AT TIME ZONE 'UTC')::date - 61, 'YYYY-MM-DD'), 'u_driver', 'Şoför', '34 CI 061', 'u_admin', 'Yönetici', 'completed', now() - interval '61 day', 'u_admin', 'Yönetici'),
       ('D60', to_char((now() AT TIME ZONE 'UTC')::date - 60, 'YYYY-MM-DD'), 'u_driver', 'Şoför', '34 CI 060', 'u_admin', 'Yönetici', 'completed', now() - interval '60 day', 'u_admin', 'Yönetici'),
       ('D59', to_char((now() AT TIME ZONE 'UTC')::date - 59, 'YYYY-MM-DD'), 'u_driver', 'Şoför', '34 CI 059', 'u_admin', 'Yönetici', 'completed', now() - interval '59 day', 'u_admin', 'Yönetici'),
-      ('DOPEN', to_char((now() AT TIME ZONE 'UTC')::date - 100, 'YYYY-MM-DD'), 'u_driver', 'Şoför', '34 CI 100', 'u_admin', 'Yönetici', 'in_transit', NULL, NULL, NULL);
+      ('DOPEN', to_char((now() AT TIME ZONE 'UTC')::date - 100, 'YYYY-MM-DD'), 'u_driver_2', 'Şoför 2', '34 CI 100', 'u_admin', 'Yönetici', 'in_transit', NULL, NULL, NULL),
+      ('DPENDING', to_char((now() AT TIME ZONE 'UTC')::date - 100, 'YYYY-MM-DD'), 'u_driver_3', 'Şoför 3', '34 CI 101', 'u_admin', 'Yönetici', 'pending_confirmation', NULL, NULL, NULL);
   `);
   await c.query(`
     INSERT INTO public.dispatch_items (dispatch_id, product_id, quantity)
@@ -154,7 +157,7 @@ async function seedScenario(c: Client): Promise<void> {
       ('DEL61NEW', 'D61', 'u_driver', 'Şoför', '34 CI 061', 'c1', 'Test Müşteri', now(), 100, 'CASH', 100, 100, 'paid'),
       ('DEL60', 'D60', 'u_driver', 'Şoför', '34 CI 060', 'c1', 'Test Müşteri', now() - interval '60 day', 100, 'CASH', 100, 100, 'paid'),
       ('DEL59', 'D59', 'u_driver', 'Şoför', '34 CI 059', 'c1', 'Test Müşteri', now() - interval '59 day', 100, 'CASH', 100, 100, 'paid'),
-      ('DELOPEN', 'DOPEN', 'u_driver', 'Şoför', '34 CI 100', 'c1', 'Test Müşteri', now(), 100, 'CASH', 100, 100, 'paid');
+      ('DELOPEN', 'DOPEN', 'u_driver_2', 'Şoför 2', '34 CI 100', 'c1', 'Test Müşteri', now(), 100, 'CASH', 100, 100, 'paid');
   `);
   await c.query(`
     INSERT INTO public.delivery_items (delivery_id, line_no, product_id, product_name, quantity, unit_price, line_total)
@@ -170,8 +173,7 @@ async function eligibleDispatchIds(c: Client): Promise<string[]> {
   const r = await c.query(`
     SELECT COALESCE(array_agg(id), ARRAY[]::text[]) AS ids
     FROM public.dispatches
-    WHERE status = 'completed' AND closed_at IS NOT NULL
-      AND date < to_char((now() AT TIME ZONE 'UTC')::date - ${RETENTION_DAYS}, 'YYYY-MM-DD');
+    WHERE date < to_char((now() AT TIME ZONE 'UTC')::date - ${RETENTION_DAYS}, 'YYYY-MM-DD');
   `);
   return r.rows[0].ids;
 }
@@ -209,9 +211,6 @@ async function installOrderTriggers(c: Client): Promise<void> {
   await c.query(`
     CREATE OR REPLACE FUNCTION ci_log_del() RETURNS trigger LANGUAGE plpgsql AS $$
     BEGIN
-      IF NOT EXISTS (SELECT 1 FROM public.retention_archive WHERE table_name = TG_TABLE_NAME) THEN
-        RAISE EXCEPTION 'ARCHIVE_BEFORE_DELETE_VIOLATED: %', TG_TABLE_NAME;
-      END IF;
       INSERT INTO ci_del_log(tbl) VALUES (TG_TABLE_NAME);
       RETURN OLD;
     END $$;
@@ -262,27 +261,24 @@ async function scenarioRealRun(c: Client): Promise<void> {
   check('uygun sefer (D61) silindi', !dIds.includes('D61'));
   check('sinirdaki sefer (D60) korundu', dIds.includes('D60'));
   check('D59 seferi korundu', dIds.includes('D59'));
-  check('acik sefer (DOPEN) korundu', dIds.includes('DOPEN'));
+  check('acik sefer (DOPEN) da silindi', !dIds.includes('DOPEN'));
+  check('askida sefer (DPENDING) da silindi', !dIds.includes('DPENDING'));
 
   const dli = await deliveryIds(c);
   check('esikten eski teslimat silindi', !dli.includes('DEL61OLD'));
   check('esikten YENI ama uygun sefere ait teslimat da silindi', !dli.includes('DEL61NEW'));
   check('sinirdaki teslimat korundu', dli.includes('DEL60'));
-  check('acik seferin teslimati korundu', dli.includes('DELOPEN'));
+  check('acik seferin teslimati da silindi', !dli.includes('DELOPEN'));
 
   check(
-    'rapor edilen silme sayilari (1 sefer, 2 teslimat)',
-    Number(res.purged_dispatches) === 1 && Number(res.purged_deliveries) === 2,
+    'rapor edilen silme sayilari (3 sefer, 3 teslimat)',
+    Number(res.purged_dispatches) === 3 && Number(res.purged_deliveries) === 3,
     JSON.stringify({ d: res.purged_dispatches, del: res.purged_deliveries })
   );
 
-  const archSum = Number(
-    (await c.query('SELECT COALESCE(sum(row_count),0)::int AS n FROM public.retention_archive')).rows[0].n
-  );
-  check('arsiv satir sayisi toplami = 7', archSum === 7, `bulunan=${archSum}`);
-  check('her iki tablo arsivlendi',
-    Number((await c.query("SELECT count(*)::int n FROM public.retention_archive WHERE table_name='dispatches'")).rows[0].n) >= 1 &&
-    Number((await c.query("SELECT count(*)::int n FROM public.retention_archive WHERE table_name='deliveries'")).rows[0].n) >= 1
+  check(
+    'arsiv kullanilmadi (0 satir)',
+    (await count(c, 'retention_archive')) === 0
   );
   check('musteri bakiye/boş kap degismedi', (await balancesSnapshot(c)) === before);
 
@@ -343,7 +339,7 @@ async function scenarioLock(c: Client): Promise<void> {
     check('kilitliyken arsiv bos', (await count(c, 'retention_archive')) === 0);
     await holder.query('ROLLBACK');
     const after = await purge(c, false, await eligibleDispatchIds(c));
-    check('kilit birakilinca purge basarili', Number(after.purged_dispatches) === 1);
+    check('kilit birakilinca purge basarili', Number(after.purged_dispatches) === 3);
   } finally {
     await holder.end();
   }
@@ -456,6 +452,57 @@ async function scenarioPrivileges(c: Client): Promise<void> {
   }
 }
 
+// Tek aktif sefer garantisi: aynı şoför veya aynı plaka için ikinci aktif
+// sefer DB seviyesinde reddedilmelidir. Tamamlanmış seferler indekse girmez.
+async function scenarioActiveDispatchUniqueness(c: Client): Promise<void> {
+  console.log('\n[7] Tek aktif sefer garantisi (unique index)');
+  await resetTransactional(c);
+  await seedReference(c);
+
+  const insertDispatch = (id: string, driverId: string, plate: string, status: string) =>
+    c.query(
+      `INSERT INTO public.dispatches
+         (id, date, driver_id, driver_name, vehicle_plate, loaded_by_user_id, loaded_by_user_name,
+          status, closed_at, closed_by_user_id, closed_by_user_name)
+       VALUES ($1, to_char((now() AT TIME ZONE 'UTC')::date, 'YYYY-MM-DD'), $2, 'Şoför', $3,
+               'u_admin', 'Yönetici', $4,
+               CASE WHEN $4 = 'completed' THEN now() ELSE NULL END,
+               CASE WHEN $4 = 'completed' THEN 'u_admin' ELSE NULL END,
+               CASE WHEN $4 = 'completed' THEN 'Yönetici' ELSE NULL END)`,
+      [id, driverId, plate, status]
+    );
+
+  const violation = async (fn: () => Promise<any>): Promise<string> => {
+    try {
+      await fn();
+      return 'NO_ERROR';
+    } catch (e: any) {
+      return `${e?.code || ''}:${e?.constraint || ''}`;
+    }
+  };
+
+  await insertDispatch('U1', 'u_driver', '34 U 001', 'in_transit');
+  check(
+    'aynı şoför için ikinci aktif sefer reddedildi',
+    (await violation(() => insertDispatch('U2', 'u_driver', '34 U 002', 'pending_confirmation'))) ===
+      '23505:ux_dispatches_active_driver'
+  );
+  check(
+    'aynı plaka için ikinci aktif sefer reddedildi',
+    (await violation(() => insertDispatch('U3', 'u_driver_2', '34 U 001', 'in_transit'))) ===
+      '23505:ux_dispatches_active_plate'
+  );
+
+  await insertDispatch('U4', 'u_driver_2', '34 U 003', 'completed');
+  check(
+    'tamamlanmış sefer indekse girmez; aynı şoför yeni aktif sefer açabilir',
+    (await violation(() => insertDispatch('U5', 'u_driver_2', '34 U 004', 'in_transit'))) ===
+      'NO_ERROR'
+  );
+
+  await resetTransactional(c);
+}
+
 async function main(): Promise<void> {
   const c = await newClient();
   try {
@@ -471,6 +518,7 @@ async function main(): Promise<void> {
     await scenarioLock(c);
     await scenarioBoundary(c);
     await scenarioAudit(c);
+    await scenarioActiveDispatchUniqueness(c);
     await scenarioPrivileges(c);
   } finally {
     await c.end();

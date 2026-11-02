@@ -34,6 +34,44 @@ export function formatDateTimeTr(value: string): string {
   });
 }
 
+// Türkiye sabit UTC+3'tür (2016'dan beri yaz saati uygulaması yok).
+const TR_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+// Bir sonraki 23:00 Türkiye saatini UTC zaman damgası olarak döndürür.
+// Sunucu hangi saat diliminde çalışırsa çalışsın sonuç aynıdır.
+export function getNext2300Time(now: Date = new Date()): {
+  nextDate: Date;
+  msUntil: number;
+  formatted: string;
+} {
+  const trNowMs = now.getTime() + TR_OFFSET_MS;
+  const trNow = new Date(trNowMs);
+
+  // Türkiye duvar saatiyle bugünün 23:00'ı (UTC alanlarına yazılmış gibi).
+  let targetTrMs = Date.UTC(
+    trNow.getUTCFullYear(),
+    trNow.getUTCMonth(),
+    trNow.getUTCDate(),
+    23,
+    0,
+    0,
+    0
+  );
+  if (trNowMs >= targetTrMs) targetTrMs += 24 * 60 * 60 * 1000;
+
+  const targetUtcMs = targetTrMs - TR_OFFSET_MS;
+  const target = new Date(targetUtcMs);
+  const msUntil = targetUtcMs - now.getTime();
+
+  const totalMinutes = Math.max(0, Math.round(msUntil / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const trDateStr = new Date(targetTrMs).toISOString().slice(0, 10);
+  const formatted = `${trDateStr} 23:00 (Türkiye saati) (${hours} saat ${minutes} dk sonra)`;
+
+  return { nextDate: target, msUntil, formatted };
+}
+
 // Saklama eşiği: bu tarihten (dahil değil) önceki günler temizlenebilir.
 export function retentionCutoffDate(now: Date = new Date()): string {
   return new Date(now.getTime() - RETENTION_DAYS * 24 * 60 * 60 * 1000)

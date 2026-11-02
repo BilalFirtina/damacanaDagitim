@@ -5,11 +5,10 @@
 // (public.purge_retention) aynı koşulları savunma amaçlı yeniden doğrular.
 //
 // Kurallar:
-//   * Yalnızca TAMAMLANMIŞ, KAPATILMIŞ (closedAt dolu) ve eşikten eski sefer.
-//   * Açık (pending_confirmation / in_transit) seferler ASLA silinmez.
+//   * Eşikten eski TÜM seferler silinir (completed / in_transit /
+//     pending_confirmation dahil). Askıda kalan sefer 60 gün sonra temizlenir.
 //   * Bir sefer silinirse, o sefere ait TÜM teslimatlar (tarihinden bağımsız)
 //     birlikte silinir; böylece cascade olmayan FK ihlali oluşmaz.
-//   * Tamamlanmamış bir sefere ait teslimat ASLA silinmez.
 //   * Sahipsiz (dispatchId boş) ve eşikten eski teslimatlar silinir.
 //   * Müşteriler, kullanıcılar, ürünler, bakiyeler ve boş kap miktarları HİÇBİR
 //     zaman bu kapsama girmez.
@@ -22,12 +21,7 @@ export interface RetentionSelection {
 }
 
 export function isDispatchPurgeEligible(dispatch: Dispatch, cutoffDate: string): boolean {
-  return (
-    dispatch?.status === 'completed' &&
-    Boolean(dispatch.endOfDayReconciliation?.closedAt) &&
-    typeof dispatch.date === 'string' &&
-    dispatch.date < cutoffDate
-  );
+  return typeof dispatch?.date === 'string' && dispatch.date < cutoffDate;
 }
 
 // Verilen sefer/teslimat kümelerinden silinecek kimlikleri seçer.
@@ -59,6 +53,7 @@ export function selectRetentionIds(
 
 // Bir bakiyeye (müşteri finansal borcu) veya boş kap miktarına erişmediğini
 // kanıtlamak için temizliği yalnızca sefer/teslimat dizileri üzerinde uygular.
+// Dönen archived* dizileri "silinecek" satırlardır; arşive yazılmazlar.
 export interface LocalRetentionResult {
   dispatches: Dispatch[];
   deliveries: Delivery[];
