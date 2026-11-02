@@ -1,8 +1,6 @@
 import {
-  buildCustomerDispenserSuggestions,
   CustomerDispenserValidationError,
   normalizeCustomerDispenserInput,
-  summarizeCustomerDispenserQuantity,
 } from '../src/services/customerDispenserRules';
 
 let passed = 0;
@@ -115,28 +113,31 @@ equals(
   }
 );
 
-console.log('\n2) Zorunlu alanlar');
-rejects(
-  'marka zorunlu',
-  () => normalizeCustomerDispenserInput({ model: 'Mini', quantity: 1 }),
-  'Marka zorunludur'
+console.log('\n2) En az bir alan zorunlu (marka / model / aciklama)');
+equals(
+  'sadece marka kabul edilir',
+  normalizeCustomerDispenserInput({ brand: 'Sırma', quantity: 1 }),
+  { brand: 'Sırma', model: '', quantity: 1, note: null }
+);
+equals(
+  'sadece model kabul edilir',
+  normalizeCustomerDispenserInput({ model: 'Mini', quantity: 1 }),
+  { brand: '', model: 'Mini', quantity: 1, note: null }
+);
+equals(
+  'sadece aciklama kabul edilir',
+  normalizeCustomerDispenserInput({
+    brand: '  ',
+    model: '  ',
+    quantity: 1,
+    note: 'Giris katinda birakildi',
+  }),
+  { brand: '', model: '', quantity: 1, note: 'Giris katinda birakildi' }
 );
 rejects(
-  'model zorunlu',
-  () => normalizeCustomerDispenserInput({ brand: 'Sırma', quantity: 1 }),
-  'Model zorunludur'
-);
-rejects(
-  'bos marka reddedilir',
-  () =>
-    normalizeCustomerDispenserInput({ brand: '  ', model: 'Mini', quantity: 1 }),
-  'Marka zorunludur'
-);
-rejects(
-  'bos model reddedilir',
-  () =>
-    normalizeCustomerDispenserInput({ brand: 'Sırma', model: '  ', quantity: 1 }),
-  'Model zorunludur'
+  'uc alan da bossa reddedilir',
+  () => normalizeCustomerDispenserInput({ brand: '  ', model: '  ', quantity: 1, note: '  ' }),
+  'En az marka, model veya açıklama'
 );
 rejects(
   'nesne olmayan girdi reddedilir',
@@ -253,38 +254,6 @@ rejects(
       model: 'Mini',
     }),
   'tam sayı'
-);
-
-console.log('\n5) Oneriler ve toplam');
-equals(
-  'marka ve modeller tekillestirilip Turkce siralanir',
-  buildCustomerDispenserSuggestions([
-    { brand: 'Sırma', model: 'Mini' },
-    { brand: 'Hayat', model: 'HT-200' },
-    { brand: 'Sırma', model: 'HT-200' },
-    { brand: '  ', model: ' ' },
-  ]),
-  {
-    brands: ['Hayat', 'Sırma'],
-    models: ['HT-200', 'Mini'],
-  }
-);
-equals(
-  'bos oneri listesi',
-  buildCustomerDispenserSuggestions([]),
-  { brands: [], models: [] }
-);
-check(
-  'sebil adetleri toplanir',
-  summarizeCustomerDispenserQuantity([
-    { quantity: 2 },
-    { quantity: 3 },
-    { quantity: 1 },
-  ]) === 6
-);
-check(
-  'bos listede toplam sifirdir',
-  summarizeCustomerDispenserQuantity([]) === 0
 );
 
 console.log(`\nSONUC: ${passed} gecti, ${failed} basarisiz`);

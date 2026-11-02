@@ -10,6 +10,7 @@ import {
   todayUtcDateStr,
   utcDayQueryWindow,
   isSameUtcDate,
+  formatDateTr,
 } from '../src/services/dateWindow.ts';
 
 let passed = 0;
@@ -106,6 +107,13 @@ check(
   isSameUtcDate('', '2026-10-19'),
   false
 );
+
+// 5. Turkish display format (gg.aa.yyyy).
+console.log('5) Turkish date display');
+check('date formats as gg.aa.yyyy', formatDateTr('2026-10-19'), '19.10.2026');
+check('empty value is returned as-is', formatDateTr(''), '');
+check('invalid value is returned as-is', formatDateTr('gecersiz'), 'gecersiz');
+check('incomplete value is returned as-is', formatDateTr('2026-10'), '2026-10');
 
 console.log(`\nResult: ${passed} passed, ${failed} failed\n`);
 process.exit(failed === 0 ? 0 : 1);

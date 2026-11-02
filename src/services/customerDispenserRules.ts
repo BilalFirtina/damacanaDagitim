@@ -1,6 +1,5 @@
 import {
   CustomerDispenserInput,
-  CustomerDispenserSuggestions,
 } from '../types';
 
 const BRAND_MODEL_MAX_LENGTH = 60;
@@ -15,19 +14,12 @@ export class CustomerDispenserValidationError extends Error {
   }
 }
 
-function normalizeRequiredText(
-  value: unknown,
-  fieldLabel: string,
-  maxLength: number
-): string {
+function normalizeOptionalText(value: unknown, fieldLabel: string, maxLength: number): string {
+  if (value === undefined || value === null) return '';
   if (typeof value !== 'string') {
-    throw new CustomerDispenserValidationError(`${fieldLabel} zorunludur.`);
+    throw new CustomerDispenserValidationError(`${fieldLabel} metin olmalıdır.`);
   }
-
   const normalized = value.trim();
-  if (!normalized) {
-    throw new CustomerDispenserValidationError(`${fieldLabel} zorunludur.`);
-  }
   if (normalized.length > maxLength) {
     throw new CustomerDispenserValidationError(
       `${fieldLabel} en fazla ${maxLength} karakter olabilir.`
@@ -44,16 +36,8 @@ export function normalizeCustomerDispenserInput(
   }
 
   const input = value as Record<string, unknown>;
-  const brand = normalizeRequiredText(
-    input.brand,
-    'Marka',
-    BRAND_MODEL_MAX_LENGTH
-  );
-  const model = normalizeRequiredText(
-    input.model,
-    'Model',
-    BRAND_MODEL_MAX_LENGTH
-  );
+  const brand = normalizeOptionalText(input.brand, 'Marka', BRAND_MODEL_MAX_LENGTH);
+  const model = normalizeOptionalText(input.model, 'Model', BRAND_MODEL_MAX_LENGTH);
 
   if (
     typeof input.quantity !== 'number' ||
@@ -79,30 +63,17 @@ export function normalizeCustomerDispenserInput(
     note = normalizedNote || null;
   }
 
+  // AGENTS.md 7.1: marka, model veya açıklamadan en az biri girilmelidir.
+  if (!brand && !model && !note) {
+    throw new CustomerDispenserValidationError(
+      'En az marka, model veya açıklama girilmelidir.'
+    );
+  }
+
   return {
     brand,
     model,
     quantity: input.quantity,
     note,
   };
-}
-
-export function buildCustomerDispenserSuggestions(
-  rows: Array<{ brand: string; model: string }>
-): CustomerDispenserSuggestions {
-  const compare = (a: string, b: string) => a.localeCompare(b, 'tr');
-  const brands = Array.from(
-    new Set(rows.map((row) => row.brand.trim()).filter(Boolean))
-  ).sort(compare);
-  const models = Array.from(
-    new Set(rows.map((row) => row.model.trim()).filter(Boolean))
-  ).sort(compare);
-
-  return { brands, models };
-}
-
-export function summarizeCustomerDispenserQuantity(
-  rows: Array<{ quantity: number }>
-): number {
-  return rows.reduce((total, row) => total + row.quantity, 0);
 }

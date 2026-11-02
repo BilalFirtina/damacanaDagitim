@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Delivery, User, Product } from '../../types';
+import { Delivery, Dispatch, User, Product } from '../../types';
 import {
   FileSpreadsheet,
   Printer,
@@ -12,27 +12,35 @@ import {
   RotateCcw,
   RefreshCw,
   FileText,
-  History
+  History,
+  AlertTriangle,
+  Truck
 } from 'lucide-react';
 import { fetchDailyReport } from '../../services/api';
 import { todayUtcDateStr } from '../../services/dateWindow';
 import { ConsolidatedDailyReport } from './ConsolidatedDailyReport';
 import { DeliveryCorrectionsView } from './DeliveryCorrectionsView';
+import { BalancesReportView } from './BalancesReportView';
+import { DriverActivityReport } from './DriverActivityReport';
+import { DiscrepancyReport } from './DiscrepancyReport';
+import { AuditHistoryView } from './AuditHistoryView';
 
 interface DailyReportsViewProps {
   users: User[];
   products: Product[];
   currentUser?: User;
+  dispatches?: Dispatch[];
 }
 
 export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
   users,
   products,
   currentUser,
+  dispatches = [],
 }) => {
   const isDriver = currentUser?.role === 'driver';
   const todayStr = todayUtcDateStr();
-  const [subTab, setSubTab] = useState<'consolidated' | 'detailed' | 'corrections'>(
+  const [subTab, setSubTab] = useState<'consolidated' | 'detailed' | 'drivers' | 'discrepancies' | 'balances' | 'corrections' | 'history'>(
     'consolidated'
   );
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
@@ -157,6 +165,10 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
     totalEmptyDamacanaCollected: 0,
     totalEmptyCamDamacanaCollected: 0,
     totalEmptyTupCollected: 0,
+    totalStandaloneCash: 0,
+    totalStandalonePos: 0,
+    totalStandaloneTransfer: 0,
+    totalStandaloneCollected: 0,
   };
 
   // Calculation of actual collections received by driver for the business day
@@ -194,7 +206,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                   Şoför Gün Sonu Tahsilat Özeti
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Şoför: <strong>{currentUser?.name}</strong> · Plaka: <strong>{currentUser?.assignedPlate || 'Araç'}</strong>
+                  Şoför: <strong>{currentUser?.name}</strong>
                 </p>
               </div>
             </div>
@@ -205,6 +217,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
               <input
                 type="date"
                 value={selectedDate}
+                max={todayStr}
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="w-full sm:w-auto pl-8 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none"
               />
@@ -350,6 +363,50 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
           <span>Detaylı Teslimat Listesi & Excel</span>
         </button>
         <button
+          onClick={() => setSubTab('drivers')}
+          className={`w-full sm:w-auto min-h-11 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center sm:justify-start gap-2 text-left ${
+            subTab === 'drivers'
+              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <Truck className="w-4 h-4 shrink-0" />
+          <span>Şoför Faaliyet Raporu</span>
+        </button>
+        <button
+          onClick={() => setSubTab('discrepancies')}
+          className={`w-full sm:w-auto min-h-11 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center sm:justify-start gap-2 text-left ${
+            subTab === 'discrepancies'
+              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span>Araçta Kalan & Kasa Uyuşmazlıkları</span>
+        </button>
+        <button
+          onClick={() => setSubTab('balances')}
+          className={`w-full sm:w-auto min-h-11 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center sm:justify-start gap-2 text-left ${
+            subTab === 'balances'
+              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <Wallet className="w-4 h-4 shrink-0" />
+          <span>Cari & İade Edilebilir Bakiyeler</span>
+        </button>
+        <button
+          onClick={() => setSubTab('history')}
+          className={`w-full sm:w-auto min-h-11 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center sm:justify-start gap-2 text-left ${
+            subTab === 'history'
+              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <History className="w-4 h-4 shrink-0" />
+          <span>İşlem Geçmişi</span>
+        </button>
+        <button
           onClick={() => setSubTab('corrections')}
           className={`w-full sm:w-auto min-h-11 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center sm:justify-start gap-2 text-left ${
             subTab === 'corrections'
@@ -364,6 +421,18 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
 
       {subTab === 'consolidated' ? (
         <ConsolidatedDailyReport users={users} products={products} />
+      ) : subTab === 'balances' ? (
+        <BalancesReportView />
+      ) : subTab === 'discrepancies' ? (
+        <DiscrepancyReport dispatches={dispatches} products={products} />
+      ) : subTab === 'drivers' ? (
+        <DriverActivityReport
+          dispatches={reportData?.dispatches || []}
+          deliveries={deliveries}
+          date={selectedDate}
+        />
+      ) : subTab === 'history' ? (
+        <AuditHistoryView />
       ) : subTab === 'corrections' ? (
         <DeliveryCorrectionsView />
       ) : (
@@ -386,6 +455,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
             <input
               type="date"
               value={selectedDate}
+              max={todayStr}
               onChange={(e) => setSelectedDate(e.target.value)}
               className="pl-8 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none"
             />
@@ -402,7 +472,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
               <option value="all">Tüm Şoförler ({driversList.length})</option>
               {driversList.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.name} ({d.assignedPlate || 'Araçsız'})
+                  {d.name}
                 </option>
               ))}
             </select>
@@ -471,6 +541,20 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
           <span className="text-[10px] text-indigo-600/80 font-medium">Banka POS Çekimleri</span>
         </div>
 
+        <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-teal-200 dark:border-teal-900 bg-teal-50/20 shadow-xs">
+          <span className="text-[11px] font-semibold text-teal-700 dark:text-teal-400 uppercase tracking-wider block">
+            Teslimat Dışı Tahsilat
+          </span>
+          <div className="text-xl font-extrabold font-mono text-teal-600 mt-1 tabular-nums">
+            {(summary.totalStandaloneCollected || 0).toLocaleString('tr-TR')} ₺
+          </div>
+          <span className="text-[10px] text-teal-600/80 font-medium break-words">
+            Nakit {(summary.totalStandaloneCash || 0).toLocaleString('tr-TR')} ₺ · POS{' '}
+            {(summary.totalStandalonePos || 0).toLocaleString('tr-TR')} ₺ · Havale{' '}
+            {(summary.totalStandaloneTransfer || 0).toLocaleString('tr-TR')} ₺
+          </span>
+        </div>
+
         <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50/20 shadow-xs">
           <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">
             Cari / Veresiye
@@ -526,7 +610,8 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
             Seçilen tarih ve kriterlere uygun teslimat kaydı bulunamadı.
           </div>
         ) : (
-          <div className="overflow-x-auto print:overflow-visible w-full max-w-full">
+          <>
+          <div className="hidden md:block overflow-x-auto print:overflow-visible w-full max-w-full">
             <table className="w-full text-left text-xs border-collapse min-w-[700px]">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold bg-slate-50/50 dark:bg-slate-800/50">
@@ -643,6 +728,124 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
               </tbody>
             </table>
           </div>
+
+          {/* Mobil: geniş tablo yerine yığılmış kartlar (AGENTS.md Bölüm 11).
+              Yatay sayfa kaydırması gerekmez; tüm tutarlar görünür kalır. */}
+          <div className="md:hidden space-y-3">
+            {filteredDeliveries.map((del) => {
+              const timeStr = new Date(del.timestamp).toLocaleTimeString('tr-TR', {
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+              const hasEmpties =
+                del.emptyContainersReceived.damacana > 0 ||
+                (del.emptyContainersReceived.camDamacana || 0) > 0 ||
+                del.emptyContainersReceived.tup > 0;
+
+              return (
+                <div
+                  key={del.id}
+                  className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 space-y-2.5 min-w-0"
+                >
+                  <div className="flex items-start justify-between gap-2 min-w-0">
+                    <div className="min-w-0">
+                      <div className="font-bold text-slate-900 dark:text-white break-words">
+                        {del.customerName}
+                      </div>
+                      <div className="text-[11px] text-slate-500 break-words">
+                        {del.customerAddress}
+                      </div>
+                    </div>
+                    <span className="shrink-0 font-mono text-[11px] text-slate-500">
+                      {timeStr}
+                    </span>
+                  </div>
+
+                  <div className="text-[11px] text-slate-600 dark:text-slate-300 break-words">
+                    {del.driverName} · <span className="font-mono">{del.vehiclePlate}</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1">
+                    {del.deliveredItems.map((item, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[11px] break-words"
+                      >
+                        <strong>{item.quantity}</strong> {item.productName}{' '}
+                        <span className="text-slate-500">({item.unitPrice} ₺)</span>
+                      </span>
+                    ))}
+                  </div>
+
+                  {hasEmpties && (
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-mono font-bold">
+                      {del.emptyContainersReceived.damacana > 0 && (
+                        <span className="text-orange-600">
+                          {del.emptyContainersReceived.damacana} Boş
+                        </span>
+                      )}
+                      {(del.emptyContainersReceived.camDamacana || 0) > 0 && (
+                        <span className="text-amber-600">
+                          {del.emptyContainersReceived.camDamacana} Boş Cam
+                        </span>
+                      )}
+                      {del.emptyContainersReceived.tup > 0 && (
+                        <span className="text-slate-600">
+                          {del.emptyContainersReceived.tup} Boş Tüp
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <dl className="grid grid-cols-2 gap-2 text-[11px] border-t border-slate-100 dark:border-slate-800 pt-2">
+                    <div className="min-w-0">
+                      <dt className="text-slate-500">Mal Tutarı</dt>
+                      <dd className="font-mono font-bold text-slate-900 dark:text-white tabular-nums break-words">
+                        {del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺
+                      </dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-slate-500">Nakit</dt>
+                      <dd className="font-mono font-bold tabular-nums break-words">
+                        {del.collectedPayment.cashAmount > 0 ? (
+                          <span className="text-emerald-600">
+                            {del.collectedPayment.cashAmount.toLocaleString('tr-TR')} ₺
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">0 ₺</span>
+                        )}
+                      </dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-slate-500">POS Kart</dt>
+                      <dd className="font-mono font-bold tabular-nums break-words">
+                        {del.collectedPayment.posAmount > 0 ? (
+                          <span className="text-indigo-600">
+                            {del.collectedPayment.posAmount.toLocaleString('tr-TR')} ₺
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">0 ₺</span>
+                        )}
+                      </dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-slate-500">Cari Borç</dt>
+                      <dd className="font-mono font-bold tabular-nums break-words">
+                        {del.collectedPayment.diffUncollected > 0 ? (
+                          <span className="text-amber-600">
+                            +{del.collectedPayment.diffUncollected.toLocaleString('tr-TR')} ₺
+                          </span>
+                        ) : (
+                          <span className="text-emerald-600">Kapandı</span>
+                        )}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              );
+            })}
+          </div>
+          </>
         )}
       </div>
         </>

@@ -9,6 +9,7 @@ import {
   User,
   Product,
   Customer,
+  Delivery,
   Dispatch,
   LoadedItem,
 } from './src/types/index.ts';
@@ -25,10 +26,7 @@ import {
   createCustomer,
   updateCustomer,
   listCustomerDispensers,
-  getCustomerDispenserSuggestions,
   createCustomerDispenser,
-  updateCustomerDispenser,
-  deleteCustomerDispenser,
   getDispatches,
   createDispatch,
   updateDispatchLoading,
@@ -36,8 +34,16 @@ import {
   closeDispatchAtomic,
   adminUpdateCustomerAtomic,
   getDeliveries,
+  getCustomerFinancialAudit,
+  createCustomerPayment,
+  getCustomerPayments,
+  getCustomerPaymentsByDate,
+  getCustomerPaymentById,
+  adjustCustomerDispenserQuantity,
   getDeliveryById,
   getDeliveryCorrections,
+  getDispatchReopenAudits,
+  getDispatchLoadingAudits,
   createDeliveryRecord,
   cancelDeliveryAtomic,
   replaceDeliveryAtomic,
@@ -70,6 +76,8 @@ import {
   DispatchRuleResult,
 } from './src/services/dispatchRules.ts';
 import { todayUtcDateStr } from './src/services/dateWindow.ts';
+import { buildCustomerStatement } from './src/services/statementRules.ts';
+import { maskCustomerFinancialsForDriver } from './src/services/customerVisibility.ts';
 import {
   CustomerDispenserValidationError,
   normalizeCustomerDispenserInput,
@@ -84,6 +92,18 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 app.use(express.json());
 
 const getTodayDateStr = () => todayUtcDateStr();
+
+// Bir teslimatın sebil net etkisi: teslim edilen − geri alınan.
+function sebilNet(delivery: Delivery, products: Product[]): number {
+  const sebilIds = new Set(
+    products.filter((p) => p.depositType === 'sebil').map((p) => p.id)
+  );
+  const delivered = (delivery.deliveredItems || [])
+    .filter((i) => sebilIds.has(i.productId))
+    .reduce((sum, i) => sum + (Number(i.quantity) || 0), 0);
+  const returned = Number(delivery.emptyContainersReceived?.sebil) || 0;
+  return delivered - returned;
+}
 
 // PWA Manifest and Service Worker static serving with proper headers
 app.get(['/manifest.json', '/manifest.webmanifest'], (_req, res) => {
@@ -531,7 +551,10 @@ app.post('/api/products', requireAdmin, async (req, res) => {
     id: `prod_${Date.now()}`,
     name,
     category: category || 'damacana',
-    defaultUnitPrice: Number(defaultUnitPrice) || 100,
+    defaultUnitPrice:
+      defaultUnitPrice === undefined || defaultUnitPrice === null || defaultUnitPrice === ''
+        ? 100
+        : Number(defaultUnitPrice),
     isDeposit: !!isDeposit,
     depositType: depositType || 'none',
     unit: unit || 'Adet',
@@ -566,10 +589,11 @@ app.delete('/api/products/:id', requireAdmin, async (req, res) => {
 });
 
 // 3. Customers
-app.get('/api/customers', async (_req, res) => {
+app.get('/api/customers', async (req, res) => {
   try {
+    const session = getAuthUser(req);
     const customers = await getCustomers();
-    res.json({ customers });
+    res.json({ customers: customers.map((c) => maskCustomerFinancialsForDriver(c, session)) });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -601,7 +625,9 @@ app.post('/api/customers', async (req, res) => {
 
   try {
     const created = await createCustomer(newCust);
-    res.status(201).json({ customer: created });
+    res.status(201).json({
+      customer: maskCustomerFinancialsForDriver(created, getAuthUser(req)),
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Müşteri kaydedilemedi' });
   }
@@ -700,13 +726,200 @@ app.put('/api/customers/:id', requireAdmin, async (req, res) => {
   }
 });
 
+app.get('/api/customers/:id/payments', requireAdmin, async (req, res) => {
+  try {
+    const payments = await getCustomerPayments(req.params.id, 100);
+    res.json({ payments });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Tahsilat kayıtları okunamadı.' });
+  }
+});
+
+app.post('/api/customers/:id/payments', requireAdmin, async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const amount = Number(body.amount);
+    const method = body.method;
+    const note = typeof body.note === 'string' ? body.note.slice(0, 500) : '';
+    const requestedId = typeof body.paymentId === 'string' ? body.paymentId : '';
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'Tahsilat tutarı sıfırdan büyük olmalıdır.' });
+    }
+    if (!['CASH', 'POS', 'TRANSFER'].includes(method)) {
+      return res.status(400).json({ error: 'Geçersiz ödeme yöntemi.' });
+    }
+    if (requestedId && !/^pay_[A-Za-z0-9_-]{1,80}$/.test(requestedId)) {
+      return res.status(400).json({ error: 'Geçersiz tahsilat kimliği.' });
+    }
+
+    const session = getAuthUser(req)!;
+    const paymentId =
+      requestedId || `pay_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+    // Aynı kimlik farklı tutar/yöntemle gelirse sessizce eski kaydı döndürme.
+    if (requestedId) {
+      const existingPayment = await getCustomerPaymentById(requestedId);
+      if (
+        existingPayment &&
+        (Math.abs(existingPayment.amount - amount) > 0.005 ||
+          existingPayment.method !== method)
+      ) {
+        return res.status(409).json({
+          error:
+            'Bu tahsilat kimliği daha önce farklı tutar veya yöntemle kaydedilmiş. Kayıt değiştirilmedi.',
+          code: 'PAYMENT_ID_CONFLICT',
+        });
+      }
+    }
+
+    const result = await createCustomerPayment({
+      paymentId,
+      customerId: req.params.id,
+      amount,
+      method,
+      note,
+      actor: { id: session.userId, name: session.name },
+    });
+
+    res.status(201).json({
+      ...result,
+      message: result.alreadyApplied
+        ? 'Bu tahsilat daha önce kaydedilmiş; bakiye ikinci kez düşürülmedi.'
+        : 'Tahsilat kaydedildi.',
+    });
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || 'Tahsilat kaydedilemedi.' });
+  }
+});
+
+app.get('/api/reports/balances', requireAdmin, async (_req, res) => {
+  try {
+    const customers = await getCustomers();
+
+    const rows = customers
+      .map((c) => {
+        const empty = c.emptyDepositBalance || { damacana: 0, camDamacana: 0, tup: 0 };
+        const camDamacana = Number((empty as any).camDamacana ?? (empty as any).cam_damacana) || 0;
+        return {
+          id: c.id,
+          name: c.name,
+          phone: c.phone,
+          isAccountCustomer: c.isAccountCustomer,
+          balance: Number(c.currentBalanceTL) || 0,
+          empty: {
+            damacana: Number(empty.damacana) || 0,
+            camDamacana,
+            tup: Number(empty.tup) || 0,
+            sebil: Number((empty as any).sebil) || 0,
+          },
+        };
+      })
+      .filter((row) => {
+        // Türler birbirini götürmemeli: -1 damacana + 1 sebil hâlâ raporlanmalı.
+        const hasEmpty =
+          row.empty.damacana !== 0 ||
+          row.empty.camDamacana !== 0 ||
+          row.empty.tup !== 0 ||
+          row.empty.sebil !== 0;
+        return Math.abs(row.balance) > 0.005 || hasEmpty;
+      })
+      .sort((a, b) => b.balance - a.balance || a.name.localeCompare(b.name, 'tr'));
+
+    const totals = {
+      totalDebt: rows.reduce((sum, r) => sum + (r.balance > 0 ? r.balance : 0), 0),
+      totalAdvance: rows.reduce((sum, r) => sum + (r.balance < 0 ? -r.balance : 0), 0),
+      emptyDamacana: rows.reduce((sum, r) => sum + r.empty.damacana, 0),
+      emptyCamDamacana: rows.reduce((sum, r) => sum + r.empty.camDamacana, 0),
+      emptyTup: rows.reduce((sum, r) => sum + r.empty.tup, 0),
+      emptySebil: rows.reduce((sum, r) => sum + r.empty.sebil, 0),
+    };
+
+    res.json({ rows, totals });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Bakiye raporu oluşturulamadı.' });
+  }
+});
+
+app.get('/api/customers/:id/statement', requireAdmin, async (req, res) => {
+  try {
+    const customerId = req.params.id;
+    const customers = await getCustomers();
+    const customer = customers.find((c) => c.id === customerId);
+    if (!customer) {
+      return res.status(404).json({ error: 'Müşteri bulunamadı' });
+    }
+
+    const today = getTodayDateStr();
+    const isDate = (v: unknown): v is string =>
+      typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+    const defaultFrom = new Date(new Date(`${today}T00:00:00.000Z`).getTime() - 29 * 86400000)
+      .toISOString()
+      .slice(0, 10);
+
+    const from = isDate(req.query.from) ? req.query.from : defaultFrom;
+    const to = isDate(req.query.to) ? req.query.to : today;
+
+    if (from > to) {
+      return res.status(400).json({ error: 'Başlangıç tarihi bitiş tarihinden sonra olamaz.' });
+    }
+    if (to > today) {
+      return res.status(400).json({ error: 'Gelecek bir tarih aralığı için ekstre alınamaz.' });
+    }
+
+    const [deliveries, audits] = await Promise.all([
+      getDeliveries({ customerId }),
+      getCustomerFinancialAudit(customerId),
+    ]);
+
+    const statement = buildCustomerStatement({
+      currentBalance: Number(customer.currentBalanceTL) || 0,
+      deliveries: deliveries.map((d) => ({
+        id: d.id,
+        timestamp: d.timestamp,
+        deliveredGrandTotal: Number(d.deliveredGrandTotal) || 0,
+        collectedPayment: {
+          totalCollected: Number(d.collectedPayment?.totalCollected) || 0,
+          cashAmount: Number(d.collectedPayment?.cashAmount) || 0,
+          posAmount: Number(d.collectedPayment?.posAmount) || 0,
+        },
+        deliveredItems: (d.deliveredItems || []).map((i) => ({
+          productId: i.productId,
+          productName: i.productName,
+          quantity: Number(i.quantity) || 0,
+          unitPrice: Number(i.unitPrice) || 0,
+          lineTotal: Number(i.lineTotal) || 0,
+        })),
+      })),
+      audits,
+      from,
+      to,
+    });
+
+    res.json({
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        phone: customer.phone,
+        address: customer.address,
+        isAccountCustomer: customer.isAccountCustomer,
+        currentBalanceTL: Number(customer.currentBalanceTL) || 0,
+      },
+      statement,
+      returnables: {
+        emptyDepositBalance: customer.emptyDepositBalance || { damacana: 0, camDamacana: 0, tup: 0 },
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Cari hesap ekstresi oluşturulamadı.' });
+  }
+});
+
 app.get('/api/customers/:id/dispensers', requireAdminOrDriver, async (req, res) => {
   try {
-    const [dispensers, suggestions] = await Promise.all([
-      listCustomerDispensers(req.params.id),
-      getCustomerDispenserSuggestions(),
-    ]);
-    res.json({ dispensers, suggestions });
+    const dispensers = await listCustomerDispensers(req.params.id);
+    res.json({ dispensers });
   } catch (err: any) {
     sendCustomerDispenserError(res, err);
   }
@@ -726,39 +939,6 @@ app.post('/api/customers/:id/dispensers', requireAdminOrDriver, async (req, res)
     sendCustomerDispenserError(res, err);
   }
 });
-
-app.put(
-  '/api/customers/:customerId/dispensers/:dispenserId',
-  requireAdminOrDriver,
-  async (req, res) => {
-    try {
-      const input = normalizeCustomerDispenserInput(req.body);
-      const actor = getAuthUser(req)!;
-      const dispenser = await updateCustomerDispenser(
-        req.params.customerId,
-        req.params.dispenserId,
-        input,
-        { id: actor.userId, name: actor.name }
-      );
-      res.json({ dispenser, message: 'Sebil güncellendi.' });
-    } catch (err: any) {
-      sendCustomerDispenserError(res, err);
-    }
-  }
-);
-
-app.delete(
-  '/api/customers/:customerId/dispensers/:dispenserId',
-  requireAdminOrDriver,
-  async (req, res) => {
-    try {
-      await deleteCustomerDispenser(req.params.customerId, req.params.dispenserId);
-      res.json({ success: true, message: 'Sebil silindi.' });
-    } catch (err: any) {
-      sendCustomerDispenserError(res, err);
-    }
-  }
-);
 
 // 4. Dispatches (Seferler & Yüklemeler)
 app.get('/api/dispatches', async (req, res) => {
@@ -831,7 +1011,7 @@ app.post('/api/dispatches', requireAdminOrLoader, async (req, res) => {
     }
 
     // Plaka dinamiktir; istemciden veya şoför tanımından gelir. Sabit plaka yoktur.
-    const selectedPlate = String(vehiclePlate || driver.assignedPlate || '').trim();
+    const selectedPlate = String(vehiclePlate || '').trim();
     if (!selectedPlate) {
       return res.status(400).json({ error: 'Araç plakası seçilmelidir.' });
     }
@@ -1117,7 +1297,7 @@ app.post('/api/deliveries', async (req, res) => {
         }
         return res.status(200).json({
           delivery: existing,
-          updatedCustomer: customer,
+          updatedCustomer: maskCustomerFinancialsForDriver(customer, session),
           duplicate: true,
         });
       }
@@ -1180,7 +1360,24 @@ app.post('/api/deliveries', async (req, res) => {
       });
     }
 
-    res.status(result.duplicate ? 200 : 201).json(result);
+    if (!result.duplicate) {
+      const returnedSebil = Number(newDelivery.emptyContainersReceived?.sebil) || 0;
+      if (returnedSebil > 0) {
+        await adjustCustomerDispenserQuantity(
+          customer.id,
+          -returnedSebil,
+          { id: session.userId, name: session.name },
+          'Sebil iadesi'
+        );
+      }
+    }
+
+    res.status(result.duplicate ? 200 : 201).json({
+      ...result,
+      updatedCustomer: result.updatedCustomer
+        ? maskCustomerFinancialsForDriver(result.updatedCustomer, session)
+        : null,
+    });
   } catch (err: any) {
     if (err instanceof DeliveryInputError) {
       return res.status(err.status).json({
@@ -1229,9 +1426,10 @@ app.post('/api/deliveries/:id/cancel', async (req, res) => {
       });
     }
 
-    const [existing, allDispatches] = await Promise.all([
+    const [existing, allDispatches, allProducts] = await Promise.all([
       getDeliveryById(deliveryId),
       getDispatches(),
+      getProducts(),
     ]);
     if (!existing) {
       return res.status(404).json({
@@ -1264,10 +1462,25 @@ app.post('/api/deliveries/:id/cancel', async (req, res) => {
     }
 
     const result = await cancelDeliveryAtomic(deliveryId, session.userId, reason);
+
+    if (!result.duplicate) {
+      const net = sebilNet(existing, allProducts);
+      if (net !== 0) {
+        await adjustCustomerDispenserQuantity(
+          existing.customerId,
+          -net,
+          { id: session.userId, name: session.name },
+          'Teslimat iptali'
+        );
+      }
+    }
+
     res.json({
       delivery: result.delivery,
       replacement: null,
-      updatedCustomer: result.updatedCustomer,
+      updatedCustomer: result.updatedCustomer
+        ? maskCustomerFinancialsForDriver(result.updatedCustomer, session)
+        : null,
       duplicate: result.duplicate,
     });
   } catch (err: any) {
@@ -1381,10 +1594,25 @@ app.post('/api/deliveries/:id/replace', async (req, res) => {
       reason,
       replacement
     );
+
+    if (!result.duplicate) {
+      const delta =
+        sebilNet(replacement, allProducts) - sebilNet(existing, allProducts);
+      if (delta !== 0) {
+        await adjustCustomerDispenserQuantity(
+          existing.customerId,
+          delta,
+          { id: session.userId, name: session.name },
+          'Teslimat düzeltmesi'
+        );
+      }
+    }
     res.json({
       delivery: result.delivery,
       replacement: result.replacement,
-      updatedCustomer: result.updatedCustomer,
+      updatedCustomer: result.updatedCustomer
+        ? maskCustomerFinancialsForDriver(result.updatedCustomer, session)
+        : null,
       duplicate: result.duplicate,
     });
   } catch (err: any) {
@@ -1408,11 +1636,79 @@ app.get('/api/delivery-corrections', requireAdmin, async (req, res) => {
   }
 });
 
+// 5e. Birleşik işlem geçmişi — teslimat düzeltme + sefer yeniden açma + yükleme düzeltme
+app.get('/api/audit/history', requireAdmin, async (req, res) => {
+  try {
+    const requested = Number(req.query.limit);
+    const limit = Math.min(Math.max(Number.isFinite(requested) ? requested : 100, 1), 200);
+
+    const [corrections, reopens, loadings] = await Promise.all([
+      getDeliveryCorrections(limit),
+      getDispatchReopenAudits(limit),
+      getDispatchLoadingAudits(limit),
+    ]);
+
+    const events = [
+      ...corrections.map((c) => ({
+        id: `correction_${c.id}`,
+        kind: 'delivery_correction',
+        at: c.createdAt,
+        by: c.performedByUserName,
+        title: c.action === 'cancel' ? 'Teslimat iptali' : 'Teslimat düzeltmesi',
+        reason: c.reason,
+        detail:
+          c.action === 'cancel'
+            ? 'Teslimat iptal edildi; bakiye ve stok geri alındı.'
+            : 'Teslimat yeni içerikle değiştirildi; eski kayıt arşivlendi.',
+        dispatchId: c.dispatchId,
+        deliveryId: c.deliveryId,
+      })),
+      ...reopens.map((r) => ({
+        id: r.id,
+        kind: 'dispatch_reopen',
+        at: r.changedAt,
+        by: r.userName,
+        title: 'Sefer yeniden açıldı',
+        reason: r.reason,
+        detail: r.detail,
+        dispatchId: r.dispatchId,
+        deliveryId: null,
+      })),
+      ...loadings.map((l) => ({
+        id: l.id,
+        kind: 'dispatch_loading',
+        at: l.changedAt,
+        by: l.userName,
+        title: 'Yükleme düzeltmesi',
+        reason: l.reason,
+        detail: l.detail,
+        dispatchId: l.dispatchId,
+        deliveryId: null,
+      })),
+    ]
+      .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
+      .slice(0, limit);
+
+    res.json({ events });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'İşlem geçmişi yüklenemedi.' });
+  }
+});
+
 // 6. Reports & Analytics
 app.get('/api/reports/daily', requireAdmin, async (req, res) => {
   try {
     const date = (req.query.date as string) || getTodayDateStr();
     const driverId = req.query.driverId as string;
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ error: 'Geçersiz tarih.' });
+    }
+    if (date > getTodayDateStr()) {
+      return res.status(400).json({
+        error: 'Gelecek bir tarih için rapor alınamaz. Henüz gerçekleşmemiş bir günün dağıtımı olamaz.',
+      });
+    }
 
     const [allDispatches, allCustomers] = await Promise.all([
       getDispatches(date),
@@ -1431,6 +1727,20 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
     if (driverId && driverId !== 'all') {
       deliveries = deliveries.filter((del) => del.driverId === driverId);
     }
+
+    // Teslimat dışı (sonraki ziyaret) tahsilatlar yönetici tarafından alınır;
+    // şoför filtresi uygulandığında bu toplamlara dahil edilmez.
+    const isAllDrivers = !driverId || driverId === 'all';
+    const customerPayments = isAllDrivers ? await getCustomerPaymentsByDate(date) : [];
+    const totalStandaloneCash = customerPayments
+      .filter((p) => p.method === 'CASH')
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const totalStandalonePos = customerPayments
+      .filter((p) => p.method === 'POS')
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const totalStandaloneTransfer = customerPayments
+      .filter((p) => p.method === 'TRANSFER')
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
     let totalDeliveries = deliveries.length;
     let totalCustomersVisited = new Set(deliveries.map((d) => d.customerId)).size;
@@ -1483,8 +1793,14 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
         totalEmptyDamacanaCollected,
         totalEmptyCamDamacanaCollected,
         totalEmptyTupCollected,
+        totalStandaloneCash,
+        totalStandalonePos,
+        totalStandaloneTransfer,
+        totalStandaloneCollected:
+          totalStandaloneCash + totalStandalonePos + totalStandaloneTransfer,
         deliveredProductQuantities,
       },
+      customerPayments,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

@@ -163,6 +163,56 @@ export function compareExpectedBalance(
   return { ok: true, current: currentNum };
 }
 
+// ---------------------------------------------------------------------------
+// Sonlandırılmamış (açık kalmış) sefer tespiti — AGENTS.md Bölüm 9.1
+// ---------------------------------------------------------------------------
+// Tarih alanı YYYY-MM-DD biçiminde olduğundan düz metin karşılaştırması
+// kronolojik karşılaştırmayla aynı sonucu verir. Bugünün açık seferi "eski"
+// sayılmaz; kapatılmış seferler hiçbir zaman uyarı üretmez.
+
+export interface StaleDispatchCandidate {
+  date: string;
+  driverId: string;
+  status: string;
+}
+
+export function isStaleDispatch(
+  dispatch: StaleDispatchCandidate | null | undefined,
+  todayStr: string
+): boolean {
+  if (!dispatch) return false;
+  return dispatch.status !== 'completed' && dispatch.date < todayStr;
+}
+
+// Şoförün tarihi geçmiş ve hâlâ açık olan en eski seferini döndürür.
+// Birden fazla açık sefer varsa en eskisi önceliklidir; yoksa null.
+export function findStaleOpenDispatch<T extends StaleDispatchCandidate>(
+  dispatches: T[],
+  driverId: string,
+  todayStr: string
+): T | null {
+  let oldest: T | null = null;
+  for (const dispatch of dispatches) {
+    if (dispatch.driverId !== driverId) continue;
+    if (!isStaleDispatch(dispatch, todayStr)) continue;
+    if (!oldest || dispatch.date < oldest.date) oldest = dispatch;
+  }
+  return oldest;
+}
+
+// Yönetici görünümü için: tüm şoförler arasında en eski açık kalmış sefer.
+export function findOldestStaleOpenDispatch<T extends StaleDispatchCandidate>(
+  dispatches: T[],
+  todayStr: string
+): T | null {
+  let oldest: T | null = null;
+  for (const dispatch of dispatches) {
+    if (!isStaleDispatch(dispatch, todayStr)) continue;
+    if (!oldest || dispatch.date < oldest.date) oldest = dispatch;
+  }
+  return oldest;
+}
+
 export function compareExpectedQuantity(
   current: number | null | undefined,
   expected: number | null | undefined,

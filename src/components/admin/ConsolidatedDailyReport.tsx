@@ -136,6 +136,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
             <input
               type="date"
               value={selectedDate}
+              max={todayStr}
               onChange={(e) => setSelectedDate(e.target.value)}
               className="pl-8 pr-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none"
             />
@@ -324,7 +325,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                 ])
               ).filter(Boolean);
 
-              const plateStr = plates.join(', ') || driver.assignedPlate || 'Belirtilmedi';
+              const plateStr = plates.join(', ') || 'Belirtilmedi';
 
               // Driver Subtotals
               let dSubTotalVal = 0;
@@ -373,7 +374,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                   </div>
 
                   {/* Customer Deliveries Table */}
-                  <div className="overflow-x-auto print:overflow-visible">
+                  <div className="hidden md:block print:block overflow-x-auto print:overflow-visible">
                     <table className="w-full text-xs border-collapse text-left">
                       <thead>
                         <tr className="border-b border-black bg-white">
@@ -490,6 +491,131 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                         </tr>
                       </tfoot>
                     </table>
+                  </div>
+
+                  {/* Mobil: 10 sütunlu tablo yerine yığılmış kartlar (AGENTS.md Bölüm 11).
+                      Yazdırma görünümünde gizlenir, tablo yazdırılır. */}
+                  <div className="md:hidden print:hidden divide-y divide-black">
+                    {driverDeliveries.length === 0 ? (
+                      <div className="p-3 text-center italic text-xs">
+                        Bu şoför için seçilen tarihte kayıtlı teslimat bulunmuyor.
+                      </div>
+                    ) : (
+                      driverDeliveries.map((del, dIdx) => {
+                        const timeStr = new Date(del.timestamp).toLocaleTimeString('tr-TR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        });
+                        const itemsListStr = del.deliveredItems
+                          .map((i) => `${i.quantity} ${i.productName}`)
+                          .join(', ');
+                        const emptyListStr =
+                          [
+                            del.emptyContainersReceived.damacana > 0
+                              ? `${del.emptyContainersReceived.damacana} Boş D.`
+                              : null,
+                            Number(del.emptyContainersReceived.camDamacana || 0) > 0
+                              ? `${del.emptyContainersReceived.camDamacana} Boş Cam D.`
+                              : null,
+                            del.emptyContainersReceived.tup > 0
+                              ? `${del.emptyContainersReceived.tup} Boş T.`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(', ') || '-';
+
+                        return (
+                          <div key={del.id} className="p-3 space-y-2 min-w-0">
+                            <div className="flex items-start justify-between gap-2 min-w-0">
+                              <div className="min-w-0">
+                                <div className="font-bold text-xs break-words">
+                                  {dIdx + 1}. {del.customerName}
+                                </div>
+                                {del.customerAddress && (
+                                  <div className="text-[10px] text-black/80 break-words">
+                                    {del.customerAddress}
+                                  </div>
+                                )}
+                              </div>
+                              <span className="shrink-0 font-mono text-[10px]">{timeStr}</span>
+                            </div>
+
+                            <div className="text-[11px] font-medium break-words">{itemsListStr}</div>
+
+                            <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                              <div className="flex justify-between gap-2 min-w-0">
+                                <dt>Tutar</dt>
+                                <dd className="font-mono font-bold tabular-nums break-words">
+                                  {del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺
+                                </dd>
+                              </div>
+                              <div className="flex justify-between gap-2 min-w-0">
+                                <dt>Nakit</dt>
+                                <dd className="font-mono tabular-nums break-words">
+                                  {del.collectedPayment.cashAmount > 0
+                                    ? `${del.collectedPayment.cashAmount.toLocaleString('tr-TR')} ₺`
+                                    : '-'}
+                                </dd>
+                              </div>
+                              <div className="flex justify-between gap-2 min-w-0">
+                                <dt>POS</dt>
+                                <dd className="font-mono tabular-nums break-words">
+                                  {del.collectedPayment.posAmount > 0
+                                    ? `${del.collectedPayment.posAmount.toLocaleString('tr-TR')} ₺`
+                                    : '-'}
+                                </dd>
+                              </div>
+                              <div className="flex justify-between gap-2 min-w-0">
+                                <dt>Cari Borç</dt>
+                                <dd className="font-mono tabular-nums break-words">
+                                  {del.collectedPayment.diffUncollected > 0
+                                    ? `${del.collectedPayment.diffUncollected.toLocaleString('tr-TR')} ₺`
+                                    : '-'}
+                                </dd>
+                              </div>
+                              <div className="flex justify-between gap-2 min-w-0">
+                                <dt>Boş Kap</dt>
+                                <dd className="font-mono break-words text-right">{emptyListStr}</dd>
+                              </div>
+                              <div className="flex justify-between gap-2 min-w-0">
+                                <dt>Not</dt>
+                                <dd className="break-words text-right">{del.notes || '-'}</dd>
+                              </div>
+                            </dl>
+                          </div>
+                        );
+                      })
+                    )}
+
+                    <div className="p-3 text-[11px] font-bold grid grid-cols-2 gap-x-3 gap-y-1">
+                      <div className="col-span-2 uppercase">
+                        {driver.name} Ara Toplamı ({driverDeliveries.length} Teslimat)
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span>Tutar</span>
+                        <span className="font-mono tabular-nums">
+                          {dSubTotalVal.toLocaleString('tr-TR')} ₺
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span>Nakit</span>
+                        <span className="font-mono tabular-nums">
+                          {dCash.toLocaleString('tr-TR')} ₺
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span>POS</span>
+                        <span className="font-mono tabular-nums">
+                          {dPos.toLocaleString('tr-TR')} ₺
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span>Cari Borç</span>
+                        <span className="font-mono tabular-nums">
+                          {dCredit.toLocaleString('tr-TR')} ₺
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               );

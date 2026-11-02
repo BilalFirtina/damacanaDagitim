@@ -1,6 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dispatch, Delivery, Product, User } from '../../types';
-import { todayUtcDateStr } from '../../services/dateWindow';
+import { todayUtcDateStr, formatDateTr } from '../../services/dateWindow';
+import {
+  findOldestStaleOpenDispatch,
+  findStaleOpenDispatch,
+  isStaleDispatch,
+} from '../../services/dispatchRules';
 import {
   CheckCircle2,
   AlertCircle,
@@ -19,17 +24,20 @@ import { closeDispatch, reopenDispatch } from '../../services/api';
 interface EndOfDayViewProps {
   dispatch: Dispatch | null;
   dispatches?: Dispatch[];
+  /** Uyarıdan gelindiğinde açılacak sefer (tarihi geçmiş açık sefer olabilir). */
+  selectedDispatchId?: string | null;
   deliveries: Delivery[];
   products: Product[];
   currentUser: User;
   onDispatchUpdated: (updated: Dispatch) => void;
   onNavigateTab?: (tab: any) => void;
-  onRefreshData?: () => Promise<void> | void;
+  onRefreshData?: () => void | Promise<unknown>;
 }
 
 export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
   dispatch: activeDispatchProp,
   dispatches = [],
+  selectedDispatchId: selectedDispatchIdProp,
   deliveries,
   products,
   currentUser,
@@ -39,15 +47,23 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
 }) => {
   const todayStr = todayUtcDateStr();
 
-  // Dispatches belonging to this driver/user or all for admin
+  // Sefer listesi: bugünün tüm seferleri + tarihi geçmiş ve hâlâ açık seferler.
+  // AGENTS.md Bölüm 9.1 gereği dünün açık seferi de kapatılabilmelidir.
   const candidateDispatches = dispatches.filter((d) => {
-    if (d.date !== todayStr) return false;
+    if (d.date !== todayStr && !isStaleDispatch(d, todayStr)) return false;
     if (currentUser.role === 'admin') return true;
     return d.driverId === currentUser.id;
   });
 
   // Selected dispatch ID state
   const [selectedDispatchId, setSelectedDispatchId] = useState<string>(() => {
+    if (selectedDispatchIdProp) return selectedDispatchIdProp;
+    // Önce sonlandırılmamış (tarihi geçmiş) sefer
+    const staleDispatch =
+      currentUser.role === 'admin'
+        ? findOldestStaleOpenDispatch(candidateDispatches, todayStr)
+        : findStaleOpenDispatch(candidateDispatches, currentUser.id, todayStr);
+    if (staleDispatch) return staleDispatch.id;
     if (activeDispatchProp) return activeDispatchProp.id;
     // Prefer open dispatch if any
     const openDispatch = candidateDispatches.find((d) => d.status !== 'completed');
@@ -56,9 +72,11 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
     return candidateDispatches[0]?.id || '';
   });
 
-  // Resolve currently viewed dispatch
+  // Resolve currently viewed dispatch. Seçili sefer kapatıldığında listeden
+  // düşse bile (tarihi geçmiş olabilir) görünüm korunur ve başarı bandı kalır.
   const currentViewDispatch =
     candidateDispatches.find((d) => d.id === selectedDispatchId) ||
+    dispatches.find((d) => d.id === selectedDispatchId) ||
     activeDispatchProp ||
     candidateDispatches[0] ||
     null;
@@ -68,6 +86,15 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
   const [closureNotes, setClosureNotes] = useState('');
   const [reopenReason, setReopenReason] = useState('');
   const [isReopening, setIsReopening] = useState(false);
+
+  // Uyarıdan "Gün Sonunu Tamamla" ile gelindiğinde doğru seferi aç.
+  useEffect(() => {
+    if (!selectedDispatchIdProp) return;
+    if (candidateDispatches.some((d) => d.id === selectedDispatchIdProp)) {
+      setSelectedDispatchId(selectedDispatchIdProp);
+      setSuccessMsg(false);
+    }
+  }, [selectedDispatchIdProp]);
 
   if (!currentViewDispatch) {
     return (
@@ -106,6 +133,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
   let totalEmptyDamacanaCollected = 0;
   let totalEmptyCamDamacanaCollected = 0;
   let totalEmptyTupCollected = 0;
+  let totalEmptySebilCollected = 0;
 
   dispatchDeliveries.forEach((del) => {
     totalDeliveredValue += del.deliveredGrandTotal;
@@ -117,6 +145,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
     totalEmptyDamacanaCollected += del.emptyContainersReceived.damacana || 0;
     totalEmptyCamDamacanaCollected += Number(del.emptyContainersReceived.camDamacana || del.emptyContainersReceived.cam_damacana) || 0;
     totalEmptyTupCollected += del.emptyContainersReceived.tup || 0;
+    totalEmptySebilCollected += Number(del.emptyContainersReceived?.sebil) || 0;
 
     del.deliveredItems.forEach((item) => {
       deliveredTotals[item.productId] =
@@ -159,6 +188,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
         collectedEmptyDamacana: totalEmptyDamacanaCollected,
         collectedEmptyCamDamacana: totalEmptyCamDamacanaCollected,
         collectedEmptyTup: totalEmptyTupCollected,
+        collectedEmptySebil: totalEmptySebilCollected,
         actualCashInPocket: Number(actualCashInPocket) || 0,
         actualPosSlipsTotal: Number(actualPosSlipsTotal) || 0,
         notes: closureNotes || currentViewDispatch.endOfDayReconciliation?.notes || '',
@@ -217,7 +247,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
         <div className="bg-slate-100 dark:bg-slate-800/80 p-2.5 rounded-2xl flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
             <Truck className="w-4 h-4 text-sky-600" />
-            <span>Bugünkü Seferler ({candidateDispatches.length}):</span>
+            <span>Seferler ({candidateDispatches.length}):</span>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {candidateDispatches.map((disp, idx) => (
@@ -227,7 +257,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                   setSelectedDispatchId(disp.id);
                   setSuccessMsg(false);
                 }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex flex-wrap items-center gap-1.5 max-w-full ${
                   disp.id === currentViewDispatch.id
                     ? 'bg-sky-600 text-white shadow-xs'
                     : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50'
@@ -236,6 +266,11 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                 <span>
                   Sefer #{idx + 1} ({disp.vehiclePlate})
                 </span>
+                {isStaleDispatch(disp, todayStr) && (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200">
+                    Önceki gün sonlandırılmadı
+                  </span>
+                )}
                 <span
                   className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
                     disp.status === 'completed'
@@ -243,10 +278,29 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                       : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200'
                   }`}
                 >
-                  {disp.status === 'completed' ? 'Kapatıldı' : 'Açık'}
+                  {disp.status === 'completed' ? 'Dağıtım Tamamlandı' : 'Açık'}
                 </span>
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* AGENTS.md Bölüm 9.1: tarihi geçmiş açık sefer uyarısı */}
+      {isStaleDispatch(currentViewDispatch, todayStr) && (
+        <div
+          role="alert"
+          className="bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-300 dark:border-amber-800 rounded-2xl p-4 sm:p-5 flex items-start gap-3"
+        >
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-amber-900 dark:text-amber-200 break-words">
+              Önceki gün sonlandırılmadı
+            </p>
+            <p className="text-xs text-amber-800/90 dark:text-amber-300 mt-1 break-words">
+              Bu sefer {formatDateTr(currentViewDispatch.date)} tarihli ve hâlâ açık.
+              Yeni sefere başlamadan önce sayımı tamamlayıp gün sonu raporunu onaylayarak seferi kapatın.
+            </p>
           </div>
         </div>
       )}
@@ -441,6 +495,14 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
               {totalEmptyTupCollected} Adet
             </div>
             <span className="text-[10px] text-slate-400">Depoya teslim edilecek tüpler</span>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800">
+            <span className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-400 uppercase">Toplanan Su Sebili</span>
+            <div className="text-xl font-bold font-mono text-indigo-700 dark:text-indigo-300 mt-1">
+              {totalEmptySebilCollected} Adet
+            </div>
+            <span className="text-[10px] text-indigo-600/80">Emanet sebiller (fiyatsız)</span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800">

@@ -132,8 +132,8 @@ function refMapDelivery(row: any, itemRows: any[] = [], containerRows: any[] = [
       unitPrice: Number(r.unit_price) || 0,
       lineTotal: Number(r.line_total) || 0,
     }));
-  const emptyContainersReceived = { damacana: 0, camDamacana: 0, tup: 0 };
-  const emptyContainersDiff = { damacana: 0, camDamacana: 0, tup: 0 };
+  const emptyContainersReceived = { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 };
+  const emptyContainersDiff = { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 };
   for (const r of containerRows || []) {
     if (!r) continue;
     const recv = Number(r.received_qty) || 0;
@@ -147,6 +147,9 @@ function refMapDelivery(row: any, itemRows: any[] = [], containerRows: any[] = [
     } else if (r.deposit_type === 'tup') {
       emptyContainersReceived.tup = recv;
       emptyContainersDiff.tup = diff;
+    } else if (r.deposit_type === 'sebil') {
+      emptyContainersReceived.sebil = recv;
+      emptyContainersDiff.sebil = diff;
     }
   }
   return {

@@ -32,6 +32,16 @@ function registerServiceWorker() {
     window.location.hostname === 'localhost' ||
     window.location.hostname === '127.0.0.1'
   ) {
+    // Sayfa yüklenirken zaten bir servis çalışanı kontrolü varsa, bundan sonraki
+    // controllerchange gerçek bir GÜNCELLEMEdir. İlk kurulumda clients.claim()
+    // de bu olayı tetiklediği için bu ayrım şart (AGENTS.md Bölüm 12.2).
+    const hadController = !!navigator.serviceWorker.controller;
+
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController) return;
+      window.dispatchEvent(new CustomEvent('app:update-ready'));
+    });
+
     navigator.serviceWorker
       .register('/sw.js', { scope: '/' })
       .then((reg) => {

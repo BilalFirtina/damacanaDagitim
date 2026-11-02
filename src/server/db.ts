@@ -24,7 +24,6 @@ import {
   RetentionRunResult,
   CustomerDispenser,
   CustomerDispenserInput,
-  CustomerDispenserSuggestions,
 } from '../types/index.ts';
 import {
   utcDayQueryWindow,
@@ -34,7 +33,6 @@ import {
   retentionCutoffInstant,
 } from '../services/dateWindow.ts';
 import { applyRetentionToLocal } from '../services/retentionRules.ts';
-import { buildCustomerDispenserSuggestions } from '../services/customerDispenserRules.ts';
 
 const { Pool } = pg;
 
@@ -71,10 +69,14 @@ const PRODUCT_CATEGORIES_REF: Array<{
   { code: 'bardak', title_tr: 'Bardak & Sarf Malzeme', sort_order: 5, default_unit: 'Paket', default_is_deposit: false, default_deposit_type: 'none' },
 ];
 
-const DEPOSIT_BUCKETS: Array<{ depositType: string; key: 'damacana' | 'camDamacana' | 'tup' }> = [
+const DEPOSIT_BUCKETS: Array<{
+  depositType: string;
+  key: 'damacana' | 'camDamacana' | 'tup' | 'sebil';
+}> = [
   { depositType: 'damacana', key: 'damacana' },
   { depositType: 'cam_damacana', key: 'camDamacana' },
   { depositType: 'tup', key: 'tup' },
+  { depositType: 'sebil', key: 'sebil' },
 ];
 
 // ----------------------------------------------------------------------
@@ -604,7 +606,10 @@ function mapProductFromDb(row: any): Product {
     id: row.id,
     name: row.name,
     category: row.category,
-    defaultUnitPrice: Number(row.default_unit_price) || 100,
+    defaultUnitPrice:
+      row.default_unit_price === null || row.default_unit_price === undefined
+        ? 100
+        : Number(row.default_unit_price),
     isDeposit: Boolean(row.is_deposit),
     depositType: row.deposit_type || 'none',
     unit: row.unit || 'Adet',
@@ -633,12 +638,20 @@ interface CustomerRelations {
   pricesByCustomer: Map<string, Record<string, number>>;
 }
 
-function emptyBucket(): { damacana: number; camDamacana: number; tup: number } {
-  return { damacana: 0, camDamacana: 0, tup: 0 };
+function emptyBucket(): {
+  damacana: number;
+  camDamacana: number;
+  tup: number;
+  sebil: number;
+} {
+  return { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 };
 }
 
 function buildCustomerRelations(emptyRows: any[], priceRows: any[]): CustomerRelations {
-  const emptyByCustomer = new Map<string, { damacana: number; camDamacana: number; tup: number }>();
+  const emptyByCustomer = new Map<
+    string,
+    { damacana: number; camDamacana: number; tup: number; sebil: number }
+  >();
   const pricesByCustomer = new Map<string, Record<string, number>>();
 
   for (const r of emptyRows || []) {
@@ -648,6 +661,7 @@ function buildCustomerRelations(emptyRows: any[], priceRows: any[]): CustomerRel
     if (r.deposit_type === 'damacana') bucket.damacana = qty;
     else if (r.deposit_type === 'cam_damacana') bucket.camDamacana = qty;
     else if (r.deposit_type === 'tup') bucket.tup = qty;
+    else if (r.deposit_type === 'sebil') bucket.sebil = qty;
     emptyByCustomer.set(r.customer_id, bucket);
   }
 
@@ -735,6 +749,7 @@ function mapCustomerFromDb(
       damacana: Number(emptyDepositBalance.damacana) || 0,
       camDamacana: Number(emptyDepositBalance.camDamacana) || 0,
       tup: Number(emptyDepositBalance.tup) || 0,
+      sebil: Number((emptyDepositBalance as any).sebil) || 0,
     },
     customPrices,
     notes: row.notes || '',
@@ -875,8 +890,8 @@ function mapDeliveryFromDb(row: any, itemRows: any[] = [], containerRows: any[] 
       lineTotal: Number(r.line_total) || 0,
     }));
 
-  const emptyContainersReceived = { damacana: 0, camDamacana: 0, tup: 0 };
-  const emptyContainersDiff = { damacana: 0, camDamacana: 0, tup: 0 };
+  const emptyContainersReceived = { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 };
+  const emptyContainersDiff = { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 };
   for (const r of containerRows || []) {
     if (!r) continue;
     const recv = Number(r.received_qty) || 0;
@@ -890,6 +905,9 @@ function mapDeliveryFromDb(row: any, itemRows: any[] = [], containerRows: any[] 
     } else if (r.deposit_type === 'tup') {
       emptyContainersReceived.tup = recv;
       emptyContainersDiff.tup = diff;
+    } else if (r.deposit_type === 'sebil') {
+      emptyContainersReceived.sebil = recv;
+      emptyContainersDiff.sebil = diff;
     }
   }
 
@@ -2085,21 +2103,9 @@ export async function listCustomerDispensers(
   }
 }
 
-export async function getCustomerDispenserSuggestions(): Promise<CustomerDispenserSuggestions> {
-  const client = getCustomerDispenserSupabase();
-
-  try {
-    const { data, error } = await client
-      .from('customer_dispensers')
-      .select('brand, model');
-
-    if (error) throw parseCustomerDispenserDbError(error);
-    return buildCustomerDispenserSuggestions(data || []);
-  } catch (e) {
-    throw parseCustomerDispenserDbError(e);
-  }
-}
-
+// Raporlama için tüm müşterilerin sebil kayıtları — AGENTS.md Bölüm 10.2.
+// Sebil tablosu yalnızca merkezi veritabanında tutulur; yerel modda boş döner
+// ve rapor diğer iade edilebilir kalemlerle çalışmaya devam eder.
 export async function createCustomerDispenser(
   customerId: string,
   input: CustomerDispenserInput,
@@ -2780,6 +2786,9 @@ export async function adminUpdateCustomerAtomic(
         Number(empty.camDamacana ?? empty.cam_damacana) || 0
       ),
       tup: Math.floor(Number(empty.tup) || 0),
+      sebil: Math.floor(
+        Number((empty as any).sebil ?? (expected.empty as any)?.sebil) || 0
+      ),
     };
     payload.expected_empty = {
       damacana: Math.floor(Number(expectedEmpty.damacana) || 0),
@@ -2787,6 +2796,7 @@ export async function adminUpdateCustomerAtomic(
         Number(expectedEmpty.camDamacana ?? expectedEmpty.cam_damacana) || 0
       ),
       tup: Math.floor(Number(expectedEmpty.tup) || 0),
+      sebil: Math.floor(Number((expectedEmpty as any).sebil) || 0),
     };
   }
 
@@ -2898,6 +2908,13 @@ export async function adminUpdateCustomerAtomic(
               ) || 0
             ),
             tup: Math.floor(Number(updates.emptyDepositBalance.tup) || 0),
+            // Sebil ayrı bir emanet türüdür; gönderilmediyse mevcut değer korunur.
+            sebil: Math.floor(
+              Number(
+                (updates.emptyDepositBalance as any).sebil ??
+                  (current.emptyDepositBalance as any)?.sebil
+              ) || 0
+            ),
           }
         : current.emptyDepositBalance,
   };
@@ -3179,6 +3196,7 @@ export async function updateDispatch(id: string, updates: Partial<Dispatch>): Pr
 export async function getDeliveries(params?: {
   dispatchId?: string;
   driverId?: string;
+  customerId?: string;
   date?: string;
   includeCancelled?: boolean;
 }): Promise<Delivery[]> {
@@ -3188,6 +3206,7 @@ export async function getDeliveries(params?: {
       if (!params?.includeCancelled) query = query.neq('status', 'cancelled');
       if (params?.dispatchId) query = query.eq('dispatch_id', params.dispatchId);
       if (params?.driverId) query = query.eq('driver_id', params.driverId);
+      if (params?.customerId) query = query.eq('customer_id', params.customerId);
       if (params?.date) {
         // Gün filtresi sunucu tarafında dar bir aralığa indirilir; kesin gün
         // eşleşmesi aşağıda bellekte doğrulanır. Böylece tüm geçmiş çekilmez
@@ -3244,9 +3263,73 @@ export async function getDeliveries(params?: {
   if (!params?.includeCancelled) list = list.filter((d) => d.status !== 'cancelled');
   if (params?.dispatchId) list = list.filter((d) => d.dispatchId === params.dispatchId);
   if (params?.driverId) list = list.filter((d) => d.driverId === params.driverId);
+  if (params?.customerId) list = list.filter((d) => d.customerId === params.customerId);
   if (params?.date) list = list.filter((d) => isSameUtcDate(d.timestamp, params.date!));
   list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   return list;
+}
+
+// Müşteri finansal düzeltme denetim kayıtları — AGENTS.md Bölüm 6 ve 13.
+// Bakiye/boş kap düzeltmeleri silinemez; ekstrede "düzeltme" hareketi olarak
+// görünür ve açılış/kapanış bakiyesine yansır.
+export interface CustomerFinancialAuditRow {
+  id: string;
+  customerId: string;
+  changedByUserId: string;
+  changedByUserName: string;
+  reason: string;
+  previousBalance: number | null;
+  newBalance: number | null;
+  changedAt: string;
+}
+
+export async function getCustomerFinancialAudit(customerId: string): Promise<CustomerFinancialAuditRow[]> {
+  if (isSupabaseOperational() && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('customer_financial_audit')
+        .select(
+          'id, customer_id, changed_by_user_id, changed_by_user_name, reason, previous_balance, new_balance, changed_at'
+        )
+        .eq('customer_id', customerId)
+        .order('changed_at', { ascending: true });
+      if (!error && data) {
+        return data.map((row: any) => ({
+          id: String(row.id),
+          customerId: row.customer_id,
+          changedByUserId: row.changed_by_user_id || '',
+          changedByUserName: row.changed_by_user_name || '',
+          reason: row.reason || '',
+          previousBalance:
+            row.previous_balance === null || row.previous_balance === undefined
+              ? null
+              : Number(row.previous_balance),
+          newBalance:
+            row.new_balance === null || row.new_balance === undefined
+              ? null
+              : Number(row.new_balance),
+          changedAt: row.changed_at,
+        }));
+      }
+      console.error('[Supabase getCustomerFinancialAudit]', error);
+    } catch (e) {
+      console.error('[Supabase getCustomerFinancialAudit Exception]', e);
+    }
+  }
+
+  const db = loadLocalDatabase();
+  return (db.financialAudit || [])
+    .filter((row) => row.customerId === customerId)
+    .map((row, idx) => ({
+      id: `local_${idx}`,
+      customerId: row.customerId,
+      changedByUserId: row.changedByUserId,
+      changedByUserName: row.changedByUserName,
+      reason: row.reason,
+      previousBalance: row.previousBalance ?? null,
+      newBalance: row.newBalance ?? null,
+      changedAt: row.changedAt,
+    }));
 }
 
 // Tek bir teslimatı satırları ve boş kap hareketleriyle okur.
@@ -4441,4 +4524,362 @@ export async function getDatabaseStatus(): Promise<DatabaseStatus> {
       'Supabase ortam değişkenleri (SUPABASE_URL veya DATABASE_URL) tanımlanmadığı için sistem yerel data_store.json ile güvenle çalışıyor.',
     error: null,
   };
+}
+
+// =============================================================================
+// MÜŞTERİ TAHSİLATI (teslimat dışı ödeme) — AGENTS.md Bölüm 6
+//
+// Tahsilat yalnızca merkezi veritabanında, kilitli RPC üzerinden yürütülür.
+// Böylece aynı ödeme iki kez bakiyeye işlenemez.
+// =============================================================================
+
+export interface CustomerPaymentRow {
+  id: string;
+  customerId: string;
+  amount: number;
+  method: 'CASH' | 'POS' | 'TRANSFER';
+  note: string;
+  collectedByUserId: string;
+  collectedByUserName: string;
+  collectedAt: string;
+}
+
+function paymentError(e: any, fallback: string): Error {
+  const raw = `${e?.message || ''} ${e?.details || ''} ${e?.hint || ''}`.trim();
+  if (/MIGRATION|42P01|PGRST205|does not exist|could not find the table/i.test(raw)) {
+    return new DispatchDbError(
+      'MIGRATION_REQUIRED',
+      'Tahsilat tablosu bulunamadı. Sunucu veritabanı güncellemesi eksik; sistem yöneticisine bildirin.'
+    );
+  }
+  if (/PAYMENT_AMOUNT_INVALID/i.test(raw)) {
+    return new DispatchDbError('PAYMENT_AMOUNT_INVALID', 'Tahsilat tutarı sıfırdan büyük olmalıdır.');
+  }
+  if (/PAYMENT_METHOD_INVALID/i.test(raw)) {
+    return new DispatchDbError('PAYMENT_METHOD_INVALID', 'Geçersiz ödeme yöntemi.');
+  }
+  if (/CUSTOMER_NOT_FOUND/i.test(raw)) {
+    return new DispatchDbError('CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
+  }
+  if (/IMMUTABLE/i.test(raw)) {
+    return new DispatchDbError('IMMUTABLE', 'Bu kayıt değiştirilemez veya silinemez.');
+  }
+  return new DispatchDbError('STOCK_ERROR', raw ? toTurkishDbError(e, fallback) : fallback);
+}
+
+async function callJsonbRpc(fn: string, payload: unknown): Promise<any> {
+  if (isSupabaseOperational() && supabase) {
+    const { data, error } = await supabase.rpc(fn, { p: payload as any });
+    if (error) throw paymentError(error, 'İşlem tamamlanamadı.');
+    return data;
+  }
+  if (pgPool) {
+    const res = await pgPool.query(`SELECT public.${fn}($1::jsonb) AS result`, [
+      JSON.stringify(payload),
+    ]);
+    return res.rows?.[0]?.result;
+  }
+  throw new DispatchDbError(
+    'REMOTE_REQUIRED',
+    'Depo stoku ve tahsilat yalnızca merkezi veritabanı bağlantısı varken kullanılabilir.'
+  );
+}
+
+export async function createCustomerPayment(input: {
+  paymentId: string;
+  customerId: string;
+  amount: number;
+  method: 'CASH' | 'POS' | 'TRANSFER';
+  note?: string;
+  actor: { id: string; name: string };
+}): Promise<{ paymentId: string; balance: number; alreadyApplied: boolean }> {
+  const result = await callJsonbRpc('record_customer_payment', {
+    payment_id: input.paymentId,
+    customer_id: input.customerId,
+    amount: input.amount,
+    method: input.method,
+    note: input.note || '',
+    collected_by_user_id: input.actor.id,
+    collected_by_user_name: input.actor.name,
+  });
+  return {
+    paymentId: result?.payment_id || input.paymentId,
+    balance: Number(result?.balance) || 0,
+    alreadyApplied: Boolean(result?.already_applied),
+  };
+}
+
+export async function getCustomerPayments(
+  customerId: string,
+  limit = 100
+): Promise<CustomerPaymentRow[]> {
+  const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 500);
+  if (isSupabaseOperational() && supabase) {
+    const { data, error } = await supabase
+      .from('customer_payments')
+      .select('*')
+      .eq('customer_id', customerId)
+      .order('collected_at', { ascending: false })
+      .limit(safeLimit);
+    if (error) throw paymentError(error, 'Tahsilat kayıtları okunamadı.');
+    return (data || []).map(mapCustomerPayment);
+  }
+  if (pgPool) {
+    const res = await pgPool.query(
+      'SELECT * FROM public.customer_payments WHERE customer_id = $1 ORDER BY collected_at DESC LIMIT $2',
+      [customerId, safeLimit]
+    );
+    return res.rows.map(mapCustomerPayment);
+  }
+  return [];
+}
+
+// Günlük rapor için: bir güne ait teslimat dışı tahsilatlar.
+export async function getCustomerPaymentsByDate(date: string): Promise<CustomerPaymentRow[]> {
+  const window = utcDayQueryWindow(date);
+  if (!window) return [];
+  if (isSupabaseOperational() && supabase) {
+    const { data, error } = await supabase
+      .from('customer_payments')
+      .select('*')
+      .gte('collected_at', window.lower)
+      .lt('collected_at', window.upper)
+      .order('collected_at', { ascending: false });
+    if (error) throw paymentError(error, 'Tahsilat kayıtları okunamadı.');
+    return (data || [])
+      .filter((row: any) => isSameUtcDate(row.collected_at, date))
+      .map(mapCustomerPayment);
+  }
+  if (pgPool) {
+    const res = await pgPool.query(
+      'SELECT * FROM public.customer_payments WHERE collected_at >= $1 AND collected_at < $2 ORDER BY collected_at DESC',
+      [window.lower, window.upper]
+    );
+    return res.rows.filter((row: any) => isSameUtcDate(row.collected_at, date)).map(mapCustomerPayment);
+  }
+  return [];
+}
+
+function mapCustomerPayment(row: any): CustomerPaymentRow {
+  return {
+    id: row.id,
+    customerId: row.customer_id,
+    amount: Number(row.amount) || 0,
+    method: row.method,
+    note: row.note || '',
+    collectedByUserId: row.collected_by_user_id,
+    collectedByUserName: row.collected_by_user_name,
+    collectedAt: row.collected_at,
+  };
+}
+
+// =============================================================================
+// BİRLEŞİK İŞLEM GEÇMİŞİ — AGENTS.md Bölüm 10.2
+// Teslimat iptal/düzeltme, sefer yeniden açma ve yükleme düzeltme kayıtları.
+// =============================================================================
+
+export interface DispatchAuditRow {
+  id: string;
+  kind: 'dispatch_reopen' | 'dispatch_loading';
+  dispatchId: string;
+  userId: string;
+  userName: string;
+  reason: string;
+  detail: string;
+  changedAt: string;
+}
+
+function mapReopenAudit(row: any): DispatchAuditRow {
+  return {
+    id: `reopen_${row.id}`,
+    kind: 'dispatch_reopen',
+    dispatchId: row.dispatch_id,
+    userId: row.reopened_by_user_id || '',
+    userName: row.reopened_by_user_name || '',
+    reason: row.reason || '',
+    detail: 'Kapatılmış sefer yeniden açıldı; önceki mutabakat arşivlendi.',
+    changedAt: row.reopened_at,
+  };
+}
+
+function mapLoadingAudit(row: any): DispatchAuditRow {
+  const prev = Array.isArray(row.previous_items) ? row.previous_items : [];
+  const next = Array.isArray(row.new_items) ? row.new_items : [];
+  return {
+    id: `loading_${row.id}`,
+    kind: 'dispatch_loading',
+    dispatchId: row.dispatch_id,
+    userId: row.changed_by_user_id || '',
+    userName: row.changed_by_user_name || '',
+    reason: 'Yükleme kalemleri güncellendi',
+    detail: `Yükleme kalemleri güncellendi (${prev.length} → ${next.length} kalem).`,
+    changedAt: row.changed_at,
+  };
+}
+
+export async function getDispatchReopenAudits(limit = 100): Promise<DispatchAuditRow[]> {
+  const safeLimit = Math.min(Math.max(Math.trunc(limit) || 100, 1), 200);
+  if (isSupabaseOperational() && supabase) {
+    const { data, error } = await supabase
+      .from('dispatch_reopen_audit')
+      .select('id, dispatch_id, reopened_by_user_id, reopened_by_user_name, reason, reopened_at')
+      .order('reopened_at', { ascending: false })
+      .limit(safeLimit);
+    if (error) {
+      console.error('[Supabase getDispatchReopenAudits]', error);
+      throw new Error(toTurkishDbError(error, 'Sefer yeniden açma kayıtları sorgulanamadı.'));
+    }
+    return (data || []).map(mapReopenAudit);
+  }
+  if (pgPool) {
+    const result = await pgPool.query(
+      'SELECT id, dispatch_id, reopened_by_user_id, reopened_by_user_name, reason, reopened_at FROM public.dispatch_reopen_audit ORDER BY reopened_at DESC, id DESC LIMIT $1',
+      [safeLimit]
+    );
+    return result.rows.map(mapReopenAudit);
+  }
+  const db = loadLocalDatabase();
+  return (db.reopenAudit || [])
+    .map((row, idx) =>
+      mapReopenAudit({
+        id: idx,
+        dispatch_id: row.dispatchId,
+        reopened_by_user_id: row.reopenedByUserId,
+        reopened_by_user_name: row.reopenedByUserName,
+        reason: row.reason,
+        reopened_at: row.reopenedAt,
+      })
+    )
+    .sort((a, b) => (a.changedAt < b.changedAt ? 1 : -1))
+    .slice(0, safeLimit);
+}
+
+export async function getDispatchLoadingAudits(limit = 100): Promise<DispatchAuditRow[]> {
+  const safeLimit = Math.min(Math.max(Math.trunc(limit) || 100, 1), 200);
+  if (isSupabaseOperational() && supabase) {
+    const { data, error } = await supabase
+      .from('dispatch_loading_audit')
+      .select('id, dispatch_id, changed_by_user_id, changed_by_user_name, previous_items, new_items, changed_at')
+      .order('changed_at', { ascending: false })
+      .limit(safeLimit);
+    if (error) {
+      console.error('[Supabase getDispatchLoadingAudits]', error);
+      throw new Error(toTurkishDbError(error, 'Yükleme düzeltme kayıtları sorgulanamadı.'));
+    }
+    return (data || []).map(mapLoadingAudit);
+  }
+  if (pgPool) {
+    const result = await pgPool.query(
+      'SELECT id, dispatch_id, changed_by_user_id, changed_by_user_name, previous_items, new_items, changed_at FROM public.dispatch_loading_audit ORDER BY changed_at DESC, id DESC LIMIT $1',
+      [safeLimit]
+    );
+    return result.rows.map(mapLoadingAudit);
+  }
+  const db = loadLocalDatabase();
+  return (db.loadingAudit || [])
+    .map((row, idx) =>
+      mapLoadingAudit({
+        id: idx,
+        dispatch_id: row.dispatchId,
+        changed_by_user_id: row.changedByUserId,
+        changed_by_user_name: row.changedByUserName,
+        previous_items: row.previousItems,
+        new_items: row.newItems,
+        changed_at: row.changedAt,
+      })
+    )
+    .sort((a, b) => (a.changedAt < b.changedAt ? 1 : -1))
+    .slice(0, safeLimit);
+}
+
+// =============================================================================
+// SEBİL DETAY SENKRONU — AGENTS.md 7.1
+//
+// customer_dispensers tablosu, müşteride BULUNAN sebil adetlerini temsil eder.
+// Sebil teslim edildiğinde satır eklenir; geri alındığında/iptal edildiğinde
+// en eski kayıtlardan başlanarak düşülür. Adet bakiyesinin (customer_empty_balances)
+// yanında yalnızca marka/model/açıklama bilgisini taşır.
+// =============================================================================
+
+export async function adjustCustomerDispenserQuantity(
+  customerId: string,
+  delta: number,
+  actor: { id: string; name: string },
+  reason?: string
+): Promise<void> {
+  if (!delta) return;
+  if (!isSupabaseOperational() || !supabase) return; // yerel modda sebil detayı tutulmaz
+
+  try {
+    const rows = await listCustomerDispensers(customerId);
+
+    if (delta > 0) {
+      await createCustomerDispenser(
+        customerId,
+        {
+          brand: '',
+          model: '',
+          quantity: delta,
+          note: reason || 'Düzeltme ile eklendi',
+        },
+        actor
+      );
+      return;
+    }
+
+    let remaining = Math.abs(delta);
+    for (const row of rows) {
+      if (remaining <= 0) break;
+      const take = Math.min(row.quantity, remaining);
+      if (take >= row.quantity) {
+        await deleteCustomerDispenser(customerId, row.id);
+      } else {
+        await updateCustomerDispenser(
+          customerId,
+          row.id,
+          {
+            brand: row.brand,
+            model: row.model,
+            quantity: row.quantity - take,
+            note: row.note,
+          },
+          actor
+        );
+      }
+      remaining -= take;
+    }
+
+    if (remaining > 0) {
+      console.warn(
+        `[adjustCustomerDispenserQuantity] ${remaining} adet sebil için detay kaydı bulunamadı (müşteri ${customerId}).`
+      );
+    }
+  } catch (e) {
+    console.error('[adjustCustomerDispenserQuantity]', e);
+  }
+}
+
+// Idempotent tahsilat kontrolü: aynı payment_id farklı tutar/yöntemle gelirse
+// sessizce eski kaydı döndürmek yerine çakışma bildirilir.
+export async function getCustomerPaymentById(paymentId: string): Promise<CustomerPaymentRow | null> {
+  if (!paymentId) return null;
+  if (isSupabaseOperational() && supabase) {
+    const { data, error } = await supabase
+      .from('customer_payments')
+      .select('*')
+      .eq('id', paymentId)
+      .maybeSingle();
+    if (error) {
+      if (String(error.code || '') === 'PGRST116') return null;
+      throw paymentError(error, 'Tahsilat kaydı sorgulanamadı.');
+    }
+    return data ? mapCustomerPayment(data) : null;
+  }
+  if (pgPool) {
+    const res = await pgPool.query('SELECT * FROM public.customer_payments WHERE id = $1', [
+      paymentId,
+    ]);
+    return res.rows[0] ? mapCustomerPayment(res.rows[0]) : null;
+  }
+  return null;
 }

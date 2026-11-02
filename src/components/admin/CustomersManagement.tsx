@@ -7,6 +7,8 @@ import {
   Search,
   Plus,
   Edit2,
+  FileText,
+  Wallet,
   Mail
 } from 'lucide-react';
 import {
@@ -15,7 +17,8 @@ import {
   type CustomerUpdate,
 } from '../../services/api';
 import { negativeEmptyMessages } from '../../services/emptyBalanceDisplay';
-import { CustomerDispensersSection } from '../common/CustomerDispensersSection';
+import { CustomerStatementModal } from './CustomerStatementModal';
+import { CustomerPaymentModal } from './CustomerPaymentModal';
 
 interface CustomersManagementProps {
   customers: Customer[];
@@ -35,6 +38,8 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
   const [filterType, setFilterType] = useState<'all' | 'account' | 'deposit_debt' | 'cash_debt'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [statementCustomer, setStatementCustomer] = useState<Customer | null>(null);
+  const [paymentCustomer, setPaymentCustomer] = useState<Customer | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // New customer form state
@@ -264,7 +269,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
     if (!confirm(`${cust.name} için boş kap bakiyesini sıfırlamak istediğinize emin misiniz?`)) return;
     try {
       const updated = await updateCustomer(cust.id, {
-        emptyDepositBalance: { damacana: 0, camDamacana: 0, tup: 0 },
+        emptyDepositBalance: { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 },
         expectedEmptyDepositBalance: {
           damacana: cust.emptyDepositBalance?.damacana || 0,
           camDamacana:
@@ -272,6 +277,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
             cust.emptyDepositBalance?.cam_damacana ??
             0,
           tup: cust.emptyDepositBalance?.tup || 0,
+          sebil: cust.emptyDepositBalance?.sebil || 0,
         },
       });
       onCustomersUpdated(customers.map((c) => (c.id === cust.id ? updated : c)));
@@ -374,7 +380,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
               : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
           }`}
         >
-          Cari Açık Hesaplar ({customers.filter((c) => c.isAccountCustomer).length})
+          Faturalı Müşteriler ({customers.filter((c) => c.isAccountCustomer).length})
         </button>
 
         <button
@@ -385,7 +391,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
               : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
           }`}
         >
-          Boş Kap Borcu Olanlar ({customers.filter((c) => ((c.emptyDepositBalance?.damacana || 0) + (c.emptyDepositBalance?.camDamacana || 0) + (c.emptyDepositBalance?.tup || 0)) > 0).length})
+          Boş Kap Borcu Olanlar ({customers.filter((c) => ((c.emptyDepositBalance?.damacana || 0) + (c.emptyDepositBalance?.camDamacana || 0) + (c.emptyDepositBalance?.tup || 0) + (c.emptyDepositBalance?.sebil || 0)) > 0).length})
         </button>
 
         <button
@@ -415,6 +421,9 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
             (c.emptyDepositBalance?.tup || 0) > 0
               ? `${c.emptyDepositBalance.tup} Tüp`
               : null,
+            (c.emptyDepositBalance?.sebil || 0) > 0
+              ? `${c.emptyDepositBalance.sebil} Su Sebili`
+              : null,
           ].filter((part): part is string => part !== null);
 
           return (
@@ -433,6 +442,22 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
+                      onClick={() => setPaymentCustomer(c)}
+                      className="p-1.5 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                      title="Tahsilat Al"
+                    >
+                      <Wallet className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      onClick={() => setStatementCustomer(c)}
+                      className="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                      title="Cari Hesap Ekstresi"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
                       onClick={() => handleOpenEditModal(c)}
                       className="p-1.5 text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                       title="Müşteriyi ve E-postaları Düzenle"
@@ -449,7 +474,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                       }`}
                       title="Cari Hesap Durumu"
                     >
-                      {c.isAccountCustomer ? 'Cari Yetkili' : 'Peşin Müşteri'}
+                      {c.isAccountCustomer ? 'Faturalı' : 'Peşin'}
                     </button>
                   </div>
                 </div>
@@ -546,11 +571,6 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                   </div>
                 )}
 
-                <CustomerDispensersSection
-                  customerId={c.id}
-                  customerName={c.name}
-                  className="mt-3"
-                />
               </div>
 
               {/* Quick Actions (bakiye/boş kap sıfırlama yalnızca yöneticiye) */}
@@ -722,12 +742,16 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                 <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-700 dark:text-slate-300">
                   <input
                     type="checkbox"
-                    checked={newIsAccount}
-                    onChange={(e) => setNewIsAccount(e.target.checked)}
+                    checked={!newIsAccount}
+                    onChange={(e) => setNewIsAccount(!e.target.checked)}
                     className="w-4 h-4 rounded text-sky-600"
                   />
-                  <span>Cari Açık Hesap (Tahsil edilmeyen tutarlar borç bakiyesine işlensin)</span>
+                  <span>Peşin Müşteri</span>
                 </label>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Tahsilat şoför arkadaşlar tarafından yapılacaksa bu kutucuğu işaretleyin,
+                  eğer fatura toplu kesilecekse kutucuğa tıklamayın.
+                </p>
               </div>
 
               <div className="pt-3 flex items-center gap-3">
@@ -934,12 +958,16 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                 <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-700 dark:text-slate-300">
                   <input
                     type="checkbox"
-                    checked={editIsAccount}
-                    onChange={(e) => setEditIsAccount(e.target.checked)}
+                    checked={!editIsAccount}
+                    onChange={(e) => setEditIsAccount(!e.target.checked)}
                     className="w-4 h-4 rounded text-sky-600"
                   />
-                  <span>Cari Açık Hesap (Tahsil edilmeyen tutarlar borç bakiyesine işlensin)</span>
+                  <span>Peşin Müşteri</span>
                 </label>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Tahsilat şoför arkadaşlar tarafından yapılacaksa bu kutucuğu işaretleyin,
+                  eğer fatura toplu kesilecekse kutucuğa tıklamayın.
+                </p>
               </div>
 
               <div className="pt-3 flex items-center gap-3">
@@ -960,6 +988,27 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {statementCustomer && (
+        <CustomerStatementModal
+          customer={statementCustomer}
+          onClose={() => setStatementCustomer(null)}
+        />
+      )}
+
+      {paymentCustomer && (
+        <CustomerPaymentModal
+          customer={paymentCustomer}
+          onClose={() => setPaymentCustomer(null)}
+          onSaved={(newBalance) => {
+            onCustomersUpdated(
+              customers.map((c) =>
+                c.id === paymentCustomer.id ? { ...c, currentBalanceTL: newBalance } : c
+              )
+            );
+          }}
+        />
       )}
     </div>
   );

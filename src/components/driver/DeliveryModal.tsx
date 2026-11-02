@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 import {
   Customer,
   Product,
@@ -8,7 +8,7 @@ import {
   ProductCategory,
   getProductCategoryCodes,
   getProductCategoryTitle,
-} from '../../types';
+} from "../../types";
 import {
   Search,
   Plus,
@@ -19,23 +19,24 @@ import {
   Phone,
   MapPin,
   Building2,
-  X
-} from 'lucide-react';
+  X,
+} from "lucide-react";
 import {
   createDelivery,
   createCustomer,
   createProduct,
   replaceDelivery,
-} from '../../services/api';
+  addCustomerDispenser,
+} from "../../services/api";
+import { CustomerDispenserInfo } from "../common/CustomerDispenserInfo";
 import {
   computeStockWarnings,
   getStockWarningSignature,
   shouldShowStockWarning,
   STOCK_WARNING_DURATION_MS,
-} from '../../services/stockWarning';
-import { computeDeliveredDeposits } from '../../services/depositRules';
-import { negativeEmptyMessages } from '../../services/emptyBalanceDisplay';
-import { CustomerDispensersSection } from '../common/CustomerDispensersSection';
+} from "../../services/stockWarning";
+import { computeDeliveredDeposits } from "../../services/depositRules";
+import { negativeEmptyMessages } from "../../services/emptyBalanceDisplay";
 
 interface DeliveryModalProps {
   isOpen: boolean;
@@ -50,7 +51,7 @@ interface DeliveryModalProps {
   onDeliveryUpdated?: () => void;
 }
 
-type DepositKey = 'damacana' | 'cam_damacana' | 'tup';
+type DepositKey = "damacana" | "cam_damacana" | "tup" | "sebil";
 
 interface EmptyContainerRowProps {
   label: string;
@@ -100,11 +101,11 @@ const EmptyContainerRow: React.FC<EmptyContainerRowProps> = ({
         <span
           className={`text-[10px] ${
             manual
-              ? 'font-semibold text-orange-700 dark:text-orange-300'
-              : 'text-slate-500 dark:text-slate-400'
+              ? "font-semibold text-orange-700 dark:text-orange-300"
+              : "text-slate-500 dark:text-slate-400"
           }`}
         >
-          {manual ? 'Elle girilen miktar' : 'Otomatik: dolu kadar'}
+          {manual ? "Elle girilen miktar" : "Otomatik: dolu kadar"}
         </span>
         <div className="flex items-center gap-1.5 shrink-0">
           <button
@@ -124,7 +125,9 @@ const EmptyContainerRow: React.FC<EmptyContainerRowProps> = ({
             aria-label={label}
             value={value}
             disabled={!manual}
-            onChange={(event) => onChange(normalize(event.target.valueAsNumber))}
+            onChange={(event) =>
+              onChange(normalize(event.target.valueAsNumber))
+            }
             className="w-14 h-11 rounded-lg border border-orange-200 dark:border-orange-700 text-center font-mono font-bold text-sm dark:bg-slate-900 dark:text-white disabled:bg-slate-50 dark:disabled:bg-slate-800 disabled:text-slate-500"
           />
           <button
@@ -173,7 +176,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   // Modal her açıldığında bir kez başlatılır. Arka plan yenilemeleri açık
   // formdaki kullanıcı girişlerini sıfırlamaz.
   useEffect(() => {
-    const key = isOpen ? (editDelivery ? `edit:${editDelivery.id}` : 'new') : null;
+    const key = isOpen
+      ? editDelivery
+        ? `edit:${editDelivery.id}`
+        : "new"
+      : null;
     if (!key) {
       initializedKeyRef.current = null;
       return;
@@ -182,8 +189,8 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     initializedKeyRef.current = key;
 
     setShowNewCustomerForm(false);
-    setCustomerSearch('');
-    setProductSearch('');
+    setCustomerSearch("");
+    setProductSearch("");
     setErrorPersistent(false);
     setErrorMsg(null);
     setShowNewProductForm(false);
@@ -204,37 +211,41 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
       const editDelivered = computeDeliveredDeposits(
         editDelivery.deliveredItems,
-        allProducts
+        allProducts,
       );
       const editReceived = {
         damacana: Number(editDelivery.emptyContainersReceived?.damacana) || 0,
         camDamacana:
           Number(
             editDelivery.emptyContainersReceived?.camDamacana ??
-              editDelivery.emptyContainersReceived?.cam_damacana
+              editDelivery.emptyContainersReceived?.cam_damacana,
           ) || 0,
         tup: Number(editDelivery.emptyContainersReceived?.tup) || 0,
+        sebil: Number(editDelivery.emptyContainersReceived?.sebil) || 0,
       };
       setEmptyDamacanaReturned(editReceived.damacana);
       setEmptyCamDamacanaReturned(editReceived.camDamacana);
       setEmptyTupReturned(editReceived.tup);
+      setEmptySebilReturned(editReceived.sebil);
       setManualEmpty({
         damacana: editReceived.damacana !== editDelivered.damacana,
-        cam_damacana:
-          editReceived.camDamacana !== editDelivered.camDamacana,
+        cam_damacana: editReceived.camDamacana !== editDelivered.camDamacana,
         tup: editReceived.tup !== editDelivered.tup,
+        sebil: editReceived.sebil !== editDelivered.sebil,
       });
 
       const cash = Number(editDelivery.collectedPayment?.cashAmount) || 0;
       const pos = Number(editDelivery.collectedPayment?.posAmount) || 0;
-      setPaymentType('custom');
-      setPaymentMethod(cash > 0 && pos > 0 ? 'MIXED' : pos > 0 ? 'POS' : 'CASH');
+      setPaymentType("custom");
+      setPaymentMethod(
+        cash > 0 && pos > 0 ? "MIXED" : pos > 0 ? "POS" : "CASH",
+      );
       setCashAmountInput(String(cash));
       setPosAmountInput(String(pos));
-      setNotes(editDelivery.notes || '');
-      setCorrectionReason('');
+      setNotes(editDelivery.notes || "");
+      setCorrectionReason("");
       setReplacementId(
-        `del_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
+        `del_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
       );
     } else {
       setSelectedCustomer(null);
@@ -243,72 +254,97 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       setEmptyDamacanaReturned(0);
       setEmptyCamDamacanaReturned(0);
       setEmptyTupReturned(0);
+      setEmptySebilReturned(0);
+      setSebilBrand("");
+      setSebilModel("");
+      setSebilNote("");
       setManualEmpty({
         damacana: false,
         cam_damacana: false,
         tup: false,
+        sebil: false,
       });
-      setPaymentType('full');
-      setPaymentMethod('CASH');
-      setCashAmountInput('0');
-      setPosAmountInput('0');
-      setNotes('');
-      setCorrectionReason('');
-      setReplacementId('');
+      setPaymentType("full");
+      setPaymentMethod("CASH");
+      setCashAmountInput("0");
+      setPosAmountInput("0");
+      setNotes("");
+      setCorrectionReason("");
+      setReplacementId("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, editDelivery]);
 
   // Step 1: Customer selection
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [customerSearch, setCustomerSearch] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
+    null,
+  );
+  const [customerSearch, setCustomerSearch] = useState("");
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
 
   // New customer inline inputs
-  const [newCustName, setNewCustName] = useState('');
-  const [newCustPhone, setNewCustPhone] = useState('');
-  const [newCustAddress, setNewCustAddress] = useState('');
-  const [newCustEmails, setNewCustEmails] = useState('');
+  const [newCustName, setNewCustName] = useState("");
+  const [newCustPhone, setNewCustPhone] = useState("");
+  const [newCustAddress, setNewCustAddress] = useState("");
+  const [newCustEmails, setNewCustEmails] = useState("");
   const [newCustIsAccount, setNewCustIsAccount] = useState(true);
 
   // Step 2: Product search & selection
-  const [productSearch, setProductSearch] = useState('');
+  const [productSearch, setProductSearch] = useState("");
   const [showNewProductForm, setShowNewProductForm] = useState(false);
-  const [newProdName, setNewProdName] = useState('');
-  const [newProdCategory, setNewProdCategory] = useState<ProductCategory>('damacana');
-  const [newProdPrice, setNewProdPrice] = useState('120');
-  const [newProdUnit, setNewProdUnit] = useState('Adet');
+  const [newProdName, setNewProdName] = useState("");
+  const [newProdCategory, setNewProdCategory] =
+    useState<ProductCategory>("damacana");
+  const [newProdPrice, setNewProdPrice] = useState("120");
+  const [newProdUnit, setNewProdUnit] = useState("Adet");
   const [newProdIsDeposit, setNewProdIsDeposit] = useState(true);
-  const [newProdDepositType, setNewProdDepositType] = useState<'none' | 'damacana' | 'cam_damacana' | 'tup'>('damacana');
+  const [newProdDepositType, setNewProdDepositType] = useState<
+    "none" | "damacana" | "cam_damacana" | "tup"
+  >("damacana");
 
   // Quantities & Unit prices
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [unitPrices, setUnitPrices] = useState<Record<string, number>>({});
-  const [editingPriceProductId, setEditingPriceProductId] = useState<string | null>(null);
+  const [editingPriceProductId, setEditingPriceProductId] = useState<
+    string | null
+  >(null);
 
   // Step 3: Empty containers returned
   const [emptyDamacanaReturned, setEmptyDamacanaReturned] = useState<number>(0);
-  const [emptyCamDamacanaReturned, setEmptyCamDamacanaReturned] = useState<number>(0);
+  const [emptyCamDamacanaReturned, setEmptyCamDamacanaReturned] =
+    useState<number>(0);
   const [emptyTupReturned, setEmptyTupReturned] = useState<number>(0);
+  const [emptySebilReturned, setEmptySebilReturned] = useState<number>(0);
+  // Verilen sebilin marka/modeli ve bırakıldığı yer (AGENTS.md 7.1).
+  const [sebilBrand, setSebilBrand] = useState("");
+  const [sebilModel, setSebilModel] = useState("");
+  const [sebilNote, setSebilNote] = useState("");
   const [manualEmpty, setManualEmpty] = useState<Record<DepositKey, boolean>>({
     damacana: false,
     cam_damacana: false,
     tup: false,
+    sebil: false,
   });
 
   // Payment
-  const [paymentType, setPaymentType] = useState<'full' | 'unpaid' | 'custom'>('full');
-  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'POS' | 'MIXED'>('CASH');
-  const [cashAmountInput, setCashAmountInput] = useState<string>('0');
-  const [posAmountInput, setPosAmountInput] = useState<string>('0');
-  const [notes, setNotes] = useState('');
-  const [correctionReason, setCorrectionReason] = useState('');
-  const [replacementId, setReplacementId] = useState('');
+  const [paymentType, setPaymentType] = useState<"full" | "unpaid" | "custom">(
+    "full",
+  );
+  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "POS" | "MIXED">(
+    "CASH",
+  );
+  const [cashAmountInput, setCashAmountInput] = useState<string>("0");
+  const [posAmountInput, setPosAmountInput] = useState<string>("0");
+  const [notes, setNotes] = useState("");
+  const [correctionReason, setCorrectionReason] = useState("");
+  const [replacementId, setReplacementId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingCustomer, setIsSubmittingCustomer] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [errorPersistent, setErrorPersistent] = useState(false);
-  const [dismissedWarningSignature, setDismissedWarningSignature] = useState<string | null>(null);
+  const [dismissedWarningSignature, setDismissedWarningSignature] = useState<
+    string | null
+  >(null);
   const [warningExpiresAt, setWarningExpiresAt] = useState<number | null>(null);
   const [warningClock, setWarningClock] = useState(() => Date.now());
 
@@ -319,7 +355,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
   useEffect(() => {
     if (!errorMsg || errorPersistent) return;
-    const timeout = setTimeout(() => setErrorMsg(null), STOCK_WARNING_DURATION_MS);
+    const timeout = setTimeout(
+      () => setErrorMsg(null),
+      STOCK_WARNING_DURATION_MS,
+    );
     return () => clearTimeout(timeout);
   }, [errorMsg, errorPersistent]);
 
@@ -345,17 +384,24 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       const unitPrice = unitPrices[productId] ?? p?.defaultUnitPrice ?? 100;
       return {
         productId,
-        productName: p?.name || 'Ürün',
+        productName: p?.name || "Ürün",
         quantity,
         unitPrice,
         lineTotal: quantity * unitPrice,
       };
     });
 
-  const grandTotal = deliveredItems.reduce((acc, item) => acc + item.lineTotal, 0);
+  const grandTotal = deliveredItems.reduce(
+    (acc, item) => acc + item.lineTotal,
+    0,
+  );
   const receivedEmptyTotal =
-    emptyDamacanaReturned + emptyCamDamacanaReturned + emptyTupReturned;
-  const hasDeliveryContent = deliveredItems.length > 0 || receivedEmptyTotal > 0;
+    emptyDamacanaReturned +
+    emptyCamDamacanaReturned +
+    emptyTupReturned +
+    emptySebilReturned;
+  const hasDeliveryContent =
+    deliveredItems.length > 0 || receivedEmptyTotal > 0;
   const selectedNegativeEmptyMessages = selectedCustomer
     ? negativeEmptyMessages(selectedCustomer.emptyDepositBalance)
     : [];
@@ -363,23 +409,24 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   // Calculate delivered deposit items
   const deliveredDeposits = computeDeliveredDeposits(
     deliveredItems,
-    allProducts
+    allProducts,
   );
   const deliveredDepositDamacana = deliveredDeposits.damacana;
   const deliveredDepositCamDamacana = deliveredDeposits.camDamacana;
   const deliveredDepositTup = deliveredDeposits.tup;
+  const deliveredDepositSebil = deliveredDeposits.sebil;
 
   // Otomatik modda alınan boş kap, bırakılan dolu miktarını canlı takip eder.
   const syncAutomaticEmpties = (
     nextQuantities: Record<string, number>,
-    productList: Product[] = allProducts
+    productList: Product[] = allProducts,
   ) => {
     const deposits = computeDeliveredDeposits(
       Object.entries(nextQuantities).map(([productId, quantity]) => ({
         productId,
         quantity,
       })),
-      productList
+      productList,
     );
     if (!manualEmpty.damacana) {
       setEmptyDamacanaReturned(deposits.damacana);
@@ -389,6 +436,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     }
     if (!manualEmpty.tup) {
       setEmptyTupReturned(deposits.tup);
+    }
+    if (!manualEmpty.sebil) {
+      setEmptySebilReturned(deposits.sebil);
     }
   };
 
@@ -405,21 +455,21 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
   // Sync payment inputs based on selected paymentType
   useEffect(() => {
-    if (paymentType === 'full') {
-      if (paymentMethod === 'CASH') {
+    if (paymentType === "full") {
+      if (paymentMethod === "CASH") {
         setCashAmountInput(grandTotal.toString());
-        setPosAmountInput('0');
-      } else if (paymentMethod === 'POS') {
-        setCashAmountInput('0');
+        setPosAmountInput("0");
+      } else if (paymentMethod === "POS") {
+        setCashAmountInput("0");
         setPosAmountInput(grandTotal.toString());
       } else {
         const half = Math.floor(grandTotal / 2);
         setCashAmountInput(half.toString());
         setPosAmountInput((grandTotal - half).toString());
       }
-    } else if (paymentType === 'unpaid') {
-      setCashAmountInput('0');
-      setPosAmountInput('0');
+    } else if (paymentType === "unpaid") {
+      setCashAmountInput("0");
+      setPosAmountInput("0");
     }
   }, [paymentType, paymentMethod, grandTotal]);
 
@@ -433,14 +483,14 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     e.preventDefault();
     if (isSubmittingCustomer) return;
     if (!newCustName.trim()) {
-      showTransientError('Lütfen müşteri adını giriniz');
+      showTransientError("Lütfen müşteri adını giriniz");
       return;
     }
 
     const parsedEmails = newCustEmails
       .split(/[,;\s]+/)
       .map((s) => s.trim().toLowerCase())
-      .filter((s) => s.length > 0 && s.includes('@'));
+      .filter((s) => s.length > 0 && s.includes("@"));
 
     try {
       setIsSubmittingCustomer(true);
@@ -454,18 +504,20 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         isAccountCustomer: newCustIsAccount,
       });
       // Make the new customer immediately available in search / selection lists
-      setAllCustomers((prev) => (prev.some((c) => c.id === created.id) ? prev : [...prev, created]));
+      setAllCustomers((prev) =>
+        prev.some((c) => c.id === created.id) ? prev : [...prev, created],
+      );
       onCustomerCreated?.(created);
       // Automatically select created customer and proceed to product selection
       setSelectedCustomer(created);
       setShowNewCustomerForm(false);
-      setNewCustName('');
-      setNewCustPhone('');
-      setNewCustAddress('');
-      setNewCustEmails('');
+      setNewCustName("");
+      setNewCustPhone("");
+      setNewCustAddress("");
+      setNewCustEmails("");
     } catch (err: any) {
       setErrorPersistent(true);
-      setErrorMsg(err.message || 'Müşteri oluşturulamadı');
+      setErrorMsg(err.message || "Müşteri oluşturulamadı");
     } finally {
       setIsSubmittingCustomer(false);
     }
@@ -475,7 +527,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const handleCreateNewProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProdName.trim()) {
-      showTransientError('Lütfen ürün adını giriniz');
+      showTransientError("Lütfen ürün adını giriniz");
       return;
     }
 
@@ -486,9 +538,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         name: newProdName.trim(),
         category: newProdCategory,
         defaultUnitPrice: Number(newProdPrice) || 100,
-        unit: newProdUnit.trim() || 'Adet',
+        unit: newProdUnit.trim() || "Adet",
         isDeposit: newProdIsDeposit,
-        depositType: newProdIsDeposit ? newProdDepositType : 'none',
+        depositType: newProdIsDeposit ? newProdDepositType : "none",
       });
 
       // Update local product list and auto-select product with quantity 1
@@ -499,31 +551,34 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         syncAutomaticEmpties(updated, nextProducts);
         return updated;
       });
-      setUnitPrices((prev) => ({ ...prev, [created.id]: created.defaultUnitPrice }));
+      setUnitPrices((prev) => ({
+        ...prev,
+        [created.id]: created.defaultUnitPrice,
+      }));
       setShowNewProductForm(false);
-      setNewProdName('');
-      setProductSearch('');
+      setNewProdName("");
+      setProductSearch("");
     } catch (err: any) {
       setErrorPersistent(true);
-      setErrorMsg(err.message || 'Ürün oluşturulamadı');
+      setErrorMsg(err.message || "Ürün oluşturulamadı");
     }
   };
 
   // Submit Delivery
   const handleSubmitDelivery = async () => {
     if (!selectedCustomer) {
-      showTransientError('Lütfen önce bir müşteri seçiniz');
+      showTransientError("Lütfen önce bir müşteri seçiniz");
       return;
     }
     if (!hasDeliveryContent) {
       showTransientError(
-        'Teslimat için en az bir ürün veya müşteriden alınan boş kap girilmelidir.'
+        "Teslimat için en az bir ürün veya müşteriden alınan boş kap girilmelidir.",
       );
       return;
     }
     if (isEdit && correctionReason.trim().length < 3) {
       setErrorPersistent(true);
-      setErrorMsg('Düzenleme için en az 3 karakterlik bir gerekçe girin.');
+      setErrorMsg("Düzenleme için en az 3 karakterlik bir gerekçe girin.");
       return;
     }
 
@@ -534,13 +589,13 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
       const collectedPayment = {
         method:
-          paymentType === 'unpaid'
-            ? 'UNPAID'
+          paymentType === "unpaid"
+            ? "UNPAID"
             : cashVal > 0 && posVal > 0
-            ? 'MIXED'
-            : posVal > 0
-            ? 'POS'
-            : 'CASH',
+              ? "MIXED"
+              : posVal > 0
+                ? "POS"
+                : "CASH",
         cashAmount: cashVal,
         posAmount: posVal,
         totalCollected: totalCollectedVal,
@@ -549,6 +604,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         damacana: emptyDamacanaReturned,
         camDamacana: emptyCamDamacanaReturned,
         tup: emptyTupReturned,
+        sebil: emptySebilReturned,
       };
 
       if (isEdit && editDelivery) {
@@ -583,20 +639,42 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       };
 
       const result = await createDelivery(payload);
+
+      // Sebil emanet detayı: marka, model veya açıklamadan en az biri girildiyse kaydet.
+      if (
+        deliveredDepositSebil > 0 &&
+        (sebilBrand.trim() || sebilModel.trim() || sebilNote.trim())
+      ) {
+        try {
+          await addCustomerDispenser(selectedCustomer.id, {
+            brand: sebilBrand.trim(),
+            model: sebilModel.trim(),
+            quantity: deliveredDepositSebil,
+            note: sebilNote.trim() || null,
+          });
+        } catch (dispenserErr) {
+          // Teslimat kaydı başarılı; detay kaydı başarısızsa kullanıcı bilgilendirilir.
+          console.error("[delivery dispenser detail]", dispenserErr);
+        }
+      }
+
       onDeliveryCreated(result.delivery, result.updatedCustomer);
       onClose();
     } catch (err: any) {
       setErrorPersistent(true);
       setErrorMsg(
         err.message ||
-          (isEdit ? 'Teslimat düzenlenemedi' : 'Teslimat kaydedilemedi')
+          (isEdit ? "Teslimat düzenlenemedi" : "Teslimat kaydedilemedi"),
       );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const stockWarnings = computeStockWarnings(deliveredItems, dispatch.loadedItems);
+  const stockWarnings = computeStockWarnings(
+    deliveredItems,
+    dispatch.loadedItems,
+  );
   const stockWarningSignature = getStockWarningSignature(stockWarnings);
 
   useEffect(() => {
@@ -610,7 +688,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     setWarningExpiresAt(Date.now() + STOCK_WARNING_DURATION_MS);
     const timeout = setTimeout(
       () => setWarningClock(Date.now()),
-      STOCK_WARNING_DURATION_MS + 50
+      STOCK_WARNING_DURATION_MS + 50,
     );
     return () => clearTimeout(timeout);
   }, [stockWarningSignature]);
@@ -655,22 +733,23 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto">
       <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 my-auto max-h-[calc(94dvh-env(safe-area-inset-bottom))] sm:max-h-[94vh] flex flex-col overflow-hidden">
-        
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
           <div>
             <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
-              <span>{isEdit ? 'Teslimatı Düzenle' : 'Yeni Teslimat Girişi'}</span>
+              <span>
+                {isEdit ? "Teslimatı Düzenle" : "Yeni Teslimat Girişi"}
+              </span>
               <span className="text-xs px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-mono font-bold">
                 {dispatch.vehiclePlate}
               </span>
             </h2>
             <p className="text-xs text-slate-500">
               {isEdit
-                ? 'Müşteri değiştirilemez. Tutar, ürün, boş kap ve tahsilat düzeltilebilir.'
+                ? "Müşteri değiştirilemez. Tutar, ürün, boş kap ve tahsilat düzeltilebilir."
                 : selectedCustomer
-                ? 'Müşteri seçildi, teslim edilecek ürünleri belirleyiniz'
-                : 'Adım 1: Önce teslimat yapılacak müşteriyi seçiniz'}
+                  ? "Müşteri seçildi, teslim edilecek ürünleri belirleyiniz"
+                  : "Adım 1: Önce teslimat yapılacak müşteriyi seçiniz"}
             </p>
           </div>
           <button
@@ -686,10 +765,12 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         <div className="p-4 sm:p-5 overflow-y-auto space-y-5 flex-1 min-h-0">
           {isEdit && (
             <div className="p-3.5 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 text-xs space-y-1">
-              <p className="font-bold">Eski teslimat iptal edilip yenisi oluşturulacak.</p>
+              <p className="font-bold">
+                Eski teslimat iptal edilip yenisi oluşturulacak.
+              </p>
               <p>
-                Cari bakiye ve boş kap bakiyeleri net fark kadar düzeltilir. İşlem
-                değiştirilemez denetim kaydına yazılır.
+                Cari bakiye ve boş kap bakiyeleri net fark kadar düzeltilir.
+                İşlem değiştirilemez denetim kaydına yazılır.
               </p>
             </div>
           )}
@@ -700,7 +781,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] flex items-center justify-center font-bold">1</span>
+                <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] flex items-center justify-center font-bold">
+                  1
+                </span>
                 <span>Müşteri Seçimi</span>
               </label>
               {selectedCustomer && !isEdit && (
@@ -740,9 +823,14 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
                 {/* Inline New Customer Form */}
                 {showNewCustomerForm && (
-                  <form onSubmit={handleCreateNewCustomer} className="p-3.5 rounded-xl border border-sky-200 dark:border-sky-800 bg-sky-50/50 dark:bg-sky-950/20 space-y-3">
+                  <form
+                    onSubmit={handleCreateNewCustomer}
+                    className="p-3.5 rounded-xl border border-sky-200 dark:border-sky-800 bg-sky-50/50 dark:bg-sky-950/20 space-y-3"
+                  >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-sky-900 dark:text-sky-300">Yeni Müşteri Kaydı</span>
+                      <span className="text-xs font-bold text-sky-900 dark:text-sky-300">
+                        Yeni Müşteri Kaydı
+                      </span>
                       <button
                         type="button"
                         onClick={() => setShowNewCustomerForm(false)}
@@ -779,20 +867,28 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={newCustIsAccount}
-                          onChange={(e) => setNewCustIsAccount(e.target.checked)}
+                          checked={!newCustIsAccount}
+                          onChange={(e) =>
+                            setNewCustIsAccount(!e.target.checked)
+                          }
                           className="rounded text-sky-600 focus:ring-sky-500 w-4 h-4"
                         />
-                        <span>Cari / Açık Hesap Müşterisi</span>
+                        <span>Peşin Müşteri</span>
                       </label>
                       <button
                         type="submit"
                         disabled={isSubmittingCustomer}
                         className="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                       >
-                        {isSubmittingCustomer ? 'Kaydediliyor...' : 'Kaydet & Seç'}
+                        {isSubmittingCustomer
+                          ? "Kaydediliyor..."
+                          : "Kaydet & Seç"}
                       </button>
                     </div>
+                    <p className="text-[10px] text-slate-500">
+                      Tahsilat şoför arkadaşlar tarafından yapılacaksa bu kutucuğu işaretleyin,
+                      eğer fatura toplu kesilecekse kutucuğa tıklamayın.
+                    </p>
                   </form>
                 )}
 
@@ -827,7 +923,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                             <span>{c.name}</span>
                             {c.isAccountCustomer && (
                               <span className="text-[10px] font-semibold text-sky-700 bg-sky-50 dark:bg-sky-950 px-1.5 py-0.2 rounded">
-                                Cari
+                                Faturalı
                               </span>
                             )}
                           </div>
@@ -836,13 +932,16 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                               📞 {c.phone}
                             </div>
                           )}
-                          <div className="text-[11px] text-slate-500 truncate max-w-sm">{c.address || 'Adres bilgisi yok'}</div>
+                          <div className="text-[11px] text-slate-500 truncate max-w-sm">
+                            {c.address || "Adres bilgisi yok"}
+                          </div>
                         </div>
 
                         <div className="text-right shrink-0">
-                          {c.currentBalanceTL > 0 && (
+                          {!c.isAccountCustomer && c.currentBalanceTL > 0 && (
                             <div className="text-[11px] font-mono font-bold text-red-600">
-                              {c.currentBalanceTL.toLocaleString('tr-TR')} ₺ Borç
+                              {c.currentBalanceTL.toLocaleString("tr-TR")} ₺
+                              Borç
                             </div>
                           )}
                           {c.emptyDepositBalance?.damacana > 0 && (
@@ -855,6 +954,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                               {c.emptyDepositBalance.camDamacana} Boş Cam Borcu
                             </div>
                           )}
+                          {(c.emptyDepositBalance?.sebil || 0) > 0 && (
+                            <div className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300">
+                              {c.emptyDepositBalance?.sebil} Sebil
+                            </div>
+                          )}
                           {negativeEmptyMessages(c.emptyDepositBalance).map(
                             (message) => (
                               <div
@@ -863,7 +967,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                               >
                                 ℹ️ {message}
                               </div>
-                            )
+                            ),
                           )}
                         </div>
                       </button>
@@ -877,10 +981,12 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 <div>
                   <div className="flex items-center gap-2">
                     <Building2 className="w-4 h-4 text-sky-600" />
-                    <span className="text-sm font-bold text-slate-900 dark:text-white">{selectedCustomer.name}</span>
+                    <span className="text-sm font-bold text-slate-900 dark:text-white">
+                      {selectedCustomer.name}
+                    </span>
                     {selectedCustomer.isAccountCustomer ? (
                       <span className="text-[10px] font-bold text-sky-700 bg-sky-100 dark:bg-sky-900 px-1.5 py-0.5 rounded">
-                        Cari / Açık Hesap
+                        Faturalı Müşteri
                       </span>
                     ) : (
                       <span className="text-[10px] font-bold text-slate-600 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
@@ -897,7 +1003,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     )}
                     <span className="flex items-center gap-1">
                       <MapPin className="w-3 h-3 text-slate-400" />
-                      {selectedCustomer.address || 'Adres yok'}
+                      {selectedCustomer.address || "Adres yok"}
                     </span>
                   </div>
 
@@ -915,23 +1021,33 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       selectedCustomer.emptyDepositBalance?.camDamacana > 0 ||
                       selectedCustomer.emptyDepositBalance?.tup > 0) && (
                       <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300">
-                        Müşteride Kalan Boş: {selectedCustomer.emptyDepositBalance?.damacana || 0} Damacana
-                        {selectedCustomer.emptyDepositBalance?.camDamacana > 0 ? `, ${selectedCustomer.emptyDepositBalance.camDamacana} Cam Damacana` : ''}
-                        {selectedCustomer.emptyDepositBalance?.tup > 0 ? `, ${selectedCustomer.emptyDepositBalance.tup} Tüp` : ''}
+                        Müşteride Kalan Boş:{" "}
+                        {selectedCustomer.emptyDepositBalance?.damacana || 0}{" "}
+                        Damacana
+                        {selectedCustomer.emptyDepositBalance?.camDamacana > 0
+                          ? `, ${selectedCustomer.emptyDepositBalance.camDamacana} Cam Damacana`
+                          : ""}
+                        {selectedCustomer.emptyDepositBalance?.tup > 0
+                          ? `, ${selectedCustomer.emptyDepositBalance.tup} Tüp`
+                          : ""}
+                        {(selectedCustomer.emptyDepositBalance?.sebil || 0) > 0
+                          ? `, ${selectedCustomer.emptyDepositBalance?.sebil} Sebil`
+                          : ""}
                       </span>
                     )}
 
-                    {selectedCustomer.currentBalanceTL !== 0 && (
+                    {!selectedCustomer.isAccountCustomer &&
+                      selectedCustomer.currentBalanceTL !== 0 && (
                       <span
                         className={`text-[11px] font-mono font-semibold px-2 py-0.5 rounded-md ${
                           selectedCustomer.currentBalanceTL > 0
-                            ? 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'
-                            : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                            ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
+                            : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                         }`}
                       >
                         {selectedCustomer.currentBalanceTL > 0
-                          ? `Önceki Borcu: ${selectedCustomer.currentBalanceTL.toLocaleString('tr-TR')} ₺`
-                          : `Avansı: ${Math.abs(selectedCustomer.currentBalanceTL).toLocaleString('tr-TR')} ₺`}
+                          ? `Önceki Borcu: ${selectedCustomer.currentBalanceTL.toLocaleString("tr-TR")} ₺`
+                          : `Avansı: ${Math.abs(selectedCustomer.currentBalanceTL).toLocaleString("tr-TR")} ₺`}
                       </span>
                     )}
                   </div>
@@ -950,10 +1066,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
             )}
 
             {selectedCustomer && (
-              <CustomerDispensersSection
-                customerId={selectedCustomer.id}
-                customerName={selectedCustomer.name}
-              />
+              <CustomerDispenserInfo customerId={selectedCustomer.id} />
             )}
           </div>
 
@@ -964,10 +1077,12 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
             <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] flex items-center justify-center font-bold">2</span>
+                  <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] flex items-center justify-center font-bold">
+                    2
+                  </span>
                   <span>Ürün Arama ve Seçimi</span>
                 </label>
-                {currentUser.role === 'admin' && (
+                {currentUser.role === "admin" && (
                   <button
                     type="button"
                     onClick={() => setShowNewProductForm(!showNewProductForm)}
@@ -992,10 +1107,15 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
               </div>
 
               {/* Inline New Product Form */}
-              {currentUser.role === 'admin' && showNewProductForm && (
-                <form onSubmit={handleCreateNewProduct} className="p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20 space-y-3">
+              {currentUser.role === "admin" && showNewProductForm && (
+                <form
+                  onSubmit={handleCreateNewProduct}
+                  className="p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20 space-y-3"
+                >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-indigo-900 dark:text-indigo-300">Hızlı Yeni Ürün Tanımla</span>
+                    <span className="text-xs font-bold text-indigo-900 dark:text-indigo-300">
+                      Hızlı Yeni Ürün Tanımla
+                    </span>
                     <button
                       type="button"
                       onClick={() => setShowNewProductForm(false)}
@@ -1015,7 +1135,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     />
                     <select
                       value={newProdCategory}
-                      onChange={(e) => setNewProdCategory(e.target.value as ProductCategory)}
+                      onChange={(e) =>
+                        setNewProdCategory(e.target.value as ProductCategory)
+                      }
                       className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                     >
                       {getProductCategoryCodes().map((code) => (
@@ -1044,7 +1166,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         <input
                           type="checkbox"
                           checked={newProdIsDeposit}
-                          onChange={(e) => setNewProdIsDeposit(e.target.checked)}
+                          onChange={(e) =>
+                            setNewProdIsDeposit(e.target.checked)
+                          }
                           className="rounded text-indigo-600 w-4 h-4"
                         />
                         <span>İadeli Boş Kap</span>
@@ -1054,12 +1178,22 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       <select
                         value={newProdDepositType}
                         onChange={(e) =>
-                          setNewProdDepositType(e.target.value as 'none' | 'damacana' | 'cam_damacana' | 'tup')
+                          setNewProdDepositType(
+                            e.target.value as
+                              | "none"
+                              | "damacana"
+                              | "cam_damacana"
+                              | "tup",
+                          )
                         }
                         className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white sm:col-span-3"
                       >
-                        <option value="damacana">🔄 Boş Damacana İadesi Zorunlu</option>
-                        <option value="cam_damacana">🔄 Boş Cam Damacana İadesi Zorunlu</option>
+                        <option value="damacana">
+                          🔄 Boş Damacana İadesi Zorunlu
+                        </option>
+                        <option value="cam_damacana">
+                          🔄 Boş Cam Damacana İadesi Zorunlu
+                        </option>
                         <option value="tup">🔥 Boş Tüp İadesi Zorunlu</option>
                       </select>
                     )}
@@ -1096,15 +1230,16 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     const lineTotal = qty * unitPrice;
                     const vehicleStock = getVehicleStock(p.id);
                     const isEditingPrice = editingPriceProductId === p.id;
-                    const isCustomerSpecific = selectedCustomer?.customPrices?.[p.id] !== undefined;
+                    const isCustomerSpecific =
+                      selectedCustomer?.customPrices?.[p.id] !== undefined;
 
                     return (
                       <div
                         key={p.id}
                         className={`p-3 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
                           qty > 0
-                            ? 'border-sky-400 bg-sky-50/30 dark:border-sky-800 dark:bg-sky-950/20 shadow-2xs'
-                            : 'border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20'
+                            ? "border-sky-400 bg-sky-50/30 dark:border-sky-800 dark:bg-sky-950/20 shadow-2xs"
+                            : "border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20"
                         }`}
                       >
                         <div>
@@ -1119,7 +1254,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
                           <div className="flex items-center gap-3 mt-1 text-xs">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-slate-500">Birim Fiyat:</span>
+                              <span className="text-slate-500">
+                                Birim Fiyat:
+                              </span>
                               {isEditingPrice ? (
                                 <div className="flex items-center gap-1">
                                   <input
@@ -1128,7 +1265,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                                     onChange={(e) =>
                                       setUnitPrices((prev) => ({
                                         ...prev,
-                                        [p.id]: Math.max(0, parseFloat(e.target.value) || 0),
+                                        [p.id]: Math.max(
+                                          0,
+                                          parseFloat(e.target.value) || 0,
+                                        ),
                                       }))
                                     }
                                     className="w-16 h-6 rounded border border-sky-400 font-mono font-bold text-center text-xs bg-white dark:bg-slate-800"
@@ -1136,7 +1276,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                                   />
                                   <button
                                     type="button"
-                                    onClick={() => setEditingPriceProductId(null)}
+                                    onClick={() =>
+                                      setEditingPriceProductId(null)
+                                    }
                                     className="p-1 rounded bg-sky-600 text-white"
                                   >
                                     <Check className="w-3 h-3" />
@@ -1168,23 +1310,30 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                           <div className="flex items-center gap-1.5">
                             <button
                               type="button"
-                              onClick={() => handleQuantityChange(p.id, qty - 1)}
+                              onClick={() =>
+                                handleQuantityChange(p.id, qty - 1)
+                              }
                               className="w-11 h-11 rounded-lg bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center text-base active:scale-95"
                             >
                               -
                             </button>
                             <input
                               type="number"
-                              value={qty === 0 ? '' : qty}
+                              value={qty === 0 ? "" : qty}
                               onChange={(e) =>
-                                handleQuantityChange(p.id, parseInt(e.target.value) || 0)
+                                handleQuantityChange(
+                                  p.id,
+                                  parseInt(e.target.value) || 0,
+                                )
                               }
                               placeholder="0"
                               className="w-14 h-11 rounded-lg border border-slate-200 dark:border-slate-700 text-center font-bold font-mono text-sm dark:bg-slate-800 dark:text-white"
                             />
                             <button
                               type="button"
-                              onClick={() => handleQuantityChange(p.id, qty + 1)}
+                              onClick={() =>
+                                handleQuantityChange(p.id, qty + 1)
+                              }
                               className="w-11 h-11 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-600 font-bold flex items-center justify-center text-base active:scale-95"
                             >
                               +
@@ -1193,7 +1342,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
                           <div className="w-20 text-right">
                             <span className="font-mono font-bold text-xs tabular-nums text-slate-900 dark:text-white">
-                              {lineTotal > 0 ? `${lineTotal.toLocaleString('tr-TR')} ₺` : '-'}
+                              {lineTotal > 0
+                                ? `${lineTotal.toLocaleString("tr-TR")} ₺`
+                                : "-"}
                             </span>
                           </div>
                         </div>
@@ -1211,21 +1362,29 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
           {selectedCustomer && (
             <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
               <label className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] flex items-center justify-center font-bold">3</span>
+                <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] flex items-center justify-center font-bold">
+                  3
+                </span>
                 <span>Teslimat, Boş Kap & Tahsilat Detayları</span>
               </label>
 
               {/* Deposit Empties Returned */}
               <div className="p-3.5 rounded-xl border border-orange-200 dark:border-orange-900/60 bg-orange-50/40 dark:bg-orange-950/20 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-orange-900 dark:text-orange-300 flex items-center gap-1.5">
-                      <RotateCcw className="w-4 h-4 text-orange-600" />
-                      <span>Müşteriden Alınan Boş Emanet Kaplar</span>
-                    </span>
-                    <span className="text-[11px] text-orange-700 dark:text-orange-400">
-                      Bırakılan Dolu: {deliveredDepositDamacana} Damacana{deliveredDepositCamDamacana > 0 ? `, ${deliveredDepositCamDamacana} Cam Damacana` : ''}{deliveredDepositTup > 0 ? `, ${deliveredDepositTup} Tüp` : ''}
-                    </span>
-                  </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-orange-900 dark:text-orange-300 flex items-center gap-1.5">
+                    <RotateCcw className="w-4 h-4 text-orange-600" />
+                    <span>Müşteriden Alınan Boş Emanet Kaplar</span>
+                  </span>
+                  <span className="text-[11px] text-orange-700 dark:text-orange-400">
+                    Bırakılan Dolu: {deliveredDepositDamacana} Damacana
+                    {deliveredDepositCamDamacana > 0
+                      ? `, ${deliveredDepositCamDamacana} Cam Damacana`
+                      : ""}
+                    {deliveredDepositTup > 0
+                      ? `, ${deliveredDepositTup} Tüp`
+                      : ""}
+                  </span>
+                </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <EmptyContainerRow
@@ -1253,7 +1412,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       }));
                       if (!manual) {
                         setEmptyCamDamacanaReturned(
-                          deliveredDepositCamDamacana
+                          deliveredDepositCamDamacana,
                         );
                       }
                     }}
@@ -1272,31 +1431,115 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     }}
                     onChange={setEmptyTupReturned}
                   />
+                  <EmptyContainerRow
+                    label="Alınan Su Sebili"
+                    delivered={deliveredDepositSebil}
+                    value={emptySebilReturned}
+                    manual={manualEmpty.sebil}
+                    onToggle={(manual) => {
+                      setManualEmpty((prev) => ({ ...prev, sebil: manual }));
+                      if (!manual) {
+                        setEmptySebilReturned(deliveredDepositSebil);
+                      }
+                    }}
+                    onChange={setEmptySebilReturned}
+                  />
+
+                  {deliveredDepositSebil > 0 && (
+                    <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/20">
+                      <div className="sm:col-span-2 text-[11px] font-semibold text-indigo-800 dark:text-indigo-200">
+                        Verilen su sebili bilgileri (isteğe bağlı)
+                      </div>
+                      <label className="min-w-0">
+                        <span className="text-[11px] text-slate-600 dark:text-slate-300 block mb-1">
+                          Marka
+                        </span>
+                        <input
+                          type="text"
+                          value={sebilBrand}
+                          onChange={(e) => setSebilBrand(e.target.value)}
+                          maxLength={60}
+                          placeholder="Örn: Arçelik"
+                          className="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                        />
+                      </label>
+                      <label className="min-w-0">
+                        <span className="text-[11px] text-slate-600 dark:text-slate-300 block mb-1">
+                          Model
+                        </span>
+                        <input
+                          type="text"
+                          value={sebilModel}
+                          onChange={(e) => setSebilModel(e.target.value)}
+                          maxLength={60}
+                          placeholder="Örn: 1200 A"
+                          className="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                        />
+                      </label>
+                      <label className="min-w-0 sm:col-span-2">
+                        <span className="text-[11px] text-slate-600 dark:text-slate-300 block mb-1">
+                          Nereye bırakıldı / açıklama
+                        </span>
+                        <textarea
+                          value={sebilNote}
+                          onChange={(e) => setSebilNote(e.target.value)}
+                          maxLength={300}
+                          rows={2}
+                          placeholder="Örn: Müşterinin giriş katındaki mutfağında, tezgâhın yanında bırakıldı; teslim alan kişi: güvenlik görevlisi"
+                          className="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white resize-y"
+                        />
+                      </label>
+                    </div>
+                  )}
                 </div>
 
                 {deliveredDepositDamacana - emptyDamacanaReturned !== 0 && (
                   <div className="text-[11px] text-orange-800 dark:text-orange-300">
                     {deliveredDepositDamacana - emptyDamacanaReturned > 0 ? (
                       <span>
-                        ⚠️ <strong>{deliveredDepositDamacana - emptyDamacanaReturned} adet boş damacana eksik alındı.</strong> Müşterinin emanet boş borcuna işlenecektir.
+                        ⚠️{" "}
+                        <strong>
+                          {deliveredDepositDamacana - emptyDamacanaReturned}{" "}
+                          adet boş damacana eksik alındı.
+                        </strong>{" "}
+                        Müşterinin emanet boş borcuna işlenecektir.
                       </span>
                     ) : (
                       <span>
-                        ℹ️ Müşteriye <strong>{emptyDamacanaReturned - deliveredDepositDamacana} adet boş damacana borcumuz oluşur.</strong> Emanet bakiyesine işlenecektir.
+                        ℹ️ Müşteriye{" "}
+                        <strong>
+                          {emptyDamacanaReturned - deliveredDepositDamacana}{" "}
+                          adet boş damacana borcumuz oluşur.
+                        </strong>{" "}
+                        Emanet bakiyesine işlenecektir.
                       </span>
                     )}
                   </div>
                 )}
 
-                {deliveredDepositCamDamacana - emptyCamDamacanaReturned !== 0 && (
+                {deliveredDepositCamDamacana - emptyCamDamacanaReturned !==
+                  0 && (
                   <div className="text-[11px] text-amber-800 dark:text-amber-300">
-                    {deliveredDepositCamDamacana - emptyCamDamacanaReturned > 0 ? (
+                    {deliveredDepositCamDamacana - emptyCamDamacanaReturned >
+                    0 ? (
                       <span>
-                        ⚠️ <strong>{deliveredDepositCamDamacana - emptyCamDamacanaReturned} adet boş cam damacana eksik alındı.</strong> Müşterinin emanet boş cam damacana borcuna işlenecektir.
+                        ⚠️{" "}
+                        <strong>
+                          {deliveredDepositCamDamacana -
+                            emptyCamDamacanaReturned}{" "}
+                          adet boş cam damacana eksik alındı.
+                        </strong>{" "}
+                        Müşterinin emanet boş cam damacana borcuna işlenecektir.
                       </span>
                     ) : (
                       <span>
-                        ℹ️ Müşteriye <strong>{emptyCamDamacanaReturned - deliveredDepositCamDamacana} adet boş cam damacana borcumuz oluşur.</strong> Emanet bakiyesine işlenecektir.
+                        ℹ️ Müşteriye{" "}
+                        <strong>
+                          {emptyCamDamacanaReturned -
+                            deliveredDepositCamDamacana}{" "}
+                          adet boş cam damacana borcumuz oluşur.
+                        </strong>{" "}
+                        Emanet bakiyesine işlenecektir.
                       </span>
                     )}
                   </div>
@@ -1306,11 +1549,21 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   <div className="text-[11px] text-orange-800 dark:text-orange-300">
                     {deliveredDepositTup - emptyTupReturned > 0 ? (
                       <span>
-                        ⚠️ <strong>{deliveredDepositTup - emptyTupReturned} adet boş tüp eksik alındı.</strong> Müşterinin emanet boş tüp borcuna işlenecektir.
+                        ⚠️{" "}
+                        <strong>
+                          {deliveredDepositTup - emptyTupReturned} adet boş tüp
+                          eksik alındı.
+                        </strong>{" "}
+                        Müşterinin emanet boş tüp borcuna işlenecektir.
                       </span>
                     ) : (
                       <span>
-                        ℹ️ Müşteriye <strong>{emptyTupReturned - deliveredDepositTup} adet boş tüp borcumuz oluşur.</strong> Emanet bakiyesine işlenecektir.
+                        ℹ️ Müşteriye{" "}
+                        <strong>
+                          {emptyTupReturned - deliveredDepositTup} adet boş tüp
+                          borcumuz oluşur.
+                        </strong>{" "}
+                        Emanet bakiyesine işlenecektir.
                       </span>
                     )}
                   </div>
@@ -1324,9 +1577,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     Tahsilat & Ödeme Durumu
                   </label>
                   <div className="text-right">
-                    <span className="text-[11px] text-slate-500">Teslimat Tutarı:</span>
+                    <span className="text-[11px] text-slate-500">
+                      Teslimat Tutarı:
+                    </span>
                     <span className="font-mono font-extrabold text-base text-slate-900 dark:text-white ml-1.5 tabular-nums">
-                      {grandTotal.toLocaleString('tr-TR')} ₺
+                      {grandTotal.toLocaleString("tr-TR")} ₺
                     </span>
                   </div>
                 </div>
@@ -1335,11 +1590,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
-                    onClick={() => setPaymentType('full')}
+                    onClick={() => setPaymentType("full")}
                     className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                      paymentType === 'full'
-                        ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                      paymentType === "full"
+                        ? "bg-emerald-600 text-white shadow-xs"
+                        : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
                     }`}
                   >
                     Tam Tahsilat ({grandTotal} ₺)
@@ -1347,11 +1602,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => setPaymentType('unpaid')}
+                    onClick={() => setPaymentType("unpaid")}
                     className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                      paymentType === 'unpaid'
-                        ? 'bg-amber-600 text-white shadow-xs'
-                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                      paymentType === "unpaid"
+                        ? "bg-amber-600 text-white shadow-xs"
+                        : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
                     }`}
                   >
                     Tahsil Edilmedi (Borç / 0 ₺)
@@ -1359,11 +1614,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => setPaymentType('custom')}
+                    onClick={() => setPaymentType("custom")}
                     className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                      paymentType === 'custom'
-                        ? 'bg-sky-600 text-white shadow-xs'
-                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                      paymentType === "custom"
+                        ? "bg-sky-600 text-white shadow-xs"
+                        : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
                     }`}
                   >
                     Kısmi / Farklı Tutar
@@ -1371,17 +1626,19 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 </div>
 
                 {/* Payment Method Selector */}
-                {paymentType !== 'unpaid' && (
+                {paymentType !== "unpaid" && (
                   <div className="pt-2">
-                    <span className="text-[11px] font-semibold text-slate-500 block mb-1.5">Ödeme Yöntemi:</span>
+                    <span className="text-[11px] font-semibold text-slate-500 block mb-1.5">
+                      Ödeme Yöntemi:
+                    </span>
                     <div className="grid grid-cols-3 gap-2">
                       <button
                         type="button"
-                        onClick={() => setPaymentMethod('CASH')}
+                        onClick={() => setPaymentMethod("CASH")}
                         className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
-                          paymentMethod === 'CASH'
-                            ? 'bg-emerald-100 text-emerald-800 border-2 border-emerald-500'
-                            : 'bg-white dark:bg-slate-800 text-slate-700 border border-slate-200'
+                          paymentMethod === "CASH"
+                            ? "bg-emerald-100 text-emerald-800 border-2 border-emerald-500"
+                            : "bg-white dark:bg-slate-800 text-slate-700 border border-slate-200"
                         }`}
                       >
                         Nakit
@@ -1389,11 +1646,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
                       <button
                         type="button"
-                        onClick={() => setPaymentMethod('POS')}
+                        onClick={() => setPaymentMethod("POS")}
                         className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
-                          paymentMethod === 'POS'
-                            ? 'bg-indigo-100 text-indigo-800 border-2 border-indigo-500'
-                            : 'bg-white dark:bg-slate-800 text-slate-700 border border-slate-200'
+                          paymentMethod === "POS"
+                            ? "bg-indigo-100 text-indigo-800 border-2 border-indigo-500"
+                            : "bg-white dark:bg-slate-800 text-slate-700 border border-slate-200"
                         }`}
                       >
                         POS (Kart)
@@ -1401,11 +1658,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
                       <button
                         type="button"
-                        onClick={() => setPaymentMethod('MIXED')}
+                        onClick={() => setPaymentMethod("MIXED")}
                         className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
-                          paymentMethod === 'MIXED'
-                            ? 'bg-sky-100 text-sky-800 border-2 border-sky-500'
-                            : 'bg-white dark:bg-slate-800 text-slate-700 border border-slate-200'
+                          paymentMethod === "MIXED"
+                            ? "bg-sky-100 text-sky-800 border-2 border-sky-500"
+                            : "bg-white dark:bg-slate-800 text-slate-700 border border-slate-200"
                         }`}
                       >
                         Karma (Nakit+POS)
@@ -1414,7 +1671,8 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
                     {/* Amount Inputs */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                      {(paymentMethod === 'CASH' || paymentMethod === 'MIXED') && (
+                      {(paymentMethod === "CASH" ||
+                        paymentMethod === "MIXED") && (
                         <div>
                           <label className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 block mb-1">
                             Alınan Nakit (₺)
@@ -1423,7 +1681,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                             type="number"
                             value={cashAmountInput}
                             onChange={(e) => {
-                              setPaymentType('custom');
+                              setPaymentType("custom");
                               setCashAmountInput(e.target.value);
                             }}
                             className="w-full p-2 rounded-lg border border-emerald-300 font-mono font-bold text-sm bg-white dark:bg-slate-800"
@@ -1431,7 +1689,8 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         </div>
                       )}
 
-                      {(paymentMethod === 'POS' || paymentMethod === 'MIXED') && (
+                      {(paymentMethod === "POS" ||
+                        paymentMethod === "MIXED") && (
                         <div>
                           <label className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-400 block mb-1">
                             POS Cihazından Çekilen (₺)
@@ -1440,7 +1699,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                             type="number"
                             value={posAmountInput}
                             onChange={(e) => {
-                              setPaymentType('custom');
+                              setPaymentType("custom");
                               setPosAmountInput(e.target.value);
                             }}
                             className="w-full p-2 rounded-lg border border-indigo-300 font-mono font-bold text-sm bg-white dark:bg-slate-800"
@@ -1456,23 +1715,35 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   <div className="flex items-center justify-between font-semibold">
                     <span>Fiilen Tahsil Edilen Toplam:</span>
                     <span className="font-mono text-emerald-600 font-bold tabular-nums">
-                      {totalCollectedVal.toLocaleString('tr-TR')} ₺
+                      {totalCollectedVal.toLocaleString("tr-TR")} ₺
                     </span>
                   </div>
 
-                  {uncollectedDiff !== 0 && selectedCustomer?.isAccountCustomer && (
-                    <div className="mt-1 text-[11px] text-sky-800 dark:text-sky-300">
-                      {uncollectedDiff > 0 ? (
-                        <span>
-                          📋 Kalan <strong>{uncollectedDiff.toLocaleString('tr-TR')} ₺</strong>, müşterinin cari hesabına borç kaydedilecektir.
-                        </span>
-                      ) : (
-                        <span>
-                          ℹ️ Fazla alınan <strong>{Math.abs(uncollectedDiff).toLocaleString('tr-TR')} ₺</strong>, müşterinin cari bakiyesinden düşülecektir.
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  {uncollectedDiff !== 0 &&
+                    selectedCustomer?.isAccountCustomer && (
+                      <div className="mt-1 text-[11px] text-sky-800 dark:text-sky-300">
+                        {uncollectedDiff > 0 ? (
+                          <span>
+                            📋 Kalan{" "}
+                            <strong>
+                              {uncollectedDiff.toLocaleString("tr-TR")} ₺
+                            </strong>
+                            , müşterinin cari hesabına borç kaydedilecektir.
+                          </span>
+                        ) : (
+                          <span>
+                            ℹ️ Fazla alınan{" "}
+                            <strong>
+                              {Math.abs(uncollectedDiff).toLocaleString(
+                                "tr-TR",
+                              )}{" "}
+                              ₺
+                            </strong>
+                            , müşterinin cari bakiyesinden düşülecektir.
+                          </span>
+                        )}
+                      </div>
+                    )}
                 </div>
               </div>
 
@@ -1541,7 +1812,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
               <div
                 role="status"
                 aria-live="polite"
-                onClick={() => setDismissedWarningSignature(stockWarningSignature)}
+                onClick={() =>
+                  setDismissedWarningSignature(stockWarningSignature)
+                }
                 className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-sm space-y-1 cursor-pointer"
               >
                 <div className="flex items-center gap-1.5 font-bold">
@@ -1561,7 +1834,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 </div>
                 {stockWarnings.map((warning) => (
                   <p key={warning.productId} className="break-words">
-                    ⚠️ <strong>{warning.productName}</strong> için girilen miktar ({warning.qty}), araçtaki yüklü stoğu ({warning.vehicleQty}) aşıyor. Teslimat kaydedilebilir ancak gün sonu sayımında dikkate alınacaktır.
+                    ⚠️ <strong>{warning.productName}</strong> için girilen
+                    miktar ({warning.qty}), araçtaki yüklü stoğu (
+                    {warning.vehicleQty}) aşıyor. Teslimat kaydedilebilir ancak
+                    gün sonu sayımında dikkate alınacaktır.
                   </p>
                 ))}
               </div>
@@ -1593,16 +1869,16 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
             <Check className="w-4 h-4 shrink-0" />
             <span className="break-words">
               {isSubmitting
-                ? 'Kaydediliyor...'
+                ? "Kaydediliyor..."
                 : !selectedCustomer
-                ? 'Önce Müşteri Seçiniz'
-                : !hasDeliveryContent
-                ? 'Ürün veya Boş Kap Giriniz'
-                : isEdit && correctionReason.trim().length < 3
-                ? 'Düzenleme Gerekçesi Giriniz'
-                : isEdit
-                ? `Düzenlemeyi Kaydet (${totalCollectedVal.toLocaleString('tr-TR')} ₺)`
-                : `Teslimatı Kaydet (${totalCollectedVal.toLocaleString('tr-TR')} ₺)`}
+                  ? "Önce Müşteri Seçiniz"
+                  : !hasDeliveryContent
+                    ? "Ürün veya Boş Kap Giriniz"
+                    : isEdit && correctionReason.trim().length < 3
+                      ? "Düzenleme Gerekçesi Giriniz"
+                      : isEdit
+                        ? `Düzenlemeyi Kaydet (${totalCollectedVal.toLocaleString("tr-TR")} ₺)`
+                        : `Teslimatı Kaydet (${totalCollectedVal.toLocaleString("tr-TR")} ₺)`}
             </span>
           </button>
         </div>

@@ -155,11 +155,17 @@ function roundMoney(value: unknown): number {
   return Math.round((Number(value) || 0) * 100) / 100;
 }
 
-function normalizeEmpties(value: any): { damacana: number; camDamacana: number; tup: number } {
+function normalizeEmpties(value: any): {
+  damacana: number;
+  camDamacana: number;
+  tup: number;
+  sebil: number;
+} {
   return {
     damacana: Number(value?.damacana) || 0,
     camDamacana: Number(value?.camDamacana ?? value?.cam_damacana) || 0,
     tup: Number(value?.tup) || 0,
+    sebil: Number(value?.sebil) || 0,
   };
 }
 

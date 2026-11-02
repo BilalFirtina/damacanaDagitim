@@ -9,7 +9,6 @@ import {
   PaymentStatus,
   CustomerDispenser,
   CustomerDispenserInput,
-  CustomerDispenserSuggestions,
 } from '../types';
 import {
   classifyDeliverySyncResponse,
@@ -112,6 +111,17 @@ export function getCache(key: string): any | null {
   } catch {
     return null;
   }
+}
+
+// Kullanıcıya özel önbelleğe alınmış okuma verilerini (müşteri bakiyeleri,
+// teslimatlar, seferler) temizler. AGENTS.md Bölüm 12.3: oturum kapanınca
+// yetkisiz kullanıcıya önceki kullanıcının finansal verisi gösterilmemeli.
+// DİKKAT: Senkronize edilmemiş teslimat kuyruğuna (OFFLINE_QUEUE_KEY) DOKUNMAZ;
+// o kayıtlar sessizce silinemez (Bölüm 12.3).
+export function clearCachedData() {
+  try {
+    localStorage.removeItem(CACHED_DATA_KEY);
+  } catch {}
 }
 
 // REST API Methods
@@ -234,6 +244,100 @@ export async function fetchCustomers(): Promise<Customer[]> {
   }
 }
 
+// Müşteri cari hesap ekstresi — AGENTS.md Bölüm 10.1.
+export interface CustomerStatementResponse {
+  customer: {
+    id: string;
+    name: string;
+    phone: string;
+    address: string;
+    isAccountCustomer: boolean;
+    currentBalanceTL: number;
+  };
+  statement: import('./statementRules').CustomerStatementResult;
+  returnables: {
+    emptyDepositBalance: { damacana: number; camDamacana: number; tup: number; sebil?: number };
+  };
+}
+
+export async function fetchCustomerStatement(
+  customerId: string,
+  from: string,
+  to: string
+): Promise<CustomerStatementResponse> {
+  const query = new URLSearchParams({ from, to });
+  const res = await apiFetch(
+    `/api/customers/${encodeURIComponent(customerId)}/statement?${query.toString()}`
+  );
+  if (!res.ok) await throwServerError(res, 'Cari hesap ekstresi alınamadı');
+  return res.json();
+}
+
+// Bekleyen müşteri borçları ve iade edilebilir kalem bakiyeleri — Bölüm 10.2.
+export interface BalancesReportRow {
+  id: string;
+  name: string;
+  phone: string;
+  isAccountCustomer: boolean;
+  balance: number;
+  empty: { damacana: number; camDamacana: number; tup: number; sebil: number };
+}
+
+export interface BalancesReportResponse {
+  rows: BalancesReportRow[];
+  totals: {
+    totalDebt: number;
+    totalAdvance: number;
+    emptyDamacana: number;
+    emptyCamDamacana: number;
+    emptyTup: number;
+    emptySebil: number;
+  };
+}
+
+export async function fetchBalancesReport(): Promise<BalancesReportResponse> {
+  const res = await apiFetch('/api/reports/balances');
+  if (!res.ok) await throwServerError(res, 'Bakiye raporu alınamadı');
+  return res.json();
+}
+
+// Teslimat dışı müşteri tahsilatı — AGENTS.md Bölüm 6.
+export interface CustomerPaymentInput {
+  amount: number;
+  method: 'CASH' | 'POS' | 'TRANSFER';
+  note?: string;
+  paymentId?: string;
+}
+
+export async function createCustomerPayment(
+  customerId: string,
+  input: CustomerPaymentInput
+): Promise<{ paymentId: string; balance: number; alreadyApplied: boolean; message: string }> {
+  const res = await apiFetch(`/api/customers/${encodeURIComponent(customerId)}/payments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) await throwServerError(res, 'Tahsilat kaydedilemedi');
+  return res.json();
+}
+
+export async function fetchCustomerPayments(customerId: string): Promise<
+  Array<{
+    id: string;
+    amount: number;
+    method: string;
+    note: string;
+    collectedByUserName: string;
+    collectedAt: string;
+  }>
+> {
+  const res = await apiFetch(`/api/customers/${encodeURIComponent(customerId)}/payments`);
+  if (!res.ok) await throwServerError(res, 'Tahsilat kayıtları alınamadı');
+  const json = await res.json();
+  return json.payments || [];
+}
+
 export async function createCustomer(customer: Partial<Customer>): Promise<Customer> {
   const res = await apiFetch('/api/customers', {
     method: 'POST',
@@ -270,10 +374,9 @@ export async function updateCustomer(id: string, updates: CustomerUpdate): Promi
   return json.customer;
 }
 
-export async function fetchCustomerDispensers(customerId: string): Promise<{
-  dispensers: CustomerDispenser[];
-  suggestions: CustomerDispenserSuggestions;
-}> {
+export async function fetchCustomerDispensers(
+  customerId: string
+): Promise<CustomerDispenser[]> {
   const res = await apiFetch(
     `/api/customers/${encodeURIComponent(customerId)}/dispensers`
   );
@@ -281,13 +384,7 @@ export async function fetchCustomerDispensers(customerId: string): Promise<{
     await throwServerError(res, 'Sebil kayıtları alınamadı.');
   }
   const json = await res.json();
-  return {
-    dispensers: Array.isArray(json.dispensers) ? json.dispensers : [],
-    suggestions: {
-      brands: Array.isArray(json.suggestions?.brands) ? json.suggestions.brands : [],
-      models: Array.isArray(json.suggestions?.models) ? json.suggestions.models : [],
-    },
-  };
+  return Array.isArray(json.dispensers) ? json.dispensers : [];
 }
 
 export async function addCustomerDispenser(
@@ -307,39 +404,6 @@ export async function addCustomerDispenser(
   }
   const json = await res.json();
   return json.dispenser as CustomerDispenser;
-}
-
-export async function editCustomerDispenser(
-  customerId: string,
-  dispenserId: string,
-  input: CustomerDispenserInput
-): Promise<CustomerDispenser> {
-  const res = await apiFetch(
-    `/api/customers/${encodeURIComponent(customerId)}/dispensers/${encodeURIComponent(dispenserId)}`,
-    {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
-    }
-  );
-  if (!res.ok) {
-    await throwServerError(res, 'Sebil güncellenemedi.');
-  }
-  const json = await res.json();
-  return json.dispenser as CustomerDispenser;
-}
-
-export async function removeCustomerDispenser(
-  customerId: string,
-  dispenserId: string
-): Promise<void> {
-  const res = await apiFetch(
-    `/api/customers/${encodeURIComponent(customerId)}/dispensers/${encodeURIComponent(dispenserId)}`,
-    { method: 'DELETE' }
-  );
-  if (!res.ok) {
-    await throwServerError(res, 'Sebil silinemedi.');
-  }
 }
 
 export async function fetchDispatches(date?: string): Promise<Dispatch[]> {
@@ -414,6 +478,13 @@ export async function reopenDispatch(
 }
 
 export async function fetchDeliveries(params?: { dispatchId?: string; driverId?: string; date?: string }): Promise<Delivery[]> {
+  // Önbellek anahtarı sorguya özgüdür; farklı sefer/gün sorguları birbirinin
+  // önbelleğini ezmez (çevrimdışıyken yanlış teslimat gösterilmez).
+  const cacheKey = `deliveries_${params?.dispatchId || 'all'}_${params?.date || 'all'}`;
+  // Geriye dönük uyumluluk: sefere özel olmayan (gün) sorgular eski anahtara da
+  // yazılır. Sefere özel sorgular eski anahtarı ASLA ezmez.
+  const legacyKey = params?.dispatchId ? null : 'deliveries_latest';
+
   try {
     const query = new URLSearchParams();
     if (params?.dispatchId) query.set('dispatchId', params.dispatchId);
@@ -423,10 +494,11 @@ export async function fetchDeliveries(params?: { dispatchId?: string; driverId?:
     const res = await apiFetch(`/api/deliveries?${query.toString()}`);
     if (!res.ok) throw new Error('Teslimatlar alınamadı');
     const json = await res.json();
-    saveCache('deliveries_latest', json.deliveries);
+    saveCache(cacheKey, json.deliveries);
+    if (legacyKey) saveCache(legacyKey, json.deliveries);
     return json.deliveries;
   } catch (err) {
-    const cached = getCache('deliveries_latest');
+    const cached = getCache(cacheKey) ?? (legacyKey ? getCache(legacyKey) : null);
     if (cached) return cached;
     throw err;
   }
@@ -754,3 +826,24 @@ export async function triggerManualCleanup(): Promise<any> {
   return res.json();
 }
 
+
+
+// Birleşik işlem geçmişi — AGENTS.md Bölüm 10.2.
+export interface AuditHistoryEvent {
+  id: string;
+  kind: 'delivery_correction' | 'dispatch_reopen' | 'dispatch_loading';
+  at: string;
+  by: string;
+  title: string;
+  reason: string;
+  detail: string;
+  dispatchId: string;
+  deliveryId: string | null;
+}
+
+export async function fetchAuditHistory(limit = 100): Promise<AuditHistoryEvent[]> {
+  const res = await apiFetch(`/api/audit/history?limit=${limit}`);
+  if (!res.ok) await throwServerError(res, 'İşlem geçmişi alınamadı');
+  const json = await res.json();
+  return json.events || [];
+}
