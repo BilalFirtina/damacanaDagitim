@@ -71,131 +71,11 @@ export const Header: React.FC<HeaderProps> = ({
             className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-white ring-1 ring-slate-200 dark:ring-slate-700 object-contain shrink-0"
           />
           <div className="min-w-0">
-            <span className="text-sm sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
-              Fırtına<span className="hidden min-[360px]:inline text-sky-600 font-extrabold ml-0.5">Gıda</span>
+            <span className="text-[13px] min-[360px]:text-sm sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
+              Fırtına<span className="text-sky-600 font-extrabold ml-0.5">Gıda</span>
             </span>
           </div>
         </div>
-
-        {/* Zone 2: Desktop Navigation Links (icon-only at lg, icon+label at xl; wraps and condenses, no horizontal scroll) */}
-        <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 flex-wrap py-1 min-w-0">
-          <button
-            onClick={() => setActiveTab('delivery')}
-            title="Saha Dağıtımı"
-            aria-label="Saha Dağıtımı"
-            className={`px-3 py-1 text-xs leading-none font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'delivery'
-                ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 font-bold'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <Truck className="w-4 h-4 shrink-0" />
-            <span className="hidden xl:inline">Saha Dağıtımı</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('team_feed')}
-            title="Ekip Canlı Akışı"
-            aria-label="Ekip Canlı Akışı"
-            className={`px-3 py-1 text-xs leading-none font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'team_feed'
-                ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 font-bold'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <Activity className="w-4 h-4 shrink-0" />
-            <span className="hidden xl:inline">Ekip Canlı Akışı</span>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-          </button>
-
-          <button
-            onClick={() => setActiveTab('eod')}
-            title="Gün Sonu Kapatma"
-            aria-label="Gün Sonu Kapatma"
-            className={`px-3 py-1 text-xs leading-none font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'eod'
-                ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 font-bold'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            <span className="hidden xl:inline">Gün Sonu Kapatma</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('customers')}
-            title="Müşteriler & Borçlar"
-            aria-label="Müşteriler & Borçlar"
-            className={`px-3 py-1 text-xs leading-none font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'customers'
-                ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 font-bold'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <Users className="w-4 h-4 shrink-0" />
-            <span className="hidden xl:inline">Müşteriler & Borçlar</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('products')}
-            title="Ürünler & Fiyatlar"
-            aria-label="Ürünler & Fiyatlar"
-            className={`px-3 py-1 text-xs leading-none font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'products'
-                ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 font-bold'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <Package className="w-4 h-4 shrink-0" />
-            <span className="hidden xl:inline">Ürünler & Fiyatlar</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('reports')}
-            title="Gün Sonu Dökümü (PDF/Excel)"
-            aria-label="Gün Sonu Dökümü (PDF/Excel)"
-            className={`px-3 py-1 text-xs leading-none font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'reports'
-                ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 font-bold'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <FileText className="w-4 h-4 shrink-0" />
-            <span className="hidden xl:inline">Gün Sonu Dökümü (PDF/Excel)</span>
-          </button>
-
-          {isAdmin && (
-            <>
-              <button
-                onClick={() => setActiveTab('admin_loads')}
-                title="Araç Yüklemeleri & Yetki"
-                aria-label="Araç Yüklemeleri & Yetki"
-                className={`px-3 py-1 text-xs leading-none font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'admin_loads'
-                    ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <ShieldCheck className="w-4 h-4 shrink-0" />
-                <span className="hidden xl:inline">Araç Yüklemeleri & Yetki</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('retention')}
-                title="60 Günlük Temizlik"
-                aria-label="60 Günlük Temizlik"
-                className={`px-3 py-1 text-xs leading-none font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'retention'
-                    ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <CalendarCheck className="w-4 h-4 shrink-0" />
-                <span className="hidden xl:inline">60 Günlük Temizlik</span>
-              </button>
-            </>
-          )}
-        </nav>
 
         {/* Zone 3: Actions & Explicit Logout Button (Always visible on all screens) */}
         <div className="flex items-center gap-1 sm:gap-2 min-w-0 lg:shrink-0">
@@ -236,6 +116,35 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="font-bold hidden sm:inline">Çıkış Yap</span>
           </button>
         </div>
+      </div>
+
+      {/* Desktop navigation: visible labels from lg upwards (no icon-only ambiguity) */}
+      <div className="hidden lg:block w-full max-w-full border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900/95">
+        <nav className="max-w-7xl mx-auto px-2.5 sm:px-6 py-1.5 flex flex-wrap items-center gap-1 min-w-0">
+          {mobileNavItems
+            .filter((item) => !item.adminOnly || isAdmin)
+            .map((item) => {
+              const active = activeTab === item.tab;
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.tab}
+                  type="button"
+                  onClick={() => setActiveTab(item.tab)}
+                  aria-label={item.ariaLabel}
+                  title={item.ariaLabel}
+                  className={`min-h-9 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
+                    active
+                      ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs font-bold'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-white/80 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 shrink-0 ${item.iconClass}`} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+        </nav>
       </div>
 
       {/* Compact mobile navigation: four columns, two rows, no horizontal scrolling */}
