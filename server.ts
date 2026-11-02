@@ -538,7 +538,10 @@ app.post('/api/products', requireAdmin, async (req, res) => {
     id: `prod_${Date.now()}`,
     name,
     category: category || 'damacana',
-    defaultUnitPrice: Number(defaultUnitPrice) || 100,
+    defaultUnitPrice:
+      defaultUnitPrice === undefined || defaultUnitPrice === null || defaultUnitPrice === ''
+        ? 100
+        : Number(defaultUnitPrice),
     isDeposit: !!isDeposit,
     depositType: depositType || 'none',
     unit: unit || 'Adet',

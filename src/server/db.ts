@@ -608,7 +608,10 @@ function mapProductFromDb(row: any): Product {
     id: row.id,
     name: row.name,
     category: row.category,
-    defaultUnitPrice: Number(row.default_unit_price) || 100,
+    defaultUnitPrice:
+      row.default_unit_price === null || row.default_unit_price === undefined
+        ? 100
+        : Number(row.default_unit_price),
     isDeposit: Boolean(row.is_deposit),
     depositType: row.deposit_type || 'none',
     unit: row.unit || 'Adet',
