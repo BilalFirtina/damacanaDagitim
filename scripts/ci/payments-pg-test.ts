@@ -17,7 +17,8 @@ import { Client } from 'pg';
 const DATABASE_URL =
   process.env.DATABASE_URL || 'postgres://postgres:postgres@127.0.0.1:5432/postgres';
 
-const FN = 'public.record_customer_payment(jsonb)';
+const FN = 'public.record_customer_payment';
+const FN_SIG = 'public.record_customer_payment(jsonb)';
 const TABLE = 'public.customer_payments';
 const CUSTOMER_ID = 'c_pay_ci';
 
@@ -54,7 +55,7 @@ function payload(overrides: Record<string, unknown> = {}) {
 }
 
 async function callPayment(c: Client, body: Record<string, unknown>) {
-  const res = await c.query(`SELECT ${FN} AS result`, [JSON.stringify(body)]);
+  const res = await c.query(`SELECT ${FN}($1::jsonb) AS result`, [JSON.stringify(body)]);
   return res.rows[0].result as {
     already_applied: boolean;
     balance: number;
@@ -79,14 +80,14 @@ async function main(): Promise<void> {
   const c = await newClient();
 
   console.log('\n[1] Fonksiyon ve yetkiler');
-  const exists = await c.query('SELECT to_regprocedure($1) AS fn', [FN]);
+  const exists = await c.query('SELECT to_regprocedure($1) AS fn', [FN_SIG]);
   check('record_customer_payment fonksiyonu var', !!exists.rows[0].fn);
 
   const hasFn = async (role: string) =>
     (
       await c.query('SELECT has_function_privilege($1, $2, $3) AS ok', [
         role,
-        FN,
+        FN_SIG,
         'EXECUTE',
       ])
     ).rows[0].ok === true;
@@ -193,7 +194,7 @@ async function main(): Promise<void> {
     let denied = false;
     try {
       await c.query('SET ROLE anon');
-      await c.query(`SELECT ${FN}('{}'::jsonb)`);
+      await c.query(`SELECT ${FN}($1::jsonb)`, ['{}']);
     } catch (e: any) {
       denied = /permission denied|42501/i.test(String(e?.message ?? e));
     } finally {
