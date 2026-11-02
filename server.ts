@@ -812,9 +812,13 @@ app.get('/api/reports/balances', requireAdmin, async (_req, res) => {
         };
       })
       .filter((row) => {
-        const emptyTotal =
-          row.empty.damacana + row.empty.camDamacana + row.empty.tup + row.empty.sebil;
-        return Math.abs(row.balance) > 0.005 || emptyTotal !== 0;
+        // Türler birbirini götürmemeli: -1 damacana + 1 sebil hâlâ raporlanmalı.
+        const hasEmpty =
+          row.empty.damacana !== 0 ||
+          row.empty.camDamacana !== 0 ||
+          row.empty.tup !== 0 ||
+          row.empty.sebil !== 0;
+        return Math.abs(row.balance) > 0.005 || hasEmpty;
       })
       .sort((a, b) => b.balance - a.balance || a.name.localeCompare(b.name, 'tr'));
 
