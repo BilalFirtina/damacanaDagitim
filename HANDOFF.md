@@ -127,9 +127,19 @@ Dört temel unsur:
 
 ---
 
-## 3.5. Operasyonel veri temizliği (hazır betik)
+## 3.5. Operasyonel veri temizliği — TAMAMLANDI ✅
 
-`scripts/cleanup-operational-data.sql` — Supabase SQL Editor'de çalıştırılır.
+`scripts/cleanup-operational-data.sql` Supabase'de çalıştırıldı ve doğrulandı (2026-11-02):
+
+- Tüm hareket tabloları **0**: deliveries, delivery_items, delivery_container_returns,
+  dispatches, dispatch_items, dispatch_reconciliation_items, customer_payments,
+  customer_financial_audit, delivery_cancellation_audit, dispatch_reopen_audit,
+  dispatch_loading_audit, customer_empty_balances, customer_dispensers, retention_archive
+- Temel veriler korundu: users 5, products 17, product_categories 6, deposit_types 5, customers 7
+- Tüm müşteri cari bakiyeleri 0
+- Su Sebili ürünü korundu (fiyat 0, depositType sebil, aktif)
+
+Aşağıdaki açıklama betiğin ne yaptığını belgeler.
 
 - **Silinir:** teslimatlar, seferler, tahsilatlar, denetim kayıtları, boş kap bakiyeleri, sebil detayları, saklama arşivi.
 - **Korunur:** kullanıcılar, ürünler, kategoriler, depozito türleri, müşteri listesi ve anlaşılmış fiyatlar.
