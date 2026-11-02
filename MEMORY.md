@@ -12,11 +12,12 @@
 | Konum | Commit | Durum |
 |---|---|---|
 | `origin/main` | `d507a97` | PR #3 merge edildi. `56d4f30` + `66dca12` + `68f7fa1` dahil. |
-| `origin/feat/agents-compliance` | `48615a0` | `10acd99` (tahsilat implementasyonu) + bu hafıza commit'i. **Merge edilmedi.** |
+| `origin/feat/agents-compliance` | `10acd99` + hafıza commit'leri | Tahsilat implementasyonu + MEMORY/HANDOFF. **Merge edilmedi.** |
 | Yerel çalışma ağacı | — | `68f7fa1` içeriğine geri alınmış; implementasyon dosyaları diskte **YOK**. |
 
 - `10acd99` = `feat: sofor tahsilati ve pesin musteri borcu` (implementasyon)
-- `48615a0` = `docs: calismaya ara verildi...` (MEMORY.md + HANDOFF.md + trail learning)
+- Sonraki commit'ler yalnızca `MEMORY.md`, `HANDOFF.md` ve trail learning'i ekler.
+- Dalın tam ucu için `git log -1 --oneline origin/feat/agents-compliance` kullan.
 
 > **CI notu:** `.github/workflows/ci.yml` yalnızca `main`e push ve `main`e açılan
 > PR'larda çalışır. Bu nedenle dal push'unda CI koşmadı; `10acd99`/`48615a0`
