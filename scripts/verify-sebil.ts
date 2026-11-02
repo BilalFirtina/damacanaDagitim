@@ -11,6 +11,7 @@ import {
   computeEmptyContainersDiff,
 } from '../src/services/depositRules.ts';
 import { PRODUCT_CATEGORY_DEFAULTS } from '../src/types/index.ts';
+import fs from 'node:fs';
 
 let passed = 0;
 let failed = 0;
@@ -80,7 +81,17 @@ console.log('4) Sebil diğer kalemlerle karışmaz');
   });
 }
 
-console.log('5) Kategori varsayılanı sebil için fiyatsız emanet');
+console.log('5) Migration deposit_type kısıtı sebil değerini kabul eder');
+{
+  const sql = fs.readFileSync('migrations/20261103_sebil_returnable.sql', 'utf8');
+  check(
+    'products_deposit_type_check sebil içerir',
+    /CHECK\s*\(deposit_type\s+IN\s*\([^)]*'sebil'[^)]*\)\)/i.test(sql),
+    true
+  );
+}
+
+console.log('6) Kategori varsayılanı sebil için fiyatsız emanet');
 {
   check('sebil kategorisi emanet', PRODUCT_CATEGORY_DEFAULTS.sebil.isDeposit, true);
   check('sebil depositType', PRODUCT_CATEGORY_DEFAULTS.sebil.depositType, 'sebil');
