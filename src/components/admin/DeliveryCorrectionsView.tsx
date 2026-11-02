@@ -12,6 +12,7 @@ import {
   fetchDeliveryCorrections,
   DeliveryCorrectionAudit,
 } from '../../services/api';
+import { formatDateTimeTr } from '../../services/dateWindow';
 
 const EMPTY_LABELS: Record<string, string> = {
   damacana: 'Damacana',
@@ -27,17 +28,6 @@ function formatMoney(value: number): string {
   })} ₺`;
 }
 
-function formatDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString('tr-TR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 function nonZeroEmpty(values: Record<string, number>): Array<[string, number]> {
   return Object.entries(values || {}).filter(([, qty]) => Number(qty) !== 0);
@@ -105,7 +95,7 @@ export const DeliveryCorrectionsView: React.FC = () => {
           <span className="text-slate-500">
             {corrections.length} kayıt
             {lastUpdated
-              ? ` · Son güncelleme: ${formatDate(lastUpdated)}`
+              ? ` · Son güncelleme: ${formatDateTimeTr(lastUpdated)}`
               : ''}
           </span>
         </div>
@@ -161,7 +151,7 @@ export const DeliveryCorrectionsView: React.FC = () => {
                         {isReplace ? 'Düzenleme' : 'İptal'}
                       </span>
                       <span className="text-[11px] text-slate-500">
-                        {formatDate(item.createdAt)}
+                        {formatDateTimeTr(item.createdAt)}
                       </span>
                     </div>
                     <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-1.5 break-words">

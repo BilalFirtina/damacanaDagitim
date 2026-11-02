@@ -179,11 +179,6 @@ export interface CustomerDispenserInput {
   note?: string | null;
 }
 
-export interface CustomerDispenserSuggestions {
-  brands: string[];
-  models: string[];
-}
-
 export interface LoadedItem {
   productId: string;
   quantity: number;

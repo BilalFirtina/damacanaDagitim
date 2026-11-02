@@ -1,8 +1,6 @@
 import {
-  buildCustomerDispenserSuggestions,
   CustomerDispenserValidationError,
   normalizeCustomerDispenserInput,
-  summarizeCustomerDispenserQuantity,
 } from '../src/services/customerDispenserRules';
 
 let passed = 0;
@@ -256,38 +254,6 @@ rejects(
       model: 'Mini',
     }),
   'tam sayı'
-);
-
-console.log('\n5) Oneriler ve toplam');
-equals(
-  'marka ve modeller tekillestirilip Turkce siralanir',
-  buildCustomerDispenserSuggestions([
-    { brand: 'Sırma', model: 'Mini' },
-    { brand: 'Hayat', model: 'HT-200' },
-    { brand: 'Sırma', model: 'HT-200' },
-    { brand: '  ', model: ' ' },
-  ]),
-  {
-    brands: ['Hayat', 'Sırma'],
-    models: ['HT-200', 'Mini'],
-  }
-);
-equals(
-  'bos oneri listesi',
-  buildCustomerDispenserSuggestions([]),
-  { brands: [], models: [] }
-);
-check(
-  'sebil adetleri toplanir',
-  summarizeCustomerDispenserQuantity([
-    { quantity: 2 },
-    { quantity: 3 },
-    { quantity: 1 },
-  ]) === 6
-);
-check(
-  'bos listede toplam sifirdir',
-  summarizeCustomerDispenserQuantity([]) === 0
 );
 
 console.log(`\nSONUC: ${passed} gecti, ${failed} basarisiz`);

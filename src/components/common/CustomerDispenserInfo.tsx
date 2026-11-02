@@ -32,7 +32,7 @@ export const CustomerDispenserInfo: React.FC<CustomerDispenserInfoProps> = ({
     setError(null);
     try {
       const result = await fetchCustomerDispensers(customerId);
-      setDispensers(result.dispensers || []);
+      setDispensers(result);
     } catch (err: any) {
       setError(err?.message || 'Emanet sebil bilgileri alınamadı.');
       setDispensers([]);

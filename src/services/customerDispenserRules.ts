@@ -1,6 +1,5 @@
 import {
   CustomerDispenserInput,
-  CustomerDispenserSuggestions,
 } from '../types';
 
 const BRAND_MODEL_MAX_LENGTH = 60;
@@ -77,24 +76,4 @@ export function normalizeCustomerDispenserInput(
     quantity: input.quantity,
     note,
   };
-}
-
-export function buildCustomerDispenserSuggestions(
-  rows: Array<{ brand: string; model: string }>
-): CustomerDispenserSuggestions {
-  const compare = (a: string, b: string) => a.localeCompare(b, 'tr');
-  const brands = Array.from(
-    new Set(rows.map((row) => row.brand.trim()).filter(Boolean))
-  ).sort(compare);
-  const models = Array.from(
-    new Set(rows.map((row) => row.model.trim()).filter(Boolean))
-  ).sort(compare);
-
-  return { brands, models };
-}
-
-export function summarizeCustomerDispenserQuantity(
-  rows: Array<{ quantity: number }>
-): number {
-  return rows.reduce((total, row) => total + row.quantity, 0);
 }

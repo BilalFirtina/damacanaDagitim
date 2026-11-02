@@ -26,10 +26,7 @@ import {
   createCustomer,
   updateCustomer,
   listCustomerDispensers,
-  getCustomerDispenserSuggestions,
   createCustomerDispenser,
-  updateCustomerDispenser,
-  deleteCustomerDispenser,
   getDispatches,
   createDispatch,
   updateDispatchLoading,
@@ -910,11 +907,8 @@ app.get('/api/customers/:id/statement', requireAdmin, async (req, res) => {
 
 app.get('/api/customers/:id/dispensers', requireAdminOrDriver, async (req, res) => {
   try {
-    const [dispensers, suggestions] = await Promise.all([
-      listCustomerDispensers(req.params.id),
-      getCustomerDispenserSuggestions(),
-    ]);
-    res.json({ dispensers, suggestions });
+    const dispensers = await listCustomerDispensers(req.params.id);
+    res.json({ dispensers });
   } catch (err: any) {
     sendCustomerDispenserError(res, err);
   }
@@ -934,39 +928,6 @@ app.post('/api/customers/:id/dispensers', requireAdminOrDriver, async (req, res)
     sendCustomerDispenserError(res, err);
   }
 });
-
-app.put(
-  '/api/customers/:customerId/dispensers/:dispenserId',
-  requireAdminOrDriver,
-  async (req, res) => {
-    try {
-      const input = normalizeCustomerDispenserInput(req.body);
-      const actor = getAuthUser(req)!;
-      const dispenser = await updateCustomerDispenser(
-        req.params.customerId,
-        req.params.dispenserId,
-        input,
-        { id: actor.userId, name: actor.name }
-      );
-      res.json({ dispenser, message: 'Sebil güncellendi.' });
-    } catch (err: any) {
-      sendCustomerDispenserError(res, err);
-    }
-  }
-);
-
-app.delete(
-  '/api/customers/:customerId/dispensers/:dispenserId',
-  requireAdminOrDriver,
-  async (req, res) => {
-    try {
-      await deleteCustomerDispenser(req.params.customerId, req.params.dispenserId);
-      res.json({ success: true, message: 'Sebil silindi.' });
-    } catch (err: any) {
-      sendCustomerDispenserError(res, err);
-    }
-  }
-);
 
 // 4. Dispatches (Seferler & Yüklemeler)
 app.get('/api/dispatches', async (req, res) => {

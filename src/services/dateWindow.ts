@@ -20,6 +20,20 @@ export function formatDateTr(dateStr: string): string {
   return `${day}.${month}.${year}`;
 }
 
+// ISO zaman damgasını Türkçe gg.aa.yyyy ss:dd biçiminde gösterir.
+// Geçersiz değer uydurulmaz; olduğu gibi döndürülür.
+export function formatDateTimeTr(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString('tr-TR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 // Saklama eşiği: bu tarihten (dahil değil) önceki günler temizlenebilir.
 export function retentionCutoffDate(now: Date = new Date()): string {
   return new Date(now.getTime() - RETENTION_DAYS * 24 * 60 * 60 * 1000)

@@ -24,7 +24,6 @@ import {
   RetentionRunResult,
   CustomerDispenser,
   CustomerDispenserInput,
-  CustomerDispenserSuggestions,
 } from '../types/index.ts';
 import {
   utcDayQueryWindow,
@@ -34,7 +33,6 @@ import {
   retentionCutoffInstant,
 } from '../services/dateWindow.ts';
 import { applyRetentionToLocal } from '../services/retentionRules.ts';
-import { buildCustomerDispenserSuggestions } from '../services/customerDispenserRules.ts';
 
 const { Pool } = pg;
 
@@ -2108,40 +2106,6 @@ export async function listCustomerDispensers(
 // Raporlama için tüm müşterilerin sebil kayıtları — AGENTS.md Bölüm 10.2.
 // Sebil tablosu yalnızca merkezi veritabanında tutulur; yerel modda boş döner
 // ve rapor diğer iade edilebilir kalemlerle çalışmaya devam eder.
-export async function listAllCustomerDispensers(): Promise<CustomerDispenser[]> {
-  if (!isSupabaseOperational() || !supabase) return [];
-  try {
-    const { data, error } = await supabase
-      .from('customer_dispensers')
-      .select('*')
-      .order('customer_id', { ascending: true })
-      .order('id', { ascending: true });
-    if (error) {
-      console.error('[Supabase listAllCustomerDispensers]', error);
-      return [];
-    }
-    return (data || []).map(mapCustomerDispenserFromDb);
-  } catch (e) {
-    console.error('[Supabase listAllCustomerDispensers Exception]', e);
-    return [];
-  }
-}
-
-export async function getCustomerDispenserSuggestions(): Promise<CustomerDispenserSuggestions> {
-  const client = getCustomerDispenserSupabase();
-
-  try {
-    const { data, error } = await client
-      .from('customer_dispensers')
-      .select('brand, model');
-
-    if (error) throw parseCustomerDispenserDbError(error);
-    return buildCustomerDispenserSuggestions(data || []);
-  } catch (e) {
-    throw parseCustomerDispenserDbError(e);
-  }
-}
-
 export async function createCustomerDispenser(
   customerId: string,
   input: CustomerDispenserInput,
@@ -4580,7 +4544,7 @@ export interface CustomerPaymentRow {
   collectedAt: string;
 }
 
-function stockError(e: any, fallback: string): Error {
+function paymentError(e: any, fallback: string): Error {
   const raw = `${e?.message || ''} ${e?.details || ''} ${e?.hint || ''}`.trim();
   if (/MIGRATION|42P01|PGRST205|does not exist|could not find the table/i.test(raw)) {
     return new DispatchDbError(
@@ -4606,7 +4570,7 @@ function stockError(e: any, fallback: string): Error {
 async function callJsonbRpc(fn: string, payload: unknown): Promise<any> {
   if (isSupabaseOperational() && supabase) {
     const { data, error } = await supabase.rpc(fn, { p: payload as any });
-    if (error) throw stockError(error, 'İşlem tamamlanamadı.');
+    if (error) throw paymentError(error, 'İşlem tamamlanamadı.');
     return data;
   }
   if (pgPool) {
@@ -4657,7 +4621,7 @@ export async function getCustomerPayments(
       .eq('customer_id', customerId)
       .order('collected_at', { ascending: false })
       .limit(safeLimit);
-    if (error) throw stockError(error, 'Tahsilat kayıtları okunamadı.');
+    if (error) throw paymentError(error, 'Tahsilat kayıtları okunamadı.');
     return (data || []).map(mapCustomerPayment);
   }
   if (pgPool) {
@@ -4681,7 +4645,7 @@ export async function getCustomerPaymentsByDate(date: string): Promise<CustomerP
       .gte('collected_at', window.lower)
       .lt('collected_at', window.upper)
       .order('collected_at', { ascending: false });
-    if (error) throw stockError(error, 'Tahsilat kayıtları okunamadı.');
+    if (error) throw paymentError(error, 'Tahsilat kayıtları okunamadı.');
     return (data || [])
       .filter((row: any) => isSameUtcDate(row.collected_at, date))
       .map(mapCustomerPayment);
@@ -4907,7 +4871,7 @@ export async function getCustomerPaymentById(paymentId: string): Promise<Custome
       .maybeSingle();
     if (error) {
       if (String(error.code || '') === 'PGRST116') return null;
-      throw stockError(error, 'Tahsilat kaydı sorgulanamadı.');
+      throw paymentError(error, 'Tahsilat kaydı sorgulanamadı.');
     }
     return data ? mapCustomerPayment(data) : null;
   }
