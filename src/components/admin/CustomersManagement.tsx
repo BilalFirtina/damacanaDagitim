@@ -547,7 +547,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                     <span className="text-[10px] text-slate-400 block">Cari TL Borç:</span>
                     {c.isAccountCustomer ? (
                       <span className="text-[10px] font-semibold text-slate-400">
-                        Faturalı — tutar gizli
+                        Faturalı Müşteri
                       </span>
                     ) : (
                       <span

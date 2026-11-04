@@ -404,13 +404,13 @@ async function partB() {
 // SQL contract is asserted on the source text as a regression guard).
 // ---------------------------------------------------------------------------
 function partC() {
-  console.log('\n3) Migration 20261105 guards (arsivsiz, durum bagimsiz)');
+  console.log('\n3) Migration 20261108 guards (tum hareketler, musteri verisi korunur)');
 
   const mig = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
     '..',
     'migrations',
-    '20261105_retention_no_archive.sql'
+    '20261108_retention_purge_all_movements.sql'
   );
   const sql = fs.readFileSync(mig, 'utf-8');
 
@@ -424,6 +424,21 @@ function partC() {
   check('selects all dispatches older than cutoff', /d\.date < v_cutoff::text/.test(sql));
   check('reports archived_rows as 0', /'archived_rows',\s*v_arch/.test(sql));
   check('keeps dry-run gate', /IF NOT p_dry_run THEN/.test(sql));
+
+  check('deletes old customer_payments', /DELETE FROM public\.customer_payments/i.test(sql));
+  check('deletes old customer_financial_audit', /DELETE FROM public\.customer_financial_audit/i.test(sql));
+  check('deletes old delivery_cancellation_audit', /DELETE FROM public\.delivery_cancellation_audit/i.test(sql));
+  check('deletes old dispatch_reopen_audit', /DELETE FROM public\.dispatch_reopen_audit/i.test(sql));
+  check('deletes old dispatch_loading_audit', /DELETE FROM public\.dispatch_loading_audit/i.test(sql));
+  check('deletes old retention_archive', /DELETE FROM public\.retention_archive/i.test(sql));
+  check('deletes customer_operations when present', sql.includes('public.customer_operations'));
+  check('uses retention delete setting', sql.includes("set_config('app.retention_purge', 'on', true)"));
+  check('grants delete for retention service role', /GRANT DELETE ON TABLE public\.customer_payments TO service_role/i.test(sql));
+
+  check('does not delete customers', !/DELETE FROM public\.customers\b/i.test(sql));
+  check('does not delete customer_empty_balances', !/DELETE FROM public\.customer_empty_balances\b/i.test(sql));
+  check('does not delete customer_product_prices', !/DELETE FROM public\.customer_product_prices\b/i.test(sql));
+  check('does not delete customer_dispensers', !/DELETE FROM public\.customer_dispensers\b/i.test(sql));
 }
 
 partA();

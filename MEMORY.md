@@ -87,14 +87,19 @@ Bu komut implementasyonu geri getirir; `.gitignore` değişikliğine dokunmaz.
 
 ### 2.3 60 günlük saklama
 
-- **Arşiv yok.** 60 günden eski sefer/teslimat doğrudan silinir.
-- Eşikten eski **tüm durumlar** silinir:
+- **Arşiv yok.** 60 günden eski tüm günlük hareketler doğrudan silinir.
+- Eşikten eski **tüm sefer durumları** silinir:
   `pending_confirmation`, `in_transit`, `completed`.
-- Askıda kalan sefer 60 gün sonra temizlenir.
-- **Korunur:** müşteri cari bakiyesi, iade edilebilir kalem adetleri, sebil
-  detayları, son satış fiyatı (`customer_product_prices`), tahsilatlar
-  (`customer_payments`), denetim kayıtları.
-- Temizlik 23:00 **Türkiye saati** (UTC+3).
+- **Silinir:** seferler, teslimatlar, teslimat kalemleri, boş kap hareketleri,
+  tahsilatlar (`customer_payments`), cari/boş kap denetimleri
+  (`customer_financial_audit`), iptal/yeniden açma/yükleme denetimleri,
+  müşteri işlem denetimleri (`customer_operations`) ve eski arşiv satırları.
+- **Korunur:** müşteri kaydı (ad/telefon/adres/e-posta/not/tür), nihai cari
+  bakiye (`current_balance_tl`), nihai iade edilebilir kalem adetleri
+  (`customer_empty_balances`), son satış fiyatı (`customer_product_prices`) ve
+  sebil marka/model/adet/açıklama detayları (`customer_dispensers`).
+- Temizlik 23:00 **Türkiye saati** (UTC+3), otomatik çalışır.
+- Yöneticiye manuel **Temizlik ekranı yok**; ekran ve menü sekmesi kaldırıldı.
 - Canlıda `RETENTION_DRY_RUN=false`.
 
 ---
@@ -205,7 +210,7 @@ Nakit/POS tahsilatları gerçek kasa hareketi olduğu için görünür kalır.
    `20261105`, `20261106`, `20261107`.
 9. Render deploy sonrası:
    - `GET /api/health` → `status: ok`, `connected: true`
-   - Temizlik ekranı / retention durumu
+   - Retention sağlığı (yönetici ekranı yok)
    - Peşin kısmi teslimat → borç
    - Ürün vermeden tahsilat → bakiye düşüşü
    - Faturalı teslimatta fiyat gizli + tahsilat çalışıyor
@@ -228,8 +233,9 @@ Nakit/POS tahsilatları gerçek kasa hareketi olduğu için görünür kalır.
 - [ ] Günlük raporda teslimat dışı tahsilat + tahsil eden şoför.
 - [ ] Konsolide raporda tahsilat dökümü.
 - [ ] Gün sonu kasa/POS, sefere bağlı tahsilatları içeriyor.
-- [ ] 60 gün sonra sefer/teslimat siliniyor; bakiye/emanet/son fiyat/tahsilat
-      ve denetim kayıtları korunuyor.
+- [ ] 60 gün sonra sefer/teslimat, tahsilat ve denetim kayıtları siliniyor;
+      müşteri kaydı, nihai bakiye/emanet, son fiyat ve sebil detayları korunuyor.
+- [ ] Yönetici menüsünde Temizlik ekranı görünmüyor; otomatik temizlik çalışıyor.
 - [ ] Mobil 320–430px: yatay kaydırma yok.
 
 ---
@@ -253,7 +259,8 @@ Nakit/POS tahsilatları gerçek kasa hareketi olduğu için görünür kalır.
 |---|---|
 | `HANDOFF.md` | Proje genel durumu (çalışma ağacı sürümü eski) |
 | `MEMORY.md` | Bu dosya; güncel kaldığımız yer |
-| `migrations/20261105_retention_no_archive.sql` | Arşivsiz 60 gün temizliği |
+| `migrations/20261105_retention_no_archive.sql` | Arşivsiz 60 gün temizliği (önceki sürüm) |
+| `migrations/20261108_retention_purge_all_movements.sql` | Tüm günlük hareket/tahsilat/denetim temizliği |
 | `migrations/20261106_cash_customer_debt.sql` | Peşin borç (dalda, uygulanmadı) |
 | `migrations/20261107_customer_payment_dispatch.sql` | Tahsilatı sefere bağlama (dalda) |
 | `server.ts` | Rotalar, yetki, rapor filtreleri |

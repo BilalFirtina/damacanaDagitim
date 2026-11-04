@@ -4241,7 +4241,7 @@ export async function runRetentionCleanup(): Promise<RetentionRunResult> {
         Number(remoteCounts?.purged_deliveries ?? remoteCounts?.counts?.deliveries) || 0;
       result.archivedRows = Number(remoteCounts?.archived_rows) || 0;
       console.log(
-        `[Retention] ${dryRun ? 'DRY-RUN' : 'PURGE'} cutoff=${thresholdDateStr} dispatches=${result.purgedDispatches} deliveries=${result.purgedDeliveries} archive=disabled`
+        `[Retention] ${dryRun ? 'DRY-RUN' : 'PURGE'} cutoff=${thresholdDateStr} dispatches=${result.purgedDispatches} deliveries=${result.purgedDeliveries} payments=${result.counts?.customer_payments ?? 0} financial_audit=${result.counts?.customer_financial_audit ?? 0} archive=disabled`
       );
     } catch (e: any) {
       const msg = e?.message || e?.details || String(e);
@@ -4302,6 +4302,16 @@ export async function runRetentionCleanup(): Promise<RetentionRunResult> {
       db.dispatches = local.dispatches;
       db.deliveries = local.deliveries;
     }
+    // Yerel yedekte de günlük hareket/denetim geçmişi 60 günde temizlenir.
+    const cutoffMs = new Date(cutoffInstant).getTime();
+    const isOld = (value: string | undefined) =>
+      !value || new Date(value).getTime() < cutoffMs;
+    db.financialAudit = (db.financialAudit || []).filter((a) => !isOld(a.changedAt));
+    db.reopenAudit = (db.reopenAudit || []).filter((a) => !isOld(a.reopenedAt));
+    db.loadingAudit = (db.loadingAudit || []).filter((a) => !isOld(a.changedAt));
+    db.retentionArchive = (db.retentionArchive || []).filter(
+      (a) => !a.purgeDate || a.purgeDate >= thresholdDateStr
+    );
   }
 
   if (!usedRemote) {

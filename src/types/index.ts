@@ -300,6 +300,13 @@ export interface RetentionCounts {
   dispatch_reconciliation_items: number;
   delivery_items: number;
   delivery_container_returns: number;
+  customer_payments?: number;
+  customer_financial_audit?: number;
+  delivery_cancellation_audit?: number;
+  dispatch_reopen_audit?: number;
+  dispatch_loading_audit?: number;
+  customer_operations?: number;
+  retention_archive?: number;
   archived_rows: number;
 }
 
