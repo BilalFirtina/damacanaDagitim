@@ -471,7 +471,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                       className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition-colors shrink-0 ${
                         c.isAccountCustomer
                           ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300'
-                          : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                          : 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'
                       }`}
                       title="Cari Hesap Durumu"
                     >
