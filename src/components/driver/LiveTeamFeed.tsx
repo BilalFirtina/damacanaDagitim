@@ -160,10 +160,6 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
             <h2 className="text-base font-bold text-slate-900 ">
               Ortak Saha & Ekip Canlı Teslimat Akışı
             </h2>
-            <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50  px-2 py-0.5 rounded-full">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Canlı Takip
-            </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
             Tüm araçların ve şoförlerin teslimatları anlık olarak bu ekrana düşer. Her şoförün teslimatı kendi özel rengiyle ayırt edilir.

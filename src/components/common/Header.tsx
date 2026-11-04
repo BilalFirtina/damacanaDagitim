@@ -85,6 +85,8 @@ export const Header: React.FC<HeaderProps> = ({
     { tab: 'admin_loads', label: 'Yükleme', ariaLabel: 'Araç Yüklemeleri & Yetki', icon: ShieldCheck, iconClass: 'text-indigo-600', activeClass: 'bg-indigo-600', adminOnly: true },
   ];
 
+  const visibleNavItems = mobileNavItems.filter((item) => !item.adminOnly || isAdmin);
+
   return (
     <header className="sticky top-0 z-40 bg-white/95  backdrop-blur-md border-b border-slate-200  shadow-xs w-full max-w-full">
       {/* Top Bar Header */}
@@ -181,31 +183,33 @@ export const Header: React.FC<HeaderProps> = ({
         </nav>
       </div>
 
-      {/* Compact mobile navigation: four columns, two rows, no horizontal scrolling */}
-      <div className="lg:hidden w-full max-w-full box-border border-t border-slate-200/80  bg-slate-50/95  px-2 py-2 grid grid-cols-4 gap-1.5 overflow-x-hidden">
-        {mobileNavItems
-          .filter((item) => !item.adminOnly || isAdmin)
-          .map((item) => {
-            const active = activeTab === item.tab;
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.tab}
-                type="button"
-                onClick={() => setActiveTab(item.tab)}
-                aria-label={item.ariaLabel}
-                title={item.ariaLabel}
-                className={`w-full min-h-[52px] px-1 py-1.5 rounded-lg text-[11px] font-semibold flex flex-col items-center justify-center gap-1 transition-all text-center cursor-pointer box-border ${
-                  active
-                    ? `${item.activeClass} text-white shadow-sm ring-1 ring-white/20 font-bold`
-                    : 'bg-white  text-slate-700  border border-slate-200/80  hover:bg-slate-100 '
-                }`}
-              >
-                <Icon className={`w-5 h-5 shrink-0 ${active ? 'text-white' : item.iconClass}`} />
-                <span className="w-full leading-tight break-words">{item.label}</span>
-              </button>
-            );
-          })}
+      {/* Mobil: tüm sayfalar yan yana; sığmayanlar alt satıra geçer. */}
+      <div className="lg:hidden w-full max-w-full box-border border-t border-slate-200/80 bg-slate-50/95 px-2 py-2 grid grid-cols-3 min-[360px]:grid-cols-4 gap-1.5 overflow-x-hidden">
+        {visibleNavItems.map((item) => {
+          const active = activeTab === item.tab;
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.tab}
+              type="button"
+              onClick={() => setActiveTab(item.tab)}
+              aria-label={item.ariaLabel}
+              title={item.ariaLabel}
+              className={`w-full min-w-0 min-h-[56px] py-1.5 rounded-lg text-[13px] font-semibold flex flex-col justify-center gap-1 transition-all cursor-pointer box-border whitespace-nowrap ${
+                item.tab === 'admin_loads'
+                  ? 'items-start text-left pl-2.5 pr-1.5'
+                  : 'items-center text-center px-1.5'
+              } ${
+                active
+                  ? `${item.activeClass} text-white shadow-sm ring-1 ring-white/20 font-bold`
+                  : 'bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-100'
+              }`}
+            >
+              <Icon className={`w-5 h-5 shrink-0 ${active ? 'text-white' : item.iconClass}`} />
+              <span className="leading-tight whitespace-nowrap">{item.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {refreshState !== 'idle' && (
