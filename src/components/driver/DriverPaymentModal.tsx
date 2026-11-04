@@ -118,9 +118,13 @@ export const DriverPaymentModal: React.FC<DriverPaymentModalProps> = ({
                           <span className="text-xs font-bold text-slate-900 break-words">
                             {customer.name}
                           </span>
-                          {customer.isAccountCustomer && (
+                          {customer.isAccountCustomer ? (
                             <span className="text-[10px] font-semibold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">
                               Faturalı
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-semibold text-red-700 bg-red-50 px-1.5 py-0.5 rounded">
+                              Peşin
                             </span>
                           )}
                         </div>
