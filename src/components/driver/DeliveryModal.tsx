@@ -811,8 +811,8 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
             {!selectedCustomer ? (
               <div className="space-y-2.5">
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
+                <div>
+                  <div className="relative">
                     <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
@@ -823,14 +823,6 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200  bg-slate-50  text-xs text-slate-900  focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
                     />
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowNewCustomerForm(!showNewCustomerForm)}
-                    className="px-3 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold flex items-center gap-1 shrink-0 active:scale-95 transition-all shadow-sm"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Yeni Müşteri Ekle</span>
-                  </button>
                 </div>
 
                 {/* Inline New Customer Form */}
@@ -915,7 +907,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         className="px-3 py-1.5 rounded-lg bg-sky-100  text-sky-700  font-semibold text-xs inline-flex items-center gap-1"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        <span>"{customerSearch}" Adıyla Yeni Müşteri Ekle</span>
+                        <span>
+                          {customerSearch.trim()
+                            ? `"${customerSearch.trim()}" Adıyla Yeni Müşteri Ekle`
+                            : 'Yeni Müşteri Ekle'}
+                        </span>
                       </button>
                     </div>
                   ) : (
