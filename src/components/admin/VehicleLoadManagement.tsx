@@ -174,58 +174,63 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
             return (
               <div
                 key={driver.id}
-                className="p-3.5 rounded-xl border border-slate-200  bg-slate-50/50  flex items-center justify-between"
+                className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col gap-2"
               >
-                <div>
-                  <div className="text-xs font-bold text-slate-900  flex items-center gap-1.5">
-                    <span>{driver.name}</span>
-                    {isBusy ? (
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                          activeRun && isStaleDispatch(activeRun, todayStr)
-                            ? 'bg-rose-100 text-rose-800  '
-                            : 'bg-amber-100 text-amber-800  '
-                        }`}
-                      >
-                        {activeRun && isStaleDispatch(activeRun, todayStr)
-                          ? `Önceki gün sonlandırılmadı (${activeRun.vehiclePlate})`
-                          : `Dağıtımda (${activeRun?.vehiclePlate})`}
-                      </span>
-                    ) : completedRuns.length > 0 ? (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800  ">
-                        Müsait (#{completedRuns.length + 1}. Sefer İçin Hazır)
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800  ">
-                        Müsait (Yüklemeye Hazır)
-                      </span>
-                    )}
-                  </div>
+                <div className="flex items-start justify-between gap-2 w-full min-w-0">
+                  <h3 className="text-xs font-bold text-slate-900 break-words min-w-0 leading-snug">
+                    {driver.name}
+                  </h3>
+
+                  <button
+                    type="button"
+                    onClick={() => handleToggleLoadPermission(driver)}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0 ${
+                      driver.canLoadVehicle
+                        ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
+                        : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200'
+                    }`}
+                  >
+                    {driver.canLoadVehicle ? 'Yetkiyi Kaldır' : 'Yetki Ver'}
+                  </button>
+                </div>
+
+                <div className="flex flex-col items-start gap-1.5 min-w-0">
+                  {isBusy ? (
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                        activeRun && isStaleDispatch(activeRun, todayStr)
+                          ? 'bg-rose-100 text-rose-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      {activeRun && isStaleDispatch(activeRun, todayStr)
+                        ? `Önceki gün sonlandırılmadı (${activeRun.vehiclePlate})`
+                        : `Dağıtımda (${activeRun?.vehiclePlate})`}
+                    </span>
+                  ) : completedRuns.length > 0 ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                      Müsait (#{completedRuns.length + 1}. Sefer İçin Hazır)
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                      Müsait (Yüklemeye Hazır)
+                    </span>
+                  )}
+
                   <div className="text-[11px] text-slate-400 font-mono">
                     {driver.phone || 'Telefon yok'}
                   </div>
-                  <div className="text-[11px] font-semibold mt-1">
+
+                  <div className="text-[11px] font-semibold">
                     {driver.canLoadVehicle ? (
-                      <span className="text-emerald-600  flex items-center gap-1">
-                        <ShieldCheck className="w-3 h-3" /> Yükleme Yetkisi Var
+                      <span className="text-emerald-600 flex items-center gap-1">
+                        <ShieldCheck className="w-3 h-3 shrink-0" /> Yükleme Yetkisi Var
                       </span>
                     ) : (
                       <span className="text-slate-400">Yükleme Yetkisi Yok (Onaycı)</span>
                     )}
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleToggleLoadPermission(driver)}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0 ${
-                    driver.canLoadVehicle
-                      ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
-                      : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200'
-                  }`}
-                >
-                  {driver.canLoadVehicle ? 'Yetkiyi Kaldır' : 'Yetki Ver'}
-                </button>
               </div>
             );
           })}
