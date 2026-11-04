@@ -14,11 +14,12 @@
  *   2. Gercek calisma: dogrudan silme sirasi (deliveries -> dispatches),
  *      FK ihlali olmadan, dogru satirlar silinir.
  *   3. Uygun seferin esikten YENI teslimati da silinir; sinirdaki (esik gunu)
- *      ve -59 gun seferleri korunur; acik (in_transit) sefer korunur.
+ *      ve -59 gun seferleri korunur; eski acik (in_transit) sefer de silinir.
  *   4. Enjekte edilen hata TUM islemi geri alir.
  *   5. Eszamanli calisma advisory lock ile RETENTION_LOCKED dondurur.
- *   6. Denetim (audit) tablolari temizlikten etkilenmez.
- *   7. anon/authenticated purge_retention'u calistiramaz, retention tablolarini
+ *   6. Esikten eski tahsilat/denetim kayitlari silinir; esik icindeki kalir.
+ *   7. Musteri kaydi, nihai bakiye/emanet, son fiyat ve sebil detaylari korunur.
+ *   8. anon/authenticated purge_retention'u calistiramaz, retention tablolarini
  *      okuyamaz; service_role calistirabilir.
  */
 
@@ -113,6 +114,18 @@ async function seedReference(c: Client): Promise<void> {
       ('c1', 'tup', 2)
     ON CONFLICT (customer_id, deposit_type) DO UPDATE SET quantity = EXCLUDED.quantity;
   `);
+  // 60 günden sonra korunması gereken müşteri ticari bilgileri.
+  await c.query(`
+    INSERT INTO public.customer_product_prices (customer_id, product_id, unit_price)
+    VALUES ('c1', 'p_water', 95)
+    ON CONFLICT (customer_id, product_id) DO UPDATE SET unit_price = 95;
+  `);
+  await c.query(`
+    INSERT INTO public.customer_dispensers
+      (id, customer_id, brand, model, quantity, note, updated_by_user_id, updated_by_user_name)
+    VALUES ('DISP1', 'c1', 'Marka X', 'Model Y', 1, 'Mutfakta', 'u_admin', 'Yönetici')
+    ON CONFLICT (id) DO UPDATE SET note = EXCLUDED.note;
+  `);
 }
 
 async function resetTransactional(c: Client): Promise<void> {
@@ -179,13 +192,14 @@ async function seedScenario(c: Client): Promise<void> {
     INSERT INTO public.delivery_container_returns (delivery_id, deposit_type, received_qty, diff_qty)
     VALUES ('DEL61OLD', 'damacana', 2, 0);
   `);
-  // 60 gün sonra sefer silinse bile tahsilat kaydı korunmalı; FK SET NULL.
+  // Eşikten eski tahsilat silinir; eşik içindeki tahsilat korunur.
   await c.query(`
     INSERT INTO public.customer_payments
       (id, customer_id, amount, method, note, collected_by_user_id,
-       collected_by_user_name, dispatch_id)
+       collected_by_user_name, dispatch_id, collected_at)
     VALUES
-      ('PAY61', 'c1', 250, 'CASH', 'CI tahsilat', 'u_admin', 'Yönetici', 'D61');
+      ('PAY61', 'c1', 250, 'CASH', 'CI eski tahsilat', 'u_admin', 'Yönetici', 'D61', now() - interval '61 day'),
+      ('PAY59', 'c1', 40, 'CASH', 'CI yeni tahsilat', 'u_admin', 'Yönetici', 'D59', now() - interval '59 day');
   `);
 }
 
@@ -270,9 +284,15 @@ async function scenarioDryRun(c: Client): Promise<void> {
 }
 
 async function scenarioRealRun(c: Client): Promise<void> {
-  console.log('\n[2] Gercek calisma: arsiv-once silme, dogru satirlar');
+  console.log('\n[2] Gercek calisma: hareketleri sil, musteri ticari verisini koru');
   await resetTransactional(c);
   await seedScenario(c);
+  await c.query(`
+    INSERT INTO public.retention_archive
+      (run_id, archived_at, purge_date, retention_days, table_name, row_count)
+    VALUES ('OLD_ARCH', now() - interval '61 day',
+            ((now() AT TIME ZONE 'UTC')::date - 61), 60, 'dispatches', 1)
+  `);
   await installOrderTriggers(c);
   const before = await balancesSnapshot(c);
   const res = await purge(c, false, await eligibleDispatchIds(c));
@@ -302,17 +322,38 @@ async function scenarioRealRun(c: Client): Promise<void> {
   );
   check('musteri bakiye/boş kap degismedi', (await balancesSnapshot(c)) === before);
 
-  const retainedPayment = await c.query(
-    `SELECT amount, dispatch_id FROM public.customer_payments WHERE id = 'PAY61'`
+  const oldPayment = await c.query(
+    `SELECT id FROM public.customer_payments WHERE id = 'PAY61'`
   );
-  check('silinen sefere bagli tahsilat korundu', retainedPayment.rowCount === 1);
+  check('esikten eski tahsilat silindi', oldPayment.rowCount === 0);
+  const recentPayment = await c.query(
+    `SELECT amount FROM public.customer_payments WHERE id = 'PAY59'`
+  );
+  check('esik icindeki tahsilat korundu', recentPayment.rowCount === 1);
   check(
-    'tahsilat tutari degismedi',
-    Number(retainedPayment.rows[0]?.amount) === 250
+    'eski tahsilat sayisi raporlandi',
+    Number(res.purged_customer_payments) === 1 &&
+      Number(res.purged_retention_archive) === 1,
+    JSON.stringify({
+      pay: res.purged_customer_payments,
+      arch: res.purged_retention_archive,
+    })
+  );
+
+  const price = await c.query(
+    `SELECT unit_price FROM public.customer_product_prices WHERE customer_id = 'c1' AND product_id = 'p_water'`
+  );
+  check('son satis fiyati korundu', price.rowCount === 1 && Number(price.rows[0]?.unit_price) === 95);
+  const dispenser = await c.query(
+    `SELECT brand, model, quantity, note FROM public.customer_dispensers WHERE id = 'DISP1'`
   );
   check(
-    'silinen seferin tahsilat baglantisi NULL oldu',
-    retainedPayment.rows[0]?.dispatch_id === null
+    'sebil marka/model/aciklama korundu',
+    dispenser.rowCount === 1 &&
+      dispenser.rows[0]?.brand === 'Marka X' &&
+      dispenser.rows[0]?.model === 'Model Y' &&
+      Number(dispenser.rows[0]?.quantity) === 1 &&
+      dispenser.rows[0]?.note === 'Mutfakta'
   );
 
   const seqs = (await c.query('SELECT tbl FROM ci_del_log ORDER BY seq')).rows.map((x: any) => x.tbl);
@@ -391,20 +432,30 @@ async function scenarioBoundary(c: Client): Promise<void> {
 }
 
 async function scenarioAudit(c: Client): Promise<void> {
-  console.log('\n[6] Denetim (audit) tablolari temizlikten etkilenmez');
+  console.log('\n[6] Denetim (audit) kayitlari: eski silinir, yeni korunur');
   await resetTransactional(c);
   await seedScenario(c);
+  const before = await balancesSnapshot(c);
   await c.query(`
-    INSERT INTO public.dispatch_reopen_audit (dispatch_id, reopened_by_user_id, reopened_by_user_name, reason)
-    VALUES ('D61', 'u_admin', 'Yönetici', 'CI test');
+    INSERT INTO public.dispatch_reopen_audit
+      (dispatch_id, reopened_by_user_id, reopened_by_user_name, reason, reopened_at)
+    VALUES
+      ('D61', 'u_admin', 'Yönetici', 'OLD_REOPEN', now() - interval '61 day'),
+      ('D59', 'u_admin', 'Yönetici', 'NEW_REOPEN', now() - interval '1 day');
   `);
   await c.query(`
-    INSERT INTO public.dispatch_loading_audit (dispatch_id, changed_by_user_id, changed_by_user_name, previous_items, new_items)
-    VALUES ('D61', 'u_admin', 'Yönetici', '[]'::jsonb, '[]'::jsonb);
+    INSERT INTO public.dispatch_loading_audit
+      (dispatch_id, changed_by_user_id, changed_by_user_name, previous_items, new_items, changed_at)
+    VALUES
+      ('D61', 'u_admin', 'Yönetici', '[]'::jsonb, '[]'::jsonb, now() - interval '61 day'),
+      ('D59', 'u_admin', 'Yönetici', '[]'::jsonb, '[]'::jsonb, now() - interval '1 day');
   `);
   await c.query(`
-    INSERT INTO public.customer_financial_audit (customer_id, changed_by_user_id, changed_by_user_name, reason)
-    VALUES ('c1', 'u_admin', 'Yönetici', 'CI test');
+    INSERT INTO public.customer_financial_audit
+      (customer_id, changed_by_user_id, changed_by_user_name, reason, changed_at)
+    VALUES
+      ('c1', 'u_admin', 'Yönetici', 'OLD_FIN', now() - interval '61 day'),
+      ('c1', 'u_admin', 'Yönetici', 'NEW_FIN', now() - interval '1 day');
   `);
   await c.query(`
     INSERT INTO public.deliveries
@@ -421,26 +472,41 @@ async function scenarioAudit(c: Client): Promise<void> {
   await c.query(`
     INSERT INTO public.delivery_cancellation_audit
       (delivery_id, dispatch_id, customer_id, action, performed_by_user_id,
-       performed_by_user_name, reason, reversed_balance)
+       performed_by_user_name, reason, reversed_balance, created_at)
     VALUES
-      ('DEL61CANC', 'D61', 'c1', 'cancel', 'u_driver', 'Şoför', 'CI iptal testi', 0);
+      ('DEL61CANC', 'D61', 'c1', 'cancel', 'u_driver', 'Şoför', 'OLD_CANCEL', 0, now() - interval '61 day'),
+      ('DEL59', 'D59', 'c1', 'cancel', 'u_driver', 'Şoför', 'NEW_CANCEL', 0, now() - interval '1 day');
   `);
-  const a1 = await count(c, 'dispatch_reopen_audit');
-  const a2 = await count(c, 'dispatch_loading_audit');
-  const a3 = await count(c, 'customer_financial_audit');
-  const a4 = await count(c, 'delivery_cancellation_audit');
-  await purge(c, false, await eligibleDispatchIds(c));
-  check('dispatch_reopen_audit degismedi', (await count(c, 'dispatch_reopen_audit')) === a1 && a1 >= 1);
-  check('dispatch_loading_audit degismedi', (await count(c, 'dispatch_loading_audit')) === a2 && a2 >= 1);
-  check('customer_financial_audit degismedi', (await count(c, 'customer_financial_audit')) === a3 && a3 >= 1);
-  check('delivery_cancellation_audit degismedi', (await count(c, 'delivery_cancellation_audit')) === a4 && a4 >= 1);
+
+  const res = await purge(c, false, await eligibleDispatchIds(c));
+
+  const oldAuditCount = async (table: string, column: string): Promise<number> => {
+    const r = await c.query(
+      `SELECT count(*)::int AS n FROM public.${table} WHERE ${column} < now() - interval '60 day'`
+    );
+    return Number(r.rows[0].n);
+  };
+  check('eski dispatch_reopen_audit silindi', (await oldAuditCount('dispatch_reopen_audit', 'reopened_at')) === 0);
+  check('yeni dispatch_reopen_audit korundu', (await count(c, 'dispatch_reopen_audit')) >= 1);
+  check('eski dispatch_loading_audit silindi', (await oldAuditCount('dispatch_loading_audit', 'changed_at')) === 0);
+  check('yeni dispatch_loading_audit korundu', (await count(c, 'dispatch_loading_audit')) >= 1);
+  check('eski customer_financial_audit silindi', (await oldAuditCount('customer_financial_audit', 'changed_at')) === 0);
+  check('yeni customer_financial_audit korundu', (await count(c, 'customer_financial_audit')) >= 1);
+  check('eski delivery_cancellation_audit silindi', (await oldAuditCount('delivery_cancellation_audit', 'created_at')) === 0);
+  check('yeni delivery_cancellation_audit korundu', (await count(c, 'delivery_cancellation_audit')) >= 1);
   check(
-    'iptal edilen teslimat temizlendi, denetim kaydi kaldi',
-    (await deliveryIds(c)).every((id) => id !== 'DEL61CANC') &&
-      (await c.query(
-        "SELECT count(*)::int n FROM public.delivery_cancellation_audit WHERE delivery_id = 'DEL61CANC'"
-      )).rows[0].n === 1
+    'silme sayilari raporlandi',
+    Number(res.purged_dispatch_reopen_audit) === 1 &&
+      Number(res.purged_dispatch_loading_audit) === 1 &&
+      Number(res.purged_customer_financial_audit) === 1 &&
+      Number(res.purged_delivery_cancellation_audit) === 1,
+    JSON.stringify(res)
   );
+  check(
+    'iptal edilen teslimat temizlendi',
+    (await deliveryIds(c)).every((id) => id !== 'DEL61CANC')
+  );
+  check('musteri bakiye/boş kap degismedi', (await balancesSnapshot(c)) === before);
 }
 
 async function scenarioPrivileges(c: Client): Promise<void> {

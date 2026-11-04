@@ -10,7 +10,6 @@ import {
   Users,
   Package,
   FileText,
-  CalendarCheck,
   AlertCircle,
 } from 'lucide-react';
 
@@ -23,7 +22,7 @@ export function getFirstName(fullName: string, fallback: string): string {
 interface HeaderProps {
   currentUser: User;
   onLogout: () => void;
-  activeTab: 'delivery' | 'team_feed' | 'eod' | 'customers' | 'products' | 'admin_loads' | 'reports' | 'retention';
+  activeTab: 'delivery' | 'team_feed' | 'eod' | 'customers' | 'products' | 'admin_loads' | 'reports';
   setActiveTab: (tab: any) => void;
   onRefreshData: () => void | Promise<boolean | void>;
   isRefreshing?: boolean;
@@ -84,7 +83,6 @@ export const Header: React.FC<HeaderProps> = ({
     { tab: 'products', label: 'Ürünler', ariaLabel: 'Ürünler & Fiyatlar', icon: Package, iconClass: 'text-violet-500', activeClass: 'bg-sky-600' },
     { tab: 'reports', label: 'Raporlar', ariaLabel: 'Gün Sonu Dökümü (PDF/Excel)', icon: FileText, iconClass: 'text-blue-500', activeClass: 'bg-sky-600' },
     { tab: 'admin_loads', label: 'Yükleme', ariaLabel: 'Araç Yüklemeleri & Yetki', icon: ShieldCheck, iconClass: 'text-indigo-600', activeClass: 'bg-indigo-600', adminOnly: true },
-    { tab: 'retention', label: 'Temizlik', ariaLabel: '60 Günlük Temizlik', icon: CalendarCheck, iconClass: 'text-amber-600', activeClass: 'bg-amber-600', adminOnly: true },
   ];
 
   return (

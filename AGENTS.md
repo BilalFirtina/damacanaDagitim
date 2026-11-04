@@ -419,12 +419,14 @@ Depo yöneticisi, günü içinde sonlandırılmamış seferleri “Önceki gün 
 
 9.2. 60 Günlük Saklama ve Temizlik
 
-Dağıtım tarihinden 60 gün sonra sefer ve teslimat kayıtları arşivlenmeden doğrudan silinir.
+Dağıtım tarihinden 60 gün sonra günlük dağıtım faaliyetlerinden doğan tüm hareketler arşivlenmeden doğrudan silinir.
 Temizlik, durumdan bağımsız olarak eşikten eski tüm seferleri kapsar: Yükleme Bekleniyor, Dağıtımda ve Dağıtım Tamamlandı.
-Müşteri cari bakiyesi, iade edilebilir kalem adetleri, sebil detayları, son satış fiyatı, tahsilat kayıtları ve denetim kayıtları silinmez.
-Temizlik her gün 23:00 Türkiye saatinde (UTC+3) çalışır; üretimde gerçek silme modu kullanılır.
-Temizlik seferi otomatik kapatmaz ve şoför adına rapor oluşturmaz; yalnızca süresi geçmiş sefer/teslimat kayıtlarını temizler.
-Tahsilat kaydı, bağlı olduğu sefer silinse bile korunur; sefer referansı boşaltılır.
+Silinenler: seferler, teslimatlar, teslimat kalemleri, boş kap hareketleri, tahsilatlar, cari/boş kap denetim kayıtları, iptal/yeniden açma/yükleme denetimleri ve müşteri işlem denetimleri.
+Korunanlar: müşteri kaydı (ad, telefon, adres, e-posta, not, tür), nihai cari borç (`current_balance_tl`), nihai iade edilebilir kalem adetleri (`customer_empty_balances`), son satış fiyatı (`customer_product_prices`) ve sebil marka/model/adet/açıklama detayları (`customer_dispensers`).
+Temizlik her gün 23:00 Türkiye saatinde (UTC+3) otomatik çalışır; üretimde gerçek silme modu kullanılır.
+Yöneticiye manuel temizlik ekranı sunulmaz; temizlik yalnızca zamanlanmış sunucu işiyle yürütülür.
+Temizlik seferi otomatik kapatmaz ve şoför adına rapor oluşturmaz; yalnızca süresi geçmiş hareketleri temizler.
+Tahsilat kaydı da 60 gün sonra silinir; müşterinin nihai borç bakiyesi korunur.
 
 10. Müşteri Hesap Ekstreleri ve Operasyonel Raporlar
 
@@ -645,11 +647,11 @@ Faturalı/peşin ayrımı `is_account_customer` alanıyla tutulur; `true` fatura
 Faturalı müşteride birim fiyat, mal tutarı, cari borç ve geçmiş fiyat arayüzde gizlenir; müşteri kartında "Faturalı Müşteri" etiketi kullanılır.
 Faturalı teslimatta sunucu, istemci fiyatı yerine ürün default fiyatını uygular; `delivery_items.unit_price` ve `customer_product_prices` ileride kullanım için saklanır.
 Peşin müşteride son satış fiyatı gösterilir; kısmi/veresiye kalan tutar `current_balance_tl` alanına borç yazılır.
-Şoför teslimat dışı tahsilatı `customer_payments` tablosuna yazılır; `dispatch_id` ile aktif sefere bağlanır, sefer silinirse `ON DELETE SET NULL` ile korunur.
+Şoför teslimat dışı tahsilatı `customer_payments` tablosuna yazılır; `dispatch_id` ile aktif sefere bağlanır. Sefer silinirse 60 günden yeni tahsilat `ON DELETE SET NULL` ile korunur; 60 günü geçen tahsilat temizlikte silinir.
 `record_customer_payment` idempotenttir; aynı `payment_id` bakiyeyi ikinci kez düşürmez ve denetim kaydı yazar.
 Aktif sefer tekilliği `ux_dispatches_active_driver` ve `ux_dispatches_active_plate` kısmi tekil indeksleriyle korunur.
-60 günlük temizlik `20261105_retention_no_archive.sql`, tüm müşteri borcu `20261106_cash_customer_debt.sql`, sefere bağlı tahsilat `20261107_customer_payment_dispatch.sql` ile uygulanır.
-Temizlik 23:00 Türkiye saatinde çalışır; arşiv yoktur, tüm sefer durumları kapsanır; bakiye/emanet/son fiyat/tahsilat/denetim korunur.
+60 günlük temizlik `20261108_retention_purge_all_movements.sql` ile uygulanır; tüm müşteri borcu `20261106_cash_customer_debt.sql`, sefere bağlı tahsilat `20261107_customer_payment_dispatch.sql` ile yönetilir.
+Temizlik 23:00 Türkiye saatinde otomatik çalışır; arşiv yoktur, tüm sefer durumları ve günlük hareket/denetim kayıtları kapsanır. Müşteri kaydı, nihai bakiye, nihai emanet adetleri, son fiyat ve sebil detayları korunur.
 
 <!-- trail:start -->
 Trail — depo bağlam grafiği
