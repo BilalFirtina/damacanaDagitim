@@ -433,15 +433,15 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
               className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow"
             >
               <div>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <Building2 className="w-4 h-4 text-sky-600 shrink-0" />
-                    <h3 className="font-bold text-sm text-slate-900 dark:text-white truncate min-w-0" title={c.name}>
+                <div className="flex flex-col gap-2 w-full min-w-0">
+                  <div className="flex items-start gap-2 min-w-0 w-full">
+                    <Building2 className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                    <h3 className="font-bold text-sm text-slate-900 dark:text-white break-words min-w-0 leading-snug" title={c.name}>
                       {c.name}
                     </h3>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex flex-wrap items-center justify-end gap-1.5 w-full">
                     <button
                       onClick={() => setPaymentCustomer(c)}
                       className="p-1.5 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
