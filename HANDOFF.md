@@ -1,13 +1,13 @@
 # HANDOFF — damacanaDagitim
 
-> **2026-11-02 — ÇALIŞMAYA ARA VERİLDİ.**
-> Güncel git durumu, ürün kararları ve devam adımları için önce **`MEMORY.md`** oku.
+> **2026-11-04 — ÇALIŞMAYA YENİDEN BAŞLANDI.**
+> Güncel git durumu, ürün kararları, faturalı fiyat incelemesi ve devam adımları
+> için önce **`MEMORY.md`** oku.
 >
 > Özet: `origin/main` = `d507a97` (PR #3 merge). `feat/agents-compliance` dalında
 > `10acd99` tahsilat implementasyonu + hafıza commit'leri var; **CI çalışmadı, merge
-> edilmedi**. Yerel çalışma ağacı `68f7fa1` içeriğine geri alınmış; implementasyon
-> dosyaları diskte yok, git geçmişinde duruyor. `git add -A` yapma — mevcut ağaç
-> implementasyonu silmiş görünür. Geri yükleme: `MEMORY.md` bölüm 1.
+> edilmedi**. Çalışma ağacı 04.11'de `HEAD`e geri yüklendi; `lint`, 16 verify ve
+> build geçti. Faturalı fiyat görünürlüğü ve migration/deploy işleri açık.
 
 > Son güncelleme: 2026-11-02 (uçtan uca test turu)
 > Dal: `feat/agents-compliance` (main'e göre 25 commit ileride)

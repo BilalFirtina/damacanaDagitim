@@ -1,9 +1,8 @@
 # MEMORY — damacanaDagitim
 
-> **Ara verildi: 2026-11-02**
-> Bu dosya, çalışmaya ara verildiğinde kaldığımız yeri, ürün kararlarını ve
-> devam adımlarını saklar. Yeni oturumda önce bunu, sonra `HANDOFF.md` ve
-> `git log`u oku.
+> **Son güncelleme: 2026-11-04 (yeniden başlama incelemesi)**
+> Bu dosya, kaldığımız yeri, ürün kararlarını ve devam adımlarını saklar.
+> Yeni oturumda önce bunu, sonra `HANDOFF.md` ve `git log`u oku.
 
 ---
 
@@ -13,7 +12,7 @@
 |---|---|---|
 | `origin/main` | `d507a97` | PR #3 merge edildi. `56d4f30` + `66dca12` + `68f7fa1` dahil. |
 | `origin/feat/agents-compliance` | `10acd99` + hafıza commit'leri | Tahsilat implementasyonu + MEMORY/HANDOFF. **Merge edilmedi.** |
-| Yerel çalışma ağacı | — | `68f7fa1` içeriğine geri alınmış; implementasyon dosyaları diskte **YOK**. |
+| Yerel çalışma ağacı | `HEAD` | **2026-11-04'te geri yüklendi.** İmplementasyon diskte var; yalnızca `.gitignore` farkı ve line-ending stat gürültüsü var. |
 
 - `10acd99` = `feat: sofor tahsilati ve pesin musteri borcu` (implementasyon)
 - Sonraki commit'ler yalnızca `MEMORY.md`, `HANDOFF.md` ve trail learning'i ekler.
@@ -23,44 +22,35 @@
 > PR'larda çalışır. Bu nedenle dal push'unda CI koşmadı; `10acd99`/`48615a0`
 > için henüz yeşil sonuç yok. Test için **main'e PR açılması** gerekir.
 
-### Working tree uyarısı
+### Working tree durumu (2026-11-04)
 
-Şu an `git status` şunları gösterir:
+- `git restore --source=HEAD -- . ':(exclude).gitignore'` çalıştırıldı.
+- İmplementasyon artık diskte: `server.ts`, `src/server/db.ts`,
+  `migrations/20261106...`, `20261107...`, `DriverPaymentModal.tsx` vb.
+- `git diff` yalnızca `.gitignore` gösteriyor. Üç dosyada (`scripts/ci/customer-dispensers-pg-test.ts`,
+  `CustomerPaymentModal.tsx`, `DriverPaymentModal.tsx`) yalnızca line-ending
+  kaynaklı `M` görünebilir; içerik `git diff`te boş.
+- `git status` içinde `.claude/`, `.gemini/`, `AGENTS.md`, `opencode.json`,
+  `.trail/` gibi untracked dosyalar var. Körlemesine `git add -A` yapma;
+  hangilerinin commit edileceğine karar ver.
 
-- **Silinmiş:** `migrations/20261106_cash_customer_debt.sql`,
-  `migrations/20261107_customer_payment_dispatch.sql`,
-  `src/components/driver/DriverPaymentModal.tsx`
-- **Geri alınmış:** `server.ts`, `src/server/db.ts`, `src/App.tsx`,
-  `src/services/api.ts`, `DeliveryModal.tsx`, `DriverView.tsx`,
-  `EndOfDayView.tsx`, rapor bileşenleri, CI testleri, `HANDOFF.md`
+### Bir daha resetlenirse geri yükleme
 
-Bu, `10acd99`'un bilerek geri alınmış olmasından kaynaklanıyor olabilir.
-**`git add -A` veya `git commit -a` yapma:** mevcut çalışma ağacı, implementasyonu
-silen bir commit oluşturur.
-
-### İmplementasyonu geri yükleme (devam ederken)
-
-Artık `HEAD` (`48615a0`) implementasyonu ve bu hafıza dosyalarını birlikte
-içeriyor. `.gitignore` kullanıcı değişikliğini koruyarak çalışma ağacını
-`HEAD`e getir:
+`HEAD`, implementasyonu ve hafıza dosyalarını birlikte içeriyor:
 
 ```bash
 git restore --source=HEAD -- . ':(exclude).gitignore'
 ```
 
-Bu komut, implementasyonu (`server.ts`, migration'lar, `DriverPaymentModal.tsx`
-vb.) geri getirir; `MEMORY.md` ve güncel `HANDOFF.md`'yi korur; `.gitignore`
-değişikliğine dokunmaz. Sonrasında `git status` ile kontrol et.
-
-> `.gitignore` dışında başka bir kullanıcı değişikliği varsa yukarıdaki komut
-> onu da ezer. Önce `git status` ve `git diff` ile kontrol et; gerekirse
-> dosya bazında `git restore --source=HEAD -- <yol>` kullan.
+Bu komut implementasyonu geri getirir; `.gitignore` değişikliğine dokunmaz.
+`.gitignore` dışında başka kullanıcı değişikliği varsa önce `git status` ve
+`git diff` ile kontrol et; gerekirse dosya bazında restore et.
 
 ### Neden önemli
 
-- `10acd99` çalışma ağacında yok; yalnızca git geçmişinde ve uzak dalda duruyor.
+- `10acd99` çalışma ağacında yoktu; yalnızca git geçmişinde ve uzak dalda duruyordu.
 - Yeni bir `git checkout`/`reset` ile kaybolmasın. Önce bu commit'i incele.
-- CI bu commit için **hiç çalışmadı**; testlerin geçtiği doğrulanmadı.
+- CI bu commit için **henüz çalışmadı**; testlerin geçtiği doğrulanmadı.
 
 ---
 
@@ -141,6 +131,32 @@ Bu commit, yukarıdaki tahsilat modelinin bir implementasyonudur:
 `10acd99` sürümündeki `HANDOFF.md` bu işi “TAMAMLANDI” olarak anlatır; ancak
 aşağıdaki eksikler ve CI durumu nedeniyle **kesin tamamlandı kabul etme.**
 
+### 3.1. 2026-11-04 yeniden başlama incelemesi
+
+- Çalışma ağacı `HEAD`e geri yüklendi; implementasyon diskte.
+- `npm run lint` → geçti.
+- `scripts/verify-*.ts` → 16 betik geçti.
+- `npm run build` → geçti (Vite 500 kB chunk uyarısı var, hata değil).
+- PG testleri yerelde çalıştırılamadı (Docker/psql yok); CI/PR gerekli.
+
+**Faturalı fiyat görünürlüğü — kalan işler:**
+
+| Yer | Mevcut | Yapılması gereken |
+|---|---|---|
+| `DeliveryModal.tsx` | Faturalıda özel fiyat rozeti/ön dolgu gizli; **birim fiyat ve düzenleme hâlâ görünür** | Faturalıda birim fiyat alanını ve fiyat düzenlemeyi tamamen gizle; satır toplamını da gizle veya “fiyat gösterilmez” yap; içeride default fiyat kullan |
+| `DriverView.tsx` teslimat listesi | `item.unitPrice` gösteriliyor | Faturalı teslimatta birim fiyatı gizle (müşteri türünü `customers` üzerinden eşle) |
+| `LiveTeamFeed.tsx` | `prod.unitPrice` gösteriliyor | Faturalı teslimatta birim fiyatı gizle; `customers` prop’u ekle |
+| `CustomersManagement.tsx` | “Özel Fiyat Hafızası” tüm müşterilerde | Faturalıda gizle |
+| `DailyReportsView.tsx` tablo/mobil/CSV | Ürün yanında `(birim fiyat)` var | Faturalı satırlarda birim fiyatı gösterme; CSV’de boş bırak |
+| `ConsolidatedDailyReport.tsx` | Birim fiyat yok; tutar/toplam var | Faturalıda tutarın da gizlenip gizlenmeyeceğine karar ver |
+| `CustomerStatementModal.tsx` | Birim fiyat yok; toplam satış var | Faturalıda toplam satışın gizlenip gizlenmeyeceğine karar ver |
+| Supabase | `delivery_items.unit_price` + `customer_product_prices` dolu | **Silme.** İleride kullanım için sakla; sadece UI’da gizle |
+
+**Kritik iş kuralı sorusu:** Faturalı teslimatta kalan tutar, gizli/default
+birim fiyattan mı borca yazılacak (mevcut davranış), yoksa faturalı teslimat
+hiç borç oluşturmayıp tahsilatlar yöneticinin girdiği bakiyeden mi düşülecek?
+Bu karar verilmeden faturalı fiyat gizleme tamamlanmış sayılmaz.
+
 ---
 
 ## 4. İncelenecekler / eksikler
@@ -161,22 +177,22 @@ aşağıdaki eksikler ve CI durumu nedeniyle **kesin tamamlandı kabul etme.**
    - `20261107_customer_payment_dispatch.sql` (dalda)
    - `20261104_payment_rpc_hardening.sql` ve güncel `20261103_sebil_returnable.sql`
      daha önce uygulanmış olmalı; yine de teyit et.
-5. **Working tree eski sürümde.** `HANDOFF.md` çalışma ağacı sürümü, bu işi
-   içermiyor; güncel durum bu dosyada.
+5. **Working tree 04.11'de geri yüklendi.** Kod diskte ve derleniyor.
+   `HANDOFF.md` hâlâ 02.11 sürümünü anlatıyor; güncel durum bu dosyada.
 
 ---
 
 ## 5. Devam sırası
 
-1. `git fetch origin`; `main` ve dalın güncel olduğunu doğrula.
-2. `10acd99`'u çalışma ağacına geri yükle (yukarıdaki komut).
-3. `10acd99` diff'ini incele; özellikle:
-   - `apply_delivery` / `close_dispatch` / `cancel_or_replace_delivery`
-   - faturalı fiyat alanının gizlenmesi
-   - rapor filtreleri ve kasa mutabakatı
-4. Faturalı fiyat girişini tamamen gizle; gerekirse sunucuda fiyatı
-   son/default fiyatla sabitle.
-5. `npm run lint`, tüm `npx tsx scripts/verify-*.ts`, `npm run build`.
+1. ✅ `git fetch origin`; `main` = `d507a97`, dal = `10acd99` + hafıza.
+2. ✅ `10acd99` çalışma ağacına geri yüklendi (04.11).
+3. ✅ Diff incelendi: `20261106 apply_delivery` yalnızca hesap kapısını
+   kaldırıyor; `20261107 close_dispatch` yalnızca tüm-müşteri kredi + sefere
+   bağlı tahsilat ekliyor. `cancel_or_replace_delivery` `applied_balance_delta_tl`
+   üzerinden çalıştığı için uyumlu.
+4. ⏳ Faturalı fiyat girişini tamamen gizle; gerekirse sunucuda fiyatı
+   default/son fiyatla sabitle. (Bölüm 3.1’deki yerler.)
+5. ✅ `npm run lint`, 16 `verify-*`, `npm run build` geçti (04.11).
    PG testleri yalnızca CI'de (yerelde Docker/psql yok).
 6. Değişiklikleri commit et, push et, `main`e PR aç.
 7. CI yeşil olunca merge et.
