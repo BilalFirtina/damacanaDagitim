@@ -490,6 +490,14 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const totalCollectedVal = cashVal + posVal;
   const uncollectedDiff = grandTotal - totalCollectedVal;
 
+  const openNewCustomerForm = () => {
+    const term = customerSearch.trim();
+    if (term && !newCustName.trim()) {
+      setNewCustName(term);
+    }
+    setShowNewCustomerForm(true);
+  };
+
   // New Customer submit
   const handleCreateNewCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -522,6 +530,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       onCustomerCreated?.(created);
       // Automatically select created customer and proceed to product selection
       setSelectedCustomer(created);
+      setCustomerSearch(created.name);
       setShowNewCustomerForm(false);
       setNewCustName("");
       setNewCustPhone("");
@@ -899,21 +908,23 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 {/* Customer search list */}
                 <div className="max-h-52 overflow-y-auto space-y-1.5 border border-slate-100  rounded-xl p-1 bg-slate-50/50 ">
                   {filteredCustomers.length === 0 ? (
-                    <div className="p-4 text-center text-xs text-slate-400 space-y-2">
-                      <p>Aramaya uygun kayıtlı müşteri bulunamadı.</p>
-                      <button
-                        type="button"
-                        onClick={() => setShowNewCustomerForm(true)}
-                        className="px-3 py-1.5 rounded-lg bg-sky-100  text-sky-700  font-semibold text-xs inline-flex items-center gap-1"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>
-                          {customerSearch.trim()
-                            ? `"${customerSearch.trim()}" Adıyla Yeni Müşteri Ekle`
-                            : 'Yeni Müşteri Ekle'}
-                        </span>
-                      </button>
-                    </div>
+                    showNewCustomerForm ? null : (
+                      <div className="p-4 text-center text-xs text-slate-400 space-y-2">
+                        <p>Aramaya uygun kayıtlı müşteri bulunamadı.</p>
+                        <button
+                          type="button"
+                          onClick={openNewCustomerForm}
+                          className="px-3 py-1.5 rounded-lg bg-sky-100  text-sky-700  font-semibold text-xs inline-flex items-center gap-1"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>
+                            {customerSearch.trim()
+                              ? `"${customerSearch.trim()}" Adıyla Yeni Müşteri Ekle`
+                              : 'Yeni Müşteri Ekle'}
+                          </span>
+                        </button>
+                      </div>
+                    )
                   ) : (
                     filteredCustomers.map((c) => (
                       <button
