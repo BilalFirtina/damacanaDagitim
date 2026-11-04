@@ -285,13 +285,13 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-slate-50  flex flex-col items-center justify-center p-4">
         <img
           src="/logo-header.png"
           alt=""
-          className="w-12 h-12 rounded-2xl bg-white ring-1 ring-slate-200 dark:ring-slate-700 shadow-xl object-contain animate-bounce"
+          className="w-12 h-12 rounded-2xl bg-white ring-1 ring-slate-200  shadow-xl object-contain animate-bounce"
         />
-        <h2 className="mt-4 text-base font-bold text-slate-900 dark:text-white">
+        <h2 className="mt-4 text-base font-bold text-slate-900 ">
           Fırtına Gıda Yükleniyor...
         </h2>
         <p className="text-xs text-slate-500 mt-1">Saha ve mutabakat verileri hazırlanıyor</p>
@@ -307,7 +307,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-50/80 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-50/80  text-slate-900  flex flex-col font-sans">
       {/* Top Bar Header with 3-Zone Contract */}
       <Header
         currentUser={currentUser}

@@ -46,7 +46,7 @@ export const CustomerDispenserInfo: React.FC<CustomerDispenserInfoProps> = ({
       <button
         type="button"
         onClick={toggle}
-        className="w-full min-h-11 px-3 py-2 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/60 dark:bg-indigo-950/20 text-indigo-800 dark:text-indigo-200 text-xs font-semibold flex items-center justify-between gap-2"
+        className="w-full min-h-11 px-3 py-2 rounded-xl border border-indigo-200  bg-indigo-50/60  text-indigo-800  text-xs font-semibold flex items-center justify-between gap-2"
         aria-expanded={isOpen}
       >
         <span className="inline-flex items-center gap-1.5 min-w-0">
@@ -61,7 +61,7 @@ export const CustomerDispenserInfo: React.FC<CustomerDispenserInfoProps> = ({
       </button>
 
       {isOpen && (
-        <div className="mt-2 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 p-3 space-y-2">
+        <div className="mt-2 rounded-xl border border-indigo-200  bg-white  p-3 space-y-2">
           {isLoading && (
             <div className="text-[11px] text-slate-500">Sebil bilgileri yükleniyor...</div>
           )}
@@ -74,7 +74,7 @@ export const CustomerDispenserInfo: React.FC<CustomerDispenserInfoProps> = ({
           {(dispensers || []).map((d) => (
             <div
               key={d.id}
-              className="text-[11px] text-slate-700 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800 last:border-0 pb-2 last:pb-0 min-w-0"
+              className="text-[11px] text-slate-700  border-b border-slate-100  last:border-0 pb-2 last:pb-0 min-w-0"
             >
               <div className="font-semibold break-words">
                 {d.quantity} adet

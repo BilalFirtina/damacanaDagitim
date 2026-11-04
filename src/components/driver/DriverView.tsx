@@ -156,35 +156,35 @@ export const DriverView: React.FC<DriverViewProps> = ({
     <div className="space-y-6 w-full max-w-full min-w-0">
       {/* Depo Yöneticisi Quick Monitor Bar */}
       {currentUser.role === 'admin' && (
-        <div className="bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+        <div className="bg-indigo-50/80  border border-indigo-200  rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-md">
               DY
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-indigo-950 dark:text-indigo-200">
+                <span className="text-xs font-bold text-indigo-950 ">
                   Depo Yöneticisi Saha Gözetimi
                 </span>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-200/70 dark:bg-indigo-900 text-indigo-900 dark:text-indigo-200">
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-200/70  text-indigo-900 ">
                   Uğur Fırtına
                 </span>
               </div>
-              <p className="text-[11px] text-indigo-800/80 dark:text-indigo-300 mt-0.5">
+              <p className="text-[11px] text-indigo-800/80  mt-0.5">
                 Şoförlerin canlı araç stok durumlarını izleyebilir, istedikleri araca sabah yüklemesi girebilirsiniz.
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <label className="text-xs font-bold text-indigo-900 dark:text-indigo-200 whitespace-nowrap flex items-center gap-1">
+            <label className="text-xs font-bold text-indigo-900  whitespace-nowrap flex items-center gap-1">
               <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
               <span>İncelenen Şoför:</span>
             </label>
             <select
               value={selectedDriverIdForAdmin}
               onChange={(e) => setSelectedDriverIdForAdmin(e.target.value)}
-              className="w-full min-w-0 max-w-full box-border p-2 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-100 shadow-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              className="w-full min-w-0 max-w-full box-border p-2 rounded-xl border border-indigo-200  bg-white  text-xs font-bold text-slate-800  shadow-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             >
               {drivers.map((d) => (
                 <option key={d.id} value={d.id}>
@@ -198,28 +198,28 @@ export const DriverView: React.FC<DriverViewProps> = ({
 
       {/* Driver & Vehicle Ready for New Trip Notice (Shown if previous runs are closed) */}
       {!activeDispatch && completedDispatchesToday.length > 0 && (
-        <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+        <div className="bg-emerald-50  border border-emerald-200  rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-md">
               <CheckCircle2 className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-emerald-950 dark:text-emerald-200">
+                <span className="text-xs font-bold text-emerald-950 ">
                   Önceki Sefer Tamamlandı & Kalan Ürünler Depoya Boşaltıldı
                 </span>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-200/70 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200">
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-200/70  text-emerald-900 ">
                   Bugün {completedDispatchesToday.length} Sefer Kapandı
                 </span>
               </div>
-              <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300 mt-0.5">
+              <p className="text-[11px] text-emerald-800/80  mt-0.5">
                 Şoför ve araç yeni bir dağıtım seferi için yükleme almaya tamamen hazırdır. Aşağıdan yeni sefer yüklemesi girebilirsiniz.
               </p>
             </div>
           </div>
           <button
             onClick={() => onNavigateTab('eod')}
-            className="text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:underline flex items-center gap-1 shrink-0"
+            className="text-xs font-bold text-emerald-700  hover:underline flex items-center gap-1 shrink-0"
           >
             <span>Kapanan Sefer Raporunu İncele</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -274,10 +274,10 @@ export const DriverView: React.FC<DriverViewProps> = ({
       )}
 
       {/* Today's Deliveries List for this Vehicle */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+      <div className="bg-white  rounded-2xl border border-slate-200  p-5 shadow-xs space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 ">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <h3 className="text-sm font-bold text-slate-900  flex items-center gap-2">
               <Building2 className="w-4 h-4 text-sky-600" />
               <span>Günün Yapılan Teslimatları ({myDeliveries.length})</span>
             </h3>
@@ -285,7 +285,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
               {activeDispatch?.vehiclePlate || 'Seçili araç'} ({activeDispatch?.driverName || 'Şoför'}) tarafından bugün tamamlanan teslimatlar
             </p>
             {!isOnline && (
-              <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 mt-1">
+              <p className="text-[11px] font-semibold text-amber-700  mt-1">
                 Çevrimdışıyken teslimat iptali ve düzenlemesi devre dışıdır.
               </p>
             )}
@@ -316,7 +316,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
             )}
           </div>
         ) : (
-          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+          <div className="divide-y divide-slate-100 ">
             {myDeliveries.map((del) => {
               const timeStr = new Date(del.timestamp).toLocaleTimeString('tr-TR', {
                 hour: '2-digit',
@@ -328,7 +328,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
                 <div key={del.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full min-w-0">
                   <div className="space-y-1 min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-xs text-slate-900 dark:text-white break-words">
+                      <span className="font-bold text-xs text-slate-900  break-words">
                         {del.customerName}
                       </span>
                       <span className="text-[10px] text-slate-400 font-mono">
@@ -340,7 +340,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
                       {del.deliveredItems.map((item, idx) => (
                         <span
                           key={idx}
-                          className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[11px]"
+                          className="px-2 py-0.5 rounded bg-slate-100  text-[11px]"
                         >
                           <strong>{item.quantity}</strong> {item.productName}
                           {!isAccount && ` (${item.unitPrice} ₺)`}
@@ -371,7 +371,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
                   </div>
 
                   <div className="text-left sm:text-right shrink-0">
-                    <div className="font-mono font-extrabold text-sm text-slate-900 dark:text-white">
+                    <div className="font-mono font-extrabold text-sm text-slate-900 ">
                       {isAccount ? (
                         <span className="text-[11px] font-semibold text-slate-400">
                           Tutar gizli
@@ -410,7 +410,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
                                 ? 'Teslimatı düzenle'
                                 : 'Çevrimdışıyken düzenleme yapılamaz'
                             }
-                            className="px-2.5 py-1.5 rounded-lg border border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-300 text-[11px] font-bold hover:bg-sky-50 dark:hover:bg-sky-950 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+                            className="px-2.5 py-1.5 rounded-lg border border-sky-200  text-sky-700  text-[11px] font-bold hover:bg-sky-50  disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
                           >
                             <Edit2 className="w-3 h-3" />
                             Düzenle
@@ -424,7 +424,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
                                 ? 'Teslimatı iptal et'
                                 : 'Çevrimdışıyken iptal yapılamaz'
                             }
-                            className="px-2.5 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-[11px] font-bold hover:bg-rose-50 dark:hover:bg-rose-950/40 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+                            className="px-2.5 py-1.5 rounded-lg border border-rose-200  text-rose-700  text-[11px] font-bold hover:bg-rose-50  disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
                           >
                             <Ban className="w-3 h-3" />
                             İptal
@@ -488,17 +488,17 @@ export const DriverView: React.FC<DriverViewProps> = ({
             role="dialog"
             aria-modal="true"
             aria-labelledby="cancel-delivery-title"
-            className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col border border-slate-200 dark:border-slate-800"
+            className="bg-white  rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col border border-slate-200 "
           >
-            <div className="flex items-start justify-between gap-3 p-4 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex items-start justify-between gap-3 p-4 border-b border-slate-200 ">
               <div className="flex items-start gap-2.5 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-300 flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-rose-100  text-rose-600  flex items-center justify-center shrink-0">
                   <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
                   <h3
                     id="cancel-delivery-title"
-                    className="text-sm font-bold text-slate-900 dark:text-white"
+                    className="text-sm font-bold text-slate-900 "
                   >
                     Teslimatı İptal Et
                   </h3>
@@ -511,7 +511,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
                 type="button"
                 onClick={closeCancelDialog}
                 disabled={isCancelling}
-                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40"
+                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100  disabled:opacity-40"
                 aria-label="Kapat"
               >
                 <X className="w-4 h-4" />
@@ -519,10 +519,10 @@ export const DriverView: React.FC<DriverViewProps> = ({
             </div>
 
             <div className="p-4 space-y-3 overflow-y-auto">
-              <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 text-xs space-y-1">
+              <div className="rounded-xl bg-slate-50  p-3 text-xs space-y-1">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-slate-500">Teslimat Tutarı</span>
-                  <span className="font-mono font-bold text-slate-900 dark:text-white">
+                  <span className="font-mono font-bold text-slate-900 ">
                     {isAccountCustomerDelivery(cancelTarget, customers)
                       ? 'Tutar gizli'
                       : `${cancelTarget.deliveredGrandTotal.toLocaleString('tr-TR')} ₺`}
@@ -530,19 +530,19 @@ export const DriverView: React.FC<DriverViewProps> = ({
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-slate-500">Tahsilat</span>
-                  <span className="font-mono font-bold text-slate-900 dark:text-white">
+                  <span className="font-mono font-bold text-slate-900 ">
                     {cancelTarget.collectedPayment.totalCollected.toLocaleString('tr-TR')} ₺
                   </span>
                 </div>
               </div>
 
-              <p className="text-xs text-slate-600 dark:text-slate-400">
+              <p className="text-xs text-slate-600 ">
                 Cari bakiye ve boş kap bakiyeleri geri alınır. Bu işlem geri
                 alınamaz ve denetim kaydına yazılır.
               </p>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="text-xs font-bold text-slate-700  block mb-1">
                   İptal Gerekçesi *
                 </label>
                 <textarea
@@ -551,7 +551,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
                   rows={3}
                   minLength={3}
                   placeholder="Örn: Teslimat yanlış müşteriye kaydedildi."
-                  className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white resize-y"
+                  className="w-full p-2.5 rounded-xl border border-slate-300  text-xs bg-white  text-slate-900  resize-y"
                 />
                 <p className="text-[11px] text-slate-500 mt-1">
                   En az 3 karakter.
@@ -559,18 +559,18 @@ export const DriverView: React.FC<DriverViewProps> = ({
               </div>
 
               {cancelError && (
-                <p className="text-xs font-semibold text-rose-600 bg-rose-50 dark:bg-rose-950/30 rounded-lg p-2 break-words">
+                <p className="text-xs font-semibold text-rose-600 bg-rose-50  rounded-lg p-2 break-words">
                   {cancelError}
                 </p>
               )}
             </div>
 
-            <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <div className="p-4 border-t border-slate-200  flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
               <button
                 type="button"
                 onClick={closeCancelDialog}
                 disabled={isCancelling}
-                className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40"
+                className="px-4 py-2.5 rounded-xl border border-slate-300  text-xs font-bold text-slate-700  hover:bg-slate-50  disabled:opacity-40"
               >
                 Vazgeç
               </button>

@@ -127,9 +127,9 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
 
   if (!currentViewDispatch) {
     return (
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center text-slate-400 text-xs space-y-3">
+      <div className="bg-white  rounded-2xl border border-slate-200  p-12 text-center text-slate-400 text-xs space-y-3">
         <Truck className="w-10 h-10 text-slate-300 mx-auto" />
-        <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+        <p className="text-sm font-semibold text-slate-700 ">
           Bugün için tamamlanmış veya aktif bir araç seferi bulunmuyor.
         </p>
         <p className="text-xs text-slate-400">
@@ -284,8 +284,8 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
     <div className="space-y-6 w-full max-w-full min-w-0">
       {/* Trip Switcher if Multiple Dispatches exist today */}
       {candidateDispatches.length > 1 && (
-        <div className="bg-slate-100 dark:bg-slate-800/80 p-2.5 rounded-2xl flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
+        <div className="bg-slate-100  p-2.5 rounded-2xl flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-700 ">
             <Truck className="w-4 h-4 text-sky-600" />
             <span>Seferler ({candidateDispatches.length}):</span>
           </div>
@@ -300,22 +300,22 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex flex-wrap items-center gap-1.5 max-w-full ${
                   disp.id === currentViewDispatch.id
                     ? 'bg-sky-600 text-white shadow-xs'
-                    : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50'
+                    : 'bg-white  text-slate-700  hover:bg-slate-50'
                 }`}
               >
                 <span>
                   Sefer #{idx + 1} ({disp.vehiclePlate})
                 </span>
                 {isStaleDispatch(disp, todayStr) && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200">
+                  <span className="text-[10px] px-1.5 py-0.2 rounded font-bold bg-rose-100 text-rose-800  ">
                     Önceki gün sonlandırılmadı
                   </span>
                 )}
                 <span
                   className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
                     disp.status === 'completed'
-                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'
-                      : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200'
+                      ? 'bg-emerald-100 text-emerald-800  '
+                      : 'bg-amber-100 text-amber-800  '
                   }`}
                 >
                   {disp.status === 'completed' ? 'Dağıtım Tamamlandı' : 'Açık'}
@@ -330,14 +330,14 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
       {isStaleDispatch(currentViewDispatch, todayStr) && (
         <div
           role="alert"
-          className="bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-300 dark:border-amber-800 rounded-2xl p-4 sm:p-5 flex items-start gap-3"
+          className="bg-amber-50  border-2 border-amber-300  rounded-2xl p-4 sm:p-5 flex items-start gap-3"
         >
           <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="min-w-0">
-            <p className="text-sm font-bold text-amber-900 dark:text-amber-200 break-words">
+            <p className="text-sm font-bold text-amber-900  break-words">
               Önceki gün sonlandırılmadı
             </p>
-            <p className="text-xs text-amber-800/90 dark:text-amber-300 mt-1 break-words">
+            <p className="text-xs text-amber-800/90  mt-1 break-words">
               Bu sefer {formatDateTr(currentViewDispatch.date)} tarihli ve hâlâ açık.
               Yeni sefere başlamadan önce sayımı tamamlayıp gün sonu raporunu onaylayarak seferi kapatın.
             </p>
@@ -347,21 +347,21 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
 
       {/* Completion & Readiness Success Banner */}
       {(isAlreadyClosed || successMsg) && (
-        <div className="bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="bg-emerald-50  border-2 border-emerald-300  rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-md">
               <CheckCircle2 className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-emerald-950 dark:text-emerald-200">
+                <span className="text-sm font-bold text-emerald-950 ">
                   Sefer Başarıyla Tamamlandı & Kalan Ürünler Depoya Boşaltıldı
                 </span>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200">
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-200  text-emerald-900 ">
                   Yeni Sefere Hazır
                 </span>
               </div>
-              <p className="text-xs text-emerald-800/90 dark:text-emerald-300 mt-1">
+              <p className="text-xs text-emerald-800/90  mt-1">
                 Bu seferin mutabakatı tamamlandı ve araç depoya boşaltıldı. Şoför ve araç sisteme serbest bırakıldı, yeni bir sefer yüklemesi yapılabilir.
               </p>
             </div>
@@ -380,18 +380,18 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
       )}
 
       {/* Title & Status Banner */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-white  rounded-2xl border border-slate-200  p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+            <h2 className="text-base font-bold text-slate-900 ">
               Gün Sonu Çift Yönlü Mutabakat & Kasa Kapatma
             </h2>
             {isAlreadyClosed ? (
-              <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800  ">
                 Sefer Kapatıldı & Mutabakat Sağlandı
               </span>
             ) : (
-              <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+              <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800  ">
                 Açık Dağıtım Seferi
               </span>
             )}
@@ -407,7 +407,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={handlePrint}
-            className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs flex items-center gap-1.5 hover:bg-slate-50 shadow-xs"
+            className="px-3.5 py-2 rounded-xl border border-slate-200  bg-white  text-slate-700  font-semibold text-xs flex items-center gap-1.5 hover:bg-slate-50 shadow-xs"
           >
             <Printer className="w-4 h-4 text-slate-500" />
             <span>Yazdır / PDF</span>
@@ -416,14 +416,14 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
       </div>
 
       {currentUser.role === 'admin' && isAlreadyClosed && (
-        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 sm:p-5 space-y-3">
+        <div className="bg-amber-50  border border-amber-200  rounded-2xl p-4 sm:p-5 space-y-3">
           <div className="flex items-start gap-2">
             <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
             <div>
-              <h3 className="text-sm font-bold text-amber-900 dark:text-amber-200">
+              <h3 className="text-sm font-bold text-amber-900 ">
                 Yönetici İşlemi: Seferi Yeniden Aç
               </h3>
-              <p className="text-xs text-amber-800/80 dark:text-amber-300 mt-1">
+              <p className="text-xs text-amber-800/80  mt-1">
                 Kapatılmış sefer yeniden açıldığında şoför ve araç tekrar aktif seferde görünür.
                 İşlem gerekçesiyle birlikte denetim kaydına alınır ve geçmiş toplamlar silinmez.
               </p>
@@ -436,7 +436,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
               onChange={(e) => setReopenReason(e.target.value)}
               placeholder="Yeniden açma gerekçesi (zorunlu)"
               maxLength={500}
-              className="flex-1 min-w-0 p-2.5 rounded-xl border border-amber-300 dark:border-amber-700 text-xs bg-white dark:bg-slate-900 dark:text-white"
+              className="flex-1 min-w-0 p-2.5 rounded-xl border border-amber-300  text-xs bg-white  "
             />
             <button
               onClick={handleReopen}
@@ -451,10 +451,10 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
       )}
 
       {/* Grid 1: Dolu ve Boş Ürün Sayım Tablosu */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+      <div className="bg-white  rounded-2xl border border-slate-200  p-5 shadow-xs space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 ">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <h3 className="text-sm font-bold text-slate-900  flex items-center gap-2">
               <Droplet className="w-4 h-4 text-sky-600" />
               <span>A. Depoya İndirilecek Kalan Dolu Ürünler</span>
             </h3>
@@ -467,7 +467,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
         <div className="overflow-x-auto print:overflow-visible">
           <table className="w-full min-w-[460px] text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-semibold">
+              <tr className="border-b border-slate-100  text-slate-400 font-semibold">
                 <th className="pb-2.5">Ürün Adı</th>
                 <th className="pb-2.5 text-center">Yüklenen</th>
                 <th className="pb-2.5 text-center">Teslim Edilen</th>
@@ -475,7 +475,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                 <th className="pb-2.5 text-right">Durum</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody className="divide-y divide-slate-100 ">
               {currentViewDispatch.loadedItems.map((loaded) => {
                 const p = products.find((prod) => prod.id === loaded.productId);
                 const delivered = deliveredTotals[loaded.productId] || 0;
@@ -484,7 +484,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
 
                 return (
                   <tr key={loaded.productId} className="py-2.5">
-                    <td className="py-3 font-medium text-slate-900 dark:text-white">
+                    <td className="py-3 font-medium text-slate-900 ">
                       {p?.name || loaded.productId}
                     </td>
                     <td className="py-3 text-center font-mono font-bold">{loaded.quantity}</td>
@@ -493,7 +493,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                       {counted} {p?.unit || 'Adet'}
                     </td>
                     <td className="py-3 text-right">
-                      <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-md">
+                      <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50  px-2 py-0.5 rounded-md">
                         Mutabık
                       </span>
                     </td>
@@ -506,63 +506,63 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
       </div>
 
       {/* Grid 2: Boş Kap & Tahsilat Mutabakatı */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-4">
-        <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+      <div className="bg-white  rounded-2xl border border-slate-200  p-5 shadow-xs space-y-4">
+        <h3 className="text-sm font-bold text-slate-900  flex items-center gap-2">
           <Wallet className="w-4 h-4 text-emerald-600" />
           <span>B. Boş Kap & Kasa Tahsilat Mutabakatı</span>
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+          <div className="p-3.5 rounded-xl bg-slate-50  border border-slate-200 ">
             <span className="text-[11px] font-semibold text-slate-500 uppercase">Toplanan Boş Damacana</span>
-            <div className="text-xl font-bold font-mono text-slate-900 dark:text-white mt-1">
+            <div className="text-xl font-bold font-mono text-slate-900  mt-1">
               {totalEmptyDamacanaCollected} Adet
             </div>
             <span className="text-[10px] text-slate-400">Depoya teslim edilecek boşlar</span>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
-            <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase">Toplanan Boş Cam Damacana</span>
-            <div className="text-xl font-bold font-mono text-amber-700 dark:text-amber-400 mt-1">
+          <div className="p-3.5 rounded-xl bg-amber-50/50  border border-amber-200 ">
+            <span className="text-[11px] font-semibold text-amber-700  uppercase">Toplanan Boş Cam Damacana</span>
+            <div className="text-xl font-bold font-mono text-amber-700  mt-1">
               {totalEmptyCamDamacanaCollected} Adet
             </div>
             <span className="text-[10px] text-amber-600/80">Depoya teslim edilecek boş camlar</span>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+          <div className="p-3.5 rounded-xl bg-slate-50  border border-slate-200 ">
             <span className="text-[11px] font-semibold text-slate-500 uppercase">Toplanan Boş Tüp</span>
-            <div className="text-xl font-bold font-mono text-slate-900 dark:text-white mt-1">
+            <div className="text-xl font-bold font-mono text-slate-900  mt-1">
               {totalEmptyTupCollected} Adet
             </div>
             <span className="text-[10px] text-slate-400">Depoya teslim edilecek tüpler</span>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800">
-            <span className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-400 uppercase">Toplanan Su Sebili</span>
-            <div className="text-xl font-bold font-mono text-indigo-700 dark:text-indigo-300 mt-1">
+          <div className="p-3.5 rounded-xl bg-indigo-50/50  border border-indigo-200 ">
+            <span className="text-[11px] font-semibold text-indigo-700  uppercase">Toplanan Su Sebili</span>
+            <div className="text-xl font-bold font-mono text-indigo-700  mt-1">
               {totalEmptySebilCollected} Adet
             </div>
             <span className="text-[10px] text-indigo-600/80">Emanet sebiller (fiyatsız)</span>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800">
-            <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase">Nakit Kasa</span>
+          <div className="p-3.5 rounded-xl bg-emerald-50/50  border border-emerald-200 ">
+            <span className="text-[11px] font-semibold text-emerald-700  uppercase">Nakit Kasa</span>
             <div className="text-xl font-bold font-mono text-emerald-600 mt-1">
               {actualCashInPocket.toLocaleString('tr-TR')} ₺
             </div>
             <span className="text-[10px] text-emerald-600/80">Teslim edilecek nakit para</span>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800">
-            <span className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-400 uppercase">POS Slipleri</span>
+          <div className="p-3.5 rounded-xl bg-indigo-50/50  border border-indigo-200 ">
+            <span className="text-[11px] font-semibold text-indigo-700  uppercase">POS Slipleri</span>
             <div className="text-xl font-bold font-mono text-indigo-600 mt-1">
               {actualPosSlipsTotal.toLocaleString('tr-TR')} ₺
             </div>
             <span className="text-[10px] text-indigo-600/80">Banka slip toplamı</span>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-800">
-            <span className="text-[11px] font-semibold text-teal-700 dark:text-teal-400 uppercase">
+          <div className="p-3.5 rounded-xl bg-teal-50/50  border border-teal-200 ">
+            <span className="text-[11px] font-semibold text-teal-700  uppercase">
               Teslimat Dışı Tahsilat
             </span>
             <div className="text-xl font-bold font-mono text-teal-600 mt-1">
@@ -577,18 +577,18 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
         </div>
 
         {dispatchPayments.length > 0 && (
-          <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-            <div className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-200">
+          <div className="rounded-xl border border-slate-200  overflow-hidden">
+            <div className="px-3 py-2 bg-slate-50  border-b border-slate-200  text-[11px] font-bold text-slate-700 ">
               Ürün Verilmeden Alınan Tahsilatlar ({dispatchPayments.length})
             </div>
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            <div className="divide-y divide-slate-100 ">
               {dispatchPayments.map((payment) => (
                 <div
                   key={payment.id}
                   className="px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] min-w-0"
                 >
                   <div className="min-w-0">
-                    <div className="font-bold text-slate-900 dark:text-white break-words">
+                    <div className="font-bold text-slate-900  break-words">
                       {payment.customerName || payment.customerId}
                     </div>
                     <div className="text-slate-500 break-words">
@@ -600,7 +600,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                       {payment.note ? ` · ${payment.note}` : ''}
                     </div>
                   </div>
-                  <div className="font-mono font-bold text-slate-900 dark:text-white shrink-0 tabular-nums">
+                  <div className="font-mono font-bold text-slate-900  shrink-0 tabular-nums">
                     {(Number(payment.amount) || 0).toLocaleString('tr-TR')} ₺
                   </div>
                 </div>
@@ -612,7 +612,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
         {/* Closure Note Input */}
         {!isAlreadyClosed && (
           <div className="pt-2">
-            <label className="text-xs font-medium text-slate-600 dark:text-slate-300 block mb-1">
+            <label className="text-xs font-medium text-slate-600  block mb-1">
               Depoya Teslim & Gün Sonu Kapatma Notu:
             </label>
             <input
@@ -620,7 +620,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
               placeholder="Örn: Tüm ürünler depoya eksiksiz indirildi, kasa teslim edildi..."
               value={closureNotes}
               onChange={(e) => setClosureNotes(e.target.value)}
-              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+              className="w-full p-2.5 rounded-xl border border-slate-200  text-xs bg-slate-50  "
             />
           </div>
         )}
@@ -645,13 +645,13 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
       </div>
 
       {/* Grid 3: Günlük Müşteri ve Teslimat Listesi Önizleme */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-3">
-        <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+      <div className="bg-white  rounded-2xl border border-slate-200  p-5 shadow-xs space-y-3">
+        <h3 className="text-sm font-bold text-slate-900  flex items-center gap-2">
           <Building2 className="w-4 h-4 text-sky-600" />
           <span>Bu Seferdeki Müşteri Teslimatları ({dispatchDeliveries.length} Müşteri)</span>
         </h3>
 
-        <div className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+        <div className="divide-y divide-slate-100  text-xs">
           {dispatchDeliveries.length === 0 ? (
             <div className="p-4 text-center text-slate-400">Bu seferde henüz teslimat yapılmadı.</div>
           ) : (
@@ -660,7 +660,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
               return (
                 <div key={del.id} className="py-2.5 flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <div className="font-bold text-slate-900  flex items-center gap-2">
                       <span>{index + 1}. {del.customerName}</span>
                       <span className="text-[10px] text-slate-400">
                         {new Date(del.timestamp).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
@@ -676,7 +676,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
 
                   <div className="text-right">
                     {!isAccount && (
-                      <div className="font-mono font-bold text-slate-900 dark:text-white">
+                      <div className="font-mono font-bold text-slate-900 ">
                         {del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺
                       </div>
                     )}

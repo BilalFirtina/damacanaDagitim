@@ -175,37 +175,37 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
     switch (cat) {
       case 'damacana':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800  ">
             <Droplet className="w-3 h-3" /> Damacana Su
           </span>
         );
       case 'bardak':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800  ">
             <Coffee className="w-3 h-3" /> Bardak & Sarf
           </span>
         );
       case 'pet':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-100 text-teal-800  ">
             <Boxes className="w-3 h-3" /> Pet Şişe Su
           </span>
         );
       case 'soda':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800  ">
             <Boxes className="w-3 h-3" /> Soda & İçecek
           </span>
         );
       case 'tup':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-800  ">
             <Flame className="w-3 h-3" /> Gaz Tüpü
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800  ">
             <Package className="w-3 h-3" /> Diğer
           </span>
         );
@@ -215,13 +215,13 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
   return (
     <div className="space-y-6 w-full max-w-full min-w-0">
       {/* Top Banner & Info Card */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 w-full max-w-full">
+      <div className="bg-white  rounded-2xl border border-slate-200  p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 w-full max-w-full">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+            <h2 className="text-base font-bold text-slate-900 ">
               Ürün Kataloğu & Fiyat Listesi
             </h2>
-            <span className="px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 text-xs font-bold font-mono">
+            <span className="px-2 py-0.5 rounded-md bg-sky-50  text-sky-700  text-xs font-bold font-mono">
               {products.length} Çeşit
             </span>
           </div>
@@ -239,7 +239,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
             Yeni Ürün Ekle
           </button>
         ) : (
-          <span className="text-[11px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl">
+          <span className="text-[11px] text-slate-400 bg-slate-100  px-3 py-1.5 rounded-xl">
             Ürün Ekleme / Düzenleme: Depo Yöneticisi ve Yetkili Şoför Yetkisindedir
           </span>
         )}
@@ -247,14 +247,14 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
 
       {/* Success Banner */}
       {successMsg && (
-        <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-2 animate-in fade-in">
+        <div className="p-3 bg-emerald-50  border border-emerald-200  rounded-xl text-xs text-emerald-800  flex items-center gap-2 animate-in fade-in">
           <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
           <span>{successMsg}</span>
         </div>
       )}
 
       {/* Filter and Search Bar */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
+      <div className="bg-white  rounded-2xl border border-slate-200  p-4 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
         {/* Category Pills */}
         <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto pb-1 md:pb-0 text-xs">
           {categoryFilterOptions.map((cat) => (
@@ -264,7 +264,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
               className={`px-3 py-1.5 rounded-lg font-semibold transition-colors whitespace-nowrap shrink-0 ${
                 selectedCategory === cat.id
                   ? 'bg-sky-600 text-white'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  : 'bg-slate-100  text-slate-600  hover:bg-slate-200 '
               }`}
             >
               {cat.label}
@@ -280,7 +280,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
             placeholder="Ürün adı veya açıklama ara..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+            className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200  bg-slate-50  text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20"
           />
         </div>
       </div>
@@ -291,7 +291,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
           return (
             <div
               key={p.id}
-              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs flex flex-col justify-between hover:border-sky-300 dark:hover:border-sky-700 transition-all"
+              className="bg-white  rounded-2xl border border-slate-200  p-4 shadow-xs flex flex-col justify-between hover:border-sky-300  transition-all"
             >
               <div>
                 <div className="flex items-start justify-between gap-2 mb-2">
@@ -300,14 +300,14 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => openEditModal(p)}
-                        className="p-1.5 text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-sky-600  rounded-lg hover:bg-slate-100  transition-colors"
                         title="Düzenle"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => setDeletingProduct(p)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-red-600  rounded-lg hover:bg-slate-100  transition-colors"
                         title="Sil"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -316,7 +316,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                   )}
                 </div>
 
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">
+                <h3 className="text-sm font-bold text-slate-900  leading-snug">
                   {p.name}
                 </h3>
                 
@@ -327,13 +327,13 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                 )}
               </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-end justify-between">
+              <div className="mt-4 pt-3 border-t border-slate-100  flex items-end justify-between">
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
                     Satış Fiyatı ({p.unit})
                   </span>
                   <div className="flex items-baseline gap-1 mt-0.5">
-                    <span className="text-xl font-extrabold font-mono text-slate-900 dark:text-white">
+                    <span className="text-xl font-extrabold font-mono text-slate-900 ">
                       {p.defaultUnitPrice.toLocaleString('tr-TR')} ₺
                     </span>
                     <span className="text-[11px] text-slate-500 font-medium">
@@ -344,7 +344,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
 
                 <div className="text-right">
                   {p.isDeposit ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 px-2 py-0.5 rounded-md">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-600  bg-orange-50  px-2 py-0.5 rounded-md">
                       {p.depositType === 'damacana'
                         ? '🔄 Boş Damacana Emanet'
                         : p.depositType === 'cam_damacana'
@@ -356,7 +356,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                         : '🔄 Boş Kap Emanet'}
                     </span>
                   ) : (
-                    <span className="text-[11px] font-medium text-slate-400 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                    <span className="text-[11px] font-medium text-slate-400 bg-slate-50  px-2 py-0.5 rounded-md">
                       Depozitosuz
                     </span>
                   )}
@@ -368,7 +368,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
       </div>
 
       {filteredProducts.length === 0 && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center text-slate-400 text-xs">
+        <div className="bg-white  rounded-2xl border border-slate-200  p-12 text-center text-slate-400 text-xs">
           Arama kriterine uygun ürün bulunamadı.
         </div>
       )}
@@ -376,9 +376,9 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
       {/* Add / Edit Product Modal */}
       {(showAddModal || editingProduct) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95">
+          <div className="w-full max-w-lg rounded-2xl bg-white  p-6 shadow-2xl border border-slate-200  animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+              <h3 className="text-base font-bold text-slate-900 ">
                 {editingProduct ? 'Ürünü Düzenle' : 'Yeni Ürün Tanımla'}
               </h3>
               <button
@@ -386,7 +386,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                   setShowAddModal(false);
                   setEditingProduct(null);
                 }}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-bold"
+                className="text-slate-400 hover:text-slate-600  text-lg font-bold"
               >
                 ✕
               </button>
@@ -396,7 +396,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
             </p>
 
             {errorMsg && (
-              <div className="mb-4 p-2.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-700 dark:text-red-300 flex items-center gap-2">
+              <div className="mb-4 p-2.5 bg-red-50  border border-red-200  rounded-xl text-xs text-red-700  flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{errorMsg}</span>
               </div>
@@ -405,7 +405,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
             <form onSubmit={handleSaveProduct} className="space-y-3.5 text-xs">
               {/* Product Name */}
               <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="font-semibold text-slate-700  block mb-1">
                   Ürün Adı ve Markası *
                 </label>
                 <input
@@ -414,20 +414,20 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                   placeholder="Örn: 19 Litre Sırma Damacana Su veya Karton Bardak 6.5 oz (50'li Paket)"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                  className="w-full p-2.5 rounded-xl border border-slate-200  bg-slate-50  focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                 />
               </div>
 
               {/* Category & Unit in grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  <label className="font-semibold text-slate-700  block mb-1">
                     Kategori *
                   </label>
                   <select
                     value={formCategory}
                     onChange={(e) => handleCategoryChange(e.target.value as ProductCategory)}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    className="w-full p-2.5 rounded-xl border border-slate-200  bg-slate-50  focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                   >
                     {getProductCategoryCodes().map((code) => (
                       <option key={code} value={code}>
@@ -438,7 +438,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  <label className="font-semibold text-slate-700  block mb-1">
                     Satış Birimi (Ambalaj) *
                   </label>
                   <input
@@ -447,7 +447,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                     placeholder="Adet, Paket, Koli, Rulo..."
                     value={formUnit}
                     onChange={(e) => setFormUnit(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    className="w-full p-2.5 rounded-xl border border-slate-200  bg-slate-50  focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                   />
                   <span className="text-[10px] text-slate-400 mt-0.5 block">
                     Örn: 3000'li için "Koli", 50'li için "Paket", damacana için "Adet"
@@ -458,7 +458,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
               {/* Price & Deposit in grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  <label className="font-semibold text-slate-700  block mb-1">
                     Varsayılan Satış Fiyatı (₺) *
                   </label>
                   <div className="relative">
@@ -470,7 +470,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                       placeholder="100"
                       value={formPrice}
                       onChange={(e) => setFormPrice(e.target.value)}
-                      className="w-full p-2.5 pr-8 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                      className="w-full p-2.5 pr-8 rounded-xl border border-slate-200  bg-slate-50  font-mono font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 font-bold text-slate-400">
                       ₺
@@ -482,7 +482,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  <label className="font-semibold text-slate-700  block mb-1">
                     Depozito / Boş Kap İadesi
                   </label>
                   <select
@@ -497,7 +497,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                         setFormDepositType(val);
                       }
                     }}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    className="w-full p-2.5 rounded-xl border border-slate-200  bg-slate-50  focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                   >
                     <option value="none">Depozitosuz (Geri İade Yok)</option>
                     <option value="damacana">🔄 Boş Damacana İadesi Zorunlu</option>
@@ -510,7 +510,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
 
               {/* Description */}
               <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="font-semibold text-slate-700  block mb-1">
                   Açıklama / Paket Detayı (Opsiyonel)
                 </label>
                 <textarea
@@ -518,19 +518,19 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                   placeholder="Örn: 50 adetlik rulo paket perakende satış, sebil uyumlu karton bardak"
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                  className="w-full p-2.5 rounded-xl border border-slate-200  bg-slate-50  focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                 />
               </div>
 
               {/* Submit Buttons */}
-              <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100 ">
                 <button
                   type="button"
                   onClick={() => {
                     setShowAddModal(false);
                     setEditingProduct(null);
                   }}
-                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800"
+                  className="px-4 py-2 border border-slate-200  text-slate-600  rounded-xl hover:bg-slate-50 "
                 >
                   İptal
                 </button>
@@ -550,11 +550,11 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
       {/* Delete Confirmation Modal */}
       {deletingProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-center animate-in fade-in zoom-in-95">
-            <div className="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-950/60 text-red-600 flex items-center justify-center mx-auto mb-3">
+          <div className="w-full max-w-sm rounded-2xl bg-white  p-6 shadow-2xl border border-slate-200  text-center animate-in fade-in zoom-in-95">
+            <div className="w-12 h-12 rounded-2xl bg-red-100  text-red-600 flex items-center justify-center mx-auto mb-3">
               <Trash2 className="w-6 h-6" />
             </div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+            <h3 className="text-sm font-bold text-slate-900 ">
               Ürünü Silmek İstediğinize Emin misiniz?
             </h3>
             <p className="text-xs text-slate-500 mt-1 mb-5">
@@ -563,7 +563,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
             <div className="flex items-center justify-center gap-2">
               <button
                 onClick={() => setDeletingProduct(null)}
-                className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs"
+                className="px-4 py-2 border border-slate-200  text-slate-600  rounded-xl text-xs"
               >
                 Vazgeç
               </button>
