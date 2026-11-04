@@ -184,7 +184,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Mobil: tüm sayfalar yan yana; sığmayanlar alt satıra geçer. */}
-      <div className="lg:hidden w-full max-w-full box-border border-t border-slate-200/80 bg-slate-50/95 px-2 py-2 flex flex-wrap justify-center gap-1.5 overflow-x-hidden">
+      <div className="lg:hidden w-full max-w-full box-border border-t border-slate-200/80 bg-slate-50/95 px-2 py-2 flex flex-wrap items-stretch gap-1.5 overflow-x-hidden">
         {visibleNavItems.map((item) => {
           const active = activeTab === item.tab;
           const Icon = item.icon;
@@ -195,7 +195,7 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => setActiveTab(item.tab)}
               aria-label={item.ariaLabel}
               title={item.ariaLabel}
-              className={`shrink-0 min-h-[52px] max-w-full px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex flex-col items-center justify-center gap-1 transition-all text-center cursor-pointer box-border whitespace-nowrap ${
+              className={`grow basis-1/4 min-w-[80px] min-h-[56px] px-2 py-1.5 rounded-lg text-[13px] font-semibold flex flex-col items-center justify-center gap-1 transition-all text-center cursor-pointer box-border whitespace-nowrap ${
                 active
                   ? `${item.activeClass} text-white shadow-sm ring-1 ring-white/20 font-bold`
                   : 'bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-100'
