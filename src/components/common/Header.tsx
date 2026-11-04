@@ -195,7 +195,11 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => setActiveTab(item.tab)}
               aria-label={item.ariaLabel}
               title={item.ariaLabel}
-              className={`grow basis-1/4 min-w-[80px] min-h-[56px] px-2 py-1.5 rounded-lg text-[13px] font-semibold flex flex-col items-center justify-center gap-1 transition-all text-center cursor-pointer box-border whitespace-nowrap ${
+              className={`grow basis-1/4 min-w-[80px] min-h-[56px] py-1.5 rounded-lg text-[13px] font-semibold flex flex-col justify-center gap-1 transition-all cursor-pointer box-border whitespace-nowrap ${
+                item.tab === 'admin_loads'
+                  ? 'items-start text-left pl-3 pr-2'
+                  : 'items-center text-center px-2'
+              } ${
                 active
                   ? `${item.activeClass} text-white shadow-sm ring-1 ring-white/20 font-bold`
                   : 'bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-100'
