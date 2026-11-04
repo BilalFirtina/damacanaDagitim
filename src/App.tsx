@@ -319,7 +319,7 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 pb-20 min-w-0 overflow-x-hidden">
+      <main className="flex-1 max-w-7xl 2xl:max-w-[1500px] w-full mx-auto p-3 sm:p-6 pb-20 min-w-0 overflow-x-hidden">
         {isUpdateReady && (
           <div className="mb-4">
             <UpdateAvailableBanner />
