@@ -236,7 +236,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                 <strong>Rapor Tarihi:</strong> {formattedDate}
               </div>
               <div>
-                <strong>Düzenleyen:</strong> Depo Yöneticisi (Uğur Fırtına)
+                <strong>Düzenleyen:</strong> Depo Yöneticisi
               </div>
               <div>
                 <strong>Baskı / Döküm Zamanı:</strong>{' '}
@@ -787,7 +787,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
               </div>
               <div className="flex justify-between items-end pt-4 border-t border-black">
                 <div>
-                  <div><strong>Yetkili:</strong> Uğur Fırtına</div>
+                  <div><strong>Yetkili:</strong> Depo Yöneticisi</div>
                   <div><strong>Tarih:</strong> {new Date().toLocaleDateString('tr-TR')}</div>
                 </div>
                 <div className="text-right">

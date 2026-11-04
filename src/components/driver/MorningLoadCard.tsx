@@ -628,6 +628,16 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
   // Case 3: Dispatch is active (in_transit or completed)
   return (
     <div className="bg-white  rounded-2xl border border-slate-200  p-4 shadow-xs mb-6 w-full max-w-full min-w-0 overflow-hidden">
+      {canUserLoad && (
+        <button
+          onClick={handleOpenLoadModal}
+          className="w-full min-h-11 mb-3 px-4 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 active:scale-[0.99] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-sky-600/20 transition-all"
+        >
+          <Plus className="w-4 h-4 shrink-0" />
+          <span>Yeni Yükleme Gir</span>
+        </button>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 ">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-lg bg-emerald-50  text-emerald-600 flex items-center justify-center shrink-0">
@@ -651,16 +661,6 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {canUserLoad && (
-            <button
-              onClick={handleOpenLoadModal}
-              className="px-3 py-1.5 rounded-xl bg-slate-50  hover:bg-slate-100 text-sky-700  border border-slate-200  font-semibold text-xs flex items-center gap-1"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Yeni Yükleme Gir</span>
-            </button>
-          )}
-
           <div className="text-xs text-slate-500">
             Tarih:{" "}
             <span className="font-semibold text-slate-700 ">

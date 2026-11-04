@@ -166,9 +166,6 @@ export const DriverView: React.FC<DriverViewProps> = ({
                 <span className="text-xs font-bold text-indigo-950 ">
                   Depo Yöneticisi Saha Gözetimi
                 </span>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-200/70  text-indigo-900 ">
-                  Uğur Fırtına
-                </span>
               </div>
               <p className="text-[11px] text-indigo-800/80  mt-0.5">
                 Şoförlerin canlı araç stok durumlarını izleyebilir, istedikleri araca sabah yüklemesi girebilirsiniz.
