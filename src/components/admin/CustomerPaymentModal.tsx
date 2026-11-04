@@ -6,7 +6,11 @@ import { AlertCircle, CheckCircle2, Wallet, X } from 'lucide-react';
 interface CustomerPaymentModalProps {
   customer: Customer;
   onClose: () => void;
-  onSaved: (newBalance: number) => void;
+  onSaved: (newBalance: number | null) => void;
+  /** Faturalı müşteride şoför bakiyeyi görmez (AGENTS.md 6.1). */
+  hideBalance?: boolean;
+  /** Şoför tahsilatını aktif sefere bağlar. */
+  dispatchId?: string;
 }
 
 const moneyFmt = new Intl.NumberFormat('tr-TR', {
@@ -14,16 +18,23 @@ const moneyFmt = new Intl.NumberFormat('tr-TR', {
   maximumFractionDigits: 2,
 });
 
+const newPaymentId = () =>
+  `pay_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
 // AGENTS.md Bölüm 6 — Teslimat dışı (sonraki ziyaret) müşteri tahsilatı.
 // Bakiye, ödeme kaydı ve denetim izi sunucuda tek transaction'da yazılır.
 export const CustomerPaymentModal: React.FC<CustomerPaymentModalProps> = ({
   customer,
   onClose,
   onSaved,
+  hideBalance = false,
+  dispatchId,
 }) => {
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState<'CASH' | 'POS' | 'TRANSFER'>('CASH');
   const [note, setNote] = useState('');
+  // Ağ hatasında aynı kimlikle yeniden denenir; sunucu mükerrer düşürmeyi engeller.
+  const [paymentId, setPaymentId] = useState<string>(newPaymentId);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -45,14 +56,19 @@ export const CustomerPaymentModal: React.FC<CustomerPaymentModalProps> = ({
         amount: value,
         method,
         note: note.trim(),
+        paymentId,
+        ...(dispatchId ? { dispatchId } : {}),
       });
       setSuccess(
-        `${moneyFmt.format(value)} ₺ tahsilat kaydedildi. Güncel bakiye: ${moneyFmt.format(
-          result.balance
-        )} ₺`
+        hideBalance || result.balance === null
+          ? `${moneyFmt.format(value)} ₺ tahsilat kaydedildi.`
+          : `${moneyFmt.format(value)} ₺ tahsilat kaydedildi. Güncel bakiye: ${moneyFmt.format(
+              result.balance
+            )} ₺`
       );
       setAmount('');
       setNote('');
+      setPaymentId(newPaymentId());
       onSaved(result.balance);
     } catch (err: any) {
       setError(err?.message || 'Tahsilat kaydedilemedi.');
@@ -85,20 +101,26 @@ export const CustomerPaymentModal: React.FC<CustomerPaymentModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-3">
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-            <div className="text-[11px] text-slate-500">Güncel Cari Bakiye</div>
-            <div
-              className={`font-mono font-bold text-lg tabular-nums ${
-                currentBalance > 0
-                  ? 'text-rose-600 dark:text-rose-300'
-                  : currentBalance < 0
-                  ? 'text-emerald-600 dark:text-emerald-300'
-                  : 'text-slate-700 dark:text-slate-200'
-              }`}
-            >
-              {moneyFmt.format(currentBalance)} ₺
+          {hideBalance ? (
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 text-[11px] text-slate-500">
+              Faturalı müşteri — cari bakiye yönetici tarafından takip edilir.
             </div>
-          </div>
+          ) : (
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
+              <div className="text-[11px] text-slate-500">Güncel Cari Bakiye</div>
+              <div
+                className={`font-mono font-bold text-lg tabular-nums ${
+                  currentBalance > 0
+                    ? 'text-rose-600 dark:text-rose-300'
+                    : currentBalance < 0
+                      ? 'text-emerald-600 dark:text-emerald-300'
+                      : 'text-slate-700 dark:text-slate-200'
+                }`}
+              >
+                {moneyFmt.format(currentBalance)} ₺
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="flex items-start gap-2 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-[11px]">

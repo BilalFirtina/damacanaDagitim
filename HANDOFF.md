@@ -1,5 +1,14 @@
 # HANDOFF — damacanaDagitim
 
+> **2026-11-04 — ÇALIŞMAYA YENİDEN BAŞLANDI.**
+> Güncel git durumu, ürün kararları, faturalı fiyat incelemesi ve devam adımları
+> için önce **`MEMORY.md`** oku.
+>
+> Özet: `origin/main` = `d507a97` (PR #3 merge). `feat/agents-compliance` dalında
+> `10acd99` tahsilat implementasyonu + `8891e21` faturalı fiyat gizleme var;
+> **CI çalışmadı, merge edilmedi**. `lint`, 16 verify ve build geçti. Açık işler:
+> PR/CI, migration'ların canlıya uygulanması ve Render deploy.
+
 > Son güncelleme: 2026-11-02 (uçtan uca test turu)
 > Dal: `feat/agents-compliance` (main'e göre 25 commit ileride)
 > Oturum adı: **damacanaDagitim — AGENTS uyum çalışması (sebil + tahsilat)**

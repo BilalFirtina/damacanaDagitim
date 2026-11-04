@@ -41,7 +41,12 @@ export const BalancesReportView: React.FC = () => {
     const filtered = all.filter((r) =>
       r.name.toLowerCase().includes(search.trim().toLowerCase())
     );
-    if (mode === 'debts') return filtered.filter((r) => Math.abs(r.balance) > 0.005);
+    if (mode === 'debts') {
+      // Faturalı müşteri cari borcu arayüzde gösterilmez.
+      return filtered.filter(
+        (r) => !r.isAccountCustomer && Math.abs(r.balance) > 0.005
+      );
+    }
     return filtered.filter(
       (r) =>
         r.empty.damacana !== 0 ||
@@ -50,6 +55,25 @@ export const BalancesReportView: React.FC = () => {
         r.empty.sebil !== 0
     );
   }, [data, search, mode]);
+
+  const visibleTotals = useMemo(() => {
+    const all = data?.rows || [];
+    const cashRows = all.filter((row) => !row.isAccountCustomer);
+    return {
+      totalDebt: cashRows.reduce(
+        (sum, row) => sum + (row.balance > 0 ? row.balance : 0),
+        0
+      ),
+      totalAdvance: cashRows.reduce(
+        (sum, row) => sum + (row.balance < 0 ? -row.balance : 0),
+        0
+      ),
+      emptyDamacana: all.reduce((sum, row) => sum + row.empty.damacana, 0),
+      emptyCamDamacana: all.reduce((sum, row) => sum + row.empty.camDamacana, 0),
+      emptyTup: all.reduce((sum, row) => sum + row.empty.tup, 0),
+      emptySebil: all.reduce((sum, row) => sum + row.empty.sebil, 0),
+    };
+  }, [data]);
 
   return (
     <div className="space-y-4 w-full max-w-full min-w-0">
@@ -61,6 +85,10 @@ export const BalancesReportView: React.FC = () => {
             </h2>
             <p className="text-xs text-slate-500">
               Parasal borç ile iade edilebilir kalem miktarları ayrı tutulur.
+            </p>
+            <p className="text-[11px] text-sky-700 dark:text-sky-300 mt-1">
+              Faturalı müşterilerin cari borç tutarları gösterilmez; iade
+              edilebilir kalem miktarları görünmeye devam eder.
             </p>
           </div>
           <button
@@ -78,37 +106,37 @@ export const BalancesReportView: React.FC = () => {
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-2.5 min-w-0">
               <div className="text-[10px] font-semibold text-slate-500">Toplam Borç</div>
               <div className="font-mono font-bold text-xs text-rose-600 dark:text-rose-300 tabular-nums break-words">
-                {money(data.totals.totalDebt)}
+                {money(visibleTotals.totalDebt)}
               </div>
             </div>
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-2.5 min-w-0">
               <div className="text-[10px] font-semibold text-slate-500">Toplam Avans</div>
               <div className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-300 tabular-nums break-words">
-                {money(data.totals.totalAdvance)}
+                {money(visibleTotals.totalAdvance)}
               </div>
             </div>
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-2.5 min-w-0">
               <div className="text-[10px] font-semibold text-slate-500">Boş Damacana</div>
               <div className="font-mono font-bold text-xs text-cyan-700 dark:text-cyan-300 tabular-nums">
-                {data.totals.emptyDamacana}
+                {visibleTotals.emptyDamacana}
               </div>
             </div>
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-2.5 min-w-0">
               <div className="text-[10px] font-semibold text-slate-500">Boş Cam Damacana</div>
               <div className="font-mono font-bold text-xs text-cyan-700 dark:text-cyan-300 tabular-nums">
-                {data.totals.emptyCamDamacana}
+                {visibleTotals.emptyCamDamacana}
               </div>
             </div>
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-2.5 min-w-0">
               <div className="text-[10px] font-semibold text-slate-500">Boş Tüp</div>
               <div className="font-mono font-bold text-xs text-slate-700 dark:text-slate-200 tabular-nums">
-                {data.totals.emptyTup}
+                {visibleTotals.emptyTup}
               </div>
             </div>
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-2.5 min-w-0">
               <div className="text-[10px] font-semibold text-slate-500">Müşteride Su Sebili</div>
               <div className="font-mono font-bold text-xs text-indigo-700 dark:text-indigo-300 tabular-nums">
-                {data.totals.emptySebil}
+                {visibleTotals.emptySebil}
               </div>
             </div>
           </div>

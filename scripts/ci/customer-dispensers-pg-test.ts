@@ -320,17 +320,28 @@ async function retentionSnapshot(c: Client): Promise<string> {
 async function scenarioRetention(c: Client): Promise<void> {
   console.log('\n[4] Retention: sebil, musteri bakiyesi ve bos kap degismez');
 
-  await c.query(`
-    TRUNCATE
-      public.delivery_container_returns,
-      public.delivery_items,
-      public.deliveries,
-      public.dispatch_reconciliation_items,
-      public.dispatch_items,
-      public.dispatches,
-      public.retention_archive
-    RESTART IDENTITY CASCADE
-  `);
+  // dispatches CASCADE, FK nedeniyle customer_payments'i de truncate eder;
+  // denetim trigger'ı yalnızca test kurulumunda geçici olarak kapatılır.
+  await c.query(
+    'ALTER TABLE public.customer_payments DISABLE TRIGGER trg_customer_payments_no_truncate'
+  );
+  try {
+    await c.query(`
+      TRUNCATE
+        public.delivery_container_returns,
+        public.delivery_items,
+        public.deliveries,
+        public.dispatch_reconciliation_items,
+        public.dispatch_items,
+        public.dispatches,
+        public.retention_archive
+      RESTART IDENTITY CASCADE
+    `);
+  } finally {
+    await c.query(
+      'ALTER TABLE public.customer_payments ENABLE TRIGGER trg_customer_payments_no_truncate'
+    );
+  }
   await c.query(`
     INSERT INTO public.dispatches
       (id, date, driver_id, driver_name, vehicle_plate, loaded_by_user_id, loaded_by_user_name,

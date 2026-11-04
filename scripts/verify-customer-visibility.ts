@@ -3,7 +3,10 @@
  *
  * Run:  npx tsx scripts/verify-customer-visibility.ts
  */
-import { maskCustomerFinancialsForDriver } from '../src/services/customerVisibility.ts';
+import {
+  isAccountCustomerDelivery,
+  maskCustomerFinancialsForDriver,
+} from '../src/services/customerVisibility.ts';
 import type { Customer } from '../src/types/index.ts';
 
 let passed = 0;
@@ -70,6 +73,34 @@ check(
   'maskeleme yapılmaz',
   maskCustomerFinancialsForDriver(customer(true), undefined).currentBalanceTL,
   500
+);
+
+console.log('4) Teslimat müşteri türü');
+check(
+  'sunucu işareti faturalı',
+  isAccountCustomerDelivery(
+    { customerId: 'c1', isAccountCustomer: true },
+    [customer(false)]
+  ),
+  true
+);
+check(
+  'sunucu işareti peşin',
+  isAccountCustomerDelivery(
+    { customerId: 'c1', isAccountCustomer: false },
+    [customer(true)]
+  ),
+  false
+);
+check(
+  'işaret yoksa müşteri listesinden faturalı',
+  isAccountCustomerDelivery({ customerId: 'c1' }, [customer(true)]),
+  true
+);
+check(
+  'işaret yoksa müşteri listesinden peşin',
+  isAccountCustomerDelivery({ customerId: 'c1' }, [customer(false)]),
+  false
 );
 
 console.log(`\nSonuç: ${passed} başarılı, ${failed} başarısız`);

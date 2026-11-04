@@ -159,6 +159,14 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
 
           {statement && (
             <>
+              {customer.isAccountCustomer ? (
+                <div className="rounded-xl border border-sky-200 dark:border-sky-900 bg-sky-50/60 dark:bg-sky-950/20 p-3 text-[11px] text-sky-800 dark:text-sky-300">
+                  Faturalı müşteri — birim fiyat, mal tutarı ve cari borç
+                  bilgileri gösterilmez. İade edilebilir kalem miktarları
+                  aşağıda görünmeye devam eder.
+                </div>
+              ) : (
+                <>
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                 {summary.map((s) => (
                   <div
@@ -254,6 +262,8 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
                   </div>
                 )}
               </div>
+                </>
+              )}
 
               {/* İade edilebilir kalemler — finansal bakiyeden BAĞIMSIZ (Bölüm 9). */}
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-3.5 space-y-2">

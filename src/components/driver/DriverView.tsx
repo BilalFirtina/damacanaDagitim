@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Dispatch, Delivery, Customer, Product, User } from '../../types';
 import { todayUtcDateStr } from '../../services/dateWindow';
 import { cancelDelivery } from '../../services/api';
+import { isAccountCustomerDelivery } from '../../services/customerVisibility';
 import { MorningLoadCard } from './MorningLoadCard';
 import { DriverStatsStrip } from './DriverStatsStrip';
 import { DeliveryModal } from './DeliveryModal';
+import { DriverPaymentModal } from './DriverPaymentModal';
 import {
   Plus,
   Truck,
@@ -16,6 +18,7 @@ import {
   Edit2,
   Ban,
   AlertTriangle,
+  Wallet,
   X
 } from 'lucide-react';
 
@@ -31,6 +34,7 @@ interface DriverViewProps {
   onDeliveryCreated: (delivery: Delivery, updatedCustomer?: Customer) => void;
   onDeliveryCorrected: () => void;
   onCustomerCreated?: (customer: Customer) => void;
+  onCustomerBalanceUpdated: (customerId: string, newBalance: number | null) => void;
   onNavigateTab: (tab: any) => void;
 }
 
@@ -46,9 +50,11 @@ export const DriverView: React.FC<DriverViewProps> = ({
   onDeliveryCreated,
   onDeliveryCorrected,
   onCustomerCreated,
+  onCustomerBalanceUpdated,
   onNavigateTab,
 }) => {
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [editTarget, setEditTarget] = useState<Delivery | null>(null);
   const [cancelTarget, setCancelTarget] = useState<Delivery | null>(null);
   const [cancelReason, setCancelReason] = useState('');
@@ -248,13 +254,20 @@ export const DriverView: React.FC<DriverViewProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
             <button
               onClick={() => setShowDeliveryModal(true)}
               className="flex-1 sm:flex-initial px-6 py-3 rounded-xl bg-white text-sky-700 font-extrabold text-xs sm:text-sm hover:bg-sky-50 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2 whitespace-nowrap"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
               <span>Yeni Teslimat Girişi</span>
+            </button>
+            <button
+              onClick={() => setShowPaymentModal(true)}
+              className="flex-1 sm:flex-initial px-5 py-3 rounded-xl border-2 border-white/80 text-white font-extrabold text-xs sm:text-sm hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center gap-2 whitespace-nowrap"
+            >
+              <Wallet className="w-4 h-4" />
+              <span>Tahsilat Al</span>
             </button>
           </div>
         </div>
@@ -309,6 +322,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
                 hour: '2-digit',
                 minute: '2-digit',
               });
+              const isAccount = isAccountCustomerDelivery(del, customers);
 
               return (
                 <div key={del.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full min-w-0">
@@ -328,7 +342,8 @@ export const DriverView: React.FC<DriverViewProps> = ({
                           key={idx}
                           className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[11px]"
                         >
-                          <strong>{item.quantity}</strong> {item.productName} ({item.unitPrice} ₺)
+                          <strong>{item.quantity}</strong> {item.productName}
+                          {!isAccount && ` (${item.unitPrice} ₺)`}
                         </span>
                       ))}
 
@@ -357,7 +372,13 @@ export const DriverView: React.FC<DriverViewProps> = ({
 
                   <div className="text-left sm:text-right shrink-0">
                     <div className="font-mono font-extrabold text-sm text-slate-900 dark:text-white">
-                      {del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺
+                      {isAccount ? (
+                        <span className="text-[11px] font-semibold text-slate-400">
+                          Tutar gizli
+                        </span>
+                      ) : (
+                        `${del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺`
+                      )}
                     </div>
                     <div className="flex items-center sm:justify-end gap-1.5 text-[11px] font-semibold">
                       {del.collectedPayment.cashAmount > 0 && (
@@ -371,7 +392,9 @@ export const DriverView: React.FC<DriverViewProps> = ({
                         </span>
                       )}
                       {del.collectedPayment.totalCollected === 0 && (
-                        <span className="text-amber-600">Tahsilat Alınmadı (Cari)</span>
+                        <span className="text-amber-600">
+                          {isAccount ? 'Tahsilat kaydı yok' : 'Tahsilat Alınmadı (Cari)'}
+                        </span>
                       )}
                     </div>
 
@@ -415,6 +438,18 @@ export const DriverView: React.FC<DriverViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* Teslimat dışı tahsilat (yalnızca şoför) */}
+      {showPaymentModal && activeDispatch && currentUser.role !== 'admin' && (
+        <DriverPaymentModal
+          customers={customers}
+          dispatchId={activeDispatch.id}
+          onClose={() => setShowPaymentModal(false)}
+          onSaved={(customerId, newBalance) =>
+            onCustomerBalanceUpdated(customerId, newBalance)
+          }
+        />
+      )}
 
       {/* Delivery Entry Modal (yalnızca şoför) */}
       {activeDispatch && currentUser.role !== 'admin' && (
@@ -488,7 +523,9 @@ export const DriverView: React.FC<DriverViewProps> = ({
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-slate-500">Teslimat Tutarı</span>
                   <span className="font-mono font-bold text-slate-900 dark:text-white">
-                    {cancelTarget.deliveredGrandTotal.toLocaleString('tr-TR')} ₺
+                    {isAccountCustomerDelivery(cancelTarget, customers)
+                      ? 'Tutar gizli'
+                      : `${cancelTarget.deliveredGrandTotal.toLocaleString('tr-TR')} ₺`}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">

@@ -97,16 +97,27 @@ async function seedReference(c: Client): Promise<void> {
 }
 
 async function resetTransactional(c: Client): Promise<void> {
-  await c.query(`
-    TRUNCATE
-      public.delivery_container_returns,
-      public.delivery_items,
-      public.deliveries,
-      public.dispatch_reconciliation_items,
-      public.dispatch_items,
-      public.dispatches
-    RESTART IDENTITY CASCADE;
-  `);
+  // dispatches CASCADE, FK nedeniyle customer_payments'i de truncate eder;
+  // denetim trigger'ı yalnızca test kurulumunda geçici olarak kapatılır.
+  await c.query(
+    'ALTER TABLE public.customer_payments DISABLE TRIGGER trg_customer_payments_no_truncate'
+  );
+  try {
+    await c.query(`
+      TRUNCATE
+        public.delivery_container_returns,
+        public.delivery_items,
+        public.deliveries,
+        public.dispatch_reconciliation_items,
+        public.dispatch_items,
+        public.dispatches
+      RESTART IDENTITY CASCADE;
+    `);
+  } finally {
+    await c.query(
+      'ALTER TABLE public.customer_payments ENABLE TRIGGER trg_customer_payments_no_truncate'
+    );
+  }
   // Denetim tablosu normalde TRUNCATE edilemez. Test izolasyonu icin trigger
   // yalnizca bu baglantida gecici olarak devre disi birakilir.
   await c.query('ALTER TABLE public.delivery_cancellation_audit DISABLE TRIGGER USER');
@@ -844,8 +855,31 @@ async function scenarioClosedDispatch(c: Client): Promise<void> {
   check('reopen sonrasi tek denetim', (await auditCount(c, 'DEL1')) === 1);
 }
 
+async function scenarioCashCustomerDebt(c: Client): Promise<void> {
+  console.log('\n[8a] Pesin musteri: kismi odemede kalan tutar borca yazilir');
+  await resetTransactional(c);
+  await seedDispatch(c, 10);
+  await c.query(
+    `UPDATE public.customers
+        SET is_account_customer = false, current_balance_tl = 0
+      WHERE id = 'c1'`
+  );
+
+  const applied = await callApply(c, applyPayload('DEL_CASH'));
+  check('pesin musteriye uygulama basarili', applied.duplicate === false);
+  check('pesin musteri bakiyesi 300', (await balance(c)) === 300);
+  check(
+    'pesin musteri applied delta 300 saklandi',
+    Number((await deliveryRow(c, 'DEL_CASH')).applied_balance_delta_tl) === 300
+  );
+
+  const res = await callRpc(c, cancelPayload('DEL_CASH'));
+  check('pesin musteri iptali basarili', res.cancelled === true);
+  check('pesin musteri iptal sonrasi bakiye 0', (await balance(c)) === 0);
+}
+
 async function scenarioAccountFlagChange(c: Client): Promise<void> {
-  console.log('\n[8] Hesap musterisi bayragi degisince orijinal delta geri alinir');
+  console.log('\n[8b] Hesap musterisi bayragi degisse de saklanan delta geri alinir');
   await resetTransactional(c);
   await seedDispatch(c, 10);
   const applied = await callApply(
@@ -1473,6 +1507,7 @@ async function main(): Promise<void> {
     await scenarioValidation(c);
     await scenarioPrivileges(c);
     await scenarioClosedDispatch(c);
+    await scenarioCashCustomerDebt(c);
     await scenarioAccountFlagChange(c);
     await scenarioApplyRegression(c);
     await scenarioConcurrentDispatchLock(c);

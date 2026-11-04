@@ -307,12 +307,21 @@ export interface CustomerPaymentInput {
   method: 'CASH' | 'POS' | 'TRANSFER';
   note?: string;
   paymentId?: string;
+  /** Şoför tahsilatında aktif sefer kimliği zorunludur. */
+  dispatchId?: string;
 }
 
 export async function createCustomerPayment(
   customerId: string,
   input: CustomerPaymentInput
-): Promise<{ paymentId: string; balance: number; alreadyApplied: boolean; message: string }> {
+): Promise<{
+  paymentId: string;
+  /** Faturalı müşteride şoför oturumunda null döner. */
+  balance: number | null;
+  balanceHidden?: boolean;
+  alreadyApplied: boolean;
+  message: string;
+}> {
   const res = await apiFetch(`/api/customers/${encodeURIComponent(customerId)}/payments`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -320,6 +329,24 @@ export async function createCustomerPayment(
   });
   if (!res.ok) await throwServerError(res, 'Tahsilat kaydedilemedi');
   return res.json();
+}
+
+export interface DispatchPayment {
+  id: string;
+  customerId: string;
+  customerName?: string;
+  amount: number;
+  method: 'CASH' | 'POS' | 'TRANSFER';
+  note: string;
+  collectedByUserName: string;
+  collectedAt: string;
+}
+
+export async function fetchDispatchPayments(dispatchId: string): Promise<DispatchPayment[]> {
+  const res = await apiFetch(`/api/dispatches/${encodeURIComponent(dispatchId)}/payments`);
+  if (!res.ok) await throwServerError(res, 'Sefer tahsilatları alınamadı');
+  const json = await res.json();
+  return json.payments || [];
 }
 
 export async function fetchCustomerPayments(customerId: string): Promise<

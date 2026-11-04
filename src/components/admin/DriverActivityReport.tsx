@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { Delivery, Dispatch } from '../../types';
+import { Customer, Delivery, Dispatch } from '../../types';
+import { isAccountCustomerDelivery } from '../../services/customerVisibility';
 import { Truck, AlertCircle } from 'lucide-react';
 
 const moneyFmt = new Intl.NumberFormat('tr-TR', {
@@ -21,6 +22,7 @@ interface DriverActivityReportProps {
   dispatches: Dispatch[];
   deliveries: Delivery[];
   date: string;
+  customers?: Customer[];
 }
 
 // AGENTS.md Bölüm 10.2 — Şoför faaliyet ve dağıtım seferi raporu.
@@ -29,6 +31,7 @@ export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({
   dispatches,
   deliveries,
   date,
+  customers = [],
 }) => {
   const rows = useMemo(() => {
     const byDriver = new Map<
@@ -80,14 +83,17 @@ export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({
     for (const delivery of deliveries) {
       const row = ensure(delivery.driverId, delivery.driverName || 'Bilinmeyen Şoför');
       if (delivery.vehiclePlate) row.plates.add(delivery.vehiclePlate);
+      const isAccount = isAccountCustomerDelivery(delivery, customers);
       row.deliveryCount += 1;
       row.customers.add(delivery.customerId);
-      row.sales += Number(delivery.deliveredGrandTotal) || 0;
+      if (!isAccount) {
+        row.sales += Number(delivery.deliveredGrandTotal) || 0;
+        if (Number(delivery.collectedPayment?.diffUncollected) > 0) {
+          row.unpaid += Number(delivery.collectedPayment.diffUncollected) || 0;
+        }
+      }
       row.cash += Number(delivery.collectedPayment?.cashAmount) || 0;
       row.pos += Number(delivery.collectedPayment?.posAmount) || 0;
-      if (Number(delivery.collectedPayment?.diffUncollected) > 0) {
-        row.unpaid += Number(delivery.collectedPayment.diffUncollected) || 0;
-      }
       row.emptyDamacana += Number(delivery.emptyContainersReceived?.damacana) || 0;
       row.emptyCamDamacana +=
         Number(
@@ -124,6 +130,9 @@ export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({
         </h2>
         <p className="text-xs text-slate-500">
           {new Date(`${date}T00:00:00.000Z`).toLocaleDateString('tr-TR')} · {rows.length} şoför
+        </p>
+        <p className="text-[11px] text-sky-700 dark:text-sky-300 mt-1">
+          Faturalı müşteri mal tutarı ve cari borcu bu raporda gösterilmez.
         </p>
       </div>
 

@@ -76,15 +76,16 @@ export function normalizeDeliveryInput(
     );
   }
 
+  // Faturalı müşteride birim fiyat şoförden alınmaz; ürünün default fiyatı
+  // sunucuda uygulanır. Fiyat bilgisi ileride kullanım için kayıtta kalır.
+  const isAccountCustomer = Boolean(customer?.isAccountCustomer);
+
   const invalidItem = items.find((item: any) => {
     const quantity = Number(item?.quantity);
+    if (!Number.isInteger(quantity) || quantity <= 0) return true;
+    if (isAccountCustomer) return false;
     const unitPrice = Number(item?.unitPrice);
-    return (
-      !Number.isInteger(quantity) ||
-      quantity <= 0 ||
-      !Number.isFinite(unitPrice) ||
-      unitPrice < 0
-    );
+    return !Number.isFinite(unitPrice) || unitPrice < 0;
   });
   if (invalidItem) {
     throw new DeliveryInputError(
@@ -110,7 +111,10 @@ export function normalizeDeliveryInput(
   // hesaplanır. Böylece düşük tutar bildirilerek borç azaltılamaz.
   const normalizedItems = items.map((item: any) => {
     const quantity = Number(item.quantity);
-    const unitPrice = Number(item.unitPrice);
+    const product = products.find((p) => p.id === item.productId);
+    const unitPrice = isAccountCustomer
+      ? Number(product?.defaultUnitPrice ?? 0)
+      : Number(item.unitPrice);
     return {
       ...item,
       quantity,

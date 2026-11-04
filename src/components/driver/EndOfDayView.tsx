@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Dispatch, Delivery, Product, User } from '../../types';
+import { Customer, Dispatch, Delivery, Product, User } from '../../types';
+import { isAccountCustomerDelivery } from '../../services/customerVisibility';
 import { todayUtcDateStr, formatDateTr } from '../../services/dateWindow';
 import {
   findOldestStaleOpenDispatch,
@@ -19,7 +20,12 @@ import {
   Truck,
   Plus
 } from 'lucide-react';
-import { closeDispatch, reopenDispatch } from '../../services/api';
+import {
+  closeDispatch,
+  reopenDispatch,
+  fetchDispatchPayments,
+  type DispatchPayment,
+} from '../../services/api';
 
 interface EndOfDayViewProps {
   dispatch: Dispatch | null;
@@ -29,6 +35,7 @@ interface EndOfDayViewProps {
   deliveries: Delivery[];
   products: Product[];
   currentUser: User;
+  customers?: Customer[];
   onDispatchUpdated: (updated: Dispatch) => void;
   onNavigateTab?: (tab: any) => void;
   onRefreshData?: () => void | Promise<unknown>;
@@ -41,6 +48,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
   deliveries,
   products,
   currentUser,
+  customers = [],
   onDispatchUpdated,
   onNavigateTab,
   onRefreshData,
@@ -86,6 +94,27 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
   const [closureNotes, setClosureNotes] = useState('');
   const [reopenReason, setReopenReason] = useState('');
   const [isReopening, setIsReopening] = useState(false);
+  const [dispatchPayments, setDispatchPayments] = useState<DispatchPayment[]>([]);
+
+  // Ürün verilmeden alınan tahsilatlar kasa/POS mutabakatına girer.
+  useEffect(() => {
+    let cancelled = false;
+    const dispatchId = currentViewDispatch?.id;
+    if (!dispatchId) {
+      setDispatchPayments([]);
+      return;
+    }
+    fetchDispatchPayments(dispatchId)
+      .then((payments) => {
+        if (!cancelled) setDispatchPayments(payments);
+      })
+      .catch(() => {
+        if (!cancelled) setDispatchPayments([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentViewDispatch?.id]);
 
   // Uyarıdan "Gün Sonunu Tamamla" ile gelindiğinde doğru seferi aç.
   useEffect(() => {
@@ -153,6 +182,17 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
     });
   });
 
+  const standaloneCash = dispatchPayments
+    .filter((p) => p.method === 'CASH')
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const standalonePos = dispatchPayments
+    .filter((p) => p.method === 'POS')
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const standaloneTransfer = dispatchPayments
+    .filter((p) => p.method === 'TRANSFER')
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const standaloneTotal = standaloneCash + standalonePos + standaloneTransfer;
+
   // Calculate expected remaining full items
   const expectedRemainingFull: Record<string, number> = {};
   currentViewDispatch.loadedItems.forEach((loaded) => {
@@ -172,11 +212,11 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
 
   const actualCashInPocket =
     currentViewDispatch.endOfDayReconciliation?.actualCashInPocket ??
-    totalCashCollected;
+    totalCashCollected + standaloneCash;
 
   const actualPosSlipsTotal =
     currentViewDispatch.endOfDayReconciliation?.actualPosSlipsTotal ??
-    totalPosCollected;
+    totalPosCollected + standalonePos;
 
   const handleCloseShift = async () => {
     try {
@@ -520,7 +560,54 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
             </div>
             <span className="text-[10px] text-indigo-600/80">Banka slip toplamı</span>
           </div>
+
+          <div className="p-3.5 rounded-xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-800">
+            <span className="text-[11px] font-semibold text-teal-700 dark:text-teal-400 uppercase">
+              Teslimat Dışı Tahsilat
+            </span>
+            <div className="text-xl font-bold font-mono text-teal-600 mt-1">
+              {standaloneTotal.toLocaleString('tr-TR')} ₺
+            </div>
+            <span className="text-[10px] text-teal-600/80 break-words">
+              Nakit {standaloneCash.toLocaleString('tr-TR')} ₺ · POS{' '}
+              {standalonePos.toLocaleString('tr-TR')} ₺ · Havale{' '}
+              {standaloneTransfer.toLocaleString('tr-TR')} ₺
+            </span>
+          </div>
         </div>
+
+        {dispatchPayments.length > 0 && (
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-200">
+              Ürün Verilmeden Alınan Tahsilatlar ({dispatchPayments.length})
+            </div>
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              {dispatchPayments.map((payment) => (
+                <div
+                  key={payment.id}
+                  className="px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] min-w-0"
+                >
+                  <div className="min-w-0">
+                    <div className="font-bold text-slate-900 dark:text-white break-words">
+                      {payment.customerName || payment.customerId}
+                    </div>
+                    <div className="text-slate-500 break-words">
+                      {payment.method === 'CASH'
+                        ? 'Nakit'
+                        : payment.method === 'POS'
+                          ? 'POS'
+                          : 'Havale / EFT'}
+                      {payment.note ? ` · ${payment.note}` : ''}
+                    </div>
+                  </div>
+                  <div className="font-mono font-bold text-slate-900 dark:text-white shrink-0 tabular-nums">
+                    {(Number(payment.amount) || 0).toLocaleString('tr-TR')} ₺
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Closure Note Input */}
         {!isAlreadyClosed && (
@@ -568,35 +655,40 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
           {dispatchDeliveries.length === 0 ? (
             <div className="p-4 text-center text-slate-400">Bu seferde henüz teslimat yapılmadı.</div>
           ) : (
-            dispatchDeliveries.map((del, index) => (
-              <div key={del.id} className="py-2.5 flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <span>{index + 1}. {del.customerName}</span>
-                    <span className="text-[10px] text-slate-400">
-                      {new Date(del.timestamp).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+            dispatchDeliveries.map((del, index) => {
+              const isAccount = isAccountCustomerDelivery(del, customers);
+              return (
+                <div key={del.id} className="py-2.5 flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <span>{index + 1}. {del.customerName}</span>
+                      <span className="text-[10px] text-slate-400">
+                        {new Date(del.timestamp).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      {del.deliveredItems.map((i) => `${i.quantity} ${i.productName}`).join(' · ')}
+                      {del.emptyContainersReceived.damacana > 0 && ` · ${del.emptyContainersReceived.damacana} Boş`}
+                      {(del.emptyContainersReceived.camDamacana || 0) > 0 && ` · ${del.emptyContainersReceived.camDamacana} Boş Cam`}
+                      {del.emptyContainersReceived.tup > 0 && ` · ${del.emptyContainersReceived.tup} Boş Tüp`}
+                    </div>
                   </div>
-                  <div className="text-[11px] text-slate-500">
-                    {del.deliveredItems.map((i) => `${i.quantity} ${i.productName}`).join(' · ')}
-                    {del.emptyContainersReceived.damacana > 0 && ` · ${del.emptyContainersReceived.damacana} Boş`}
-                    {(del.emptyContainersReceived.camDamacana || 0) > 0 && ` · ${del.emptyContainersReceived.camDamacana} Boş Cam`}
-                    {del.emptyContainersReceived.tup > 0 && ` · ${del.emptyContainersReceived.tup} Boş Tüp`}
-                  </div>
-                </div>
 
-                <div className="text-right">
-                  <div className="font-mono font-bold text-slate-900 dark:text-white">
-                    {del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺
-                  </div>
-                  <div className="text-[10px] text-emerald-600 font-semibold">
-                    {del.collectedPayment.cashAmount > 0 && `${del.collectedPayment.cashAmount.toLocaleString('tr-TR')} ₺ Nakit `}
-                    {del.collectedPayment.posAmount > 0 && `${del.collectedPayment.posAmount.toLocaleString('tr-TR')} ₺ POS `}
-                    {del.collectedPayment.totalCollected === 0 && '0 ₺ Veresiye'}
+                  <div className="text-right">
+                    {!isAccount && (
+                      <div className="font-mono font-bold text-slate-900 dark:text-white">
+                        {del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺
+                      </div>
+                    )}
+                    <div className="text-[10px] text-emerald-600 font-semibold">
+                      {del.collectedPayment.cashAmount > 0 && `${del.collectedPayment.cashAmount.toLocaleString('tr-TR')} ₺ Nakit `}
+                      {del.collectedPayment.posAmount > 0 && `${del.collectedPayment.posAmount.toLocaleString('tr-TR')} ₺ POS `}
+                      {del.collectedPayment.totalCollected === 0 && (isAccount ? 'Tahsilat kaydı yok' : '0 ₺ Veresiye')}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

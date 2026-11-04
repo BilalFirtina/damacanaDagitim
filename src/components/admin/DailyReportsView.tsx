@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Delivery, Dispatch, User, Product } from '../../types';
+import { Customer, Delivery, Dispatch, User, Product } from '../../types';
+import { isAccountCustomerDelivery } from '../../services/customerVisibility';
 import {
   FileSpreadsheet,
   Printer,
@@ -30,6 +31,7 @@ interface DailyReportsViewProps {
   products: Product[];
   currentUser?: User;
   dispatches?: Dispatch[];
+  customers?: Customer[];
 }
 
 export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
@@ -37,6 +39,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
   products,
   currentUser,
   dispatches = [],
+  customers = [],
 }) => {
   const isDriver = currentUser?.role === 'driver';
   const todayStr = todayUtcDateStr();
@@ -111,8 +114,12 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
         hour: '2-digit',
         minute: '2-digit',
       });
+      const isAccount = isAccountCustomerDelivery(del, customers);
       const itemsStr = del.deliveredItems
-        .map((i) => `${i.quantity} ${i.productName} (${i.unitPrice} TL)`)
+        .map(
+          (i) =>
+            `${i.quantity} ${i.productName}${isAccount ? '' : ` (${i.unitPrice} TL)`}`
+        )
         .join(' + ');
 
       return [
@@ -124,11 +131,11 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
         `"${del.customerPhone || ''}"`,
         `"${(del.customerAddress || '').replace(/"/g, '""')}"`,
         `"${itemsStr.replace(/"/g, '""')}"`,
-        del.deliveredGrandTotal,
+        isAccount ? '' : del.deliveredGrandTotal,
         del.collectedPayment.cashAmount,
         del.collectedPayment.posAmount,
         del.collectedPayment.totalCollected,
-        del.collectedPayment.diffUncollected,
+        isAccount ? '' : del.collectedPayment.diffUncollected,
         del.emptyContainersReceived.damacana || 0,
         Number(del.emptyContainersReceived.camDamacana || del.emptyContainersReceived.cam_damacana) || 0,
         del.emptyContainersReceived.tup || 0,
@@ -182,7 +189,9 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
   deliveries.forEach((d) => {
     driverCashCollected += Number(d.collectedPayment?.cashAmount) || 0;
     driverPosCollected += Number(d.collectedPayment?.posAmount) || 0;
-    driverUncollected += Number(d.collectedPayment?.diffUncollected) || 0;
+    if (!isAccountCustomerDelivery(d, customers)) {
+      driverUncollected += Number(d.collectedPayment?.diffUncollected) || 0;
+    }
     driverEmptyDamacana += Number(d.emptyContainersReceived?.damacana) || 0;
     driverEmptyCamDamacana += Number(d.emptyContainersReceived?.camDamacana || d.emptyContainersReceived?.cam_damacana) || 0;
     driverEmptyTup += Number(d.emptyContainersReceived?.tup) || 0;
@@ -327,7 +336,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
             <span>ℹ️ Tahsilat Hesaplama Bilgisi</span>
           </div>
           <p>
-            Yukarıdaki toplam yalnızca müşterilerden fiilen teslim alınan (elden alınan nakit para ve POS slipleri) tutarları gösterir. Veresiye bırakılan bakiye ({driverUncollected.toLocaleString('tr-TR')} ₺) tahsilat toplamına dahil edilmemiştir.
+            Yukarıdaki toplam yalnızca müşterilerden fiilen teslim alınan (elden alınan nakit para ve POS slipleri) tutarları gösterir. Peşin müşterilerde veresiye bırakılan bakiye ({driverUncollected.toLocaleString('tr-TR')} ₺) tahsilat toplamına dahil edilmemiştir.
           </p>
         </div>
       </div>
@@ -420,7 +429,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
       </div>
 
       {subTab === 'consolidated' ? (
-        <ConsolidatedDailyReport users={users} products={products} />
+        <ConsolidatedDailyReport users={users} products={products} customers={customers} />
       ) : subTab === 'balances' ? (
         <BalancesReportView />
       ) : subTab === 'discrepancies' ? (
@@ -429,6 +438,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
         <DriverActivityReport
           dispatches={reportData?.dispatches || []}
           deliveries={deliveries}
+          customers={customers}
           date={selectedDate}
         />
       ) : subTab === 'history' ? (
@@ -586,6 +596,13 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
         </div>
       </div>
 
+      {summary.hasAccountCustomerDeliveries && (
+        <div className="rounded-xl border border-sky-200 dark:border-sky-900 bg-sky-50/60 dark:bg-sky-950/20 p-3 text-[11px] text-sky-800 dark:text-sky-300">
+          Faturalı müşterilerin birim fiyat, mal tutarı ve cari borç bilgileri
+          gizlenir; bu tutarlar rapor toplamlarına dahil edilmez.
+        </div>
+      )}
+
       {/* Deliveries Data Table */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-3 sm:p-5 shadow-xs space-y-4 w-full max-w-full min-w-0 overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -618,7 +635,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                   <th className="py-2.5 px-3">Saat</th>
                   <th className="py-2.5 px-3">Şoför / Plaka</th>
                   <th className="py-2.5 px-3">Müşteri & Adres</th>
-                  <th className="py-2.5 px-3">Teslim Edilen Ürünler (Birim Fiyat)</th>
+                  <th className="py-2.5 px-3">Teslim Edilen Ürünler</th>
                   <th className="py-2.5 px-3 text-center">Boş Kap</th>
                   <th className="py-2.5 px-3 text-right">Mal Tutarı</th>
                   <th className="py-2.5 px-3 text-right">Nakit</th>
@@ -632,6 +649,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                     hour: '2-digit',
                     minute: '2-digit',
                   });
+                  const isAccount = isAccountCustomerDelivery(del, customers);
 
                   return (
                     <tr key={del.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50">
@@ -661,8 +679,10 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                               key={idx}
                               className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[11px]"
                             >
-                              <strong>{item.quantity}</strong> {item.productName}{' '}
-                              <span className="text-slate-500">({item.unitPrice} ₺)</span>
+                              <strong>{item.quantity}</strong> {item.productName}
+                              {!isAccount && (
+                                <span className="text-slate-500"> ({item.unitPrice} ₺)</span>
+                              )}
                             </span>
                           ))}
                         </div>
@@ -693,7 +713,11 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                         )}
                       </td>
                       <td className="py-3 px-3 text-right font-mono font-bold text-slate-900 dark:text-white tabular-nums">
-                        {del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺
+                        {isAccount ? (
+                          <span className="text-[10px] font-semibold text-slate-400">Gizli</span>
+                        ) : (
+                          `${del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺`
+                        )}
                       </td>
                       <td className="py-3 px-3 text-right font-mono tabular-nums">
                         {del.collectedPayment.cashAmount > 0 ? (
@@ -714,7 +738,9 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                         )}
                       </td>
                       <td className="py-3 px-3 text-right font-mono tabular-nums">
-                        {del.collectedPayment.diffUncollected > 0 ? (
+                        {isAccount ? (
+                          <span className="text-[10px] font-semibold text-slate-400">Gizli</span>
+                        ) : del.collectedPayment.diffUncollected > 0 ? (
                           <span className="font-bold text-amber-600">
                             +{del.collectedPayment.diffUncollected.toLocaleString('tr-TR')} ₺
                           </span>
@@ -737,6 +763,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                 hour: '2-digit',
                 minute: '2-digit',
               });
+              const isAccount = isAccountCustomerDelivery(del, customers);
               const hasEmpties =
                 del.emptyContainersReceived.damacana > 0 ||
                 (del.emptyContainersReceived.camDamacana || 0) > 0 ||
@@ -771,8 +798,10 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                         key={idx}
                         className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[11px] break-words"
                       >
-                        <strong>{item.quantity}</strong> {item.productName}{' '}
-                        <span className="text-slate-500">({item.unitPrice} ₺)</span>
+                        <strong>{item.quantity}</strong> {item.productName}
+                        {!isAccount && (
+                          <span className="text-slate-500"> ({item.unitPrice} ₺)</span>
+                        )}
                       </span>
                     ))}
                   </div>
@@ -801,7 +830,11 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                     <div className="min-w-0">
                       <dt className="text-slate-500">Mal Tutarı</dt>
                       <dd className="font-mono font-bold text-slate-900 dark:text-white tabular-nums break-words">
-                        {del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺
+                        {isAccount ? (
+                          <span className="text-[10px] font-semibold text-slate-400">Gizli</span>
+                        ) : (
+                          `${del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺`
+                        )}
                       </dd>
                     </div>
                     <div className="min-w-0">
@@ -831,7 +864,9 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                     <div className="min-w-0">
                       <dt className="text-slate-500">Cari Borç</dt>
                       <dd className="font-mono font-bold tabular-nums break-words">
-                        {del.collectedPayment.diffUncollected > 0 ? (
+                        {isAccount ? (
+                          <span className="text-[10px] font-semibold text-slate-400">Gizli</span>
+                        ) : del.collectedPayment.diffUncollected > 0 ? (
                           <span className="text-amber-600">
                             +{del.collectedPayment.diffUncollected.toLocaleString('tr-TR')} ₺
                           </span>
