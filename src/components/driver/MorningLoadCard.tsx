@@ -1,7 +1,20 @@
-import React, { useState } from 'react';
-import { Dispatch, Product, User, AUTHORIZED_VEHICLE_PLATES } from '../../types';
-import { CheckCircle2, PackageCheck, Truck, Plus, Check, UserCheck, AlertCircle } from 'lucide-react';
-import { confirmDispatch, createDispatch } from '../../services/api';
+import React, { useState } from "react";
+import {
+  Dispatch,
+  Product,
+  User,
+  AUTHORIZED_VEHICLE_PLATES,
+} from "../../types";
+import {
+  CheckCircle2,
+  PackageCheck,
+  Truck,
+  Plus,
+  Check,
+  UserCheck,
+  AlertCircle,
+} from "lucide-react";
+import { confirmDispatch, createDispatch } from "../../services/api";
 
 interface MorningLoadCardProps {
   currentDispatch: Dispatch | null;
@@ -24,55 +37,62 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
   const [showManualLoadModal, setShowManualLoadModal] = useState(false);
 
   // Active dispatches across system (not completed)
-  const activeDispatches = dispatches.filter((d) => d.status !== 'completed');
+  const activeDispatches = dispatches.filter((d) => d.status !== "completed");
   const busyPlates = new Set(activeDispatches.map((d) => d.vehiclePlate));
   const busyDriverIds = new Set(activeDispatches.map((d) => d.driverId));
 
   // Vehicle plates currently available (not in active distribution)
-  const availablePlates = AUTHORIZED_VEHICLE_PLATES.filter((plate) => !busyPlates.has(plate));
+  const availablePlates = AUTHORIZED_VEHICLE_PLATES.filter(
+    (plate) => !busyPlates.has(plate),
+  );
 
   // List of actual drivers (excludes Depo Yöneticisi / Admin)
-  const drivers = users.filter((u) => u.role === 'driver');
+  const drivers = users.filter((u) => u.role === "driver");
   const availableDrivers = drivers.filter((d) => !busyDriverIds.has(d.id));
 
   // Initial driver selection: currentUser if driver and not busy, else first available driver
   const [selectedDriverId, setSelectedDriverId] = useState<string>(() => {
-    if (currentUser.role === 'driver') {
-      return !busyDriverIds.has(currentUser.id) ? currentUser.id : '';
+    if (currentUser.role === "driver") {
+      return !busyDriverIds.has(currentUser.id) ? currentUser.id : "";
     }
-    return availableDrivers[0]?.id || '';
+    return availableDrivers[0]?.id || "";
   });
 
   // Independent vehicle plate selection (default to first available plate)
   const [selectedPlate, setSelectedPlate] = useState<string>(() => {
-    return availablePlates[0] || '';
+    return availablePlates[0] || "";
   });
 
-  const [loadQuantities, setLoadQuantities] = useState<Record<string, number>>({});
+  const [loadQuantities, setLoadQuantities] = useState<Record<string, number>>(
+    {},
+  );
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   // Depo Yöneticisi (Admin) and Tek Yetkili Şoför (canLoadVehicle === true) can load vehicles
-  const canUserLoad = currentUser.role === 'admin' || currentUser.canLoadVehicle;
+  const canUserLoad =
+    currentUser.role === "admin" || currentUser.canLoadVehicle;
 
   const handleOpenLoadModal = () => {
     // Set appropriate initial driver
-    if (currentUser.role === 'driver') {
+    if (currentUser.role === "driver") {
       if (!busyDriverIds.has(currentUser.id)) {
         setSelectedDriverId(currentUser.id);
       } else {
-        setSelectedDriverId('');
+        setSelectedDriverId("");
       }
     } else {
       const firstAvailable = availableDrivers[0];
       if (firstAvailable) {
         setSelectedDriverId(firstAvailable.id);
       } else {
-        setSelectedDriverId('');
+        setSelectedDriverId("");
       }
     }
     // Set available plate
-    const freePlates = AUTHORIZED_VEHICLE_PLATES.filter((plate) => !busyPlates.has(plate));
+    const freePlates = AUTHORIZED_VEHICLE_PLATES.filter(
+      (plate) => !busyPlates.has(plate),
+    );
     if (freePlates.length > 0) {
       setSelectedPlate(freePlates[0]);
     }
@@ -87,7 +107,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
       const updated = await confirmDispatch(currentDispatch.id);
       onDispatchUpdated(updated);
     } catch (err: any) {
-      alert(err.message || 'Onay verilemedi');
+      alert(err.message || "Onay verilemedi");
     } finally {
       setIsConfirming(false);
     }
@@ -95,22 +115,26 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
 
   const handleSaveManualLoad = async () => {
     if (!selectedDriverId) {
-      setLoadingError('Lütfen ürünlerin yüklendiği şoförü seçiniz.');
+      setLoadingError("Lütfen ürünlerin yüklendiği şoförü seçiniz.");
       return;
     }
 
     if (!selectedPlate) {
-      setLoadingError('Lütfen araç plakasını seçiniz.');
+      setLoadingError("Lütfen araç plakasını seçiniz.");
       return;
     }
 
     if (busyPlates.has(selectedPlate)) {
-      setLoadingError(`Seçilen araç (${selectedPlate}) halen aktif bir dağıtımda kullanılmaktadır. Önceki seferin bitiş raporu alınmadan bu araç seçilemez.`);
+      setLoadingError(
+        `Seçilen araç (${selectedPlate}) halen aktif bir dağıtımda kullanılmaktadır. Önceki seferin bitiş raporu alınmadan bu araç seçilemez.`,
+      );
       return;
     }
 
     if (busyDriverIds.has(selectedDriverId)) {
-      setLoadingError('Seçilen şoför halen aktif bir dağıtım seferindedir. Önceki sefer tamamlanmadan yeni sefer açılamaz.');
+      setLoadingError(
+        "Seçilen şoför halen aktif bir dağıtım seferindedir. Önceki sefer tamamlanmadan yeni sefer açılamaz.",
+      );
       return;
     }
 
@@ -119,7 +143,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
       .map(([productId, quantity]) => ({ productId, quantity }));
 
     if (items.length === 0) {
-      setLoadingError('En az bir ürün için sıfırdan büyük adet girmelisiniz.');
+      setLoadingError("En az bir ürün için sıfırdan büyük adet girmelisiniz.");
       return;
     }
 
@@ -130,11 +154,11 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
       const isSelfLoad = selectedDriverId === currentUser.id;
 
       const loaderRoleTitle =
-        currentUser.role === 'admin'
-          ? 'Depo Yöneticisi'
+        currentUser.role === "admin"
+          ? "Depo Yöneticisi"
           : currentUser.isLeadDriver || currentUser.canLoadVehicle
-          ? 'Tek Yetkili Şoför'
-          : 'Depocu';
+            ? "Tek Yetkili Şoför"
+            : "Depocu";
 
       const newDisp = await createDispatch({
         driverId: selectedDriverId,
@@ -150,7 +174,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
       setShowManualLoadModal(false);
       setLoadQuantities({});
     } catch (err: any) {
-      setLoadingError(err.message || 'Yükleme kaydedilemedi');
+      setLoadingError(err.message || "Yükleme kaydedilemedi");
     } finally {
       setIsSaving(false);
     }
@@ -171,11 +195,14 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                   Depo Yükleme Girişi
                 </span>
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-indigo-100  text-indigo-700 ">
-                  {currentUser.role === 'admin' ? 'Depo Yöneticisi' : 'Tek Yetkili Şoför'}
+                  {currentUser.role === "admin"
+                    ? "Depo Yöneticisi"
+                    : "Tek Yetkili Şoför"}
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Yüklemeyi Yapan: <strong className="text-slate-800 ">{currentUser.name}</strong>
+                Yüklemeyi Yapan:{" "}
+                <strong className="text-slate-800 ">{currentUser.name}</strong>
               </p>
             </div>
             <button
@@ -205,7 +232,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                     <span>Şoför Seçimi</span>
                   </label>
                   <span className="text-[10px] text-slate-400">
-                    {selectedDriverId ? '1 seçildi' : 'Seçiniz'}
+                    {selectedDriverId ? "1 seçildi" : "Seçiniz"}
                   </span>
                 </div>
                 <div className="space-y-1.5 max-h-48 overflow-y-auto p-0.5 w-full max-w-full min-w-0 box-border">
@@ -224,7 +251,10 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                         >
                           <div className="flex items-center gap-1.5 truncate min-w-0">
                             <span className="w-1.5 h-1.5 rounded-full bg-slate-300  shrink-0" />
-                            <span className="truncate">{d.name}{isAuthorized ? ' (Yetkili)' : ''}</span>
+                            <span className="truncate">
+                              {d.name}
+                              {isAuthorized ? " (Yetkili)" : ""}
+                            </span>
                           </div>
                           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-200/80  text-slate-500  shrink-0 ml-1.5">
                             Dağıtımda
@@ -240,13 +270,18 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                         onClick={() => setSelectedDriverId(d.id)}
                         className={`w-full max-w-full min-w-0 flex items-center justify-between p-2 rounded-xl border text-xs font-semibold text-left transition-all ${
                           isSelected
-                            ? 'border-sky-600 bg-sky-50/90 text-sky-950    shadow-xs ring-1 ring-sky-600 '
-                            : 'border-slate-200  bg-white  text-slate-800  hover:border-slate-300  hover:bg-slate-50 '
+                            ? "border-sky-600 bg-sky-50/90 text-sky-950    shadow-xs ring-1 ring-sky-600 "
+                            : "border-slate-200  bg-white  text-slate-800  hover:border-slate-300  hover:bg-slate-50 "
                         }`}
                       >
                         <div className="flex items-center gap-1.5 truncate min-w-0">
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? 'bg-sky-600  ring-2 ring-sky-200 ' : 'bg-emerald-500'}`} />
-                          <span className="truncate">{d.name}{isAuthorized ? ' (Yetkili)' : ''}</span>
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? "bg-sky-600  ring-2 ring-sky-200 " : "bg-emerald-500"}`}
+                          />
+                          <span className="truncate">
+                            {d.name}
+                            {isAuthorized ? " (Yetkili)" : ""}
+                          </span>
                         </div>
                         {isSelected && (
                           <Check className="w-3.5 h-3.5 text-sky-600  shrink-0 ml-1.5" />
@@ -256,7 +291,8 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                   })}
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">
-                  İş yeri sahibi şoför değildir; sadece saha şoförleri listelenir.
+                  İş yeri sahibi şoför değildir; sadece saha şoförleri
+                  listelenir.
                 </p>
               </div>
 
@@ -268,7 +304,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                     <span>Araç Plakası</span>
                   </label>
                   <span className="text-[10px] text-slate-400 font-mono">
-                    {selectedPlate || 'Seçiniz'}
+                    {selectedPlate || "Seçiniz"}
                   </span>
                 </div>
                 <div className="space-y-1.5 max-h-48 overflow-y-auto p-0.5 w-full max-w-full min-w-0 box-border">
@@ -302,12 +338,14 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                         onClick={() => setSelectedPlate(plate)}
                         className={`w-full max-w-full min-w-0 flex items-center justify-between p-2 rounded-xl border font-mono font-bold text-xs text-left transition-all ${
                           isSelected
-                            ? 'border-emerald-600 bg-emerald-50/90 text-emerald-950    shadow-xs ring-1 ring-emerald-600 '
-                            : 'border-slate-200  bg-white  text-slate-800  hover:border-slate-300  hover:bg-slate-50 '
+                            ? "border-emerald-600 bg-emerald-50/90 text-emerald-950    shadow-xs ring-1 ring-emerald-600 "
+                            : "border-slate-200  bg-white  text-slate-800  hover:border-slate-300  hover:bg-slate-50 "
                         }`}
                       >
                         <div className="flex items-center gap-1.5 truncate min-w-0">
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? 'bg-emerald-600  ring-2 ring-emerald-200 ' : 'bg-emerald-500'}`} />
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? "bg-emerald-600  ring-2 ring-emerald-200 " : "bg-emerald-500"}`}
+                          />
                           <span className="truncate">{plate}</span>
                         </div>
                         {isSelected && (
@@ -318,7 +356,8 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                   })}
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">
-                  Aktif dağıtımda olan araçlar seçilemez; yalnızca müsait araçlar seçilebilir.
+                  Aktif dağıtımda olan araçlar seçilemez; yalnızca müsait
+                  araçlar seçilebilir.
                 </p>
               </div>
             </div>
@@ -329,13 +368,15 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                 <span className="text-xs font-bold text-slate-900  uppercase tracking-wider">
                   Araca Yüklenen Ürünler & Adetler
                 </span>
-                <span className="text-[11px] text-slate-400">Damacana, pet, bardak vb.</span>
+                <span className="text-[11px] text-slate-400">
+                  Damacana, pet, bardak vb.
+                </span>
               </div>
 
               <div className="space-y-2">
                 {products.map((p) => {
                   const currentQty = loadQuantities[p.id] || 0;
-                  const step = p.category === 'damacana' ? 5 : 1;
+                  const step = p.category === "damacana" ? 5 : 1;
 
                   return (
                     <div
@@ -343,9 +384,12 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                       className="flex items-center justify-between p-3 rounded-xl bg-slate-50  border border-slate-100 "
                     >
                       <div className="pr-2">
-                        <div className="text-xs font-bold text-slate-900 ">{p.name}</div>
+                        <div className="text-xs font-bold text-slate-900 ">
+                          {p.name}
+                        </div>
                         <div className="text-[11px] text-slate-500">
-                          {p.unit} · {p.isDeposit ? 'Depozitolu' : 'Tek Yön'} · {p.defaultUnitPrice} ₺
+                          {p.unit} · {p.isDeposit ? "Depozitolu" : "Tek Yön"} ·{" "}
+                          {p.defaultUnitPrice} ₺
                         </div>
                       </div>
 
@@ -364,11 +408,14 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                         </button>
                         <input
                           type="number"
-                          value={currentQty === 0 ? '' : currentQty}
+                          value={currentQty === 0 ? "" : currentQty}
                           onChange={(e) =>
                             setLoadQuantities((prev) => ({
                               ...prev,
-                              [p.id]: Math.max(0, parseInt(e.target.value) || 0),
+                              [p.id]: Math.max(
+                                0,
+                                parseInt(e.target.value) || 0,
+                              ),
                             }))
                           }
                           placeholder="0"
@@ -425,8 +472,8 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
   };
 
   // Case 1: No active dispatch exists for this driver/vehicle (ready for loading/trip)
-  if (!currentDispatch || currentDispatch.status === 'completed') {
-    const isNextTrip = currentDispatch?.status === 'completed';
+  if (!currentDispatch || currentDispatch.status === "completed") {
+    const isNextTrip = currentDispatch?.status === "completed";
     return (
       <div className="bg-white  rounded-2xl border border-slate-200  p-4 sm:p-5 shadow-xs mb-6 w-full max-w-full min-w-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -437,32 +484,30 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-slate-900 ">
-                  {isNextTrip ? 'Yeni Sefer Depo Yüklemesi Bekleniyor' : 'Depo Yüklemesi Bekleniyor'}
+                  {isNextTrip
+                    ? "Yeni Sefer Depo Yüklemesi Bekleniyor"
+                    : "Depo Yüklemesi Bekleniyor"}
                 </h3>
                 {isNextTrip && (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50  text-emerald-700 ">
                     Araç Boş & Sefer Hazır
                   </span>
                 )}
-                {currentUser.role === 'admin' && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50  text-indigo-700 ">
-                    Depo Yöneticisi Paneli
-                  </span>
-                )}
-                {currentUser.canLoadVehicle && currentUser.role === 'driver' && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50  text-emerald-700 ">
-                    Tek Yetkili Şoför
-                  </span>
-                )}
+                {currentUser.canLoadVehicle &&
+                  currentUser.role === "driver" && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50  text-emerald-700 ">
+                      Tek Yetkili Şoför
+                    </span>
+                  )}
               </div>
               <p className="text-xs text-slate-500  mt-0.5">
                 {isNextTrip
-                  ? 'Önceki sefer tamamlandı, kalan ürünler depoya indirildi. Yeni dağıtım seferi için yükleme adetlerini girebilirsiniz.'
-                  : currentUser.role === 'admin'
-                  ? 'Depo Yöneticisi olarak bağımsız şoför ve plaka seçerek araç yüklemelerini sisteme girebilirsiniz.'
-                  : currentUser.canLoadVehicle
-                  ? 'Tek Yetkili Şoför yetkiniz bulunuyor. Kendi aracınız veya diğer şoförlerin araçları için yükleme girebilirsiniz.'
-                  : 'Yöneticiniz veya yetkili şoför aracınıza yükleme girdiğinde burada teslim alma onayı belirecektir.'}
+                  ? "Önceki sefer tamamlandı, kalan ürünler depoya indirildi. Yeni dağıtım seferi için yükleme adetlerini girebilirsiniz."
+                  : currentUser.role === "admin"
+                    ? "Depo Yöneticisi olarak bağımsız şoför ve plaka seçerek araç yüklemelerini sisteme girebilirsiniz."
+                    : currentUser.canLoadVehicle
+                      ? "Tek Yetkili Şoför yetkiniz bulunuyor. Kendi aracınız veya diğer şoförlerin araçları için yükleme girebilirsiniz."
+                      : "Yöneticiniz veya yetkili şoför aracınıza yükleme girdiğinde burada teslim alma onayı belirecektir."}
               </p>
             </div>
           </div>
@@ -473,7 +518,11 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
               className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 whitespace-nowrap"
             >
               <Plus className="w-4 h-4" />
-              <span>{isNextTrip ? 'Yeni Sefer Yüklemesi Gir' : 'Yükleme Adetlerini Gir'}</span>
+              <span>
+                {isNextTrip
+                  ? "Yeni Sefer Yüklemesi Gir"
+                  : "Yükleme Adetlerini Gir"}
+              </span>
             </button>
           )}
         </div>
@@ -484,7 +533,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
   }
 
   // Case 2: Dispatch exists and is pending driver confirmation
-  if (currentDispatch.status === 'pending_confirmation') {
+  if (currentDispatch.status === "pending_confirmation") {
     const isTargetDriver = currentUser.id === currentDispatch.driverId;
 
     return (
@@ -504,11 +553,12 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                 </span>
               </div>
               <h3 className="text-base font-bold text-slate-900  mt-1">
-                {currentDispatch.driverName} için Sabah Yüklemesi Girildi ({currentDispatch.vehiclePlate})
+                {currentDispatch.driverName} için Sabah Yüklemesi Girildi (
+                {currentDispatch.vehiclePlate})
               </h3>
               <p className="text-xs text-slate-600  mt-0.5">
                 {isTargetDriver
-                  ? 'Lütfen aracınızdaki ürün adetlerini fiziki olarak sayarak kontrol ediniz. Sayım doğruysa onaylayarak sefere başlayabilirsiniz.'
+                  ? "Lütfen aracınızdaki ürün adetlerini fiziki olarak sayarak kontrol ediniz. Sayım doğruysa onaylayarak sefere başlayabilirsiniz."
                   : `Yükleme sisteme işlendi. ${currentDispatch.driverName} sayımı kontrol ettikten sonra sefere başlayacaktır.`}
               </p>
             </div>
@@ -541,7 +591,9 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                   <span className="text-xl font-bold font-mono text-slate-900  tabular-nums">
                     {item.quantity}
                   </span>
-                  <span className="text-[10px] text-slate-400 font-medium">{product?.unit || 'Adet'}</span>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {product?.unit || "Adet"}
+                  </span>
                 </div>
               </div>
             );
@@ -549,7 +601,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
         </div>
 
         {/* Driver Confirmation Button (Target Driver or Admin override) */}
-        {(isTargetDriver || currentUser.role === 'admin') && (
+        {(isTargetDriver || currentUser.role === "admin") && (
           <div className="mt-5 flex items-center justify-end gap-2">
             <button
               onClick={handleConfirmLoad}
@@ -559,10 +611,10 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
               <CheckCircle2 className="w-4 h-4" />
               <span>
                 {isConfirming
-                  ? 'Onaylanıyor...'
+                  ? "Onaylanıyor..."
                   : isTargetDriver
-                  ? 'Sayımı Kontrol Ettim & Aracı Teslim Alıyorum'
-                  : 'Yönetici Olarak Onayla & Sefere Başlat'}
+                    ? "Sayımı Kontrol Ettim & Aracı Teslim Alıyorum"
+                    : "Yönetici Olarak Onayla & Sefere Başlat"}
               </span>
             </button>
           </div>
@@ -584,14 +636,16 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold text-slate-900 ">
-                Aktif Sefer: {currentDispatch.vehiclePlate} ({currentDispatch.driverName})
+                Aktif Sefer: {currentDispatch.vehiclePlate} (
+                {currentDispatch.driverName})
               </span>
               <span className="text-[11px] font-medium text-emerald-600  bg-emerald-50  px-2 py-0.5 rounded-md">
                 Saha Dağıtımında
               </span>
             </div>
             <div className="text-[11px] text-slate-500 truncate">
-              Yükleyen: {currentDispatch.loadedByUserName} · Teslim Alan: {currentDispatch.driverName}
+              Yükleyen: {currentDispatch.loadedByUserName} · Teslim Alan:{" "}
+              {currentDispatch.driverName}
             </div>
           </div>
         </div>
@@ -608,13 +662,18 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
           )}
 
           <div className="text-xs text-slate-500">
-            Tarih: <span className="font-semibold text-slate-700 ">{currentDispatch.date}</span>
+            Tarih:{" "}
+            <span className="font-semibold text-slate-700 ">
+              {currentDispatch.date}
+            </span>
           </div>
         </div>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2 py-1 text-xs w-full max-w-full">
-        <span className="text-slate-400 text-[11px] font-medium whitespace-nowrap">Yüklenenler:</span>
+        <span className="text-slate-400 text-[11px] font-medium whitespace-nowrap">
+          Yüklenenler:
+        </span>
         {currentDispatch.loadedItems.map((item) => {
           const product = products.find((p) => p.id === item.productId);
           return (
@@ -622,7 +681,11 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
               key={item.productId}
               className="px-2.5 py-1 rounded-lg bg-slate-100  text-slate-700  whitespace-nowrap text-[11px]"
             >
-              {product?.name.split(' ')[0]}: <strong className="font-mono tabular-nums">{item.quantity}</strong> {product?.unit}
+              {product?.name.split(" ")[0]}:{" "}
+              <strong className="font-mono tabular-nums">
+                {item.quantity}
+              </strong>{" "}
+              {product?.unit}
             </span>
           );
         })}

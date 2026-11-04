@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Customer, Product, User } from '../../types';
+import React, { useState } from "react";
+import { Customer, Product, User } from "../../types";
 import {
   Building2,
   Phone,
@@ -9,16 +9,16 @@ import {
   Edit2,
   FileText,
   Wallet,
-  Mail
-} from 'lucide-react';
+  Mail,
+} from "lucide-react";
 import {
   createCustomer,
   updateCustomer,
   type CustomerUpdate,
-} from '../../services/api';
-import { negativeEmptyMessages } from '../../services/emptyBalanceDisplay';
-import { CustomerStatementModal } from './CustomerStatementModal';
-import { CustomerPaymentModal } from './CustomerPaymentModal';
+} from "../../services/api";
+import { negativeEmptyMessages } from "../../services/emptyBalanceDisplay";
+import { CustomerStatementModal } from "./CustomerStatementModal";
+import { CustomerPaymentModal } from "./CustomerPaymentModal";
 
 interface CustomersManagementProps {
   customers: Customer[];
@@ -33,35 +33,39 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
   currentUser,
   onCustomersUpdated,
 }) => {
-  const isAdmin = currentUser.role === 'admin';
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'account' | 'deposit_debt' | 'cash_debt'>('all');
+  const isAdmin = currentUser.role === "admin";
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState<
+    "all" | "account" | "deposit_debt" | "cash_debt"
+  >("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const [statementCustomer, setStatementCustomer] = useState<Customer | null>(null);
+  const [statementCustomer, setStatementCustomer] = useState<Customer | null>(
+    null,
+  );
   const [paymentCustomer, setPaymentCustomer] = useState<Customer | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // New customer form state
-  const [newName, setNewName] = useState('');
-  const [newPhone, setNewPhone] = useState('');
-  const [newAddress, setNewAddress] = useState('');
+  const [newName, setNewName] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [newAddress, setNewAddress] = useState("");
   const [newEmails, setNewEmails] = useState<string[]>([]);
-  const [emailInput, setEmailInput] = useState('');
+  const [emailInput, setEmailInput] = useState("");
   const [newIsAccount, setNewIsAccount] = useState(true);
-  const [newNotes, setNewNotes] = useState('');
+  const [newNotes, setNewNotes] = useState("");
 
   // Edit customer form state
-  const [editName, setEditName] = useState('');
-  const [editPhone, setEditPhone] = useState('');
-  const [editAddress, setEditAddress] = useState('');
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editAddress, setEditAddress] = useState("");
   const [editEmails, setEditEmails] = useState<string[]>([]);
-  const [editEmailInput, setEditEmailInput] = useState('');
+  const [editEmailInput, setEditEmailInput] = useState("");
   const [editIsAccount, setEditIsAccount] = useState(true);
-  const [editNotes, setEditNotes] = useState('');
-  const [editEmptyDamacana, setEditEmptyDamacana] = useState('0');
-  const [editEmptyCamDamacana, setEditEmptyCamDamacana] = useState('0');
-  const [editEmptyTup, setEditEmptyTup] = useState('0');
+  const [editNotes, setEditNotes] = useState("");
+  const [editEmptyDamacana, setEditEmptyDamacana] = useState("0");
+  const [editEmptyCamDamacana, setEditEmptyCamDamacana] = useState("0");
+  const [editEmptyTup, setEditEmptyTup] = useState("0");
 
   // Helper to add emails from input (supports comma/semicolon/space separation)
   const addEmailsToNewList = () => {
@@ -69,10 +73,12 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
     const parts = emailInput
       .split(/[,;\s]+/)
       .map((s) => s.trim().toLowerCase())
-      .filter((s) => s.length > 0 && s.includes('@'));
+      .filter((s) => s.length > 0 && s.includes("@"));
 
     if (parts.length === 0) {
-      alert('Lütfen geçerli bir e-posta adresi giriniz (örn: muhasebe@sirket.com)');
+      alert(
+        "Lütfen geçerli bir e-posta adresi giriniz (örn: muhasebe@sirket.com)",
+      );
       return;
     }
 
@@ -83,7 +89,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       });
       return merged;
     });
-    setEmailInput('');
+    setEmailInput("");
   };
 
   const removeEmailFromNewList = (emailToRemove: string) => {
@@ -95,10 +101,12 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
     const parts = editEmailInput
       .split(/[,;\s]+/)
       .map((s) => s.trim().toLowerCase())
-      .filter((s) => s.length > 0 && s.includes('@'));
+      .filter((s) => s.length > 0 && s.includes("@"));
 
     if (parts.length === 0) {
-      alert('Lütfen geçerli bir e-posta adresi giriniz (örn: muhasebe@sirket.com)');
+      alert(
+        "Lütfen geçerli bir e-posta adresi giriniz (örn: muhasebe@sirket.com)",
+      );
       return;
     }
 
@@ -109,7 +117,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       });
       return merged;
     });
-    setEditEmailInput('');
+    setEditEmailInput("");
   };
 
   const removeEmailFromEditList = (emailToRemove: string) => {
@@ -117,33 +125,35 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
   };
 
   const handleOpenCreateModal = () => {
-    setNewName('');
-    setNewPhone('');
-    setNewAddress('');
+    setNewName("");
+    setNewPhone("");
+    setNewAddress("");
     setNewEmails([]);
-    setEmailInput('');
+    setEmailInput("");
     setNewIsAccount(true);
-    setNewNotes('');
+    setNewNotes("");
     setShowCreateModal(true);
   };
 
   const handleOpenEditModal = (cust: Customer) => {
     setEditingCustomer(cust);
     setEditName(cust.name);
-    setEditPhone(cust.phone || '');
-    setEditAddress(cust.address || '');
+    setEditPhone(cust.phone || "");
+    setEditAddress(cust.address || "");
     setEditEmails(cust.emails || []);
-    setEditEmailInput('');
+    setEditEmailInput("");
     setEditIsAccount(cust.isAccountCustomer);
-    setEditNotes(cust.notes || '');
-    setEditEmptyDamacana(String(Number(cust.emptyDepositBalance?.damacana) || 0));
+    setEditNotes(cust.notes || "");
+    setEditEmptyDamacana(
+      String(Number(cust.emptyDepositBalance?.damacana) || 0),
+    );
     setEditEmptyCamDamacana(
       String(
         Number(
           cust.emptyDepositBalance?.camDamacana ??
-            cust.emptyDepositBalance?.cam_damacana
-        ) || 0
-      )
+            cust.emptyDepositBalance?.cam_damacana,
+        ) || 0,
+      ),
     );
     setEditEmptyTup(String(Number(cust.emptyDepositBalance?.tup) || 0));
   };
@@ -155,11 +165,11 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
     // Flush any pending email in the input field
     let finalEmails = [...newEmails];
-    if (emailInput.trim() && emailInput.includes('@')) {
+    if (emailInput.trim() && emailInput.includes("@")) {
       const pending = emailInput
         .split(/[,;\s]+/)
         .map((s) => s.trim().toLowerCase())
-        .filter((s) => s.length > 0 && s.includes('@'));
+        .filter((s) => s.length > 0 && s.includes("@"));
       pending.forEach((p) => {
         if (!finalEmails.includes(p)) finalEmails.push(p);
       });
@@ -179,7 +189,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       setShowCreateModal(false);
     } catch (err: any) {
       // Form verileri korunur; kullanıcı düzeltip tekrar deneyebilir.
-      alert(err.message || 'Müşteri eklenemedi');
+      alert(err.message || "Müşteri eklenemedi");
     } finally {
       setIsSubmitting(false);
     }
@@ -191,11 +201,11 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
     // Flush any pending email in the edit input field
     let finalEmails = [...editEmails];
-    if (editEmailInput.trim() && editEmailInput.includes('@')) {
+    if (editEmailInput.trim() && editEmailInput.includes("@")) {
       const pending = editEmailInput
         .split(/[,;\s]+/)
         .map((s) => s.trim().toLowerCase())
-        .filter((s) => s.length > 0 && s.includes('@'));
+        .filter((s) => s.length > 0 && s.includes("@"));
       pending.forEach((p) => {
         if (!finalEmails.includes(p)) finalEmails.push(p);
       });
@@ -206,7 +216,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       camDamacana:
         Number(
           editingCustomer.emptyDepositBalance?.camDamacana ??
-            editingCustomer.emptyDepositBalance?.cam_damacana
+            editingCustomer.emptyDepositBalance?.cam_damacana,
         ) || 0,
       tup: Number(editingCustomer.emptyDepositBalance?.tup) || 0,
     };
@@ -220,7 +230,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       !Number.isInteger(nextEmpty.camDamacana) ||
       !Number.isInteger(nextEmpty.tup)
     ) {
-      alert('Boş kap bakiyeleri tam sayı olmalıdır.');
+      alert("Boş kap bakiyeleri tam sayı olmalıdır.");
       return;
     }
     const emptyChanged =
@@ -243,10 +253,12 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
     try {
       const updated = await updateCustomer(editingCustomer.id, updates);
-      onCustomersUpdated(customers.map((c) => (c.id === editingCustomer.id ? updated : c)));
+      onCustomersUpdated(
+        customers.map((c) => (c.id === editingCustomer.id ? updated : c)),
+      );
       setEditingCustomer(null);
     } catch (err: any) {
-      alert(err.message || 'Müşteri güncellenemedi');
+      alert(err.message || "Müşteri güncellenemedi");
     }
   };
 
@@ -255,18 +267,27 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       const updated = await updateCustomer(cust.id, {
         isAccountCustomer: !cust.isAccountCustomer,
       });
-      onCustomersUpdated(customers.map((c) => (c.id === cust.id ? updated : c)));
+      onCustomersUpdated(
+        customers.map((c) => (c.id === cust.id ? updated : c)),
+      );
     } catch (err: any) {
-      alert(err.message || 'Güncellenemedi');
+      alert(err.message || "Güncellenemedi");
     }
   };
 
   const handleClearDeposit = async (cust: Customer) => {
     if (!isAdmin) {
-      alert('Boş kap bakiyesi sıfırlama yalnızca depo yöneticisi tarafından yapılabilir.');
+      alert(
+        "Boş kap bakiyesi sıfırlama yalnızca depo yöneticisi tarafından yapılabilir.",
+      );
       return;
     }
-    if (!confirm(`${cust.name} için boş kap bakiyesini sıfırlamak istediğinize emin misiniz?`)) return;
+    if (
+      !confirm(
+        `${cust.name} için boş kap bakiyesini sıfırlamak istediğinize emin misiniz?`,
+      )
+    )
+      return;
     try {
       const updated = await updateCustomer(cust.id, {
         emptyDepositBalance: { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 },
@@ -280,26 +301,37 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
           sebil: cust.emptyDepositBalance?.sebil || 0,
         },
       });
-      onCustomersUpdated(customers.map((c) => (c.id === cust.id ? updated : c)));
+      onCustomersUpdated(
+        customers.map((c) => (c.id === cust.id ? updated : c)),
+      );
     } catch (err: any) {
-      alert(err.message || 'Güncellenemedi');
+      alert(err.message || "Güncellenemedi");
     }
   };
 
   const handleClearBalanceTL = async (cust: Customer) => {
     if (!isAdmin) {
-      alert('Cari bakiye sıfırlama yalnızca depo yöneticisi tarafından yapılabilir.');
+      alert(
+        "Cari bakiye sıfırlama yalnızca depo yöneticisi tarafından yapılabilir.",
+      );
       return;
     }
-    if (!confirm(`${cust.name} için cari TL borcunu kapalı (0 ₺) olarak işaretlemek istediğinize emin misiniz?`)) return;
+    if (
+      !confirm(
+        `${cust.name} için cari TL borcunu kapalı (0 ₺) olarak işaretlemek istediğinize emin misiniz?`,
+      )
+    )
+      return;
     try {
       const updated = await updateCustomer(cust.id, {
         currentBalanceTL: 0,
         expectedBalanceTL: cust.currentBalanceTL || 0,
       });
-      onCustomersUpdated(customers.map((c) => (c.id === cust.id ? updated : c)));
+      onCustomersUpdated(
+        customers.map((c) => (c.id === cust.id ? updated : c)),
+      );
     } catch (err: any) {
-      alert(err.message || 'Güncellenemedi');
+      alert(err.message || "Güncellenemedi");
     }
   };
 
@@ -312,15 +344,16 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       (c.emails && c.emails.some((em) => em.toLowerCase().includes(term)));
 
     if (!matchesSearch) return false;
-    if (filterType === 'account') return c.isAccountCustomer;
-    if (filterType === 'deposit_debt')
+    if (filterType === "account") return c.isAccountCustomer;
+    if (filterType === "deposit_debt")
       return (
         (c.emptyDepositBalance?.damacana || 0) > 0 ||
         (c.emptyDepositBalance?.camDamacana || 0) > 0 ||
         (c.emptyDepositBalance?.tup || 0) > 0
       );
     // Faturalı müşteri cari borcu gösterilmediği için bu filtrede yer almaz.
-    if (filterType === 'cash_debt') return !c.isAccountCustomer && c.currentBalanceTL > 0;
+    if (filterType === "cash_debt")
+      return !c.isAccountCustomer && c.currentBalanceTL > 0;
     return true;
   });
 
@@ -331,10 +364,11 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
         <div>
           <h2 className="text-base font-bold text-slate-900  flex items-center gap-2">
             <Building2 className="w-5 h-5 text-sky-600 shrink-0" />
-            <span>Müşteri Rehberi & Çoklu E-Posta Yönetimi</span>
+            <span>Müşteri Rehberi</span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            E-Fatura, muhasebe ve sipariş için birden fazla e-posta adresi tanımlama, cari bakiye ve boş damacana takibi
+            E-Fatura, muhasebe ve sipariş için birden fazla e-posta adresi
+            tanımlama, cari bakiye ve boş damacana takibi
           </p>
         </div>
 
@@ -363,47 +397,65 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       {/* Filter Tabs */}
       <div className="flex flex-wrap items-center gap-2 py-1 text-xs w-full max-w-full">
         <button
-          onClick={() => setFilterType('all')}
+          onClick={() => setFilterType("all")}
           className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors ${
-            filterType === 'all'
-              ? 'bg-slate-900 text-white  '
-              : 'bg-white  text-slate-600  border border-slate-200 '
+            filterType === "all"
+              ? "bg-slate-900 text-white  "
+              : "bg-white  text-slate-600  border border-slate-200 "
           }`}
         >
           Tüm Müşteriler ({customers.length})
         </button>
 
         <button
-          onClick={() => setFilterType('account')}
+          onClick={() => setFilterType("account")}
           className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors ${
-            filterType === 'account'
-              ? 'bg-sky-600 text-white'
-              : 'bg-white  text-slate-600  border border-slate-200 '
+            filterType === "account"
+              ? "bg-sky-600 text-white"
+              : "bg-white  text-slate-600  border border-slate-200 "
           }`}
         >
-          Faturalı Müşteriler ({customers.filter((c) => c.isAccountCustomer).length})
+          Faturalı Müşteriler (
+          {customers.filter((c) => c.isAccountCustomer).length})
         </button>
 
         <button
-          onClick={() => setFilterType('deposit_debt')}
+          onClick={() => setFilterType("deposit_debt")}
           className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors ${
-            filterType === 'deposit_debt'
-              ? 'bg-orange-600 text-white'
-              : 'bg-white  text-slate-600  border border-slate-200 '
+            filterType === "deposit_debt"
+              ? "bg-orange-600 text-white"
+              : "bg-white  text-slate-600  border border-slate-200 "
           }`}
         >
-          Boş Kap Borcu Olanlar ({customers.filter((c) => ((c.emptyDepositBalance?.damacana || 0) + (c.emptyDepositBalance?.camDamacana || 0) + (c.emptyDepositBalance?.tup || 0) + (c.emptyDepositBalance?.sebil || 0)) > 0).length})
+          Boş Kap Borcu Olanlar (
+          {
+            customers.filter(
+              (c) =>
+                (c.emptyDepositBalance?.damacana || 0) +
+                  (c.emptyDepositBalance?.camDamacana || 0) +
+                  (c.emptyDepositBalance?.tup || 0) +
+                  (c.emptyDepositBalance?.sebil || 0) >
+                0,
+            ).length
+          }
+          )
         </button>
 
         <button
-          onClick={() => setFilterType('cash_debt')}
+          onClick={() => setFilterType("cash_debt")}
           className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors ${
-            filterType === 'cash_debt'
-              ? 'bg-red-600 text-white'
-              : 'bg-white  text-slate-600  border border-slate-200 '
+            filterType === "cash_debt"
+              ? "bg-red-600 text-white"
+              : "bg-white  text-slate-600  border border-slate-200 "
           }`}
         >
-          TL Bakiye Borcu Olanlar ({customers.filter((c) => !c.isAccountCustomer && (c.currentBalanceTL || 0) > 0).length})
+          TL Bakiye Borcu Olanlar (
+          {
+            customers.filter(
+              (c) => !c.isAccountCustomer && (c.currentBalanceTL || 0) > 0,
+            ).length
+          }
+          )
         </button>
       </div>
 
@@ -436,7 +488,10 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                 <div className="flex flex-col gap-2 w-full min-w-0">
                   <div className="flex items-start gap-2 min-w-0 w-full">
                     <Building2 className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
-                    <h3 className="font-bold text-sm text-slate-900  break-words min-w-0 leading-snug" title={c.name}>
+                    <h3
+                      className="font-bold text-sm text-slate-900  break-words min-w-0 leading-snug"
+                      title={c.name}
+                    >
                       {c.name}
                     </h3>
                   </div>
@@ -470,12 +525,12 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                       onClick={() => handleToggleAccountCustomer(c)}
                       className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition-colors shrink-0 ${
                         c.isAccountCustomer
-                          ? 'bg-sky-100 text-sky-800  '
-                          : 'bg-red-100 text-red-800  '
+                          ? "bg-sky-100 text-sky-800  "
+                          : "bg-red-100 text-red-800  "
                       }`}
                       title="Cari Hesap Durumu"
                     >
-                      {c.isAccountCustomer ? 'Faturalı' : 'Peşin'}
+                      {c.isAccountCustomer ? "Faturalı" : "Peşin"}
                     </button>
                   </div>
                 </div>
@@ -491,7 +546,9 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
                   <div className="flex items-start gap-1.5">
                     <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                    <span className="line-clamp-2">{c.address || 'Adres belirtilmemiş'}</span>
+                    <span className="line-clamp-2">
+                      {c.address || "Adres belirtilmemiş"}
+                    </span>
                   </div>
 
                   {/* Multiple Email Addresses Display */}
@@ -509,7 +566,9 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                         ))}
                       </div>
                     ) : (
-                      <span className="text-[11px] text-slate-400 italic">E-posta tanımlanmamış</span>
+                      <span className="text-[11px] text-slate-400 italic">
+                        E-posta tanımlanmamış
+                      </span>
                     )}
                   </div>
                 </div>
@@ -517,7 +576,9 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                 {/* Balances */}
                 <div className="mt-3 pt-3 border-t border-slate-100  flex items-center justify-between text-xs">
                   <div className="min-w-0">
-                    <span className="text-[10px] text-slate-400 block">Emanet Boş Kap:</span>
+                    <span className="text-[10px] text-slate-400 block">
+                      Emanet Boş Kap:
+                    </span>
                     {negativeEmpty.length > 0 && (
                       <div className="space-y-0.5">
                         {negativeEmpty.map((message) => (
@@ -532,7 +593,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                     )}
                     {positiveEmptyParts.length > 0 ? (
                       <span className="font-mono font-bold text-orange-600">
-                        {positiveEmptyParts.join(', ')}
+                        {positiveEmptyParts.join(", ")}
                       </span>
                     ) : (
                       negativeEmpty.length === 0 && (
@@ -544,7 +605,9 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                   </div>
 
                   <div className="text-right">
-                    <span className="text-[10px] text-slate-400 block">Cari TL Borç:</span>
+                    <span className="text-[10px] text-slate-400 block">
+                      Cari TL Borç:
+                    </span>
                     {c.isAccountCustomer ? (
                       <span className="text-[10px] font-semibold text-slate-400">
                         Faturalı Müşteri
@@ -552,32 +615,41 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                     ) : (
                       <span
                         className={`font-mono font-bold ${
-                          (c.currentBalanceTL || 0) > 0 ? 'text-red-600' : 'text-slate-700 '
+                          (c.currentBalanceTL || 0) > 0
+                            ? "text-red-600"
+                            : "text-slate-700 "
                         }`}
                       >
-                        {(c.currentBalanceTL || 0).toLocaleString('tr-TR')} ₺
+                        {(c.currentBalanceTL || 0).toLocaleString("tr-TR")} ₺
                       </span>
                     )}
                   </div>
                 </div>
 
                 {/* Custom Prices Memory */}
-                {!c.isAccountCustomer && c.customPrices && Object.keys(c.customPrices).length > 0 && (
-                  <div className="mt-2 pt-2 border-t border-slate-100  text-[11px] text-slate-500">
-                    <span className="text-[10px] text-slate-400 block mb-0.5">Özel Fiyat Hafızası:</span>
-                    <div className="flex flex-wrap gap-1">
-                      {Object.entries(c.customPrices).map(([pId, price]) => {
-                        const p = products.find((prod) => prod.id === pId);
-                        return (
-                          <span key={pId} className="px-1.5 py-0.2 rounded bg-slate-100  text-[10px]">
-                            {p?.name.split(' ')[0]}: <strong>{price} ₺</strong>
-                          </span>
-                        );
-                      })}
+                {!c.isAccountCustomer &&
+                  c.customPrices &&
+                  Object.keys(c.customPrices).length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-slate-100  text-[11px] text-slate-500">
+                      <span className="text-[10px] text-slate-400 block mb-0.5">
+                        Özel Fiyat Hafızası:
+                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {Object.entries(c.customPrices).map(([pId, price]) => {
+                          const p = products.find((prod) => prod.id === pId);
+                          return (
+                            <span
+                              key={pId}
+                              className="px-1.5 py-0.2 rounded bg-slate-100  text-[10px]"
+                            >
+                              {p?.name.split(" ")[0]}:{" "}
+                              <strong>{price} ₺</strong>
+                            </span>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
-
+                  )}
               </div>
 
               {/* Quick Actions (bakiye/boş kap sıfırlama yalnızca yöneticiye) */}
@@ -630,7 +702,10 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleCreateCustomer} className="space-y-4 text-xs mt-4">
+            <form
+              onSubmit={handleCreateCustomer}
+              className="space-y-4 text-xs mt-4"
+            >
               <div>
                 <label className="font-semibold text-slate-700  block mb-1">
                   Müşteri / İşletme Adı *
@@ -680,7 +755,9 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                     <Mail className="w-4 h-4 text-sky-600" />
                     <span>Müşteri E-Posta Adresleri (Birden Fazla)</span>
                   </label>
-                  <span className="text-[10px] text-slate-400">E-Fatura & Muhasebe</span>
+                  <span className="text-[10px] text-slate-400">
+                    E-Fatura & Muhasebe
+                  </span>
                 </div>
 
                 {/* Email Tag Pills */}
@@ -712,7 +789,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
+                      if (e.key === "Enter") {
                         e.preventDefault();
                         addEmailsToNewList();
                       }
@@ -728,7 +805,8 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                   </button>
                 </div>
                 <p className="text-[10px] text-slate-400">
-                  Virgül (,) ile ayırarak birden fazla e-postayı tek seferde de yapıştırabilirsiniz.
+                  Virgül (,) ile ayırarak birden fazla e-postayı tek seferde de
+                  yapıştırabilirsiniz.
                 </p>
               </div>
 
@@ -756,8 +834,9 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                   <span>Peşin Müşteri</span>
                 </label>
                 <p className="text-[10px] text-slate-500 mt-1">
-                  Tahsilat şoför arkadaşlar tarafından yapılacaksa bu kutucuğu işaretleyin,
-                  eğer fatura toplu kesilecekse kutucuğa tıklamayın.
+                  Tahsilat şoför arkadaşlar tarafından yapılacaksa bu kutucuğu
+                  işaretleyin, eğer fatura toplu kesilecekse kutucuğa
+                  tıklamayın.
                 </p>
               </div>
 
@@ -774,7 +853,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                   disabled={isSubmitting}
                   className="w-1/2 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold shadow-md active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}
+                  {isSubmitting ? "Kaydediliyor..." : "Kaydet"}
                 </button>
               </div>
             </form>
@@ -792,7 +871,8 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                   Müşteri Bilgilerini Düzenle
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  {editingCustomer.name} için adres ve çoklu e-posta adreslerini güncelleyin
+                  {editingCustomer.name} için adres ve çoklu e-posta adreslerini
+                  güncelleyin
                 </p>
               </div>
               <button
@@ -804,7 +884,10 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleUpdateCustomer} className="space-y-4 text-xs mt-4">
+            <form
+              onSubmit={handleUpdateCustomer}
+              className="space-y-4 text-xs mt-4"
+            >
               <div>
                 <label className="font-semibold text-slate-700  block mb-1">
                   Müşteri / İşletme Adı *
@@ -851,7 +934,9 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                     <Mail className="w-4 h-4 text-sky-600" />
                     <span>Müşteri E-Posta Adresleri ({editEmails.length})</span>
                   </label>
-                  <span className="text-[10px] text-slate-400">E-Fatura & Muhasebe</span>
+                  <span className="text-[10px] text-slate-400">
+                    E-Fatura & Muhasebe
+                  </span>
                 </div>
 
                 {/* Email Tag Pills */}
@@ -883,7 +968,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                     value={editEmailInput}
                     onChange={(e) => setEditEmailInput(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
+                      if (e.key === "Enter") {
                         e.preventDefault();
                         addEmailsToEditList();
                       }
@@ -918,7 +1003,8 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                     Emanet Boş Kap Bakiyesi
                   </label>
                   <p className="text-[10px] text-orange-700  mt-0.5">
-                    Negatif değer, müşteriye borcumuz olan boş kap sayısını gösterir.
+                    Negatif değer, müşteriye borcumuz olan boş kap sayısını
+                    gösterir.
                   </p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -972,8 +1058,9 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                   <span>Peşin Müşteri</span>
                 </label>
                 <p className="text-[10px] text-slate-500 mt-1">
-                  Tahsilat şoför arkadaşlar tarafından yapılacaksa bu kutucuğu işaretleyin,
-                  eğer fatura toplu kesilecekse kutucuğa tıklamayın.
+                  Tahsilat şoför arkadaşlar tarafından yapılacaksa bu kutucuğu
+                  işaretleyin, eğer fatura toplu kesilecekse kutucuğa
+                  tıklamayın.
                 </p>
               </div>
 
@@ -1013,8 +1100,10 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
             if (newBalance === null) return;
             onCustomersUpdated(
               customers.map((c) =>
-                c.id === paymentCustomer.id ? { ...c, currentBalanceTL: newBalance } : c
-              )
+                c.id === paymentCustomer.id
+                  ? { ...c, currentBalanceTL: newBalance }
+                  : c,
+              ),
             );
           }}
         />
