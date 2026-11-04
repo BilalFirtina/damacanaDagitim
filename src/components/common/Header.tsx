@@ -184,7 +184,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Mobil: tüm sayfalar yan yana; sığmayanlar alt satıra geçer. */}
-      <div className="lg:hidden w-full max-w-full box-border border-t border-slate-200/80 bg-slate-50/95 px-2 py-2 flex flex-wrap items-stretch gap-1.5 overflow-x-hidden">
+      <div className="lg:hidden w-full max-w-full box-border border-t border-slate-200/80 bg-slate-50/95 px-2 py-2 grid grid-cols-3 min-[360px]:grid-cols-4 gap-1.5 overflow-x-hidden">
         {visibleNavItems.map((item) => {
           const active = activeTab === item.tab;
           const Icon = item.icon;
@@ -195,10 +195,10 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => setActiveTab(item.tab)}
               aria-label={item.ariaLabel}
               title={item.ariaLabel}
-              className={`grow basis-1/4 min-w-[80px] min-h-[56px] py-1.5 rounded-lg text-[13px] font-semibold flex flex-col justify-center gap-1 transition-all cursor-pointer box-border whitespace-nowrap ${
+              className={`w-full min-w-0 min-h-[56px] py-1.5 rounded-lg text-[13px] font-semibold flex flex-col justify-center gap-1 transition-all cursor-pointer box-border whitespace-nowrap ${
                 item.tab === 'admin_loads'
-                  ? 'items-start text-left pl-3 pr-2'
-                  : 'items-center text-center px-2'
+                  ? 'items-start text-left pl-2.5 pr-1.5'
+                  : 'items-center text-center px-1.5'
               } ${
                 active
                   ? `${item.activeClass} text-white shadow-sm ring-1 ring-white/20 font-bold`
