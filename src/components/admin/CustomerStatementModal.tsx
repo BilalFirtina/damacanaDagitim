@@ -83,21 +83,21 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
 
   const toneClass = (tone: string) =>
     tone === 'sky'
-      ? 'text-sky-700 dark:text-sky-300'
+      ? 'text-sky-700 '
       : tone === 'emerald'
-      ? 'text-emerald-700 dark:text-emerald-300'
+      ? 'text-emerald-700 '
       : tone === 'amber'
-      ? 'text-amber-700 dark:text-amber-300'
+      ? 'text-amber-700 '
       : tone === 'rose'
-      ? 'text-rose-700 dark:text-rose-300'
-      : 'text-slate-700 dark:text-slate-200';
+      ? 'text-rose-700 '
+      : 'text-slate-700 ';
 
   return (
     <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-3xl my-4 min-w-0">
-        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3">
+      <div className="bg-white  rounded-2xl border border-slate-200  shadow-2xl w-full max-w-3xl my-4 min-w-0">
+        <div className="p-4 sm:p-5 border-b border-slate-100  flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white break-words">
+            <h2 className="text-sm sm:text-base font-bold text-slate-900  break-words">
               Cari Hesap Ekstresi
             </h2>
             <p className="text-xs text-slate-500 break-words">{customer.name}</p>
@@ -105,7 +105,7 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500"
+            className="shrink-0 p-2 rounded-xl hover:bg-slate-100  text-slate-500"
             aria-label="Kapat"
           >
             <X className="w-4 h-4" />
@@ -121,7 +121,7 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
                 value={from}
                 max={to}
                 onChange={(e) => setFrom(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                className="w-full p-2.5 rounded-xl border border-slate-200  bg-slate-50  text-xs text-slate-900 "
               />
             </label>
             <label className="flex-1 min-w-0">
@@ -132,7 +132,7 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
                 min={from}
                 max={today}
                 onChange={(e) => setTo(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                className="w-full p-2.5 rounded-xl border border-slate-200  bg-slate-50  text-xs text-slate-900 "
               />
             </label>
             <button
@@ -147,7 +147,7 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
           </div>
 
           {error && (
-            <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs">
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50  border border-rose-200  text-rose-800  text-xs">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span className="break-words">{error}</span>
             </div>
@@ -160,7 +160,7 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
           {statement && (
             <>
               {customer.isAccountCustomer ? (
-                <div className="rounded-xl border border-sky-200 dark:border-sky-900 bg-sky-50/60 dark:bg-sky-950/20 p-3 text-[11px] text-sky-800 dark:text-sky-300">
+                <div className="rounded-xl border border-sky-200  bg-sky-50/60  p-3 text-[11px] text-sky-800 ">
                   Faturalı müşteri — birim fiyat, mal tutarı ve cari borç
                   bilgileri gösterilmez. İade edilebilir kalem miktarları
                   aşağıda görünmeye devam eder.
@@ -171,7 +171,7 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
                 {summary.map((s) => (
                   <div
                     key={s.label}
-                    className="rounded-xl border border-slate-200 dark:border-slate-800 p-2.5 min-w-0"
+                    className="rounded-xl border border-slate-200  p-2.5 min-w-0"
                   >
                     <div className="text-[10px] font-semibold text-slate-500 break-words">
                       {s.label}
@@ -188,7 +188,7 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
               </div>
 
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-700 ">
                   <Wallet className="w-4 h-4 text-sky-600" />
                   <span>Hesap Hareketleri ({entries.length})</span>
                 </div>
@@ -198,16 +198,16 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
                     Seçilen tarih aralığında hesap hareketi bulunmuyor.
                   </div>
                 ) : (
-                  <div className="divide-y divide-slate-100 dark:divide-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800">
+                  <div className="divide-y divide-slate-100  rounded-2xl border border-slate-200 ">
                     {entries.map((entry) => (
                       <div key={entry.id} className="p-3 flex items-start gap-2.5 min-w-0">
                         <div
                           className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
                             entry.type === 'sale'
-                              ? 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300'
+                              ? 'bg-sky-100 text-sky-700  '
                               : entry.type === 'payment'
-                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                              : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                              ? 'bg-emerald-100 text-emerald-700  '
+                              : 'bg-amber-100 text-amber-700  '
                           }`}
                         >
                           {entry.type === 'sale' ? (
@@ -229,7 +229,7 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
                               minute: '2-digit',
                             })}
                           </div>
-                          <div className="text-xs font-semibold text-slate-900 dark:text-white break-words">
+                          <div className="text-xs font-semibold text-slate-900  break-words">
                             {entry.type === 'sale'
                               ? 'Satış'
                               : entry.type === 'payment'
@@ -246,8 +246,8 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
                           <div
                             className={`font-mono font-bold text-xs tabular-nums ${
                               entry.balanceDelta >= 0
-                                ? 'text-rose-600 dark:text-rose-300'
-                                : 'text-emerald-600 dark:text-emerald-300'
+                                ? 'text-rose-600 '
+                                : 'text-emerald-600 '
                             }`}
                           >
                             {entry.balanceDelta >= 0 ? '+' : '−'}
@@ -266,8 +266,8 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
               )}
 
               {/* İade edilebilir kalemler — finansal bakiyeden BAĞIMSIZ (Bölüm 9). */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-3.5 space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
+              <div className="rounded-2xl border border-slate-200  p-3.5 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-700 ">
                   <Droplet className="w-4 h-4 text-cyan-600" />
                   <span>Müşteride Bulunan İade Edilebilir Kalemler</span>
                 </div>
@@ -275,20 +275,20 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
                   Bu miktarlar parasal bakiyeden ayrıdır; depozito tutarı hesaplanmaz.
                 </p>
                 <div className="flex flex-wrap gap-2 text-[11px]">
-                  <span className="px-2 py-1 rounded-lg bg-cyan-50 dark:bg-cyan-950/40 text-cyan-800 dark:text-cyan-200 font-mono">
+                  <span className="px-2 py-1 rounded-lg bg-cyan-50  text-cyan-800  font-mono">
                     {Number(data?.returnables.emptyDepositBalance?.damacana) || 0} Boş Damacana
                   </span>
-                  <span className="px-2 py-1 rounded-lg bg-cyan-50 dark:bg-cyan-950/40 text-cyan-800 dark:text-cyan-200 font-mono">
+                  <span className="px-2 py-1 rounded-lg bg-cyan-50  text-cyan-800  font-mono">
                     {Number(
                       data?.returnables.emptyDepositBalance?.camDamacana ??
                         (data?.returnables.emptyDepositBalance as any)?.cam_damacana
                     ) || 0}{' '}
                     Boş Cam Damacana
                   </span>
-                  <span className="px-2 py-1 rounded-lg bg-cyan-50 dark:bg-cyan-950/40 text-cyan-800 dark:text-cyan-200 font-mono">
+                  <span className="px-2 py-1 rounded-lg bg-cyan-50  text-cyan-800  font-mono">
                     {Number(data?.returnables.emptyDepositBalance?.tup) || 0} Boş Tüp
                   </span>
-                  <span className="px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-200 font-mono">
+                  <span className="px-2 py-1 rounded-lg bg-indigo-50  text-indigo-800  font-mono">
                     {Number((data?.returnables.emptyDepositBalance as any)?.sebil) || 0} Su Sebili
                   </span>
                 </div>

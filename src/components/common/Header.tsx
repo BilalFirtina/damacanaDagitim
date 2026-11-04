@@ -86,7 +86,7 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs w-full max-w-full">
+    <header className="sticky top-0 z-40 bg-white/95  backdrop-blur-md border-b border-slate-200  shadow-xs w-full max-w-full">
       {/* Top Bar Header */}
       <div className="w-full px-2.5 sm:px-6 flex items-center justify-between gap-2 sm:gap-4 md:gap-8 h-14 sm:h-16 max-w-full">
         {/* Zone 1: Brand Wordmark (Directly displayed, no open/close toggle) */}
@@ -94,10 +94,10 @@ export const Header: React.FC<HeaderProps> = ({
           <img
             src="/logo-header.png"
             alt=""
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-white ring-1 ring-slate-200 dark:ring-slate-700 object-contain shrink-0"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-white ring-1 ring-slate-200  object-contain shrink-0"
           />
           <div className="min-w-0">
-            <span className="text-[13px] min-[360px]:text-sm sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
+            <span className="text-[13px] min-[360px]:text-sm sm:text-lg font-bold tracking-tight text-slate-900  whitespace-nowrap">
               Fırtına<span className="text-sky-600 font-extrabold ml-0.5">Gıda</span>
             </span>
           </div>
@@ -108,7 +108,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={handleRefresh}
             disabled={isBusy}
-            className="flex items-center justify-center min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 p-1.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            className="flex items-center justify-center min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 p-1.5 text-slate-500 hover:text-slate-800   rounded-lg hover:bg-slate-100  transition-colors shrink-0 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             title="Verileri Yenile"
             aria-label="Verileri Yenile"
           >
@@ -123,14 +123,14 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Active User Badge */}
           <div
-            className="flex items-center gap-1.5 py-1 px-1.5 sm:px-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80 min-w-0"
+            className="flex items-center gap-1.5 py-1 px-1.5 sm:px-2 rounded-xl border border-slate-200  bg-slate-50/80  min-w-0"
             title={`${currentUser.name} (${nameFallback})`}
           >
-            <div className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 flex items-center justify-center text-xs font-bold shrink-0">
+            <div className="w-6 h-6 rounded-full bg-sky-100 text-sky-800   flex items-center justify-center text-xs font-bold shrink-0">
               {currentUser.name.charAt(0)}
             </div>
             <span
-              className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate min-w-0 max-w-[80px] min-[360px]:max-w-[100px] min-[390px]:max-w-[130px]"
+              className="text-xs font-bold text-slate-900  leading-tight truncate min-w-0 max-w-[80px] min-[360px]:max-w-[100px] min-[390px]:max-w-[130px]"
               title={currentUser.name}
             >
               {firstName}
@@ -140,7 +140,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Explicit Always-Visible Logout Button in Top Bar */}
           <button
             onClick={onLogout}
-            className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl border border-red-200 dark:border-red-900/60 transition-colors shrink-0 cursor-pointer"
+            className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50  rounded-xl border border-red-200  transition-colors shrink-0 cursor-pointer"
             title="Oturumu Kapat (Çıkış Yap)"
             aria-label="Oturumu Kapat (Çıkış Yap)"
           >
@@ -151,7 +151,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Desktop navigation: visible labels from lg upwards (no icon-only ambiguity) */}
-      <div className="hidden lg:block w-full max-w-full border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900/95">
+      <div className="hidden lg:block w-full max-w-full border-t border-slate-200/80  bg-slate-50/95 ">
         <nav className="w-full px-2.5 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-1.5 min-w-0">
           {mobileNavItems
             .filter((item) => !item.adminOnly || isAdmin)
@@ -168,7 +168,7 @@ export const Header: React.FC<HeaderProps> = ({
                   className={`min-h-11 px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer border ${
                     active
                       ? `${item.activeClass} text-white border-transparent shadow-md`
-                      : 'bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'
+                      : 'bg-white  text-slate-700  border-slate-200  hover:border-slate-300  hover:bg-slate-50 '
                   }`}
                 >
                   <Icon
@@ -182,7 +182,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Compact mobile navigation: four columns, two rows, no horizontal scrolling */}
-      <div className="lg:hidden w-full max-w-full box-border border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900/95 px-2 py-2 grid grid-cols-4 gap-1.5 overflow-x-hidden">
+      <div className="lg:hidden w-full max-w-full box-border border-t border-slate-200/80  bg-slate-50/95  px-2 py-2 grid grid-cols-4 gap-1.5 overflow-x-hidden">
         {mobileNavItems
           .filter((item) => !item.adminOnly || isAdmin)
           .map((item) => {
@@ -198,7 +198,7 @@ export const Header: React.FC<HeaderProps> = ({
                 className={`w-full min-h-[52px] px-1 py-1.5 rounded-lg text-[11px] font-semibold flex flex-col items-center justify-center gap-1 transition-all text-center cursor-pointer box-border ${
                   active
                     ? `${item.activeClass} text-white shadow-sm ring-1 ring-white/20 font-bold`
-                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700/60'
+                    : 'bg-white  text-slate-700  border border-slate-200/80  hover:bg-slate-100 '
                 }`}
               >
                 <Icon className={`w-5 h-5 shrink-0 ${active ? 'text-white' : item.iconClass}`} />
@@ -214,10 +214,10 @@ export const Header: React.FC<HeaderProps> = ({
           aria-live={refreshState === 'error' ? 'assertive' : 'polite'}
           className={`absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 max-w-[calc(100vw-1rem)] px-3 py-2 rounded-xl border shadow-lg text-xs font-semibold flex items-center gap-2 ${
             refreshState === 'error'
-              ? 'bg-rose-50 dark:bg-rose-950 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200'
+              ? 'bg-rose-50  border-rose-200  text-rose-800 '
               : refreshState === 'success'
-              ? 'bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
-              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'
+              ? 'bg-emerald-50  border-emerald-200  text-emerald-800 '
+              : 'bg-white  border-slate-200  text-slate-700 '
           }`}
         >
           {refreshState === 'loading' && (

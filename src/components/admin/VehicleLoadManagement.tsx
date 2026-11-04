@@ -130,9 +130,9 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
   return (
     <div className="space-y-6 w-full max-w-full min-w-0">
       {/* Header */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 w-full max-w-full">
+      <div className="bg-white  rounded-2xl border border-slate-200  p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 w-full max-w-full">
         <div>
-          <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <h2 className="text-base font-bold text-slate-900  flex items-center gap-2">
             <Truck className="w-5 h-5 text-indigo-600" />
             <span>Depo Araç Yükleme Yönetimi & Şoför Yetkilendirme</span>
           </h2>
@@ -151,10 +151,10 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
       </div>
 
       {/* Driver Loading Permission Management Card */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-3">
-        <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+      <div className="bg-white  rounded-2xl border border-slate-200  p-5 shadow-xs space-y-3">
+        <div className="flex items-center justify-between pb-2 border-b border-slate-100 ">
           <div>
-            <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+            <h3 className="text-xs font-bold text-slate-900  uppercase tracking-wider">
               Şoför Depo Yükleme Yetkileri (canLoadVehicle)
             </h3>
             <p className="text-[11px] text-slate-500">
@@ -174,17 +174,17 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
             return (
               <div
                 key={driver.id}
-                className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between"
+                className="p-3.5 rounded-xl border border-slate-200  bg-slate-50/50  flex items-center justify-between"
               >
                 <div>
-                  <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <div className="text-xs font-bold text-slate-900  flex items-center gap-1.5">
                     <span>{driver.name}</span>
                     {isBusy ? (
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                           activeRun && isStaleDispatch(activeRun, todayStr)
-                            ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200'
-                            : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                            ? 'bg-rose-100 text-rose-800  '
+                            : 'bg-amber-100 text-amber-800  '
                         }`}
                       >
                         {activeRun && isStaleDispatch(activeRun, todayStr)
@@ -192,11 +192,11 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                           : `Dağıtımda (${activeRun?.vehiclePlate})`}
                       </span>
                     ) : completedRuns.length > 0 ? (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800  ">
                         Müsait (#{completedRuns.length + 1}. Sefer İçin Hazır)
                       </span>
                     ) : (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800  ">
                         Müsait (Yüklemeye Hazır)
                       </span>
                     )}
@@ -206,7 +206,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                   </div>
                   <div className="text-[11px] font-semibold mt-1">
                     {driver.canLoadVehicle ? (
-                      <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <span className="text-emerald-600  flex items-center gap-1">
                         <ShieldCheck className="w-3 h-3" /> Yükleme Yetkisi Var
                       </span>
                     ) : (
@@ -233,22 +233,22 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
       </div>
 
       {/* Today's Dispatches / Vehicle Loads Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-3">
-        <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+      <div className="bg-white  rounded-2xl border border-slate-200  p-5 shadow-xs space-y-3">
+        <h3 className="text-xs font-bold text-slate-900  uppercase tracking-wider">
           Sefer ve Araç Yüklemeleri ({dispatches.length} Sefer)
         </h3>
 
-        <div className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+        <div className="divide-y divide-slate-100  text-xs">
           {dispatches.map((disp) => (
             <div key={disp.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white">
+                  <span className="font-mono font-bold px-2 py-0.5 rounded bg-slate-100  text-slate-900 ">
                     {disp.vehiclePlate}
                   </span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{disp.driverName}</span>
+                  <span className="font-bold text-slate-800 ">{disp.driverName}</span>
                   {isStaleDispatch(disp, todayStr) && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-800  ">
                       Önceki gün sonlandırılmadı
                     </span>
                   )}
@@ -278,7 +278,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                     return (
                       <span
                         key={item.productId}
-                        className="px-2 py-0.5 rounded bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px]"
+                        className="px-2 py-0.5 rounded bg-slate-50  border border-slate-200  text-[11px]"
                       >
                         {p?.name.split(' ')[0]}: <strong className="font-mono">{item.quantity}</strong> {p?.unit}
                       </span>
@@ -294,8 +294,8 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
       {/* Create Load Modal */}
       {showLoadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-slate-200 dark:border-slate-800 my-auto max-h-[90vh] overflow-y-auto">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">
+          <div className="w-full max-w-lg rounded-2xl bg-white  p-6 shadow-2xl border border-slate-200  my-auto max-h-[90vh] overflow-y-auto">
+            <h3 className="text-base font-bold text-slate-900  mb-1">
               Depo Yükleme Girişi
             </h3>
             <p className="text-xs text-slate-500 mb-4">
@@ -311,7 +311,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
             <form onSubmit={handleCreateLoad} className="space-y-4 text-xs">
               <div className="w-full max-w-full min-w-0 box-border">
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="font-semibold text-slate-700 dark:text-slate-300">
+                  <label className="font-semibold text-slate-700 ">
                     Teslim Edilecek Şoför *
                   </label>
                   <span className="text-[11px] text-slate-400">
@@ -330,13 +330,13 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                           key={d.id}
                           type="button"
                           disabled
-                          className="w-full max-w-full min-w-0 flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/70 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500 cursor-not-allowed text-xs font-semibold text-left select-none"
+                          className="w-full max-w-full min-w-0 flex items-center justify-between p-2.5 rounded-xl border border-slate-200  bg-slate-100/70  text-slate-400  cursor-not-allowed text-xs font-semibold text-left select-none"
                         >
                           <div className="flex items-center gap-2 truncate min-w-0">
-                            <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
+                            <span className="w-2 h-2 rounded-full bg-slate-300  shrink-0" />
                             <span className="truncate">{d.name}{isAuthorized ? ' (Yetkili)' : ''}</span>
                           </div>
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-slate-700/80 text-slate-500 dark:text-slate-400 shrink-0 ml-2">
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200/80  text-slate-500  shrink-0 ml-2">
                             Dağıtımda
                           </span>
                         </button>
@@ -350,16 +350,16 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                         onClick={() => setSelectedDriverId(d.id)}
                         className={`w-full max-w-full min-w-0 flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold text-left transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950 dark:border-indigo-500 dark:bg-indigo-950/60 dark:text-white shadow-xs ring-1 ring-indigo-600 dark:ring-indigo-500'
-                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                            ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950    shadow-xs ring-1 ring-indigo-600 '
+                            : 'border-slate-200  bg-white  text-slate-800  hover:border-slate-300  hover:bg-slate-50 '
                         }`}
                       >
                         <div className="flex items-center gap-2 truncate min-w-0">
-                          <span className={`w-2 h-2 rounded-full shrink-0 ${isSelected ? 'bg-indigo-600 dark:bg-indigo-400 ring-2 ring-indigo-200 dark:ring-indigo-800' : 'bg-emerald-500'}`} />
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${isSelected ? 'bg-indigo-600  ring-2 ring-indigo-200 ' : 'bg-emerald-500'}`} />
                           <span className="truncate">{d.name}{isAuthorized ? ' (Yetkili)' : ''}</span>
                         </div>
                         {isSelected && (
-                          <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 ml-2" />
+                          <Check className="w-4 h-4 text-indigo-600  shrink-0 ml-2" />
                         )}
                       </button>
                     );
@@ -372,7 +372,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
 
               <div className="w-full max-w-full min-w-0 box-border">
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="font-semibold text-slate-700 dark:text-slate-300">
+                  <label className="font-semibold text-slate-700 ">
                     Araç Plakası (Dağıtım Aracı) *
                   </label>
                   <span className="text-[11px] text-slate-400 font-mono">
@@ -390,13 +390,13 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                           key={plate}
                           type="button"
                           disabled
-                          className="w-full max-w-full min-w-0 flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/70 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500 cursor-not-allowed text-xs font-mono font-bold text-left select-none"
+                          className="w-full max-w-full min-w-0 flex items-center justify-between p-2.5 rounded-xl border border-slate-200  bg-slate-100/70  text-slate-400  cursor-not-allowed text-xs font-mono font-bold text-left select-none"
                         >
                           <div className="flex items-center gap-2 truncate min-w-0">
-                            <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
+                            <span className="w-2 h-2 rounded-full bg-slate-300  shrink-0" />
                             <span className="truncate">{plate}</span>
                           </div>
-                          <span className="text-[10px] font-sans font-bold px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-slate-700/80 text-slate-500 dark:text-slate-400 shrink-0 ml-2">
+                          <span className="text-[10px] font-sans font-bold px-1.5 py-0.5 rounded bg-slate-200/80  text-slate-500  shrink-0 ml-2">
                             Dağıtımda
                           </span>
                         </button>
@@ -410,16 +410,16 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                         onClick={() => setSelectedPlate(plate)}
                         className={`w-full max-w-full min-w-0 flex items-center justify-between p-2.5 rounded-xl border font-mono font-bold text-xs text-left transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950 dark:border-indigo-500 dark:bg-indigo-950/60 dark:text-white shadow-xs ring-1 ring-indigo-600 dark:ring-indigo-500'
-                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                            ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950    shadow-xs ring-1 ring-indigo-600 '
+                            : 'border-slate-200  bg-white  text-slate-800  hover:border-slate-300  hover:bg-slate-50 '
                         }`}
                       >
                         <div className="flex items-center gap-2 truncate min-w-0">
-                          <span className={`w-2 h-2 rounded-full shrink-0 ${isSelected ? 'bg-indigo-600 dark:bg-indigo-400 ring-2 ring-indigo-200 dark:ring-indigo-800' : 'bg-emerald-500'}`} />
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${isSelected ? 'bg-indigo-600  ring-2 ring-indigo-200 ' : 'bg-emerald-500'}`} />
                           <span className="truncate">{plate}</span>
                         </div>
                         {isSelected && (
-                          <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 ml-2" />
+                          <Check className="w-4 h-4 text-indigo-600  shrink-0 ml-2" />
                         )}
                       </button>
                     );
@@ -432,7 +432,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
 
               {/* Products Quantities */}
               <div>
-                <label className="font-bold text-slate-900 dark:text-white block mb-2">
+                <label className="font-bold text-slate-900  block mb-2">
                   Yüklenen Ürünler & Adetler
                 </label>
                 <div className="space-y-2 max-h-56 overflow-y-auto p-1">
@@ -441,10 +441,10 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                     return (
                       <div
                         key={p.id}
-                        className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700"
+                        className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50  border border-slate-100 "
                       >
                         <div>
-                          <div className="font-semibold text-slate-900 dark:text-white">{p.name}</div>
+                          <div className="font-semibold text-slate-900 ">{p.name}</div>
                           <div className="text-[10px] text-slate-400">{p.unit}</div>
                         </div>
 
@@ -457,7 +457,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                                 [p.id]: Math.max(0, currentQty - (p.category === 'damacana' ? 10 : 5)),
                               }))
                             }
-                            className="w-11 h-11 rounded-lg bg-white dark:bg-slate-700 border text-sm font-bold"
+                            className="w-11 h-11 rounded-lg bg-white  border text-sm font-bold"
                           >
                             -
                           </button>
@@ -471,7 +471,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                               }))
                             }
                             placeholder="0"
-                            className="w-16 h-11 rounded-lg border text-center font-mono font-bold text-sm bg-white dark:bg-slate-800"
+                            className="w-16 h-11 rounded-lg border text-center font-mono font-bold text-sm bg-white "
                           />
                           <button
                             type="button"
@@ -496,7 +496,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowLoadModal(false)}
-                  className="w-1/2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold"
+                  className="w-1/2 py-2.5 rounded-xl border border-slate-200  font-semibold"
                 >
                   İptal
                 </button>

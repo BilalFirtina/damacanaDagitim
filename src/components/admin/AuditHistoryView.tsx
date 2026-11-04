@@ -18,17 +18,17 @@ const kindMeta: Record<
   delivery_correction: {
     label: 'Teslimat',
     icon: <XCircle className="w-4 h-4" />,
-    tone: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200',
+    tone: 'bg-amber-100 text-amber-800  ',
   },
   dispatch_reopen: {
     label: 'Sefer',
     icon: <RotateCcw className="w-4 h-4" />,
-    tone: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200',
+    tone: 'bg-sky-100 text-sky-800  ',
   },
   dispatch_loading: {
     label: 'Yükleme',
     icon: <Truck className="w-4 h-4" />,
-    tone: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-200',
+    tone: 'bg-indigo-100 text-indigo-800  ',
   },
 };
 
@@ -64,10 +64,10 @@ export const AuditHistoryView: React.FC = () => {
 
   return (
     <div className="space-y-4 w-full max-w-full min-w-0">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-xs space-y-3">
+      <div className="bg-white  rounded-2xl border border-slate-200  p-4 sm:p-5 shadow-xs space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <h2 className="text-base font-bold text-slate-900  flex items-center gap-2">
               <History className="w-4 h-4 text-indigo-600 shrink-0" />
               <span className="break-words">İşlem Geçmişi</span>
             </h2>
@@ -80,14 +80,14 @@ export const AuditHistoryView: React.FC = () => {
             type="button"
             onClick={load}
             disabled={isLoading}
-            className="shrink-0 p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-60"
+            className="shrink-0 p-2 rounded-xl border border-slate-200  text-slate-600  hover:bg-slate-50  disabled:opacity-60"
             aria-label="Yenile"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
         </div>
 
-        <div className="inline-flex flex-wrap rounded-xl bg-slate-100 dark:bg-slate-800 p-1 gap-1 w-full sm:w-auto">
+        <div className="inline-flex flex-wrap rounded-xl bg-slate-100  p-1 gap-1 w-full sm:w-auto">
           {(
             [
               ['all', 'Tümü'],
@@ -102,8 +102,8 @@ export const AuditHistoryView: React.FC = () => {
               onClick={() => setFilter(kind)}
               className={`flex-1 sm:flex-none min-h-9 px-3 rounded-lg text-xs font-bold transition-colors ${
                 filter === kind
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400'
+                  ? 'bg-white  text-slate-900  shadow-xs'
+                  : 'text-slate-600 '
               }`}
             >
               {label}
@@ -113,7 +113,7 @@ export const AuditHistoryView: React.FC = () => {
       </div>
 
       {error && (
-        <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs">
+        <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50  border border-rose-200  text-rose-800  text-xs">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <span className="break-words">{error}</span>
         </div>
@@ -122,7 +122,7 @@ export const AuditHistoryView: React.FC = () => {
       {isLoading && events.length === 0 ? (
         <div className="p-10 text-center text-xs text-slate-400">İşlem geçmişi yükleniyor...</div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-10 text-center text-xs text-slate-400">
+        <div className="bg-white  rounded-2xl border border-slate-200  p-10 text-center text-xs text-slate-400">
           Kayıtlı işlem bulunmuyor.
         </div>
       ) : (
@@ -132,7 +132,7 @@ export const AuditHistoryView: React.FC = () => {
             return (
               <div
                 key={event.id}
-                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-3.5 min-w-0"
+                className="bg-white  rounded-2xl border border-slate-200  p-3.5 min-w-0"
               >
                 <div className="flex items-start gap-2.5 min-w-0">
                   <span
@@ -143,10 +143,10 @@ export const AuditHistoryView: React.FC = () => {
 
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-bold text-slate-900 dark:text-white break-words">
+                      <span className="text-sm font-bold text-slate-900  break-words">
                         {event.title}
                       </span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100  text-slate-600 ">
                         {meta.label}
                       </span>
                     </div>
@@ -166,7 +166,7 @@ export const AuditHistoryView: React.FC = () => {
                     </div>
 
                     {event.reason && (
-                      <div className="text-xs text-slate-700 dark:text-slate-200 break-words mt-1">
+                      <div className="text-xs text-slate-700  break-words mt-1">
                         Gerekçe: {event.reason}
                       </div>
                     )}

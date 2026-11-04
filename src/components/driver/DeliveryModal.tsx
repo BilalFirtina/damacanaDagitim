@@ -74,13 +74,13 @@ const EmptyContainerRow: React.FC<EmptyContainerRowProps> = ({
     Math.max(0, Math.floor(Number(quantity) || 0));
 
   return (
-    <div className="p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-orange-100 dark:border-orange-800 space-y-2 min-w-0">
+    <div className="p-2.5 rounded-lg bg-white  border border-orange-100  space-y-2 min-w-0">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 break-words">
+          <div className="text-xs font-semibold text-slate-800  break-words">
             {label}
           </div>
-          <div className="text-[10px] text-slate-500 dark:text-slate-400">
+          <div className="text-[10px] text-slate-500 ">
             Bırakılan dolu: {delivered}
           </div>
         </div>
@@ -91,7 +91,7 @@ const EmptyContainerRow: React.FC<EmptyContainerRowProps> = ({
             onChange={(event) => onToggle(event.target.checked)}
             className="w-4 h-4 rounded border-orange-300 text-orange-600 focus:ring-orange-500"
           />
-          <span className="text-[10px] font-bold text-orange-800 dark:text-orange-300">
+          <span className="text-[10px] font-bold text-orange-800 ">
             Manuel
           </span>
         </label>
@@ -101,8 +101,8 @@ const EmptyContainerRow: React.FC<EmptyContainerRowProps> = ({
         <span
           className={`text-[10px] ${
             manual
-              ? "font-semibold text-orange-700 dark:text-orange-300"
-              : "text-slate-500 dark:text-slate-400"
+              ? "font-semibold text-orange-700 "
+              : "text-slate-500 "
           }`}
         >
           {manual ? "Elle girilen miktar" : "Otomatik: dolu kadar"}
@@ -113,7 +113,7 @@ const EmptyContainerRow: React.FC<EmptyContainerRowProps> = ({
             disabled={!manual}
             onClick={() => onChange(normalize(value - 1))}
             aria-label={`${label} azalt`}
-            className="min-w-11 min-h-11 rounded-lg bg-slate-100 dark:bg-slate-700 text-sm font-bold disabled:opacity-40"
+            className="min-w-11 min-h-11 rounded-lg bg-slate-100  text-sm font-bold disabled:opacity-40"
           >
             -
           </button>
@@ -128,14 +128,14 @@ const EmptyContainerRow: React.FC<EmptyContainerRowProps> = ({
             onChange={(event) =>
               onChange(normalize(event.target.valueAsNumber))
             }
-            className="w-14 h-11 rounded-lg border border-orange-200 dark:border-orange-700 text-center font-mono font-bold text-sm dark:bg-slate-900 dark:text-white disabled:bg-slate-50 dark:disabled:bg-slate-800 disabled:text-slate-500"
+            className="w-14 h-11 rounded-lg border border-orange-200  text-center font-mono font-bold text-sm   disabled:bg-slate-50  disabled:text-slate-500"
           />
           <button
             type="button"
             disabled={!manual}
             onClick={() => onChange(normalize(value + 1))}
             aria-label={`${label} artır`}
-            className="min-w-11 min-h-11 rounded-lg bg-orange-50 dark:bg-orange-950 text-orange-600 dark:text-orange-300 text-sm font-bold disabled:opacity-40"
+            className="min-w-11 min-h-11 rounded-lg bg-orange-50  text-orange-600  text-sm font-bold disabled:opacity-40"
           >
             +
           </button>
@@ -744,15 +744,15 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto">
-      <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 my-auto max-h-[calc(94dvh-env(safe-area-inset-bottom))] sm:max-h-[94vh] flex flex-col overflow-hidden">
+      <div className="w-full max-w-2xl rounded-2xl bg-white  shadow-2xl border border-slate-200  my-auto max-h-[calc(94dvh-env(safe-area-inset-bottom))] sm:max-h-[94vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100  shrink-0">
           <div>
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900  flex items-center gap-2 flex-wrap">
               <span>
                 {isEdit ? "Teslimatı Düzenle" : "Yeni Teslimat Girişi"}
               </span>
-              <span className="text-xs px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-mono font-bold">
+              <span className="text-xs px-2 py-0.5 rounded-md bg-sky-100 text-sky-800   font-mono font-bold">
                 {dispatch.vehiclePlate}
               </span>
             </h2>
@@ -766,7 +766,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="min-w-11 min-h-11 p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center shrink-0"
+            className="min-w-11 min-h-11 p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100  flex items-center justify-center shrink-0"
             aria-label="Teslimat penceresini kapat"
           >
             <X className="w-5 h-5" />
@@ -776,7 +776,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         {/* Scrollable Body */}
         <div className="p-4 sm:p-5 overflow-y-auto space-y-5 flex-1 min-h-0">
           {isEdit && (
-            <div className="p-3.5 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 text-xs space-y-1">
+            <div className="p-3.5 rounded-xl border border-amber-300  bg-amber-50  text-amber-900  text-xs space-y-1">
               <p className="font-bold">
                 Eski teslimat iptal edilip yenisi oluşturulacak.
               </p>
@@ -792,7 +792,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
           {/* ============================================================== */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+              <label className="text-xs font-bold text-slate-900  uppercase tracking-wider flex items-center gap-1.5">
                 <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] flex items-center justify-center font-bold">
                   1
                 </span>
@@ -802,7 +802,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setSelectedCustomer(null)}
-                  className="text-xs font-semibold text-sky-600 hover:text-sky-800 dark:text-sky-400 hover:underline"
+                  className="text-xs font-semibold text-sky-600 hover:text-sky-800  hover:underline"
                 >
                   Müşteriyi Değiştir
                 </button>
@@ -820,7 +820,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       placeholder="Müşteri adı veya telefon ile ara..."
                       value={customerSearch}
                       onChange={(e) => setCustomerSearch(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200  bg-slate-50  text-xs text-slate-900  focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
                     />
                   </div>
                   <button
@@ -837,10 +837,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 {showNewCustomerForm && (
                   <form
                     onSubmit={handleCreateNewCustomer}
-                    className="p-3.5 rounded-xl border border-sky-200 dark:border-sky-800 bg-sky-50/50 dark:bg-sky-950/20 space-y-3"
+                    className="p-3.5 rounded-xl border border-sky-200  bg-sky-50/50  space-y-3"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-sky-900 dark:text-sky-300">
+                      <span className="text-xs font-bold text-sky-900 ">
                         Yeni Müşteri Kaydı
                       </span>
                       <button
@@ -858,25 +858,25 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         placeholder="Müşteri / İşletme Adı *"
                         value={newCustName}
                         onChange={(e) => setNewCustName(e.target.value)}
-                        className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-semibold"
+                        className="p-2.5 rounded-lg border border-slate-200  bg-white  text-slate-900  font-semibold"
                       />
                       <input
                         type="text"
                         placeholder="Telefon Numarası"
                         value={newCustPhone}
                         onChange={(e) => setNewCustPhone(e.target.value)}
-                        className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                        className="p-2.5 rounded-lg border border-slate-200  bg-white  text-slate-900 "
                       />
                       <input
                         type="text"
                         placeholder="Adres / Cadde / Kat"
                         value={newCustAddress}
                         onChange={(e) => setNewCustAddress(e.target.value)}
-                        className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white sm:col-span-2"
+                        className="p-2.5 rounded-lg border border-slate-200  bg-white  text-slate-900  sm:col-span-2"
                       />
                     </div>
                     <div className="flex items-center justify-between pt-1">
-                      <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+                      <label className="flex items-center gap-2 text-xs text-slate-700  cursor-pointer">
                         <input
                           type="checkbox"
                           checked={!newCustIsAccount}
@@ -905,14 +905,14 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 )}
 
                 {/* Customer search list */}
-                <div className="max-h-52 overflow-y-auto space-y-1.5 border border-slate-100 dark:border-slate-800 rounded-xl p-1 bg-slate-50/50 dark:bg-slate-800/30">
+                <div className="max-h-52 overflow-y-auto space-y-1.5 border border-slate-100  rounded-xl p-1 bg-slate-50/50 ">
                   {filteredCustomers.length === 0 ? (
                     <div className="p-4 text-center text-xs text-slate-400 space-y-2">
                       <p>Aramaya uygun kayıtlı müşteri bulunamadı.</p>
                       <button
                         type="button"
                         onClick={() => setShowNewCustomerForm(true)}
-                        className="px-3 py-1.5 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-semibold text-xs inline-flex items-center gap-1"
+                        className="px-3 py-1.5 rounded-lg bg-sky-100  text-sky-700  font-semibold text-xs inline-flex items-center gap-1"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>"{customerSearch}" Adıyla Yeni Müşteri Ekle</span>
@@ -928,13 +928,13 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                           setErrorPersistent(false);
                           setErrorMsg(null);
                         }}
-                        className="w-full text-left p-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition-colors flex items-center justify-between border border-transparent hover:border-slate-200 dark:hover:border-slate-700 shadow-2xs"
+                        className="w-full text-left p-2.5 rounded-xl hover:bg-white  transition-colors flex items-center justify-between border border-transparent hover:border-slate-200  shadow-2xs"
                       >
                         <div className="space-y-0.5">
-                          <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <div className="text-xs font-bold text-slate-900  flex items-center gap-1.5">
                             <span>{c.name}</span>
                             {c.isAccountCustomer && (
-                              <span className="text-[10px] font-semibold text-sky-700 bg-sky-50 dark:bg-sky-950 px-1.5 py-0.2 rounded">
+                              <span className="text-[10px] font-semibold text-sky-700 bg-sky-50  px-1.5 py-0.2 rounded">
                                 Faturalı
                               </span>
                             )}
@@ -967,7 +967,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                             </div>
                           )}
                           {(c.emptyDepositBalance?.sebil || 0) > 0 && (
-                            <div className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300">
+                            <div className="text-[10px] font-semibold text-indigo-700 ">
                               {c.emptyDepositBalance?.sebil} Sebil
                             </div>
                           )}
@@ -975,7 +975,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                             (message) => (
                               <div
                                 key={message}
-                                className="text-[10px] font-semibold text-sky-700 dark:text-sky-300"
+                                className="text-[10px] font-semibold text-sky-700 "
                               >
                                 ℹ️ {message}
                               </div>
@@ -989,24 +989,24 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
               </div>
             ) : (
               /* Selected Customer Card */
-              <div className="p-3.5 rounded-xl border-2 border-sky-500/40 bg-sky-50/40 dark:bg-sky-950/30 flex items-start justify-between">
+              <div className="p-3.5 rounded-xl border-2 border-sky-500/40 bg-sky-50/40  flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2">
                     <Building2 className="w-4 h-4 text-sky-600" />
-                    <span className="text-sm font-bold text-slate-900 dark:text-white">
+                    <span className="text-sm font-bold text-slate-900 ">
                       {selectedCustomer.name}
                     </span>
                     {selectedCustomer.isAccountCustomer ? (
-                      <span className="text-[10px] font-bold text-sky-700 bg-sky-100 dark:bg-sky-900 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] font-bold text-sky-700 bg-sky-100  px-1.5 py-0.5 rounded">
                         Faturalı Müşteri
                       </span>
                     ) : (
-                      <span className="text-[10px] font-bold text-slate-600 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] font-bold text-slate-600 bg-slate-100  px-1.5 py-0.5 rounded">
                         Peşin Müşteri
                       </span>
                     )}
                   </div>
-                  <div className="flex flex-wrap items-center gap-3 mt-1 text-[11px] text-slate-600 dark:text-slate-300">
+                  <div className="flex flex-wrap items-center gap-3 mt-1 text-[11px] text-slate-600 ">
                     {selectedCustomer.phone && (
                       <span className="flex items-center gap-1 font-mono">
                         <Phone className="w-3 h-3 text-slate-400" />
@@ -1023,7 +1023,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     {selectedNegativeEmptyMessages.map((message) => (
                       <span
                         key={message}
-                        className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300"
+                        className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-sky-100 text-sky-800  "
                       >
                         ℹ️ {message}
                       </span>
@@ -1032,7 +1032,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     {(selectedCustomer.emptyDepositBalance?.damacana > 0 ||
                       selectedCustomer.emptyDepositBalance?.camDamacana > 0 ||
                       selectedCustomer.emptyDepositBalance?.tup > 0) && (
-                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300">
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-orange-100 text-orange-800  ">
                         Müşteride Kalan Boş:{" "}
                         {selectedCustomer.emptyDepositBalance?.damacana || 0}{" "}
                         Damacana
@@ -1053,8 +1053,8 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       <span
                         className={`text-[11px] font-mono font-semibold px-2 py-0.5 rounded-md ${
                           selectedCustomer.currentBalanceTL > 0
-                            ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
-                            : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                            ? "bg-red-100 text-red-800  "
+                            : "bg-emerald-100 text-emerald-800  "
                         }`}
                       >
                         {selectedCustomer.currentBalanceTL > 0
@@ -1086,9 +1086,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
           {/* STEP 2: PRODUCT SELECTION (ONLY AFTER CUSTOMER IS SELECTED)   */}
           {/* ============================================================== */}
           {selectedCustomer && (
-            <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <div className="space-y-3 pt-2 border-t border-slate-100 ">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                <label className="text-xs font-bold text-slate-900  uppercase tracking-wider flex items-center gap-1.5">
                   <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] flex items-center justify-center font-bold">
                     2
                   </span>
@@ -1098,7 +1098,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowNewProductForm(!showNewProductForm)}
-                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 flex items-center gap-1"
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800  flex items-center gap-1"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Yeni Ürün Ekle</span>
@@ -1114,7 +1114,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   placeholder="Ürün adı ile ara (Damacana, Tüp, Pet su vb.)..."
                   value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200  bg-slate-50  text-xs text-slate-900  focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
                 />
               </div>
 
@@ -1122,10 +1122,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
               {currentUser.role === "admin" && showNewProductForm && (
                 <form
                   onSubmit={handleCreateNewProduct}
-                  className="p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20 space-y-3"
+                  className="p-3.5 rounded-xl border border-indigo-200  bg-indigo-50/50  space-y-3"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-indigo-900 dark:text-indigo-300">
+                    <span className="text-xs font-bold text-indigo-900 ">
                       Hızlı Yeni Ürün Tanımla
                     </span>
                     <button
@@ -1143,14 +1143,14 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       placeholder="Ürün Adı *"
                       value={newProdName}
                       onChange={(e) => setNewProdName(e.target.value)}
-                      className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white sm:col-span-2"
+                      className="p-2 rounded-lg border border-slate-200  bg-white  text-slate-900  sm:col-span-2"
                     />
                     <select
                       value={newProdCategory}
                       onChange={(e) =>
                         setNewProdCategory(e.target.value as ProductCategory)
                       }
-                      className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                      className="p-2 rounded-lg border border-slate-200  bg-white  text-slate-900 "
                     >
                       {getProductCategoryCodes().map((code) => (
                         <option key={code} value={code}>
@@ -1164,14 +1164,14 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       placeholder="Birim Fiyat (₺) *"
                       value={newProdPrice}
                       onChange={(e) => setNewProdPrice(e.target.value)}
-                      className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold"
+                      className="p-2 rounded-lg border border-slate-200  bg-white  text-slate-900  font-mono font-bold"
                     />
                     <input
                       type="text"
                       placeholder="Birim (Örn: Adet, Koli)"
                       value={newProdUnit}
                       onChange={(e) => setNewProdUnit(e.target.value)}
-                      className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                      className="p-2 rounded-lg border border-slate-200  bg-white  text-slate-900 "
                     />
                     <div className="flex items-center gap-2">
                       <label className="flex items-center gap-1.5 text-xs cursor-pointer">
@@ -1198,7 +1198,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                               | "tup",
                           )
                         }
-                        className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white sm:col-span-3"
+                        className="p-2 rounded-lg border border-slate-200  bg-white  text-slate-900  sm:col-span-3"
                       >
                         <option value="damacana">
                           🔄 Boş Damacana İadesi Zorunlu
@@ -1229,7 +1229,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowNewProductForm(true)}
-                      className="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-semibold text-xs inline-flex items-center gap-1"
+                      className="px-3 py-1.5 rounded-lg bg-indigo-50  text-indigo-700  font-semibold text-xs inline-flex items-center gap-1"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>"{productSearch}" Ürününü Şimdi Ekle</span>
@@ -1252,15 +1252,15 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         key={p.id}
                         className={`p-3 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
                           qty > 0
-                            ? "border-sky-400 bg-sky-50/30 dark:border-sky-800 dark:bg-sky-950/20 shadow-2xs"
-                            : "border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20"
+                            ? "border-sky-400 bg-sky-50/30   shadow-2xs"
+                            : "border-slate-100  bg-slate-50/50 "
                         }`}
                       >
                         <div>
-                          <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <div className="text-xs font-bold text-slate-900  flex items-center gap-1.5">
                             <span>{p.name}</span>
                             {isCustomerSpecific && (
-                              <span className="text-[10px] text-sky-700 font-medium bg-sky-100 dark:bg-sky-900 px-1 py-0.2 rounded">
+                              <span className="text-[10px] text-sky-700 font-medium bg-sky-100  px-1 py-0.2 rounded">
                                 Müşteriye Özel Fiyat
                               </span>
                             )}
@@ -1286,7 +1286,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                                           ),
                                         }))
                                       }
-                                      className="w-16 h-6 rounded border border-sky-400 font-mono font-bold text-center text-xs bg-white dark:bg-slate-800"
+                                      className="w-16 h-6 rounded border border-sky-400 font-mono font-bold text-center text-xs bg-white "
                                       autoFocus
                                     />
                                     <button
@@ -1303,7 +1303,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => setEditingPriceProductId(p.id)}
-                                    className="flex items-center gap-1 font-mono font-bold text-slate-800 dark:text-slate-200 hover:text-sky-600"
+                                    className="flex items-center gap-1 font-mono font-bold text-slate-800  hover:text-sky-600"
                                     title="Fiyatı Düzenle"
                                   >
                                     <span>{unitPrice} ₺</span>
@@ -1329,7 +1329,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                               onClick={() =>
                                 handleQuantityChange(p.id, qty - 1)
                               }
-                              className="w-11 h-11 rounded-lg bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center text-base active:scale-95"
+                              className="w-11 h-11 rounded-lg bg-white  border border-slate-200  font-bold text-slate-700  flex items-center justify-center text-base active:scale-95"
                             >
                               -
                             </button>
@@ -1343,14 +1343,14 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                                 )
                               }
                               placeholder="0"
-                              className="w-14 h-11 rounded-lg border border-slate-200 dark:border-slate-700 text-center font-bold font-mono text-sm dark:bg-slate-800 dark:text-white"
+                              className="w-14 h-11 rounded-lg border border-slate-200  text-center font-bold font-mono text-sm  "
                             />
                             <button
                               type="button"
                               onClick={() =>
                                 handleQuantityChange(p.id, qty + 1)
                               }
-                              className="w-11 h-11 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-600 font-bold flex items-center justify-center text-base active:scale-95"
+                              className="w-11 h-11 rounded-lg bg-sky-50  text-sky-600 font-bold flex items-center justify-center text-base active:scale-95"
                             >
                               +
                             </button>
@@ -1362,7 +1362,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                                 Tutar gizli
                               </span>
                             ) : (
-                              <span className="font-mono font-bold text-xs tabular-nums text-slate-900 dark:text-white">
+                              <span className="font-mono font-bold text-xs tabular-nums text-slate-900 ">
                                 {lineTotal > 0
                                   ? `${lineTotal.toLocaleString("tr-TR")} ₺`
                                   : "-"}
@@ -1382,8 +1382,8 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
           {/* STEP 3: DELIVERY DETAILS, STOCK WARNING & PAYMENT              */}
           {/* ============================================================== */}
           {selectedCustomer && (
-            <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
-              <label className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+            <div className="space-y-4 pt-2 border-t border-slate-100 ">
+              <label className="text-xs font-bold text-slate-900  uppercase tracking-wider flex items-center gap-1.5">
                 <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] flex items-center justify-center font-bold">
                   3
                 </span>
@@ -1391,13 +1391,13 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
               </label>
 
               {/* Deposit Empties Returned */}
-              <div className="p-3.5 rounded-xl border border-orange-200 dark:border-orange-900/60 bg-orange-50/40 dark:bg-orange-950/20 space-y-3">
+              <div className="p-3.5 rounded-xl border border-orange-200  bg-orange-50/40  space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-orange-900 dark:text-orange-300 flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-orange-900  flex items-center gap-1.5">
                     <RotateCcw className="w-4 h-4 text-orange-600" />
                     <span>Müşteriden Alınan Boş Emanet Kaplar</span>
                   </span>
-                  <span className="text-[11px] text-orange-700 dark:text-orange-400">
+                  <span className="text-[11px] text-orange-700 ">
                     Bırakılan Dolu: {deliveredDepositDamacana} Damacana
                     {deliveredDepositCamDamacana > 0
                       ? `, ${deliveredDepositCamDamacana} Cam Damacana`
@@ -1468,12 +1468,12 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   />
 
                   {deliveredDepositSebil > 0 && (
-                    <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/20">
-                      <div className="sm:col-span-2 text-[11px] font-semibold text-indigo-800 dark:text-indigo-200">
+                    <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl border border-indigo-200  bg-indigo-50/40 ">
+                      <div className="sm:col-span-2 text-[11px] font-semibold text-indigo-800 ">
                         Verilen su sebili bilgileri (isteğe bağlı)
                       </div>
                       <label className="min-w-0">
-                        <span className="text-[11px] text-slate-600 dark:text-slate-300 block mb-1">
+                        <span className="text-[11px] text-slate-600  block mb-1">
                           Marka
                         </span>
                         <input
@@ -1482,11 +1482,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                           onChange={(e) => setSebilBrand(e.target.value)}
                           maxLength={60}
                           placeholder="Örn: Arçelik"
-                          className="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                          className="w-full p-2 rounded-lg border border-slate-200  bg-white  text-xs text-slate-900 "
                         />
                       </label>
                       <label className="min-w-0">
-                        <span className="text-[11px] text-slate-600 dark:text-slate-300 block mb-1">
+                        <span className="text-[11px] text-slate-600  block mb-1">
                           Model
                         </span>
                         <input
@@ -1495,11 +1495,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                           onChange={(e) => setSebilModel(e.target.value)}
                           maxLength={60}
                           placeholder="Örn: 1200 A"
-                          className="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                          className="w-full p-2 rounded-lg border border-slate-200  bg-white  text-xs text-slate-900 "
                         />
                       </label>
                       <label className="min-w-0 sm:col-span-2">
-                        <span className="text-[11px] text-slate-600 dark:text-slate-300 block mb-1">
+                        <span className="text-[11px] text-slate-600  block mb-1">
                           Nereye bırakıldı / açıklama
                         </span>
                         <textarea
@@ -1508,7 +1508,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                           maxLength={300}
                           rows={2}
                           placeholder="Örn: Müşterinin giriş katındaki mutfağında, tezgâhın yanında bırakıldı; teslim alan kişi: güvenlik görevlisi"
-                          className="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white resize-y"
+                          className="w-full p-2 rounded-lg border border-slate-200  bg-white  text-xs text-slate-900  resize-y"
                         />
                       </label>
                     </div>
@@ -1516,7 +1516,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 </div>
 
                 {deliveredDepositDamacana - emptyDamacanaReturned !== 0 && (
-                  <div className="text-[11px] text-orange-800 dark:text-orange-300">
+                  <div className="text-[11px] text-orange-800 ">
                     {deliveredDepositDamacana - emptyDamacanaReturned > 0 ? (
                       <span>
                         ⚠️{" "}
@@ -1541,7 +1541,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
                 {deliveredDepositCamDamacana - emptyCamDamacanaReturned !==
                   0 && (
-                  <div className="text-[11px] text-amber-800 dark:text-amber-300">
+                  <div className="text-[11px] text-amber-800 ">
                     {deliveredDepositCamDamacana - emptyCamDamacanaReturned >
                     0 ? (
                       <span>
@@ -1568,7 +1568,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 )}
 
                 {deliveredDepositTup - emptyTupReturned !== 0 && (
-                  <div className="text-[11px] text-orange-800 dark:text-orange-300">
+                  <div className="text-[11px] text-orange-800 ">
                     {deliveredDepositTup - emptyTupReturned > 0 ? (
                       <span>
                         ⚠️{" "}
@@ -1593,9 +1593,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
               </div>
 
               {/* Payment Section */}
-              <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 space-y-3">
+              <div className="p-4 rounded-xl border border-slate-200  bg-slate-50/70  space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <label className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                  <label className="text-xs font-bold text-slate-900  uppercase tracking-wider">
                     Tahsilat & Ödeme Durumu
                   </label>
                   {selectedCustomer.isAccountCustomer ? (
@@ -1607,7 +1607,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       <span className="text-[11px] text-slate-500">
                         Teslimat Tutarı:
                       </span>
-                      <span className="font-mono font-extrabold text-base text-slate-900 dark:text-white ml-1.5 tabular-nums">
+                      <span className="font-mono font-extrabold text-base text-slate-900  ml-1.5 tabular-nums">
                         {grandTotal.toLocaleString("tr-TR")} ₺
                       </span>
                     </div>
@@ -1623,7 +1623,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
                         paymentType === "unpaid"
                           ? "bg-amber-600 text-white shadow-xs"
-                          : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                          : "bg-white  text-slate-700  border border-slate-200 "
                       }`}
                     >
                       Tahsilat Alınmadı
@@ -1640,7 +1640,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
                         paymentType === "custom"
                           ? "bg-sky-600 text-white shadow-xs"
-                          : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                          : "bg-white  text-slate-700  border border-slate-200 "
                       }`}
                     >
                       Tahsilat Al
@@ -1654,7 +1654,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
                         paymentType === "full"
                           ? "bg-emerald-600 text-white shadow-xs"
-                          : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                          : "bg-white  text-slate-700  border border-slate-200 "
                       }`}
                     >
                       Tam Tahsilat ({grandTotal} ₺)
@@ -1666,7 +1666,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
                         paymentType === "unpaid"
                           ? "bg-amber-600 text-white shadow-xs"
-                          : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                          : "bg-white  text-slate-700  border border-slate-200 "
                       }`}
                     >
                       Tahsil Edilmedi (Borç / 0 ₺)
@@ -1678,7 +1678,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
                         paymentType === "custom"
                           ? "bg-sky-600 text-white shadow-xs"
-                          : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                          : "bg-white  text-slate-700  border border-slate-200 "
                       }`}
                     >
                       Kısmi / Farklı Tutar
@@ -1699,7 +1699,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
                           paymentMethod === "CASH"
                             ? "bg-emerald-100 text-emerald-800 border-2 border-emerald-500"
-                            : "bg-white dark:bg-slate-800 text-slate-700 border border-slate-200"
+                            : "bg-white  text-slate-700 border border-slate-200"
                         }`}
                       >
                         Nakit
@@ -1711,7 +1711,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
                           paymentMethod === "POS"
                             ? "bg-indigo-100 text-indigo-800 border-2 border-indigo-500"
-                            : "bg-white dark:bg-slate-800 text-slate-700 border border-slate-200"
+                            : "bg-white  text-slate-700 border border-slate-200"
                         }`}
                       >
                         POS (Kart)
@@ -1723,7 +1723,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
                           paymentMethod === "MIXED"
                             ? "bg-sky-100 text-sky-800 border-2 border-sky-500"
-                            : "bg-white dark:bg-slate-800 text-slate-700 border border-slate-200"
+                            : "bg-white  text-slate-700 border border-slate-200"
                         }`}
                       >
                         Karma (Nakit+POS)
@@ -1735,7 +1735,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       {(paymentMethod === "CASH" ||
                         paymentMethod === "MIXED") && (
                         <div>
-                          <label className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 block mb-1">
+                          <label className="text-[11px] font-semibold text-emerald-700  block mb-1">
                             Alınan Nakit (₺)
                           </label>
                           <input
@@ -1745,7 +1745,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                               setPaymentType("custom");
                               setCashAmountInput(e.target.value);
                             }}
-                            className="w-full p-2 rounded-lg border border-emerald-300 font-mono font-bold text-sm bg-white dark:bg-slate-800"
+                            className="w-full p-2 rounded-lg border border-emerald-300 font-mono font-bold text-sm bg-white "
                           />
                         </div>
                       )}
@@ -1753,7 +1753,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       {(paymentMethod === "POS" ||
                         paymentMethod === "MIXED") && (
                         <div>
-                          <label className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-400 block mb-1">
+                          <label className="text-[11px] font-semibold text-indigo-700  block mb-1">
                             POS Cihazından Çekilen (₺)
                           </label>
                           <input
@@ -1763,7 +1763,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                               setPaymentType("custom");
                               setPosAmountInput(e.target.value);
                             }}
-                            className="w-full p-2 rounded-lg border border-indigo-300 font-mono font-bold text-sm bg-white dark:bg-slate-800"
+                            className="w-full p-2 rounded-lg border border-indigo-300 font-mono font-bold text-sm bg-white "
                           />
                         </div>
                       )}
@@ -1772,7 +1772,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 )}
 
                 {/* Balance impact summary */}
-                <div className="pt-2 border-t border-slate-200 dark:border-slate-700 text-xs">
+                <div className="pt-2 border-t border-slate-200  text-xs">
                   <div className="flex items-center justify-between font-semibold">
                     <span>Fiilen Tahsil Edilen Toplam:</span>
                     <span className="font-mono text-emerald-600 font-bold tabular-nums">
@@ -1781,7 +1781,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   </div>
 
                   {!selectedCustomer.isAccountCustomer && uncollectedDiff !== 0 && (
-                    <div className="mt-1 text-[11px] text-sky-800 dark:text-sky-300">
+                    <div className="mt-1 text-[11px] text-sky-800 ">
                       {uncollectedDiff > 0 ? (
                         <span>
                           📋 Kalan{" "}
@@ -1806,7 +1806,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
               {/* Notes */}
               <div>
-                <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">
+                <label className="text-xs font-medium text-slate-600  block mb-1">
                   Teslimat Notu (İsteğe bağlı):
                 </label>
                 <input
@@ -1814,13 +1814,13 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   placeholder="Örn: 3. kat mutfağa bırakıldı, slip eklendi..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs bg-slate-50 dark:bg-slate-800"
+                  className="w-full p-2.5 rounded-xl border border-slate-200  text-xs bg-slate-50 "
                 />
               </div>
 
               {isEdit && (
                 <div>
-                  <label className="text-xs font-bold text-amber-800 dark:text-amber-300 block mb-1">
+                  <label className="text-xs font-bold text-amber-800  block mb-1">
                     Düzenleme Gerekçesi *
                   </label>
                   <textarea
@@ -1830,7 +1830,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     placeholder="Örn: Müşteriye 2 adet yerine 3 adet teslim edilmiş."
                     value={correctionReason}
                     onChange={(e) => setCorrectionReason(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-amber-300 dark:border-amber-800 text-xs bg-amber-50/50 dark:bg-amber-950/20 text-slate-900 dark:text-white resize-y"
+                    className="w-full p-2.5 rounded-xl border border-amber-300  text-xs bg-amber-50/50  text-slate-900  resize-y"
                   />
                   <p className="text-[11px] text-slate-500 mt-1">
                     En az 3 karakter. Gerekçe denetim kaydında saklanır.
@@ -1847,7 +1847,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
             {errorMsg && (
               <div
                 role="alert"
-                className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm font-semibold flex items-start gap-2"
+                className="p-3 rounded-xl bg-red-50  border border-red-200  text-red-700  text-sm font-semibold flex items-start gap-2"
               >
                 <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span className="flex-1 break-words">{errorMsg}</span>
@@ -1857,7 +1857,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     setErrorPersistent(false);
                     setErrorMsg(null);
                   }}
-                  className="min-w-11 min-h-11 -my-2 -mr-2 rounded-lg flex items-center justify-center shrink-0 hover:bg-red-100 dark:hover:bg-red-900/40"
+                  className="min-w-11 min-h-11 -my-2 -mr-2 rounded-lg flex items-center justify-center shrink-0 hover:bg-red-100 "
                   aria-label="Hata mesajını kapat"
                 >
                   <X className="w-4 h-4" />
@@ -1872,7 +1872,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 onClick={() =>
                   setDismissedWarningSignature(stockWarningSignature)
                 }
-                className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-sm space-y-1 cursor-pointer"
+                className="p-3 rounded-xl bg-amber-50  border border-amber-300  text-amber-900  text-sm space-y-1 cursor-pointer"
               >
                 <div className="flex items-center gap-1.5 font-bold">
                   <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
@@ -1883,7 +1883,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       event.stopPropagation();
                       setDismissedWarningSignature(stockWarningSignature);
                     }}
-                    className="min-w-11 min-h-11 -my-2 -mr-2 rounded-lg flex items-center justify-center shrink-0 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+                    className="min-w-11 min-h-11 -my-2 -mr-2 rounded-lg flex items-center justify-center shrink-0 hover:bg-amber-100 "
                     aria-label="Uyarıyı kapat"
                   >
                     <X className="w-4 h-4" />
@@ -1903,11 +1903,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         )}
 
         {/* Footer Actions */}
-        <div className="p-4 sm:p-5 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-slate-100 dark:border-slate-800 shrink-0 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 bg-slate-50/50 dark:bg-slate-900">
+        <div className="p-4 sm:p-5 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-slate-100  shrink-0 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 bg-slate-50/50 ">
           <button
             type="button"
             onClick={onClose}
-            className="w-full sm:w-auto min-h-11 px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 dark:text-slate-300 font-semibold text-sm hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="w-full sm:w-auto min-h-11 px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700  font-semibold text-sm hover:bg-slate-100 "
           >
             İptal
           </button>

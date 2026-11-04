@@ -327,9 +327,9 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
   return (
     <div className="space-y-6 w-full max-w-full min-w-0">
       {/* Top Banner & Search */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 w-full max-w-full">
+      <div className="bg-white  rounded-2xl border border-slate-200  p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 w-full max-w-full">
         <div>
-          <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <h2 className="text-base font-bold text-slate-900  flex items-center gap-2">
             <Building2 className="w-5 h-5 text-sky-600 shrink-0" />
             <span>Müşteri Rehberi & Çoklu E-Posta Yönetimi</span>
           </h2>
@@ -346,7 +346,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
               placeholder="Ad, adres, telefon veya e-posta ara..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+              className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200  bg-slate-50  text-xs text-slate-900  focus:outline-none focus:ring-2 focus:ring-sky-500"
             />
           </div>
 
@@ -366,8 +366,8 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
           onClick={() => setFilterType('all')}
           className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors ${
             filterType === 'all'
-              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
-              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+              ? 'bg-slate-900 text-white  '
+              : 'bg-white  text-slate-600  border border-slate-200 '
           }`}
         >
           Tüm Müşteriler ({customers.length})
@@ -378,7 +378,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
           className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors ${
             filterType === 'account'
               ? 'bg-sky-600 text-white'
-              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+              : 'bg-white  text-slate-600  border border-slate-200 '
           }`}
         >
           Faturalı Müşteriler ({customers.filter((c) => c.isAccountCustomer).length})
@@ -389,7 +389,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
           className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors ${
             filterType === 'deposit_debt'
               ? 'bg-orange-600 text-white'
-              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+              : 'bg-white  text-slate-600  border border-slate-200 '
           }`}
         >
           Boş Kap Borcu Olanlar ({customers.filter((c) => ((c.emptyDepositBalance?.damacana || 0) + (c.emptyDepositBalance?.camDamacana || 0) + (c.emptyDepositBalance?.tup || 0) + (c.emptyDepositBalance?.sebil || 0)) > 0).length})
@@ -400,7 +400,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
           className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors ${
             filterType === 'cash_debt'
               ? 'bg-red-600 text-white'
-              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+              : 'bg-white  text-slate-600  border border-slate-200 '
           }`}
         >
           TL Bakiye Borcu Olanlar ({customers.filter((c) => !c.isAccountCustomer && (c.currentBalanceTL || 0) > 0).length})
@@ -430,13 +430,13 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
           return (
             <div
               key={c.id}
-              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow"
+              className="bg-white  rounded-2xl border border-slate-200  p-4 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow"
             >
               <div>
                 <div className="flex flex-col gap-2 w-full min-w-0">
                   <div className="flex items-start gap-2 min-w-0 w-full">
                     <Building2 className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
-                    <h3 className="font-bold text-sm text-slate-900 dark:text-white break-words min-w-0 leading-snug" title={c.name}>
+                    <h3 className="font-bold text-sm text-slate-900  break-words min-w-0 leading-snug" title={c.name}>
                       {c.name}
                     </h3>
                   </div>
@@ -444,7 +444,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                   <div className="flex flex-wrap items-center justify-end gap-1.5 w-full">
                     <button
                       onClick={() => setPaymentCustomer(c)}
-                      className="p-1.5 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                      className="p-1.5 text-slate-400 hover:text-emerald-600  hover:bg-slate-100  rounded-lg transition-colors"
                       title="Tahsilat Al"
                     >
                       <Wallet className="w-3.5 h-3.5" />
@@ -452,7 +452,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
                     <button
                       onClick={() => setStatementCustomer(c)}
-                      className="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                      className="p-1.5 text-slate-400 hover:text-indigo-600  hover:bg-slate-100  rounded-lg transition-colors"
                       title="Cari Hesap Ekstresi"
                     >
                       <FileText className="w-3.5 h-3.5" />
@@ -460,7 +460,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
                     <button
                       onClick={() => handleOpenEditModal(c)}
-                      className="p-1.5 text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                      className="p-1.5 text-slate-400 hover:text-sky-600  hover:bg-slate-100  rounded-lg transition-colors"
                       title="Müşteriyi ve E-postaları Düzenle"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
@@ -470,8 +470,8 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                       onClick={() => handleToggleAccountCustomer(c)}
                       className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition-colors shrink-0 ${
                         c.isAccountCustomer
-                          ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300'
-                          : 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'
+                          ? 'bg-sky-100 text-sky-800  '
+                          : 'bg-red-100 text-red-800  '
                       }`}
                       title="Cari Hesap Durumu"
                     >
@@ -502,7 +502,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                         {emails.map((em, idx) => (
                           <span
                             key={idx}
-                            className="inline-flex items-center px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-mono text-[11px] border border-sky-100 dark:border-sky-900/60"
+                            className="inline-flex items-center px-2 py-0.5 rounded-md bg-sky-50  text-sky-700  font-mono text-[11px] border border-sky-100 "
                           >
                             {em}
                           </span>
@@ -515,7 +515,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                 </div>
 
                 {/* Balances */}
-                <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                <div className="mt-3 pt-3 border-t border-slate-100  flex items-center justify-between text-xs">
                   <div className="min-w-0">
                     <span className="text-[10px] text-slate-400 block">Emanet Boş Kap:</span>
                     {negativeEmpty.length > 0 && (
@@ -523,7 +523,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                         {negativeEmpty.map((message) => (
                           <span
                             key={message}
-                            className="block font-semibold text-sky-700 dark:text-sky-300"
+                            className="block font-semibold text-sky-700 "
                           >
                             ℹ️ {message}
                           </span>
@@ -552,7 +552,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                     ) : (
                       <span
                         className={`font-mono font-bold ${
-                          (c.currentBalanceTL || 0) > 0 ? 'text-red-600' : 'text-slate-700 dark:text-slate-300'
+                          (c.currentBalanceTL || 0) > 0 ? 'text-red-600' : 'text-slate-700 '
                         }`}
                       >
                         {(c.currentBalanceTL || 0).toLocaleString('tr-TR')} ₺
@@ -563,13 +563,13 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
                 {/* Custom Prices Memory */}
                 {!c.isAccountCustomer && c.customPrices && Object.keys(c.customPrices).length > 0 && (
-                  <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500">
+                  <div className="mt-2 pt-2 border-t border-slate-100  text-[11px] text-slate-500">
                     <span className="text-[10px] text-slate-400 block mb-0.5">Özel Fiyat Hafızası:</span>
                     <div className="flex flex-wrap gap-1">
                       {Object.entries(c.customPrices).map(([pId, price]) => {
                         const p = products.find((prod) => prod.id === pId);
                         return (
-                          <span key={pId} className="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[10px]">
+                          <span key={pId} className="px-1.5 py-0.2 rounded bg-slate-100  text-[10px]">
                             {p?.name.split(' ')[0]}: <strong>{price} ₺</strong>
                           </span>
                         );
@@ -582,7 +582,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
               {/* Quick Actions (bakiye/boş kap sıfırlama yalnızca yöneticiye) */}
               {isAdmin && (
-                <div className="mt-4 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
+                <div className="mt-4 pt-2 border-t border-slate-100  flex items-center justify-between text-[11px]">
                   {((c.emptyDepositBalance?.damacana || 0) !== 0 ||
                     (c.emptyDepositBalance?.camDamacana || 0) !== 0 ||
                     (c.emptyDepositBalance?.tup || 0) !== 0) && (
@@ -611,10 +611,10 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       {/* 1. Create Customer Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-slate-200 dark:border-slate-800 my-auto max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div className="w-full max-w-lg rounded-2xl bg-white  p-6 shadow-2xl border border-slate-200  my-auto max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 ">
               <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                <h3 className="text-base font-bold text-slate-900 ">
                   Yeni Müşteri Tanımla
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -632,7 +632,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
             <form onSubmit={handleCreateCustomer} className="space-y-4 text-xs mt-4">
               <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="font-semibold text-slate-700  block mb-1">
                   Müşteri / İşletme Adı *
                 </label>
                 <input
@@ -641,13 +641,13 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                   placeholder="Örn: Yıldız Cafe & Bistro"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  className="w-full p-2.5 rounded-xl border border-slate-200  bg-slate-50  text-xs text-slate-900  focus:outline-none focus:ring-2 focus:ring-sky-500"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  <label className="font-semibold text-slate-700  block mb-1">
                     Telefon Numarası
                   </label>
                   <input
@@ -655,12 +655,12 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                     placeholder="0216 450 11 22"
                     value={newPhone}
                     onChange={(e) => setNewPhone(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    className="w-full p-2.5 rounded-xl border border-slate-200  bg-slate-50  text-xs text-slate-900  focus:outline-none focus:ring-2 focus:ring-sky-500"
                   />
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  <label className="font-semibold text-slate-700  block mb-1">
                     Adres
                   </label>
                   <input
@@ -668,15 +668,15 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                     placeholder="Moda Cad. No: 42, Kadıköy"
                     value={newAddress}
                     onChange={(e) => setNewAddress(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    className="w-full p-2.5 rounded-xl border border-slate-200  bg-slate-50  text-xs text-slate-900  focus:outline-none focus:ring-2 focus:ring-sky-500"
                   />
                 </div>
               </div>
 
               {/* Multiple Emails Input Section */}
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-2">
+              <div className="p-3.5 rounded-xl bg-slate-50  border border-slate-200  space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <label className="font-bold text-slate-800  flex items-center gap-1.5">
                     <Mail className="w-4 h-4 text-sky-600" />
                     <span>Müşteri E-Posta Adresleri (Birden Fazla)</span>
                   </label>
@@ -689,7 +689,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                     {newEmails.map((em) => (
                       <span
                         key={em}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 font-mono text-xs border border-sky-200 dark:border-sky-800"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-100  text-sky-800  font-mono text-xs border border-sky-200 "
                       >
                         <span>{em}</span>
                         <button
@@ -717,7 +717,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                         addEmailsToNewList();
                       }
                     }}
-                    className="flex-1 p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    className="flex-1 p-2 rounded-xl border border-slate-200  bg-white  text-xs text-slate-900  focus:outline-none focus:ring-2 focus:ring-sky-500"
                   />
                   <button
                     type="button"
@@ -733,7 +733,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="font-semibold text-slate-700  block mb-1">
                   Müşteri Notu
                 </label>
                 <input
@@ -741,12 +741,12 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                   placeholder="Örn: Sabah 10:00 dan önce teslimat, zile basılmasın"
                   value={newNotes}
                   onChange={(e) => setNewNotes(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                  className="w-full p-2.5 rounded-xl border border-slate-200  bg-slate-50  text-xs text-slate-900 "
                 />
               </div>
 
               <div className="pt-1">
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-700 dark:text-slate-300">
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-700 ">
                   <input
                     type="checkbox"
                     checked={!newIsAccount}
@@ -765,7 +765,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="w-1/2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold"
+                  className="w-1/2 py-2.5 rounded-xl border border-slate-200  text-slate-700  font-semibold"
                 >
                   İptal
                 </button>
@@ -785,10 +785,10 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       {/* 2. Edit Customer Modal */}
       {editingCustomer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-slate-200 dark:border-slate-800 my-auto max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div className="w-full max-w-lg rounded-2xl bg-white  p-6 shadow-2xl border border-slate-200  my-auto max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 ">
               <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                <h3 className="text-base font-bold text-slate-900 ">
                   Müşteri Bilgilerini Düzenle
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -806,7 +806,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
             <form onSubmit={handleUpdateCustomer} className="space-y-4 text-xs mt-4">
               <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="font-semibold text-slate-700  block mb-1">
                   Müşteri / İşletme Adı *
                 </label>
                 <input
@@ -814,40 +814,40 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                   required
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  className="w-full p-2.5 rounded-xl border border-slate-200  bg-slate-50  text-xs text-slate-900  focus:outline-none focus:ring-2 focus:ring-sky-500"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  <label className="font-semibold text-slate-700  block mb-1">
                     Telefon Numarası
                   </label>
                   <input
                     type="text"
                     value={editPhone}
                     onChange={(e) => setEditPhone(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    className="w-full p-2.5 rounded-xl border border-slate-200  bg-slate-50  text-xs text-slate-900  focus:outline-none focus:ring-2 focus:ring-sky-500"
                   />
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  <label className="font-semibold text-slate-700  block mb-1">
                     Adres
                   </label>
                   <input
                     type="text"
                     value={editAddress}
                     onChange={(e) => setEditAddress(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    className="w-full p-2.5 rounded-xl border border-slate-200  bg-slate-50  text-xs text-slate-900  focus:outline-none focus:ring-2 focus:ring-sky-500"
                   />
                 </div>
               </div>
 
               {/* Multiple Emails Edit Section */}
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-2">
+              <div className="p-3.5 rounded-xl bg-slate-50  border border-slate-200  space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <label className="font-bold text-slate-800  flex items-center gap-1.5">
                     <Mail className="w-4 h-4 text-sky-600" />
                     <span>Müşteri E-Posta Adresleri ({editEmails.length})</span>
                   </label>
@@ -860,7 +860,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                     {editEmails.map((em) => (
                       <span
                         key={em}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 font-mono text-xs border border-sky-200 dark:border-sky-800"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-100  text-sky-800  font-mono text-xs border border-sky-200 "
                       >
                         <span>{em}</span>
                         <button
@@ -888,7 +888,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                         addEmailsToEditList();
                       }
                     }}
-                    className="flex-1 p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    className="flex-1 p-2 rounded-xl border border-slate-200  bg-white  text-xs text-slate-900  focus:outline-none focus:ring-2 focus:ring-sky-500"
                   />
                   <button
                     type="button"
@@ -901,29 +901,29 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="font-semibold text-slate-700  block mb-1">
                   Müşteri Notu
                 </label>
                 <input
                   type="text"
                   value={editNotes}
                   onChange={(e) => setEditNotes(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                  className="w-full p-2.5 rounded-xl border border-slate-200  bg-slate-50  text-xs text-slate-900 "
                 />
               </div>
 
-              <div className="p-3.5 rounded-xl bg-orange-50/50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/60 space-y-2">
+              <div className="p-3.5 rounded-xl bg-orange-50/50  border border-orange-200  space-y-2">
                 <div>
-                  <label className="font-bold text-orange-900 dark:text-orange-300 block">
+                  <label className="font-bold text-orange-900  block">
                     Emanet Boş Kap Bakiyesi
                   </label>
-                  <p className="text-[10px] text-orange-700 dark:text-orange-400 mt-0.5">
+                  <p className="text-[10px] text-orange-700  mt-0.5">
                     Negatif değer, müşteriye borcumuz olan boş kap sayısını gösterir.
                   </p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    <label className="font-semibold text-slate-700  block mb-1">
                       Boş Damacana
                     </label>
                     <input
@@ -931,11 +931,11 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                       step="1"
                       value={editEmptyDamacana}
                       onChange={(e) => setEditEmptyDamacana(e.target.value)}
-                      className="w-full p-2.5 rounded-xl border border-orange-200 dark:border-orange-800 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full p-2.5 rounded-xl border border-orange-200  bg-white  text-xs text-slate-900  focus:outline-none focus:ring-2 focus:ring-orange-500"
                     />
                   </div>
                   <div>
-                    <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    <label className="font-semibold text-slate-700  block mb-1">
                       Boş Cam Damacana
                     </label>
                     <input
@@ -943,11 +943,11 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                       step="1"
                       value={editEmptyCamDamacana}
                       onChange={(e) => setEditEmptyCamDamacana(e.target.value)}
-                      className="w-full p-2.5 rounded-xl border border-orange-200 dark:border-orange-800 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full p-2.5 rounded-xl border border-orange-200  bg-white  text-xs text-slate-900  focus:outline-none focus:ring-2 focus:ring-orange-500"
                     />
                   </div>
                   <div>
-                    <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    <label className="font-semibold text-slate-700  block mb-1">
                       Boş Tüp
                     </label>
                     <input
@@ -955,14 +955,14 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                       step="1"
                       value={editEmptyTup}
                       onChange={(e) => setEditEmptyTup(e.target.value)}
-                      className="w-full p-2.5 rounded-xl border border-orange-200 dark:border-orange-800 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full p-2.5 rounded-xl border border-orange-200  bg-white  text-xs text-slate-900  focus:outline-none focus:ring-2 focus:ring-orange-500"
                     />
                   </div>
                 </div>
               </div>
 
               <div className="pt-1">
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-700 dark:text-slate-300">
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-700 ">
                   <input
                     type="checkbox"
                     checked={!editIsAccount}
@@ -981,7 +981,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                 <button
                   type="button"
                   onClick={() => setEditingCustomer(null)}
-                  className="w-1/2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold"
+                  className="w-1/2 py-2.5 rounded-xl border border-slate-200  text-slate-700  font-semibold"
                 >
                   İptal
                 </button>

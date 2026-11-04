@@ -162,25 +162,25 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-        <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[92vh] flex flex-col">
+        <div className="w-full max-w-lg rounded-2xl bg-white  p-5 sm:p-6 shadow-2xl border border-slate-200  max-h-[92vh] flex flex-col">
           {/* Modal Header */}
-          <div className="flex items-start justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+          <div className="flex items-start justify-between pb-3 border-b border-slate-100  shrink-0">
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-base font-bold text-slate-900 dark:text-white">
+                <span className="text-base font-bold text-slate-900 ">
                   Depo Yükleme Girişi
                 </span>
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-indigo-100  text-indigo-700 ">
                   {currentUser.role === 'admin' ? 'Depo Yöneticisi' : 'Tek Yetkili Şoför'}
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Yüklemeyi Yapan: <strong className="text-slate-800 dark:text-slate-200">{currentUser.name}</strong>
+                Yüklemeyi Yapan: <strong className="text-slate-800 ">{currentUser.name}</strong>
               </p>
             </div>
             <button
               onClick={() => setShowManualLoadModal(false)}
-              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-bold p-1 rounded-lg"
+              className="text-slate-400 hover:text-slate-600  text-lg font-bold p-1 rounded-lg"
               title="Kapat"
             >
               ✕
@@ -188,7 +188,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
           </div>
 
           {loadingError && (
-            <div className="mt-3 p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-xs font-semibold flex items-center gap-2 shrink-0">
+            <div className="mt-3 p-2.5 rounded-xl bg-red-50  border border-red-200  text-red-700  text-xs font-semibold flex items-center gap-2 shrink-0">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{loadingError}</span>
             </div>
@@ -196,11 +196,11 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
 
           <div className="flex-1 overflow-y-auto pr-1 mt-4 space-y-4 min-w-0 max-w-full box-border">
             {/* Independent Driver & Plate Selectors */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 sm:p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 w-full max-w-full min-w-0 box-border">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 sm:p-3.5 rounded-2xl bg-slate-50  border border-slate-200  w-full max-w-full min-w-0 box-border">
               {/* 1. Driver Selection (Independent) */}
               <div className="w-full max-w-full min-w-0 box-border">
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <label className="text-xs font-bold text-slate-700  flex items-center gap-1.5">
                     <UserCheck className="w-4 h-4 text-sky-600 shrink-0" />
                     <span>Şoför Seçimi</span>
                   </label>
@@ -220,13 +220,13 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                           key={d.id}
                           type="button"
                           disabled
-                          className="w-full max-w-full min-w-0 flex items-center justify-between p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/70 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500 cursor-not-allowed text-xs font-semibold text-left select-none"
+                          className="w-full max-w-full min-w-0 flex items-center justify-between p-2 rounded-xl border border-slate-200  bg-slate-100/70  text-slate-400  cursor-not-allowed text-xs font-semibold text-left select-none"
                         >
                           <div className="flex items-center gap-1.5 truncate min-w-0">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300  shrink-0" />
                             <span className="truncate">{d.name}{isAuthorized ? ' (Yetkili)' : ''}</span>
                           </div>
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-slate-700/80 text-slate-500 dark:text-slate-400 shrink-0 ml-1.5">
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-200/80  text-slate-500  shrink-0 ml-1.5">
                             Dağıtımda
                           </span>
                         </button>
@@ -240,16 +240,16 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                         onClick={() => setSelectedDriverId(d.id)}
                         className={`w-full max-w-full min-w-0 flex items-center justify-between p-2 rounded-xl border text-xs font-semibold text-left transition-all ${
                           isSelected
-                            ? 'border-sky-600 bg-sky-50/90 text-sky-950 dark:border-sky-500 dark:bg-sky-950/60 dark:text-white shadow-xs ring-1 ring-sky-600 dark:ring-sky-500'
-                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                            ? 'border-sky-600 bg-sky-50/90 text-sky-950    shadow-xs ring-1 ring-sky-600 '
+                            : 'border-slate-200  bg-white  text-slate-800  hover:border-slate-300  hover:bg-slate-50 '
                         }`}
                       >
                         <div className="flex items-center gap-1.5 truncate min-w-0">
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? 'bg-sky-600 dark:bg-sky-400 ring-2 ring-sky-200 dark:ring-sky-800' : 'bg-emerald-500'}`} />
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? 'bg-sky-600  ring-2 ring-sky-200 ' : 'bg-emerald-500'}`} />
                           <span className="truncate">{d.name}{isAuthorized ? ' (Yetkili)' : ''}</span>
                         </div>
                         {isSelected && (
-                          <Check className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0 ml-1.5" />
+                          <Check className="w-3.5 h-3.5 text-sky-600  shrink-0 ml-1.5" />
                         )}
                       </button>
                     );
@@ -263,7 +263,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
               {/* 2. Vehicle Plate Selection */}
               <div className="w-full max-w-full min-w-0 box-border">
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <label className="text-xs font-bold text-slate-700  flex items-center gap-1.5">
                     <Truck className="w-4 h-4 text-emerald-600 shrink-0" />
                     <span>Araç Plakası</span>
                   </label>
@@ -282,13 +282,13 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                           key={plate}
                           type="button"
                           disabled
-                          className="w-full max-w-full min-w-0 flex items-center justify-between p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/70 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500 cursor-not-allowed text-xs font-mono font-bold text-left select-none"
+                          className="w-full max-w-full min-w-0 flex items-center justify-between p-2 rounded-xl border border-slate-200  bg-slate-100/70  text-slate-400  cursor-not-allowed text-xs font-mono font-bold text-left select-none"
                         >
                           <div className="flex items-center gap-1.5 truncate min-w-0">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300  shrink-0" />
                             <span className="truncate">{plate}</span>
                           </div>
-                          <span className="text-[9px] font-sans font-bold px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-slate-700/80 text-slate-500 dark:text-slate-400 shrink-0 ml-1.5">
+                          <span className="text-[9px] font-sans font-bold px-1.5 py-0.5 rounded bg-slate-200/80  text-slate-500  shrink-0 ml-1.5">
                             Dağıtımda
                           </span>
                         </button>
@@ -302,16 +302,16 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                         onClick={() => setSelectedPlate(plate)}
                         className={`w-full max-w-full min-w-0 flex items-center justify-between p-2 rounded-xl border font-mono font-bold text-xs text-left transition-all ${
                           isSelected
-                            ? 'border-emerald-600 bg-emerald-50/90 text-emerald-950 dark:border-emerald-500 dark:bg-emerald-950/60 dark:text-white shadow-xs ring-1 ring-emerald-600 dark:ring-emerald-500'
-                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                            ? 'border-emerald-600 bg-emerald-50/90 text-emerald-950    shadow-xs ring-1 ring-emerald-600 '
+                            : 'border-slate-200  bg-white  text-slate-800  hover:border-slate-300  hover:bg-slate-50 '
                         }`}
                       >
                         <div className="flex items-center gap-1.5 truncate min-w-0">
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? 'bg-emerald-600 dark:bg-emerald-400 ring-2 ring-emerald-200 dark:ring-emerald-800' : 'bg-emerald-500'}`} />
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? 'bg-emerald-600  ring-2 ring-emerald-200 ' : 'bg-emerald-500'}`} />
                           <span className="truncate">{plate}</span>
                         </div>
                         {isSelected && (
-                          <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 ml-1.5" />
+                          <Check className="w-3.5 h-3.5 text-emerald-600  shrink-0 ml-1.5" />
                         )}
                       </button>
                     );
@@ -326,7 +326,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
             {/* Product Quantities */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                <span className="text-xs font-bold text-slate-900  uppercase tracking-wider">
                   Araca Yüklenen Ürünler & Adetler
                 </span>
                 <span className="text-[11px] text-slate-400">Damacana, pet, bardak vb.</span>
@@ -340,10 +340,10 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                   return (
                     <div
                       key={p.id}
-                      className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800"
+                      className="flex items-center justify-between p-3 rounded-xl bg-slate-50  border border-slate-100 "
                     >
                       <div className="pr-2">
-                        <div className="text-xs font-bold text-slate-900 dark:text-white">{p.name}</div>
+                        <div className="text-xs font-bold text-slate-900 ">{p.name}</div>
                         <div className="text-[11px] text-slate-500">
                           {p.unit} · {p.isDeposit ? 'Depozitolu' : 'Tek Yön'} · {p.defaultUnitPrice} ₺
                         </div>
@@ -358,7 +358,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                               [p.id]: Math.max(0, currentQty - step),
                             }))
                           }
-                          className="w-11 h-11 rounded-lg bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center text-base active:scale-90"
+                          className="w-11 h-11 rounded-lg bg-white  border border-slate-200  font-bold text-slate-700  flex items-center justify-center text-base active:scale-90"
                         >
                           -
                         </button>
@@ -372,7 +372,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                             }))
                           }
                           placeholder="0"
-                          className="w-16 h-11 rounded-lg border border-slate-200 dark:border-slate-700 text-center font-bold font-mono text-sm dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                          className="w-16 h-11 rounded-lg border border-slate-200  text-center font-bold font-mono text-sm   focus:outline-none focus:ring-1 focus:ring-sky-500"
                         />
                         <button
                           type="button"
@@ -382,7 +382,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                               [p.id]: currentQty + step,
                             }))
                           }
-                          className="w-11 h-11 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 font-bold flex items-center justify-center text-base active:scale-90"
+                          className="w-11 h-11 rounded-lg bg-sky-50  text-sky-600  font-bold flex items-center justify-center text-base active:scale-90"
                         >
                           +
                         </button>
@@ -395,11 +395,11 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
           </div>
 
           {/* Modal Actions */}
-          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-3 shrink-0">
+          <div className="mt-4 pt-3 border-t border-slate-100  flex items-center gap-3 shrink-0">
             <button
               type="button"
               onClick={() => setShowManualLoadModal(false)}
-              className="w-1/2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              className="w-1/2 py-2.5 rounded-xl border border-slate-200  text-slate-700  font-medium text-xs hover:bg-slate-50  transition-colors"
             >
               Vazgeç
             </button>
@@ -428,34 +428,34 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
   if (!currentDispatch || currentDispatch.status === 'completed') {
     const isNextTrip = currentDispatch?.status === 'completed';
     return (
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-xs mb-6 w-full max-w-full min-w-0">
+      <div className="bg-white  rounded-2xl border border-slate-200  p-4 sm:p-5 shadow-xs mb-6 w-full max-w-full min-w-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-amber-50  text-amber-600  flex items-center justify-center shrink-0">
               <Truck className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                <h3 className="text-base font-bold text-slate-900 ">
                   {isNextTrip ? 'Yeni Sefer Depo Yüklemesi Bekleniyor' : 'Depo Yüklemesi Bekleniyor'}
                 </h3>
                 {isNextTrip && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50  text-emerald-700 ">
                     Araç Boş & Sefer Hazır
                   </span>
                 )}
                 {currentUser.role === 'admin' && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50  text-indigo-700 ">
                     Depo Yöneticisi Paneli
                   </span>
                 )}
                 {currentUser.canLoadVehicle && currentUser.role === 'driver' && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50  text-emerald-700 ">
                     Tek Yetkili Şoför
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-500  mt-0.5">
                 {isNextTrip
                   ? 'Önceki sefer tamamlandı, kalan ürünler depoya indirildi. Yeni dağıtım seferi için yükleme adetlerini girebilirsiniz.'
                   : currentUser.role === 'admin'
@@ -488,7 +488,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
     const isTargetDriver = currentUser.id === currentDispatch.driverId;
 
     return (
-      <div className="bg-amber-50/70 dark:bg-amber-950/30 rounded-2xl border-2 border-amber-300 dark:border-amber-800 p-4 sm:p-5 shadow-sm mb-6 w-full max-w-full min-w-0">
+      <div className="bg-amber-50/70  rounded-2xl border-2 border-amber-300  p-4 sm:p-5 shadow-sm mb-6 w-full max-w-full min-w-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md">
@@ -496,17 +496,17 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-200">
+                <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-200  text-amber-900 ">
                   Teslim Alma Onayı Bekliyor
                 </span>
-                <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                <span className="text-xs text-slate-600  font-medium">
                   Yükleyen: {currentDispatch.loadedByUserName}
                 </span>
               </div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white mt-1">
+              <h3 className="text-base font-bold text-slate-900  mt-1">
                 {currentDispatch.driverName} için Sabah Yüklemesi Girildi ({currentDispatch.vehiclePlate})
               </h3>
-              <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+              <p className="text-xs text-slate-600  mt-0.5">
                 {isTargetDriver
                   ? 'Lütfen aracınızdaki ürün adetlerini fiziki olarak sayarak kontrol ediniz. Sayım doğruysa onaylayarak sefere başlayabilirsiniz.'
                   : `Yükleme sisteme işlendi. ${currentDispatch.driverName} sayımı kontrol ettikten sonra sefere başlayacaktır.`}
@@ -517,7 +517,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
           {canUserLoad && (
             <button
               onClick={handleOpenLoadModal}
-              className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 font-semibold text-xs flex items-center gap-1.5 shadow-xs shrink-0"
+              className="px-3.5 py-2 rounded-xl bg-white  border border-amber-300  text-amber-900  font-semibold text-xs flex items-center gap-1.5 shadow-xs shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Yeni Araç Yüklemesi Gir</span>
@@ -532,13 +532,13 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
             return (
               <div
                 key={item.productId}
-                className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-amber-200 dark:border-amber-800 shadow-xs flex flex-col"
+                className="bg-white  p-3 rounded-xl border border-amber-200  shadow-xs flex flex-col"
               >
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                <span className="text-[11px] text-slate-500  truncate">
                   {product?.name || item.productId}
                 </span>
                 <div className="flex items-baseline gap-1 mt-1">
-                  <span className="text-xl font-bold font-mono text-slate-900 dark:text-white tabular-nums">
+                  <span className="text-xl font-bold font-mono text-slate-900  tabular-nums">
                     {item.quantity}
                   </span>
                   <span className="text-[10px] text-slate-400 font-medium">{product?.unit || 'Adet'}</span>
@@ -575,18 +575,18 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
 
   // Case 3: Dispatch is active (in_transit or completed)
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs mb-6 w-full max-w-full min-w-0 overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+    <div className="bg-white  rounded-2xl border border-slate-200  p-4 shadow-xs mb-6 w-full max-w-full min-w-0 overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 ">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-emerald-50  text-emerald-600 flex items-center justify-center shrink-0">
             <Check className="w-4 h-4" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-bold text-slate-900 dark:text-white">
+              <span className="text-xs font-bold text-slate-900 ">
                 Aktif Sefer: {currentDispatch.vehiclePlate} ({currentDispatch.driverName})
               </span>
-              <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-md">
+              <span className="text-[11px] font-medium text-emerald-600  bg-emerald-50  px-2 py-0.5 rounded-md">
                 Saha Dağıtımında
               </span>
             </div>
@@ -600,7 +600,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
           {canUserLoad && (
             <button
               onClick={handleOpenLoadModal}
-              className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 text-sky-700 dark:text-sky-400 border border-slate-200 dark:border-slate-700 font-semibold text-xs flex items-center gap-1"
+              className="px-3 py-1.5 rounded-xl bg-slate-50  hover:bg-slate-100 text-sky-700  border border-slate-200  font-semibold text-xs flex items-center gap-1"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Yeni Yükleme Gir</span>
@@ -608,7 +608,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
           )}
 
           <div className="text-xs text-slate-500">
-            Tarih: <span className="font-semibold text-slate-700 dark:text-slate-300">{currentDispatch.date}</span>
+            Tarih: <span className="font-semibold text-slate-700 ">{currentDispatch.date}</span>
           </div>
         </div>
       </div>
@@ -620,7 +620,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
           return (
             <span
               key={item.productId}
-              className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 whitespace-nowrap text-[11px]"
+              className="px-2.5 py-1 rounded-lg bg-slate-100  text-slate-700  whitespace-nowrap text-[11px]"
             >
               {product?.name.split(' ')[0]}: <strong className="font-mono tabular-nums">{item.quantity}</strong> {product?.unit}
             </span>
