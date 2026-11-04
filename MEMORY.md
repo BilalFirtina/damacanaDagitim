@@ -131,53 +131,57 @@ Bu commit, yukarıdaki tahsilat modelinin bir implementasyonudur:
 `10acd99` sürümündeki `HANDOFF.md` bu işi “TAMAMLANDI” olarak anlatır; ancak
 aşağıdaki eksikler ve CI durumu nedeniyle **kesin tamamlandı kabul etme.**
 
-### 3.1. 2026-11-04 yeniden başlama incelemesi
+### 3.1. 2026-11-04 faturalı fiyat gizleme — TAMAMLANDI
 
-- Çalışma ağacı `HEAD`e geri yüklendi; implementasyon diskte.
-- `npm run lint` → geçti.
-- `scripts/verify-*.ts` → 16 betik geçti.
-- `npm run build` → geçti (Vite 500 kB chunk uyarısı var, hata değil).
-- PG testleri yerelde çalıştırılamadı (Docker/psql yok); CI/PR gerekli.
+Commit: `8891e21` — `feat: faturali musteri fiyat ve borclarini arayuzde gizle`
 
-**Faturalı fiyat görünürlüğü — kalan işler:**
+- `DeliveryModal.tsx`: faturalıda birim fiyat, fiyat düzenleme ve satır tutarı
+  gizlendi. Faturalıda varsayılan ödeme “Tahsilat Alınmadı”; şoför tahsilat
+  aldıysa tutarı manuel girer. “Tam Tahsilat” ve cari borç metni gösterilmez.
+- `DriverView.tsx`, `LiveTeamFeed.tsx`, `EndOfDayView.tsx`: faturalı teslimatta
+  birim fiyat, mal tutarı ve cari borç gizli; nakit/POS tahsilatları görünür.
+- `CustomersManagement.tsx`: faturalıda “Cari TL Borç” ve “Özel Fiyat
+  Hafızası” gizli; TL borç filtresi/sayısı faturalıyı kapsamaz.
+- `BalancesReportView.tsx`: faturalı cari borçları listeden ve toplamlardan
+  çıkarıldı; iade edilebilir kalemler görünür.
+- `CustomerStatementModal.tsx`: faturalıda finansal özet/hareket tutarları
+  gizlendi; iade edilebilir kalemler görünür.
+- `DailyReportsView.tsx` / `ConsolidatedDailyReport.tsx` /
+  `DriverActivityReport.tsx`: faturalı birim fiyat, mal tutarı ve cari borç
+  satır/toplamlardan çıkarıldı; nakit/POS tahsilatları ve ürün adetleri kalır.
+- `src/server/deliveryInput.ts`: faturalı teslimatta istemci fiyatı yerine
+  ürünün **default fiyatı** sunucuda uygulanır; `delivery_items.unit_price` ve
+  `customer_product_prices` ileride kullanım için kaydedilmeye devam eder.
+- `src/services/customerVisibility.ts`: teslimat bazında faturalı tespiti için
+  `isAccountCustomerDelivery` eklendi (eski önbellek kayıtlarında müşteri
+  listesinden türetir).
+- Testler: `verify-delivery-input-equivalence.ts` faturalı default fiyat/borç
+  kontrolleri; `verify-customer-visibility.ts` müşteri türü yardımcısı.
+- `npm run lint`, 16 `verify-*`, `npm run build` → geçti.
+- PG testleri yerelde çalıştırılamadı; CI/PR gerekli.
 
-| Yer | Mevcut | Yapılması gereken |
-|---|---|---|
-| `DeliveryModal.tsx` | Faturalıda özel fiyat rozeti/ön dolgu gizli; **birim fiyat ve düzenleme hâlâ görünür** | Faturalıda birim fiyat alanını ve fiyat düzenlemeyi tamamen gizle; satır toplamını da gizle veya “fiyat gösterilmez” yap; içeride default fiyat kullan |
-| `DriverView.tsx` teslimat listesi | `item.unitPrice` gösteriliyor | Faturalı teslimatta birim fiyatı gizle (müşteri türünü `customers` üzerinden eşle) |
-| `LiveTeamFeed.tsx` | `prod.unitPrice` gösteriliyor | Faturalı teslimatta birim fiyatı gizle; `customers` prop’u ekle |
-| `CustomersManagement.tsx` | “Özel Fiyat Hafızası” tüm müşterilerde | Faturalıda gizle |
-| `DailyReportsView.tsx` tablo/mobil/CSV | Ürün yanında `(birim fiyat)` var | Faturalı satırlarda birim fiyatı gösterme; CSV’de boş bırak |
-| `ConsolidatedDailyReport.tsx` | Birim fiyat yok; tutar/toplam var | Faturalıda tutarın da gizlenip gizlenmeyeceğine karar ver |
-| `CustomerStatementModal.tsx` | Birim fiyat yok; toplam satış var | Faturalıda toplam satışın gizlenip gizlenmeyeceğine karar ver |
-| Supabase | `delivery_items.unit_price` + `customer_product_prices` dolu | **Silme.** İleride kullanım için sakla; sadece UI’da gizle |
-
-**Kritik iş kuralı sorusu:** Faturalı teslimatta kalan tutar, gizli/default
-birim fiyattan mı borca yazılacak (mevcut davranış), yoksa faturalı teslimat
-hiç borç oluşturmayıp tahsilatlar yöneticinin girdiği bakiyeden mi düşülecek?
-Bu karar verilmeden faturalı fiyat gizleme tamamlanmış sayılmaz.
+**İş kuralı kararı:** Faturalı teslimatta borç, gizli/default birim fiyattan
+hesaplanmaya devam eder. Fiyat yalnızca arayüzde gizlenir; Supabase’de kalır.
+Nakit/POS tahsilatları gerçek kasa hareketi olduğu için görünür kalır.
 
 ---
 
 ## 4. İncelenecekler / eksikler
 
-1. **CI çalışmadı.** `10acd99` için GitHub Actions koşusu yok; workflow yalnızca
-   `main`e push/PR'da tetikleniyor. `lint`, `verify-*`, `build` ve PG testleri
-   doğrulanmadı. Test için `main`e PR açılmalı.
-2. **Faturalıda birim fiyat girişi hâlâ görünüyor.** Commit yalnızca özel fiyat
-   ön dolgusunu/rozetini gizliyor. Son gereksinime göre faturalı müşteride
-   birim fiyat alanı tamamen gizlenmeli; sistem son/default fiyatı kullanmalı.
-3. **SQL regresyon riski.** `20261106`/`20261107`, `20261024` sürümündeki
+1. **CI çalışmadı.** `10acd99`/`8891e21` için GitHub Actions koşusu yok;
+   workflow yalnızca `main`e push/PR'da tetikleniyor. Yerelde `lint`,
+   16 `verify-*` ve `build` geçti; PG testleri için `main`e PR açılmalı.
+2. **SQL regresyon riski.** `20261106`/`20261107`, `20261024` sürümündeki
    `apply_delivery` / `cancel_or_replace_delivery` / `close_dispatch`
    değişikliklerinin üzerine mi kurulu? Özellikle negatif boş kap davranışı,
    iptal/düzeltme ve yetki grant'leri diff ile karşılaştırılmalı.
-4. **Migration'lar canlı Supabase'e uygulanmadı:**
+3. **Migration'lar canlı Supabase'e uygulanmadı:**
    - `20261105_retention_no_archive.sql` (main'de var, canlıda yok)
    - `20261106_cash_customer_debt.sql` (dalda)
    - `20261107_customer_payment_dispatch.sql` (dalda)
    - `20261104_payment_rpc_hardening.sql` ve güncel `20261103_sebil_returnable.sql`
      daha önce uygulanmış olmalı; yine de teyit et.
-5. **Working tree 04.11'de geri yüklendi.** Kod diskte ve derleniyor.
+4. **Working tree 04.11'de geri yüklendi.** Kod diskte ve derleniyor.
    `HANDOFF.md` hâlâ 02.11 sürümünü anlatıyor; güncel durum bu dosyada.
 
 ---
@@ -190,11 +194,11 @@ Bu karar verilmeden faturalı fiyat gizleme tamamlanmış sayılmaz.
    kaldırıyor; `20261107 close_dispatch` yalnızca tüm-müşteri kredi + sefere
    bağlı tahsilat ekliyor. `cancel_or_replace_delivery` `applied_balance_delta_tl`
    üzerinden çalıştığı için uyumlu.
-4. ⏳ Faturalı fiyat girişini tamamen gizle; gerekirse sunucuda fiyatı
-   default/son fiyatla sabitle. (Bölüm 3.1’deki yerler.)
+4. ✅ Faturalı fiyat/mal tutarı/cari borç arayüzde gizlendi; sunucu default
+   fiyatı uyguluyor (`8891e21`). (Bölüm 3.1.)
 5. ✅ `npm run lint`, 16 `verify-*`, `npm run build` geçti (04.11).
    PG testleri yalnızca CI'de (yerelde Docker/psql yok).
-6. Değişiklikleri commit et, push et, `main`e PR aç.
+6. Değişiklikler commit edildi; ⏳ push + `main`e PR aç.
 7. CI yeşil olunca merge et.
 8. Migration'ları **onay alarak** Supabase SQL Editor'de uygula:
    `20261105`, `20261106`, `20261107`.

@@ -5,9 +5,9 @@
 > için önce **`MEMORY.md`** oku.
 >
 > Özet: `origin/main` = `d507a97` (PR #3 merge). `feat/agents-compliance` dalında
-> `10acd99` tahsilat implementasyonu + hafıza commit'leri var; **CI çalışmadı, merge
-> edilmedi**. Çalışma ağacı 04.11'de `HEAD`e geri yüklendi; `lint`, 16 verify ve
-> build geçti. Faturalı fiyat görünürlüğü ve migration/deploy işleri açık.
+> `10acd99` tahsilat implementasyonu + `8891e21` faturalı fiyat gizleme var;
+> **CI çalışmadı, merge edilmedi**. `lint`, 16 verify ve build geçti. Açık işler:
+> PR/CI, migration'ların canlıya uygulanması ve Render deploy.
 
 > Son güncelleme: 2026-11-02 (uçtan uca test turu)
 > Dal: `feat/agents-compliance` (main'e göre 25 commit ileride)
