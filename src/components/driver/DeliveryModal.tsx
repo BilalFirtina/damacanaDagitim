@@ -930,11 +930,13 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         }}
                         className="w-full text-left p-2.5 rounded-xl hover:bg-white  transition-colors flex items-center justify-between border border-transparent hover:border-slate-200  shadow-2xs"
                       >
-                        <div className="space-y-0.5">
-                          <div className="text-xs font-bold text-slate-900  flex items-center gap-1.5">
-                            <span>{c.name}</span>
+                        <div className="space-y-0.5 min-w-0">
+                          <div className="flex flex-col items-start gap-1 min-w-0">
+                            <span className="text-xs font-bold text-slate-900 break-words">
+                              {c.name}
+                            </span>
                             {c.isAccountCustomer && (
-                              <span className="text-[10px] font-semibold text-sky-700 bg-sky-50  px-1.5 py-0.2 rounded">
+                              <span className="text-[10px] font-semibold text-sky-700 bg-sky-50 px-1.5 py-0.2 rounded">
                                 Faturalı
                               </span>
                             )}
@@ -989,22 +991,24 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
               </div>
             ) : (
               /* Selected Customer Card */
-              <div className="p-3.5 rounded-xl border-2 border-sky-500/40 bg-sky-50/40  flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-sky-600" />
-                    <span className="text-sm font-bold text-slate-900 ">
-                      {selectedCustomer.name}
-                    </span>
-                    {selectedCustomer.isAccountCustomer ? (
-                      <span className="text-[10px] font-bold text-sky-700 bg-sky-100  px-1.5 py-0.5 rounded">
-                        Faturalı Müşteri
+              <div className="p-3.5 rounded-xl border-2 border-sky-500/40 bg-sky-50/40  flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <Building2 className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                    <div className="flex flex-col items-start gap-1 min-w-0">
+                      <span className="text-sm font-bold text-slate-900 break-words">
+                        {selectedCustomer.name}
                       </span>
-                    ) : (
-                      <span className="text-[10px] font-bold text-slate-600 bg-slate-100  px-1.5 py-0.5 rounded">
-                        Peşin Müşteri
-                      </span>
-                    )}
+                      {selectedCustomer.isAccountCustomer ? (
+                        <span className="text-[10px] font-bold text-sky-700 bg-sky-100 px-1.5 py-0.5 rounded">
+                          Faturalı Müşteri
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
+                          Peşin Müşteri
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-3 mt-1 text-[11px] text-slate-600 ">
                     {selectedCustomer.phone && (

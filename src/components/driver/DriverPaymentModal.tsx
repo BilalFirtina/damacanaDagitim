@@ -112,16 +112,18 @@ export const DriverPaymentModal: React.FC<DriverPaymentModalProps> = ({
                     className="w-full text-left p-3 hover:bg-slate-50  transition-colors flex items-start justify-between gap-3 min-w-0"
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <Building2 className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-                        <span className="text-xs font-bold text-slate-900  break-words">
-                          {customer.name}
-                        </span>
-                        {customer.isAccountCustomer && (
-                          <span className="text-[10px] font-semibold text-sky-700 bg-sky-50  px-1.5 py-0.5 rounded">
-                            Faturalı
+                      <div className="flex items-start gap-1.5 min-w-0">
+                        <Building2 className="w-3.5 h-3.5 text-sky-600 shrink-0 mt-0.5" />
+                        <div className="flex flex-col items-start gap-1 min-w-0">
+                          <span className="text-xs font-bold text-slate-900 break-words">
+                            {customer.name}
                           </span>
-                        )}
+                          {customer.isAccountCustomer && (
+                            <span className="text-[10px] font-semibold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">
+                              Faturalı
+                            </span>
+                          )}
+                        </div>
                       </div>
                       {customer.phone && (
                         <div className="text-[10px] text-slate-400 font-mono mt-0.5">
