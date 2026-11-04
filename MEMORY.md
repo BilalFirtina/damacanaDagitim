@@ -11,11 +11,12 @@
 | Konum | Commit | Durum |
 |---|---|---|
 | `origin/main` | `d507a97` | PR #3 merge edildi. `56d4f30` + `66dca12` + `68f7fa1` dahil. |
-| `origin/feat/agents-compliance` | `10acd99` + hafıza commit'leri | Tahsilat implementasyonu + MEMORY/HANDOFF. **Merge edilmedi.** |
+| `origin/feat/agents-compliance` | `10acd99` + `8891e21` + docs | Tahsilat + faturalı fiyat gizleme + MEMORY/HANDOFF. **Merge edilmedi.** |
 | Yerel çalışma ağacı | `HEAD` | **2026-11-04'te geri yüklendi.** İmplementasyon diskte var; yalnızca `.gitignore` farkı ve line-ending stat gürültüsü var. |
 
-- `10acd99` = `feat: sofor tahsilati ve pesin musteri borcu` (implementasyon)
-- Sonraki commit'ler yalnızca `MEMORY.md`, `HANDOFF.md` ve trail learning'i ekler.
+- `10acd99` = `feat: sofor tahsilati ve pesin musteri borcu` (tahsilat)
+- `8891e21` = `feat: faturali musteri fiyat ve borclarini arayuzde gizle`
+- Sonraki commit'ler `MEMORY.md`, `HANDOFF.md` ve trail learning'i günceller.
 - Dalın tam ucu için `git log -1 --oneline origin/feat/agents-compliance` kullan.
 
 > **CI notu:** `.github/workflows/ci.yml` yalnızca `main`e push ve `main`e açılan
