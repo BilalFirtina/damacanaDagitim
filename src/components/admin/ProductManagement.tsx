@@ -225,9 +225,6 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
               {products.length} Çeşit
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Farklı su markaları (Hayat, Sırma vb.) ve farklı ambalaj boyutları (3000'li koli bardak, 50'li paket bardak vb.) ayrı ürünler olarak tanımlanır.
-          </p>
         </div>
 
         {canManage ? (
