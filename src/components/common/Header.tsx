@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { User } from '../../types';
 import {
   Truck,
@@ -11,6 +12,8 @@ import {
   Package,
   FileText,
   AlertCircle,
+  Menu,
+  X,
 } from 'lucide-react';
 
 export function getFirstName(fullName: string, fallback: string): string {
@@ -43,6 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [refreshState, setRefreshState] = useState<'idle' | 'loading' | 'success' | 'error'>(
     'idle'
   );
+  const [showMoreNav, setShowMoreNav] = useState(false);
   const feedbackTimer = useRef<number | null>(null);
 
   useEffect(
@@ -51,6 +55,20 @@ export const Header: React.FC<HeaderProps> = ({
     },
     []
   );
+
+  useEffect(() => {
+    if (!showMoreNav) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowMoreNav(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showMoreNav]);
 
   const isBusy = refreshState === 'loading' || !!isRefreshing;
 
@@ -85,6 +103,21 @@ export const Header: React.FC<HeaderProps> = ({
     { tab: 'admin_loads', label: 'Yükleme', ariaLabel: 'Araç Yüklemeleri & Yetki', icon: ShieldCheck, iconClass: 'text-indigo-600', activeClass: 'bg-indigo-600', adminOnly: true },
   ];
 
+  const visibleNavItems = mobileNavItems.filter((item) => !item.adminOnly || isAdmin);
+  const primaryMobileTabs = new Set<HeaderProps['activeTab']>([
+    'delivery',
+    'customers',
+    'eod',
+    'reports',
+  ]);
+  const primaryMobileItems = visibleNavItems.filter((item) =>
+    primaryMobileTabs.has(item.tab)
+  );
+  const moreMobileItems = visibleNavItems.filter(
+    (item) => !primaryMobileTabs.has(item.tab)
+  );
+  const isMoreNavActive = moreMobileItems.some((item) => item.tab === activeTab);
+
   return (
     <header className="sticky top-0 z-40 bg-white/95  backdrop-blur-md border-b border-slate-200  shadow-xs w-full max-w-full">
       {/* Top Bar Header */}
@@ -105,6 +138,22 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Zone 3: Actions & Explicit Logout Button (Always visible on all screens) */}
         <div className="flex items-center gap-1 sm:gap-2 min-w-0 lg:shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowMoreNav(true)}
+            className={`lg:hidden flex items-center justify-center min-w-11 min-h-11 p-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${
+              isMoreNavActive
+                ? 'bg-sky-600 text-white'
+                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+            }`}
+            title="Diğer sayfalar"
+            aria-label="Diğer sayfalar menüsünü aç"
+            aria-expanded={showMoreNav}
+            aria-controls="mobile-more-navigation"
+          >
+            <Menu className="w-4 h-4" />
+          </button>
+
           <button
             onClick={handleRefresh}
             disabled={isBusy}
@@ -181,32 +230,92 @@ export const Header: React.FC<HeaderProps> = ({
         </nav>
       </div>
 
-      {/* Compact mobile navigation: four columns, two rows, no horizontal scrolling */}
+      {/* Mobil: dört ana sekme; diğer sayfalar "Diğer" menüsünde. */}
       <div className="lg:hidden w-full max-w-full box-border border-t border-slate-200/80  bg-slate-50/95  px-2 py-2 grid grid-cols-4 gap-1.5 overflow-x-hidden">
-        {mobileNavItems
-          .filter((item) => !item.adminOnly || isAdmin)
-          .map((item) => {
-            const active = activeTab === item.tab;
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.tab}
-                type="button"
-                onClick={() => setActiveTab(item.tab)}
-                aria-label={item.ariaLabel}
-                title={item.ariaLabel}
-                className={`w-full min-h-[52px] px-1 py-1.5 rounded-lg text-[11px] font-semibold flex flex-col items-center justify-center gap-1 transition-all text-center cursor-pointer box-border ${
-                  active
-                    ? `${item.activeClass} text-white shadow-sm ring-1 ring-white/20 font-bold`
-                    : 'bg-white  text-slate-700  border border-slate-200/80  hover:bg-slate-100 '
-                }`}
-              >
-                <Icon className={`w-5 h-5 shrink-0 ${active ? 'text-white' : item.iconClass}`} />
-                <span className="w-full leading-tight break-words">{item.label}</span>
-              </button>
-            );
-          })}
+        {primaryMobileItems.map((item) => {
+          const active = activeTab === item.tab;
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.tab}
+              type="button"
+              onClick={() => setActiveTab(item.tab)}
+              aria-label={item.ariaLabel}
+              title={item.ariaLabel}
+              className={`w-full min-h-[52px] px-1 py-1.5 rounded-lg text-[11px] font-semibold flex flex-col items-center justify-center gap-1 transition-all text-center cursor-pointer box-border ${
+                active
+                  ? `${item.activeClass} text-white shadow-sm ring-1 ring-white/20 font-bold`
+                  : 'bg-white  text-slate-700  border border-slate-200/80  hover:bg-slate-100 '
+              }`}
+            >
+              <Icon className={`w-5 h-5 shrink-0 ${active ? 'text-white' : item.iconClass}`} />
+              <span className="w-full leading-tight break-words">{item.label}</span>
+            </button>
+          );
+        })}
       </div>
+
+      {showMoreNav &&
+        createPortal(
+        <div
+          id="mobile-more-navigation"
+          className="lg:hidden fixed inset-0 z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Diğer sayfalar"
+        >
+          <button
+            type="button"
+            onClick={() => setShowMoreNav(false)}
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px]"
+            aria-label="Menüyü kapat"
+          />
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl border-t border-slate-200 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Diğer Sayfalar</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Tüm işlemler ana menüde değil; sık kullanılanlar üstte.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMoreNav(false)}
+                className="min-w-11 min-h-11 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100"
+                aria-label="Menüyü kapat"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {moreMobileItems.map((item) => {
+                const active = activeTab === item.tab;
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.tab}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(item.tab);
+                      setShowMoreNav(false);
+                    }}
+                    className={`min-h-[56px] px-3 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2.5 text-left transition-colors border ${
+                      active
+                        ? `${item.activeClass} text-white border-transparent shadow-sm`
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-white' : item.iconClass}`} />
+                    <span className="min-w-0 break-words">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {refreshState !== 'idle' && (
         <div
