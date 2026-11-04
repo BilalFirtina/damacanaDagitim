@@ -247,6 +247,8 @@ export interface Delivery {
   driverName: string;
   vehiclePlate: string;
   customerId: string;
+  /** Listeleme/raporlarda faturalı müşteri tutarlarını gizlemek için taşınır. */
+  isAccountCustomer?: boolean;
   customerName: string;
   customerAddress: string;
   customerPhone?: string;

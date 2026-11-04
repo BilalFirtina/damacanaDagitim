@@ -1394,7 +1394,10 @@ app.post('/api/deliveries', async (req, res) => {
           });
         }
         return res.status(200).json({
-          delivery: existing,
+          delivery: {
+            ...existing,
+            isAccountCustomer: customer.isAccountCustomer,
+          },
           updatedCustomer: maskCustomerFinancialsForDriver(customer, session),
           duplicate: true,
         });
@@ -1474,6 +1477,9 @@ app.post('/api/deliveries', async (req, res) => {
 
     res.status(result.duplicate ? 200 : 201).json({
       ...result,
+      delivery: result.delivery
+        ? { ...result.delivery, isAccountCustomer: customer.isAccountCustomer }
+        : result.delivery,
       updatedCustomer: result.updatedCustomer
         ? maskCustomerFinancialsForDriver(result.updatedCustomer, session)
         : null,
@@ -1825,6 +1831,14 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
     if (driverId && driverId !== 'all') {
       deliveries = deliveries.filter((del) => del.driverId === driverId);
     }
+    // Faturalı müşteri tutarları arayüzde gizlenir; teslimat kaydına tür eklenir.
+    const accountCustomerIds = new Set(
+      allCustomers.filter((c) => c.isAccountCustomer).map((c) => c.id)
+    );
+    deliveries = deliveries.map((del) => ({
+      ...del,
+      isAccountCustomer: accountCustomerIds.has(del.customerId),
+    }));
 
     // Teslimat dışı (sonraki ziyaret) tahsilatlar hem yönetici hem şoför
     // tarafından alınabilir. Şoför filtresinde yalnızca o şoförün tahsilatları
@@ -1862,12 +1876,15 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
     const deliveredProductQuantities: Record<string, { name: string; quantity: number }> = {};
 
     deliveries.forEach((del) => {
-      totalDeliveredValue += del.deliveredGrandTotal;
+      // Faturalı müşteri mal tutarı ve cari borcu rapor toplamlarına yazılmaz.
+      if (!del.isAccountCustomer) {
+        totalDeliveredValue += del.deliveredGrandTotal;
+        if (del.collectedPayment.diffUncollected > 0) {
+          totalCreditAdded += del.collectedPayment.diffUncollected;
+        }
+      }
       totalCashCollected += del.collectedPayment.cashAmount;
       totalPosCollected += del.collectedPayment.posAmount;
-      if (del.collectedPayment.diffUncollected > 0) {
-        totalCreditAdded += del.collectedPayment.diffUncollected;
-      }
       totalEmptyDamacanaCollected += del.emptyContainersReceived.damacana || 0;
       totalEmptyCamDamacanaCollected +=
         Number(del.emptyContainersReceived.camDamacana || del.emptyContainersReceived.cam_damacana) || 0;
@@ -1903,6 +1920,7 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
         totalStandaloneCollected:
           totalStandaloneCash + totalStandalonePos + totalStandaloneTransfer,
         deliveredProductQuantities,
+        hasAccountCustomerDeliveries: deliveries.some((del) => del.isAccountCustomer),
       },
       customerPayments,
     });

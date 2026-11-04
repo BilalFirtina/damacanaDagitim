@@ -378,6 +378,16 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     }
   }, [selectedCustomer, allProducts, isEdit]);
 
+  // Faturalı müşteride tutar bilgisi gizlendiği için "tam tahsilat" varsayılanı
+  // kullanılmaz; şoför tahsilat aldıysa tutarı kendisi girer.
+  useEffect(() => {
+    if (isEdit || !selectedCustomer) return;
+    setPaymentMethod("CASH");
+    setCashAmountInput("0");
+    setPosAmountInput("0");
+    setPaymentType(selectedCustomer.isAccountCustomer ? "unpaid" : "full");
+  }, [selectedCustomer?.id, selectedCustomer?.isAccountCustomer, isEdit]);
+
   // Delivered items calculation
   const deliveredItems = Object.entries(quantities)
     .filter(([_, q]) => q > 0)
@@ -1257,49 +1267,51 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                           </div>
 
                           <div className="flex items-center gap-3 mt-1 text-xs">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-slate-500">
-                                Birim Fiyat:
-                              </span>
-                              {isEditingPrice ? (
-                                <div className="flex items-center gap-1">
-                                  <input
-                                    type="number"
-                                    value={unitPrice}
-                                    onChange={(e) =>
-                                      setUnitPrices((prev) => ({
-                                        ...prev,
-                                        [p.id]: Math.max(
-                                          0,
-                                          parseFloat(e.target.value) || 0,
-                                        ),
-                                      }))
-                                    }
-                                    className="w-16 h-6 rounded border border-sky-400 font-mono font-bold text-center text-xs bg-white dark:bg-slate-800"
-                                    autoFocus
-                                  />
+                            {!selectedCustomer?.isAccountCustomer && (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-slate-500">
+                                  Birim Fiyat:
+                                </span>
+                                {isEditingPrice ? (
+                                  <div className="flex items-center gap-1">
+                                    <input
+                                      type="number"
+                                      value={unitPrice}
+                                      onChange={(e) =>
+                                        setUnitPrices((prev) => ({
+                                          ...prev,
+                                          [p.id]: Math.max(
+                                            0,
+                                            parseFloat(e.target.value) || 0,
+                                          ),
+                                        }))
+                                      }
+                                      className="w-16 h-6 rounded border border-sky-400 font-mono font-bold text-center text-xs bg-white dark:bg-slate-800"
+                                      autoFocus
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setEditingPriceProductId(null)
+                                      }
+                                      className="p-1 rounded bg-sky-600 text-white"
+                                    >
+                                      <Check className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ) : (
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      setEditingPriceProductId(null)
-                                    }
-                                    className="p-1 rounded bg-sky-600 text-white"
+                                    onClick={() => setEditingPriceProductId(p.id)}
+                                    className="flex items-center gap-1 font-mono font-bold text-slate-800 dark:text-slate-200 hover:text-sky-600"
+                                    title="Fiyatı Düzenle"
                                   >
-                                    <Check className="w-3 h-3" />
+                                    <span>{unitPrice} ₺</span>
+                                    <Edit2 className="w-2.5 h-2.5 text-slate-400" />
                                   </button>
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingPriceProductId(p.id)}
-                                  className="flex items-center gap-1 font-mono font-bold text-slate-800 dark:text-slate-200 hover:text-sky-600"
-                                  title="Fiyatı Düzenle"
-                                >
-                                  <span>{unitPrice} ₺</span>
-                                  <Edit2 className="w-2.5 h-2.5 text-slate-400" />
-                                </button>
-                              )}
-                            </div>
+                                )}
+                              </div>
+                            )}
 
                             <span className="text-slate-400">· {p.unit}</span>
 
@@ -1345,11 +1357,17 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                           </div>
 
                           <div className="w-20 text-right">
-                            <span className="font-mono font-bold text-xs tabular-nums text-slate-900 dark:text-white">
-                              {lineTotal > 0
-                                ? `${lineTotal.toLocaleString("tr-TR")} ₺`
-                                : "-"}
-                            </span>
+                            {selectedCustomer?.isAccountCustomer ? (
+                              <span className="text-[10px] text-slate-400">
+                                Tutar gizli
+                              </span>
+                            ) : (
+                              <span className="font-mono font-bold text-xs tabular-nums text-slate-900 dark:text-white">
+                                {lineTotal > 0
+                                  ? `${lineTotal.toLocaleString("tr-TR")} ₺`
+                                  : "-"}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1576,58 +1594,97 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
               {/* Payment Section */}
               <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <label className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
                     Tahsilat & Ödeme Durumu
                   </label>
-                  <div className="text-right">
+                  {selectedCustomer.isAccountCustomer ? (
                     <span className="text-[11px] text-slate-500">
-                      Teslimat Tutarı:
+                      Faturalı müşteri — tutar bilgisi gizlenir
                     </span>
-                    <span className="font-mono font-extrabold text-base text-slate-900 dark:text-white ml-1.5 tabular-nums">
-                      {grandTotal.toLocaleString("tr-TR")} ₺
-                    </span>
-                  </div>
+                  ) : (
+                    <div className="text-right">
+                      <span className="text-[11px] text-slate-500">
+                        Teslimat Tutarı:
+                      </span>
+                      <span className="font-mono font-extrabold text-base text-slate-900 dark:text-white ml-1.5 tabular-nums">
+                        {grandTotal.toLocaleString("tr-TR")} ₺
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Quick Payment Type Buttons */}
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentType("full")}
-                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                      paymentType === "full"
-                        ? "bg-emerald-600 text-white shadow-xs"
-                        : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
-                    }`}
-                  >
-                    Tam Tahsilat ({grandTotal} ₺)
-                  </button>
+                {selectedCustomer.isAccountCustomer ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentType("unpaid")}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                        paymentType === "unpaid"
+                          ? "bg-amber-600 text-white shadow-xs"
+                          : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                      }`}
+                    >
+                      Tahsilat Alınmadı
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setPaymentType("unpaid")}
-                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                      paymentType === "unpaid"
-                        ? "bg-amber-600 text-white shadow-xs"
-                        : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
-                    }`}
-                  >
-                    Tahsil Edilmedi (Borç / 0 ₺)
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentType("custom");
+                        setPaymentMethod("CASH");
+                        setCashAmountInput("");
+                        setPosAmountInput("");
+                      }}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                        paymentType === "custom"
+                          ? "bg-sky-600 text-white shadow-xs"
+                          : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                      }`}
+                    >
+                      Tahsilat Al
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentType("full")}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                        paymentType === "full"
+                          ? "bg-emerald-600 text-white shadow-xs"
+                          : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                      }`}
+                    >
+                      Tam Tahsilat ({grandTotal} ₺)
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setPaymentType("custom")}
-                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                      paymentType === "custom"
-                        ? "bg-sky-600 text-white shadow-xs"
-                        : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
-                    }`}
-                  >
-                    Kısmi / Farklı Tutar
-                  </button>
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentType("unpaid")}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                        paymentType === "unpaid"
+                          ? "bg-amber-600 text-white shadow-xs"
+                          : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                      }`}
+                    >
+                      Tahsil Edilmedi (Borç / 0 ₺)
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPaymentType("custom")}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                        paymentType === "custom"
+                          ? "bg-sky-600 text-white shadow-xs"
+                          : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                      }`}
+                    >
+                      Kısmi / Farklı Tutar
+                    </button>
+                  </div>
+                )}
 
                 {/* Payment Method Selector */}
                 {paymentType !== "unpaid" && (
@@ -1723,7 +1780,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     </span>
                   </div>
 
-                  {uncollectedDiff !== 0 && (
+                  {!selectedCustomer.isAccountCustomer && uncollectedDiff !== 0 && (
                     <div className="mt-1 text-[11px] text-sky-800 dark:text-sky-300">
                       {uncollectedDiff > 0 ? (
                         <span>

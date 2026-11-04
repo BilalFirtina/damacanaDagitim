@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Dispatch, Delivery, Product, User } from '../../types';
+import { Customer, Dispatch, Delivery, Product, User } from '../../types';
+import { isAccountCustomerDelivery } from '../../services/customerVisibility';
 import { todayUtcDateStr, formatDateTr } from '../../services/dateWindow';
 import {
   findOldestStaleOpenDispatch,
@@ -34,6 +35,7 @@ interface EndOfDayViewProps {
   deliveries: Delivery[];
   products: Product[];
   currentUser: User;
+  customers?: Customer[];
   onDispatchUpdated: (updated: Dispatch) => void;
   onNavigateTab?: (tab: any) => void;
   onRefreshData?: () => void | Promise<unknown>;
@@ -46,6 +48,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
   deliveries,
   products,
   currentUser,
+  customers = [],
   onDispatchUpdated,
   onNavigateTab,
   onRefreshData,
@@ -652,35 +655,40 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
           {dispatchDeliveries.length === 0 ? (
             <div className="p-4 text-center text-slate-400">Bu seferde henüz teslimat yapılmadı.</div>
           ) : (
-            dispatchDeliveries.map((del, index) => (
-              <div key={del.id} className="py-2.5 flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <span>{index + 1}. {del.customerName}</span>
-                    <span className="text-[10px] text-slate-400">
-                      {new Date(del.timestamp).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+            dispatchDeliveries.map((del, index) => {
+              const isAccount = isAccountCustomerDelivery(del, customers);
+              return (
+                <div key={del.id} className="py-2.5 flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <span>{index + 1}. {del.customerName}</span>
+                      <span className="text-[10px] text-slate-400">
+                        {new Date(del.timestamp).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      {del.deliveredItems.map((i) => `${i.quantity} ${i.productName}`).join(' · ')}
+                      {del.emptyContainersReceived.damacana > 0 && ` · ${del.emptyContainersReceived.damacana} Boş`}
+                      {(del.emptyContainersReceived.camDamacana || 0) > 0 && ` · ${del.emptyContainersReceived.camDamacana} Boş Cam`}
+                      {del.emptyContainersReceived.tup > 0 && ` · ${del.emptyContainersReceived.tup} Boş Tüp`}
+                    </div>
                   </div>
-                  <div className="text-[11px] text-slate-500">
-                    {del.deliveredItems.map((i) => `${i.quantity} ${i.productName}`).join(' · ')}
-                    {del.emptyContainersReceived.damacana > 0 && ` · ${del.emptyContainersReceived.damacana} Boş`}
-                    {(del.emptyContainersReceived.camDamacana || 0) > 0 && ` · ${del.emptyContainersReceived.camDamacana} Boş Cam`}
-                    {del.emptyContainersReceived.tup > 0 && ` · ${del.emptyContainersReceived.tup} Boş Tüp`}
-                  </div>
-                </div>
 
-                <div className="text-right">
-                  <div className="font-mono font-bold text-slate-900 dark:text-white">
-                    {del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺
-                  </div>
-                  <div className="text-[10px] text-emerald-600 font-semibold">
-                    {del.collectedPayment.cashAmount > 0 && `${del.collectedPayment.cashAmount.toLocaleString('tr-TR')} ₺ Nakit `}
-                    {del.collectedPayment.posAmount > 0 && `${del.collectedPayment.posAmount.toLocaleString('tr-TR')} ₺ POS `}
-                    {del.collectedPayment.totalCollected === 0 && '0 ₺ Veresiye'}
+                  <div className="text-right">
+                    {!isAccount && (
+                      <div className="font-mono font-bold text-slate-900 dark:text-white">
+                        {del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺
+                      </div>
+                    )}
+                    <div className="text-[10px] text-emerald-600 font-semibold">
+                      {del.collectedPayment.cashAmount > 0 && `${del.collectedPayment.cashAmount.toLocaleString('tr-TR')} ₺ Nakit `}
+                      {del.collectedPayment.posAmount > 0 && `${del.collectedPayment.posAmount.toLocaleString('tr-TR')} ₺ POS `}
+                      {del.collectedPayment.totalCollected === 0 && (isAccount ? 'Tahsilat kaydı yok' : '0 ₺ Veresiye')}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

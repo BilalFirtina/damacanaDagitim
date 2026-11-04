@@ -319,7 +319,8 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
         (c.emptyDepositBalance?.camDamacana || 0) > 0 ||
         (c.emptyDepositBalance?.tup || 0) > 0
       );
-    if (filterType === 'cash_debt') return c.currentBalanceTL > 0;
+    // Faturalı müşteri cari borcu gösterilmediği için bu filtrede yer almaz.
+    if (filterType === 'cash_debt') return !c.isAccountCustomer && c.currentBalanceTL > 0;
     return true;
   });
 
@@ -402,7 +403,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
               : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
           }`}
         >
-          TL Bakiye Borcu Olanlar ({customers.filter((c) => (c.currentBalanceTL || 0) > 0).length})
+          TL Bakiye Borcu Olanlar ({customers.filter((c) => !c.isAccountCustomer && (c.currentBalanceTL || 0) > 0).length})
         </button>
       </div>
 
@@ -544,18 +545,24 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
                   <div className="text-right">
                     <span className="text-[10px] text-slate-400 block">Cari TL Borç:</span>
-                    <span
-                      className={`font-mono font-bold ${
-                        (c.currentBalanceTL || 0) > 0 ? 'text-red-600' : 'text-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      {(c.currentBalanceTL || 0).toLocaleString('tr-TR')} ₺
-                    </span>
+                    {c.isAccountCustomer ? (
+                      <span className="text-[10px] font-semibold text-slate-400">
+                        Faturalı — tutar gizli
+                      </span>
+                    ) : (
+                      <span
+                        className={`font-mono font-bold ${
+                          (c.currentBalanceTL || 0) > 0 ? 'text-red-600' : 'text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        {(c.currentBalanceTL || 0).toLocaleString('tr-TR')} ₺
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 {/* Custom Prices Memory */}
-                {c.customPrices && Object.keys(c.customPrices).length > 0 && (
+                {!c.isAccountCustomer && c.customPrices && Object.keys(c.customPrices).length > 0 && (
                   <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500">
                     <span className="text-[10px] text-slate-400 block mb-0.5">Özel Fiyat Hafızası:</span>
                     <div className="flex flex-wrap gap-1">
@@ -586,7 +593,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                       Boşları Sıfırla
                     </button>
                   )}
-                  {(c.currentBalanceTL || 0) > 0 && (
+                  {!c.isAccountCustomer && (c.currentBalanceTL || 0) > 0 && (
                     <button
                       onClick={() => handleClearBalanceTL(c)}
                       className="text-red-600 hover:underline ml-auto"
@@ -1000,6 +1007,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       {paymentCustomer && (
         <CustomerPaymentModal
           customer={paymentCustomer}
+          hideBalance={paymentCustomer.isAccountCustomer}
           onClose={() => setPaymentCustomer(null)}
           onSaved={(newBalance) => {
             if (newBalance === null) return;

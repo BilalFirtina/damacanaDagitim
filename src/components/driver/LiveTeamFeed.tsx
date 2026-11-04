@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Delivery, User } from '../../types';
+import { Customer, Delivery, User } from '../../types';
+import { isAccountCustomerDelivery } from '../../services/customerVisibility';
 import {
   Clock,
   Truck,
@@ -15,6 +16,7 @@ import {
 interface LiveTeamFeedProps {
   deliveries: Delivery[];
   currentUser: User;
+  customers?: Customer[];
 }
 
 // Ayırt edici şoför renk paletleri (Her şoför alt alta listelendiğinde belirgin şekilde ayrışır)
@@ -107,6 +109,7 @@ export const getDriverPalette = (driverId: string, driverName?: string): DriverP
 export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
   deliveries,
   currentUser,
+  customers = [],
 }) => {
   const [filterPlate, setFilterPlate] = useState<string>('all');
   const [filterDriverId, setFilterDriverId] = useState<string>('all');
@@ -274,6 +277,7 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
             });
             const isMe = item.driverId === currentUser.id;
             const pal = getDriverPalette(item.driverId, item.driverName);
+            const isAccount = isAccountCustomerDelivery(item, customers);
 
             return (
               <div
@@ -344,7 +348,11 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
                             {prod.quantity}
                           </strong>{' '}
                           {prod.productName}{' '}
-                          <span className="text-slate-400 font-normal">({prod.unitPrice} ₺)</span>
+                          {!isAccount && (
+                            <span className="text-slate-400 font-normal">
+                              ({prod.unitPrice} ₺)
+                            </span>
+                          )}
                         </span>
                       ))}
                     </div>
@@ -383,10 +391,14 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
 
                   {/* Right: Payment Breakdown Card */}
                   <div className="bg-white/80 dark:bg-slate-800/80 p-3 rounded-xl border border-slate-200 dark:border-slate-700/80 shrink-0 min-w-[200px] text-right space-y-1 shadow-2xs">
-                    <div className="text-[11px] text-slate-500">Mal Bedeli / Tutar</div>
-                    <div className="text-base font-extrabold font-mono text-slate-900 dark:text-white tabular-nums">
-                      {item.deliveredGrandTotal.toLocaleString('tr-TR')} ₺
+                    <div className="text-[11px] text-slate-500">
+                      {isAccount ? 'Tahsilat' : 'Mal Bedeli / Tutar'}
                     </div>
+                    {!isAccount && (
+                      <div className="text-base font-extrabold font-mono text-slate-900 dark:text-white tabular-nums">
+                        {item.deliveredGrandTotal.toLocaleString('tr-TR')} ₺
+                      </div>
+                    )}
 
                     {/* Payment badges */}
                     <div className="flex items-center justify-end gap-1.5 pt-1">
@@ -406,12 +418,12 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
 
                       {item.collectedPayment.totalCollected === 0 && (
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">
-                          Tahsilat Alınmadı (0 ₺)
+                          {isAccount ? 'Tahsilat kaydı yok' : 'Tahsilat Alınmadı (0 ₺)'}
                         </span>
                       )}
                     </div>
 
-                    {item.collectedPayment.diffUncollected > 0 && (
+                    {!isAccount && item.collectedPayment.diffUncollected > 0 && (
                       <div className="text-[10px] text-amber-700 dark:text-amber-400 font-medium pt-0.5">
                         +{item.collectedPayment.diffUncollected.toLocaleString('tr-TR')} ₺ Cariye Borç Yazıldı
                       </div>

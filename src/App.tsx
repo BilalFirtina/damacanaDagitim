@@ -362,6 +362,7 @@ export default function App() {
           <LiveTeamFeed
             deliveries={deliveries}
             currentUser={currentUser}
+            customers={customers}
           />
         )}
 
@@ -373,6 +374,7 @@ export default function App() {
             deliveries={deliveries}
             products={products}
             currentUser={currentUser}
+            customers={customers}
             onDispatchUpdated={handleDispatchUpdated}
             onNavigateTab={setActiveTab}
             onRefreshData={loadData}
@@ -402,6 +404,7 @@ export default function App() {
             products={products}
             currentUser={currentUser}
             dispatches={dispatches}
+            customers={customers}
           />
         )}
 

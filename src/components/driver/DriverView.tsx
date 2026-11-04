@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Dispatch, Delivery, Customer, Product, User } from '../../types';
 import { todayUtcDateStr } from '../../services/dateWindow';
 import { cancelDelivery } from '../../services/api';
+import { isAccountCustomerDelivery } from '../../services/customerVisibility';
 import { MorningLoadCard } from './MorningLoadCard';
 import { DriverStatsStrip } from './DriverStatsStrip';
 import { DeliveryModal } from './DeliveryModal';
@@ -321,6 +322,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
                 hour: '2-digit',
                 minute: '2-digit',
               });
+              const isAccount = isAccountCustomerDelivery(del, customers);
 
               return (
                 <div key={del.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full min-w-0">
@@ -340,7 +342,8 @@ export const DriverView: React.FC<DriverViewProps> = ({
                           key={idx}
                           className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[11px]"
                         >
-                          <strong>{item.quantity}</strong> {item.productName} ({item.unitPrice} ₺)
+                          <strong>{item.quantity}</strong> {item.productName}
+                          {!isAccount && ` (${item.unitPrice} ₺)`}
                         </span>
                       ))}
 
@@ -369,7 +372,13 @@ export const DriverView: React.FC<DriverViewProps> = ({
 
                   <div className="text-left sm:text-right shrink-0">
                     <div className="font-mono font-extrabold text-sm text-slate-900 dark:text-white">
-                      {del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺
+                      {isAccount ? (
+                        <span className="text-[11px] font-semibold text-slate-400">
+                          Tutar gizli
+                        </span>
+                      ) : (
+                        `${del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺`
+                      )}
                     </div>
                     <div className="flex items-center sm:justify-end gap-1.5 text-[11px] font-semibold">
                       {del.collectedPayment.cashAmount > 0 && (
@@ -383,7 +392,9 @@ export const DriverView: React.FC<DriverViewProps> = ({
                         </span>
                       )}
                       {del.collectedPayment.totalCollected === 0 && (
-                        <span className="text-amber-600">Tahsilat Alınmadı (Cari)</span>
+                        <span className="text-amber-600">
+                          {isAccount ? 'Tahsilat kaydı yok' : 'Tahsilat Alınmadı (Cari)'}
+                        </span>
                       )}
                     </div>
 
@@ -512,7 +523,9 @@ export const DriverView: React.FC<DriverViewProps> = ({
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-slate-500">Teslimat Tutarı</span>
                   <span className="font-mono font-bold text-slate-900 dark:text-white">
-                    {cancelTarget.deliveredGrandTotal.toLocaleString('tr-TR')} ₺
+                    {isAccountCustomerDelivery(cancelTarget, customers)
+                      ? 'Tutar gizli'
+                      : `${cancelTarget.deliveredGrandTotal.toLocaleString('tr-TR')} ₺`}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">

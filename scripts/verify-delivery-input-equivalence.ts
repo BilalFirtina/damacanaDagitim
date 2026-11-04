@@ -107,7 +107,7 @@ const customer: any = {
   name: 'Test Müşteri',
   phone: '05000000000',
   address: 'Test Adres',
-  isAccountCustomer: true,
+  isAccountCustomer: false,
   currentBalanceTL: 0,
   emptyDepositBalance: { damacana: 0, camDamacana: 0, tup: 0 },
   customPrices: {},
@@ -843,6 +843,39 @@ for (const testCase of cases) {
     `gercek=${actualKind}`
   );
 }
+
+// Faturalı müşteride birim fiyat istemciden alınmaz; ürün default fiyatı
+// sunucuda uygulanır ve borç bu tutardan hesaplanır.
+const accountCustomer = { ...customer, isAccountCustomer: true };
+const accountInput: NormalizeDeliveryInput = {
+  ...baseInput(),
+  customer: accountCustomer,
+  deliveredItems: [
+    { productId: 'p_water', productName: 'Damacana Su', quantity: 2, unitPrice: 90 },
+  ],
+  collectedPayment: { method: 'UNPAID', cashAmount: 0, posAmount: 0 },
+};
+const accountResult = normalizeDeliveryInput(accountInput);
+check(
+  'faturalı: istemci fiyatı yerine default fiyat kullanılır',
+  accountResult.delivery.deliveredItems[0]?.unitPrice === 100,
+  JSON.stringify(accountResult.delivery.deliveredItems[0])
+);
+check(
+  'faturalı: mal tutarı default fiyattan hesaplanır',
+  accountResult.delivery.deliveredGrandTotal === 200,
+  `${accountResult.delivery.deliveredGrandTotal}`
+);
+check(
+  'faturalı: kalan borç default fiyattan hesaplanır',
+  accountResult.delivery.collectedPayment.diffUncollected === 200,
+  `${accountResult.delivery.collectedPayment.diffUncollected}`
+);
+check(
+  'faturalı: son fiyat kaydı default fiyatla güncellenir',
+  accountResult.priceUpdates.p_water === 100,
+  JSON.stringify(accountResult.priceUpdates)
+);
 
 check(
   `camDamacana ?? cam_damacana ?? 0 nextEmpty esdegeri (${camComparisons} ciktida ${camMismatches} fark)`,
