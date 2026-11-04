@@ -139,22 +139,6 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Zone 3: Actions & Explicit Logout Button (Always visible on all screens) */}
         <div className="flex items-center gap-1 sm:gap-2 min-w-0 lg:shrink-0">
           <button
-            type="button"
-            onClick={() => setShowMoreNav(true)}
-            className={`lg:hidden flex items-center justify-center min-w-11 min-h-11 p-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${
-              isMoreNavActive
-                ? 'bg-sky-600 text-white'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-            }`}
-            title="Diğer sayfalar"
-            aria-label="Diğer sayfalar menüsünü aç"
-            aria-expanded={showMoreNav}
-            aria-controls="mobile-more-navigation"
-          >
-            <Menu className="w-4 h-4" />
-          </button>
-
-          <button
             onClick={handleRefresh}
             disabled={isBusy}
             className="flex items-center justify-center min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 p-1.5 text-slate-500 hover:text-slate-800   rounded-lg hover:bg-slate-100  transition-colors shrink-0 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
@@ -231,7 +215,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Mobil: dört ana sekme; diğer sayfalar "Diğer" menüsünde. */}
-      <div className="lg:hidden w-full max-w-full box-border border-t border-slate-200/80  bg-slate-50/95  px-2 py-2 grid grid-cols-4 gap-1.5 overflow-x-hidden">
+      <div className="lg:hidden w-full max-w-full box-border border-t border-slate-200/80  bg-slate-50/95  px-2 py-2 grid grid-cols-5 gap-1.5 overflow-x-hidden">
         {primaryMobileItems.map((item) => {
           const active = activeTab === item.tab;
           const Icon = item.icon;
@@ -253,6 +237,23 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           );
         })}
+
+        <button
+          type="button"
+          onClick={() => setShowMoreNav(true)}
+          aria-label="Diğer sayfalar menüsünü aç"
+          title="Diğer sayfalar"
+          aria-expanded={showMoreNav}
+          aria-controls="mobile-more-navigation"
+          className={`w-full min-h-[52px] px-1 py-1.5 rounded-lg text-[11px] font-semibold flex flex-col items-center justify-center gap-1 transition-all text-center cursor-pointer box-border ${
+            isMoreNavActive
+              ? 'bg-sky-600 text-white shadow-sm ring-1 ring-white/20 font-bold'
+              : 'bg-white  text-slate-700  border border-slate-200/80  hover:bg-slate-100 '
+          }`}
+        >
+          <Menu className="w-5 h-5 shrink-0" />
+          <span className="w-full leading-tight break-words">Diğer</span>
+        </button>
       </div>
 
       {showMoreNav &&
