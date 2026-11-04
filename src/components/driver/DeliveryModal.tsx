@@ -20,6 +20,8 @@ import {
   MapPin,
   Building2,
   X,
+  ChevronDown,
+  ArrowRight,
 } from "lucide-react";
 import {
   createDelivery,
@@ -74,13 +76,13 @@ const EmptyContainerRow: React.FC<EmptyContainerRowProps> = ({
     Math.max(0, Math.floor(Number(quantity) || 0));
 
   return (
-    <div className="p-2.5 rounded-lg bg-white  border border-orange-100  space-y-2 min-w-0">
+    <div className="p-2.5 rounded-lg bg-white border border-orange-100 space-y-2 min-w-0">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-xs font-semibold text-slate-800  break-words">
+          <div className="text-xs font-semibold text-slate-800 break-words">
             {label}
           </div>
-          <div className="text-[10px] text-slate-500 ">
+          <div className="text-[10px] text-slate-500">
             Bırakılan dolu: {delivered}
           </div>
         </div>
@@ -91,57 +93,163 @@ const EmptyContainerRow: React.FC<EmptyContainerRowProps> = ({
             onChange={(event) => onToggle(event.target.checked)}
             className="w-4 h-4 rounded border-orange-300 text-orange-600 focus:ring-orange-500"
           />
-          <span className="text-[10px] font-bold text-orange-800 ">
+          <span className="text-[10px] font-bold text-orange-800">
             Manuel
           </span>
         </label>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      {manual ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-[10px] font-semibold text-orange-700">
+            Elle girilen miktar
+          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => onChange(normalize(value - 1))}
+              aria-label={`${label} azalt`}
+              className="min-w-11 min-h-11 rounded-lg bg-slate-100 text-sm font-bold"
+            >
+              -
+            </button>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              inputMode="numeric"
+              aria-label={label}
+              value={value}
+              onChange={(event) =>
+                onChange(normalize(event.target.valueAsNumber))
+              }
+              className="w-14 h-11 rounded-lg border border-orange-200 text-center font-mono font-bold text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => onChange(normalize(value + 1))}
+              aria-label={`${label} artır`}
+              className="min-w-11 min-h-11 rounded-lg bg-orange-50 text-orange-600 text-sm font-bold"
+            >
+              +
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] text-slate-500">
+            Otomatik: dolu kadar
+          </span>
+          <span className="font-mono font-bold text-sm text-slate-800 tabular-nums">
+            {value}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+type DeliveryStepKey = "customer" | "products" | "empties" | "payment";
+
+interface StepSectionProps {
+  stepKey: DeliveryStepKey;
+  step: number;
+  title: string;
+  summary?: React.ReactNode;
+  isOpen: boolean;
+  isComplete?: boolean;
+  hasWarning?: boolean;
+  disabled?: boolean;
+  disabledHint?: string;
+  onToggle: () => void;
+  children: React.ReactNode;
+}
+
+/**
+ * Teslimat formunun tek açık kalan adım paneli.
+ * Başlık her zaman dokunulabilir; kapalıyken tek satır özet gösterir.
+ */
+const StepSection: React.FC<StepSectionProps> = ({
+  stepKey,
+  step,
+  title,
+  summary,
+  isOpen,
+  isComplete = false,
+  hasWarning = false,
+  disabled = false,
+  disabledHint,
+  onToggle,
+  children,
+}) => {
+  const contentId = `delivery-step-${stepKey}-content`;
+
+  return (
+    <section
+      id={`delivery-step-${stepKey}`}
+      className="rounded-xl border border-slate-200 bg-white scroll-mt-2"
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={disabled}
+        aria-expanded={isOpen}
+        aria-controls={contentId}
+        className={`w-full min-h-12 px-3 py-2.5 flex items-start gap-2.5 text-left transition-colors ${
+          isOpen
+            ? "bg-sky-50/70 rounded-t-xl"
+            : "bg-white hover:bg-slate-50 rounded-xl"
+        } ${disabled ? "opacity-60 cursor-not-allowed" : ""}`}
+      >
         <span
-          className={`text-[10px] ${
-            manual
-              ? "font-semibold text-orange-700 "
-              : "text-slate-500 "
+          className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 mt-0.5 ${
+            isComplete
+              ? "bg-emerald-600 text-white"
+              : isOpen
+                ? "bg-sky-600 text-white"
+                : "bg-slate-200 text-slate-600"
           }`}
         >
-          {manual ? "Elle girilen miktar" : "Otomatik: dolu kadar"}
+          {isComplete ? <Check className="w-3.5 h-3.5" /> : step}
         </span>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            disabled={!manual}
-            onClick={() => onChange(normalize(value - 1))}
-            aria-label={`${label} azalt`}
-            className="min-w-11 min-h-11 rounded-lg bg-slate-100  text-sm font-bold disabled:opacity-40"
-          >
-            -
-          </button>
-          <input
-            type="number"
-            min={0}
-            step={1}
-            inputMode="numeric"
-            aria-label={label}
-            value={value}
-            disabled={!manual}
-            onChange={(event) =>
-              onChange(normalize(event.target.valueAsNumber))
-            }
-            className="w-14 h-11 rounded-lg border border-orange-200  text-center font-mono font-bold text-sm   disabled:bg-slate-50  disabled:text-slate-500"
-          />
-          <button
-            type="button"
-            disabled={!manual}
-            onClick={() => onChange(normalize(value + 1))}
-            aria-label={`${label} artır`}
-            className="min-w-11 min-h-11 rounded-lg bg-orange-50  text-orange-600  text-sm font-bold disabled:opacity-40"
-          >
-            +
-          </button>
+
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1.5 min-w-0">
+            <span className="text-xs font-bold text-slate-900 uppercase tracking-wider break-words">
+              {title}
+            </span>
+            {hasWarning && (
+              <span
+                className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0"
+                title="Uyarı var"
+              />
+            )}
+          </span>
+          {!isOpen && (
+            <span className="block text-[11px] text-slate-500 mt-0.5 break-words">
+              {disabled && disabledHint ? disabledHint : summary}
+            </span>
+          )}
+        </span>
+
+        <ChevronDown
+          className={`w-4 h-4 mt-0.5 shrink-0 text-slate-400 transition-transform ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div
+          id={contentId}
+          role="region"
+          aria-label={title}
+          className="p-3 space-y-3 border-t border-slate-100"
+        >
+          {children}
         </div>
-      </div>
-    </div>
+      )}
+    </section>
   );
 };
 
@@ -159,6 +267,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 }) => {
   const isEdit = !!editDelivery;
   const initializedKeyRef = useRef<string | null>(null);
+  const [openStep, setOpenStep] = useState<DeliveryStepKey | null>("customer");
   // Local products list so newly created products are immediately selectable
   const [allProducts, setAllProducts] = useState<Product[]>(products);
 
@@ -188,6 +297,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     if (initializedKeyRef.current === key) return;
     initializedKeyRef.current = key;
 
+    setOpenStep(editDelivery ? "products" : "customer");
     setShowNewCustomerForm(false);
     setCustomerSearch("");
     setProductSearch("");
@@ -353,6 +463,29 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     setErrorMsg(message);
   };
 
+  const scrollToStep = (step: DeliveryStepKey) => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        document
+          .getElementById(`delivery-step-${step}`)
+          ?.scrollIntoView({ block: "start", behavior: "smooth" });
+      });
+    });
+  };
+
+  const openStepAndScroll = (step: DeliveryStepKey) => {
+    setOpenStep(step);
+    scrollToStep(step);
+  };
+
+  const toggleStep = (step: DeliveryStepKey) => {
+    if (openStep === step) {
+      setOpenStep(null);
+      return;
+    }
+    openStepAndScroll(step);
+  };
+
   useEffect(() => {
     if (!errorMsg || errorPersistent) return;
     const timeout = setTimeout(
@@ -498,6 +631,13 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     setShowNewCustomerForm(true);
   };
 
+  const handleSelectCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setErrorPersistent(false);
+    setErrorMsg(null);
+    openStepAndScroll("products");
+  };
+
   // New Customer submit
   const handleCreateNewCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -529,7 +669,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       );
       onCustomerCreated?.(created);
       // Automatically select created customer and proceed to product selection
-      setSelectedCustomer(created);
+      handleSelectCustomer(created);
       setCustomerSearch(created.name);
       setShowNewCustomerForm(false);
       setNewCustName("");
@@ -588,10 +728,12 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   // Submit Delivery
   const handleSubmitDelivery = async () => {
     if (!selectedCustomer) {
+      openStepAndScroll("customer");
       showTransientError("Lütfen önce bir müşteri seçiniz");
       return;
     }
     if (!hasDeliveryContent) {
+      openStepAndScroll("products");
       showTransientError(
         "Teslimat için en az bir ürün veya müşteriden alınan boş kap girilmelidir.",
       );
@@ -600,6 +742,13 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     if (isEdit && correctionReason.trim().length < 3) {
       setErrorPersistent(true);
       setErrorMsg("Düzenleme için en az 3 karakterlik bir gerekçe girin.");
+      window.requestAnimationFrame(() => {
+        const reasonEl = document.getElementById(
+          "delivery-correction-reason",
+        );
+        reasonEl?.scrollIntoView({ block: "center", behavior: "smooth" });
+        reasonEl?.focus();
+      });
       return;
     }
 
@@ -721,6 +870,106 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     now: warningClock,
   });
 
+  const totalQuantity = deliveredItems.reduce(
+    (acc, item) => acc + item.quantity,
+    0,
+  );
+
+  const paymentMethodLabel =
+    cashVal > 0 && posVal > 0
+      ? "Karma"
+      : posVal > 0
+        ? "POS"
+        : "Nakit";
+
+  const receivedEmptyParts: string[] = [];
+  if (emptyDamacanaReturned > 0) {
+    receivedEmptyParts.push(`${emptyDamacanaReturned} damacana`);
+  }
+  if (emptyCamDamacanaReturned > 0) {
+    receivedEmptyParts.push(`${emptyCamDamacanaReturned} cam damacana`);
+  }
+  if (emptyTupReturned > 0) {
+    receivedEmptyParts.push(`${emptyTupReturned} tüp`);
+  }
+  if (emptySebilReturned > 0) {
+    receivedEmptyParts.push(`${emptySebilReturned} sebil`);
+  }
+  const emptiesSummaryText =
+    receivedEmptyParts.length > 0
+      ? `Alınan: ${receivedEmptyParts.join(", ")}`
+      : "Boş kap alınmadı";
+
+  const emptyShortageParts: string[] = [];
+  if (deliveredDepositDamacana - emptyDamacanaReturned > 0) {
+    emptyShortageParts.push(
+      `${deliveredDepositDamacana - emptyDamacanaReturned} damacana`,
+    );
+  }
+  if (deliveredDepositCamDamacana - emptyCamDamacanaReturned > 0) {
+    emptyShortageParts.push(
+      `${deliveredDepositCamDamacana - emptyCamDamacanaReturned} cam damacana`,
+    );
+  }
+  if (deliveredDepositTup - emptyTupReturned > 0) {
+    emptyShortageParts.push(
+      `${deliveredDepositTup - emptyTupReturned} tüp`,
+    );
+  }
+  const emptyShortageText =
+    emptyShortageParts.length > 0
+      ? `${emptyShortageParts.join(", ")} eksik`
+      : null;
+
+  const paymentSummaryText = (() => {
+    if (!selectedCustomer) return "Müşteri seçilince aktive olur";
+    if (selectedCustomer.isAccountCustomer) {
+      return totalCollectedVal > 0
+        ? `${totalCollectedVal.toLocaleString("tr-TR")} ₺ tahsil edildi • ${paymentMethodLabel}`
+        : "Tahsilat alınmadı";
+    }
+    if (paymentType === "unpaid") return "Tahsilat alınmadı • borç";
+    if (grandTotal === 0 && totalCollectedVal === 0) {
+      return "Tahsilat gerekmiyor";
+    }
+    if (paymentType === "full") {
+      return `Tam tahsilat: ${grandTotal.toLocaleString("tr-TR")} ₺ • ${paymentMethodLabel}`;
+    }
+    const parts = [
+      `${totalCollectedVal.toLocaleString("tr-TR")} ₺ alındı`,
+    ];
+    if (uncollectedDiff > 0) {
+      parts.push(
+        `${uncollectedDiff.toLocaleString("tr-TR")} ₺ borç`,
+      );
+    } else if (uncollectedDiff < 0) {
+      parts.push(
+        `${Math.abs(uncollectedDiff).toLocaleString("tr-TR")} ₺ fazla`,
+      );
+    }
+    parts.push(paymentMethodLabel);
+    return parts.join(" • ");
+  })();
+
+  const stepSubtitle = isEdit
+    ? "Müşteri sabit. Ürün, boş kap ve tahsilat düzeltilebilir."
+    : !selectedCustomer
+      ? "Adım 1/4 — Önce teslimat yapılacak müşteriyi seçin"
+      : openStep === "customer"
+        ? "Adım 1/4 — Müşteriyi değiştirebilirsiniz"
+        : openStep === "products"
+          ? "Adım 2/4 — Teslim edilecek ürünleri girin"
+          : openStep === "empties"
+            ? "Adım 3/4 — Boş kap iadelerini kontrol edin"
+            : openStep === "payment"
+              ? "Adım 4/4 — Tahsilat ve notları girin"
+              : "Adım seçin veya kaydetmeye devam edin";
+
+  const isSubmitReady =
+    !!selectedCustomer &&
+    hasDeliveryContent &&
+    (!isEdit || correctionReason.trim().length >= 3);
+
   if (!isOpen) return null;
 
   // Filter customers
@@ -753,7 +1002,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto">
-      <div className="w-full max-w-2xl rounded-2xl bg-white  shadow-2xl border border-slate-200  my-auto max-h-[calc(94dvh-env(safe-area-inset-bottom))] sm:max-h-[94vh] flex flex-col overflow-hidden">
+      <div className="w-full max-w-2xl min-w-0 rounded-2xl bg-white shadow-2xl border border-slate-200 my-auto max-h-[calc(94dvh-env(safe-area-inset-bottom))] sm:max-h-[94vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100  shrink-0">
           <div>
@@ -765,13 +1014,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 {dispatch.vehiclePlate}
               </span>
             </h2>
-            <p className="text-xs text-slate-500">
-              {isEdit
-                ? "Müşteri değiştirilemez. Tutar, ürün, boş kap ve tahsilat düzeltilebilir."
-                : selectedCustomer
-                  ? "Müşteri seçildi, teslim edilecek ürünleri belirleyiniz"
-                  : "Adım 1: Önce teslimat yapılacak müşteriyi seçiniz"}
-            </p>
+            <p className="text-xs text-slate-500">{stepSubtitle}</p>
           </div>
           <button
             onClick={onClose}
@@ -783,9 +1026,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         </div>
 
         {/* Scrollable Body */}
-        <div className="p-4 sm:p-5 overflow-y-auto space-y-5 flex-1 min-h-0">
+        <div className="p-4 sm:p-5 overflow-y-auto space-y-3 sm:space-y-4 flex-1 min-h-0">
           {isEdit && (
-            <div className="p-3.5 rounded-xl border border-amber-300  bg-amber-50  text-amber-900  text-xs space-y-1">
+            <div className="p-3.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-xs space-y-2">
               <p className="font-bold">
                 Eski teslimat iptal edilip yenisi oluşturulacak.
               </p>
@@ -793,34 +1036,87 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 Cari bakiye ve boş kap bakiyeleri net fark kadar düzeltilir.
                 İşlem değiştirilemez denetim kaydına yazılır.
               </p>
+              <div>
+                <label className="text-xs font-bold text-amber-800 block mb-1">
+                  Düzenleme Gerekçesi *
+                </label>
+                <textarea
+                  id="delivery-correction-reason"
+                  required
+                  minLength={3}
+                  rows={2}
+                  placeholder="Örn: Müşteriye 2 adet yerine 3 adet teslim edilmiş."
+                  value={correctionReason}
+                  onChange={(e) => setCorrectionReason(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-amber-300 text-xs bg-white text-slate-900 resize-y"
+                />
+                <p className="text-[11px] text-amber-800/80 mt-1">
+                  En az 3 karakter. Gerekçe denetim kaydında saklanır.
+                </p>
+              </div>
             </div>
           )}
 
-          {/* ============================================================== */}
-          {/* STEP 1: CUSTOMER SELECTION (ALWAYS FIRST)                     */}
-          {/* ============================================================== */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-900  uppercase tracking-wider flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] flex items-center justify-center font-bold">
-                  1
+          {/* STEP 1: CUSTOMER */}
+          <StepSection
+            stepKey="customer"
+            step={1}
+            title="Müşteri"
+            isOpen={openStep === "customer"}
+            isComplete={!!selectedCustomer}
+            onToggle={() => {
+              if (!selectedCustomer) {
+                setOpenStep("customer");
+                return;
+              }
+              toggleStep("customer");
+            }}
+            summary={
+              selectedCustomer ? (
+                <span className="flex min-w-0 flex-col items-start gap-1">
+                  <span className="font-semibold text-slate-700 break-words">
+                    {selectedCustomer.name}
+                  </span>
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <span
+                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                        selectedCustomer.isAccountCustomer
+                          ? "text-sky-700 bg-sky-100"
+                          : "text-red-700 bg-red-100"
+                      }`}
+                    >
+                      {selectedCustomer.isAccountCustomer
+                        ? "Faturalı"
+                        : "Peşin"}
+                    </span>
+                    {!selectedCustomer.isAccountCustomer &&
+                      selectedCustomer.currentBalanceTL > 0 && (
+                        <span className="font-mono font-semibold text-red-600">
+                          {selectedCustomer.currentBalanceTL.toLocaleString(
+                            "tr-TR",
+                          )}{" "}
+                          ₺ borç
+                        </span>
+                      )}
+                    {!selectedCustomer.isAccountCustomer &&
+                      selectedCustomer.currentBalanceTL < 0 && (
+                        <span className="font-mono font-semibold text-emerald-700">
+                          {Math.abs(
+                            selectedCustomer.currentBalanceTL,
+                          ).toLocaleString("tr-TR")}{" "}
+                          ₺ avans
+                        </span>
+                      )}
+                  </span>
                 </span>
-                <span>Müşteri Seçimi</span>
-              </label>
-              {selectedCustomer && !isEdit && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedCustomer(null)}
-                  className="text-xs font-semibold text-sky-600 hover:text-sky-800  hover:underline"
-                >
-                  Müşteriyi Değiştir
-                </button>
-              )}
-            </div>
-
+              ) : (
+                "Teslimat yapılacak müşteriyi seçin"
+              )
+            }
+          >
             {!selectedCustomer ? (
               <div className="space-y-2.5">
-                <div>
+                <div className="sticky top-0 z-10 -mx-3 px-3 py-2 bg-white/95 backdrop-blur-sm border-b border-slate-100">
                   <div className="relative">
                     <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
@@ -891,7 +1187,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       <button
                         type="submit"
                         disabled={isSubmittingCustomer}
-                        className="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="min-h-11 px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                       >
                         {isSubmittingCustomer
                           ? "Kaydediliyor..."
@@ -906,7 +1202,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 )}
 
                 {/* Customer search list */}
-                <div className="max-h-52 overflow-y-auto space-y-1.5 border border-slate-100  rounded-xl p-1 bg-slate-50/50 ">
+                <div className="space-y-1.5 border border-slate-100 rounded-xl p-1 bg-slate-50/50">
                   {filteredCustomers.length === 0 ? (
                     showNewCustomerForm ? null : (
                       <div className="p-4 text-center text-xs text-slate-400 space-y-2">
@@ -914,7 +1210,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         <button
                           type="button"
                           onClick={openNewCustomerForm}
-                          className="px-3 py-1.5 rounded-lg bg-sky-100  text-sky-700  font-semibold text-xs inline-flex items-center gap-1"
+                          className="min-h-11 px-3 py-2 rounded-lg bg-sky-100 text-sky-700 font-semibold text-xs inline-flex items-center gap-1"
                         >
                           <Plus className="w-3.5 h-3.5" />
                           <span>
@@ -930,14 +1226,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       <button
                         key={c.id}
                         type="button"
-                        onClick={() => {
-                          setSelectedCustomer(c);
-                          setErrorPersistent(false);
-                          setErrorMsg(null);
-                        }}
-                        className="w-full text-left p-2.5 rounded-xl hover:bg-white  transition-colors flex items-center justify-between border border-transparent hover:border-slate-200  shadow-2xs"
+                        onClick={() => handleSelectCustomer(c)}
+                        className="w-full text-left p-2.5 rounded-xl hover:bg-white transition-colors flex items-center justify-between border border-transparent hover:border-slate-200 shadow-2xs"
                       >
-                        <div className="space-y-0.5 min-w-0">
+                        <div className="space-y-0.5 min-w-0 flex-1">
                           <div className="flex flex-col items-start gap-1 min-w-0">
                             <span className="text-xs font-bold text-slate-900 break-words">
                               {c.name}
@@ -957,12 +1249,12 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                               📞 {c.phone}
                             </div>
                           )}
-                          <div className="text-[11px] text-slate-500 truncate max-w-sm">
+                          <div className="text-[11px] text-slate-500 break-words line-clamp-2">
                             {c.address || "Adres bilgisi yok"}
                           </div>
                         </div>
 
-                        <div className="text-right shrink-0">
+                        <div className="text-right min-w-0 max-w-[45%]">
                           {!c.isAccountCustomer && c.currentBalanceTL > 0 && (
                             <div className="text-[11px] font-mono font-bold text-red-600">
                               {c.currentBalanceTL.toLocaleString("tr-TR")} ₺
@@ -1083,45 +1375,61 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 {!isEdit && (
                   <button
                     type="button"
-                    onClick={() => setSelectedCustomer(null)}
-                    className="px-2.5 py-1 rounded-lg border border-sky-300 text-sky-700 hover:bg-sky-100 text-xs font-semibold shrink-0"
+                    onClick={() => {
+                      setSelectedCustomer(null);
+                      openStepAndScroll("customer");
+                    }}
+                    className="min-h-11 px-3 py-2 rounded-lg border border-sky-300 text-sky-700 hover:bg-sky-100 text-xs font-semibold shrink-0"
                   >
                     Değiştir
                   </button>
                 )}
               </div>
             )}
+          </StepSection>
 
-            {selectedCustomer && (
-              <CustomerDispenserInfo customerId={selectedCustomer.id} />
-            )}
-          </div>
-
-          {/* ============================================================== */}
-          {/* STEP 2: PRODUCT SELECTION (ONLY AFTER CUSTOMER IS SELECTED)   */}
-          {/* ============================================================== */}
           {selectedCustomer && (
-            <div className="space-y-3 pt-2 border-t border-slate-100 ">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-slate-900  uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] flex items-center justify-center font-bold">
-                    2
-                  </span>
-                  <span>Ürün Arama ve Seçimi</span>
-                </label>
-                {currentUser.role === "admin" && (
-                  <button
-                    type="button"
-                    onClick={() => setShowNewProductForm(!showNewProductForm)}
-                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800  flex items-center gap-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Yeni Ürün Ekle</span>
-                  </button>
-                )}
-              </div>
+            <CustomerDispenserInfo customerId={selectedCustomer.id} />
+          )}
 
-              {/* Product search box */}
+          {/* STEP 2: PRODUCTS */}
+          <StepSection
+            stepKey="products"
+            step={2}
+            title="Ürünler"
+            isOpen={!!selectedCustomer && openStep === "products"}
+            isComplete={deliveredItems.length > 0}
+            disabled={!selectedCustomer}
+            disabledHint="Önce müşteri seçin"
+            onToggle={() => toggleStep("products")}
+            summary={
+              deliveredItems.length > 0
+                ? `${deliveredItems.length} kalem • ${totalQuantity} adet${
+                    !selectedCustomer?.isAccountCustomer
+                      ? ` • ${grandTotal.toLocaleString("tr-TR")} ₺`
+                      : ""
+                  }`
+                : "Teslim edilecek ürün seçilmedi"
+            }
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] text-slate-500">
+                Ürün adına göre arayın, adet girin.
+              </span>
+              {currentUser.role === "admin" && (
+                <button
+                  type="button"
+                  onClick={() => setShowNewProductForm(!showNewProductForm)}
+                  className="min-h-11 px-2 -mr-2 text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Yeni Ürün Ekle</span>
+                </button>
+              )}
+            </div>
+
+            {/* Product search box */}
+            <div className="sticky top-0 z-10 -mx-3 px-3 py-2 bg-white/95 backdrop-blur-sm border-b border-slate-100">
               <div className="relative">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -1129,9 +1437,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   placeholder="Ürün adı ile ara (Damacana, Tüp, Pet su vb.)..."
                   value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200  bg-slate-50  text-xs text-slate-900  focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
                 />
               </div>
+            </div>
 
               {/* Inline New Product Form */}
               {currentUser.role === "admin" && showNewProductForm && (
@@ -1228,7 +1537,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   <div className="flex justify-end pt-1">
                     <button
                       type="submit"
-                      className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-sm"
+                      className="min-h-11 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-sm"
                     >
                       Ürünü Kaydet & Teslimata Ekle
                     </button>
@@ -1237,14 +1546,14 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
               )}
 
               {/* Product selection cards */}
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+              <div className="space-y-2">
                 {filteredProducts.length === 0 ? (
                   <div className="p-4 text-center text-xs text-slate-400 space-y-2">
                     <p>Aranan isimde ürün bulunamadı.</p>
                     <button
                       type="button"
                       onClick={() => setShowNewProductForm(true)}
-                      className="px-3 py-1.5 rounded-lg bg-indigo-50  text-indigo-700  font-semibold text-xs inline-flex items-center gap-1"
+                      className="min-h-11 px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 font-semibold text-xs inline-flex items-center gap-1"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>"{productSearch}" Ürününü Şimdi Ekle</span>
@@ -1337,7 +1646,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         </div>
 
                         {/* Quantity selection */}
-                        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 shrink-0">
                           <div className="flex items-center gap-1.5">
                             <button
                               type="button"
@@ -1390,24 +1699,41 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   })
                 )}
               </div>
-            </div>
-          )}
 
-          {/* ============================================================== */}
-          {/* STEP 3: DELIVERY DETAILS, STOCK WARNING & PAYMENT              */}
-          {/* ============================================================== */}
-          {selectedCustomer && (
-            <div className="space-y-4 pt-2 border-t border-slate-100 ">
-              <label className="text-xs font-bold text-slate-900  uppercase tracking-wider flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] flex items-center justify-center font-bold">
-                  3
-                </span>
-                <span>Teslimat, Boş Kap & Tahsilat Detayları</span>
-              </label>
+              <button
+                type="button"
+                onClick={() => openStepAndScroll("empties")}
+                className="w-full min-h-11 px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.99]"
+              >
+                <span>Devam: Boş Kap İadesi</span>
+                <ArrowRight className="w-4 h-4 shrink-0" />
+              </button>
+          </StepSection>
 
-              {/* Deposit Empties Returned */}
-              <div className="p-3.5 rounded-xl border border-orange-200  bg-orange-50/40  space-y-3">
-                <div className="flex items-center justify-between">
+          {/* STEP 3: EMPTY CONTAINERS */}
+          <StepSection
+            stepKey="empties"
+            step={3}
+            title="Boş Kap İadesi"
+            isOpen={!!selectedCustomer && openStep === "empties"}
+            hasWarning={!!emptyShortageText}
+            disabled={!selectedCustomer}
+            disabledHint="Önce müşteri seçin"
+            onToggle={() => toggleStep("empties")}
+            summary={
+              <span className="inline-flex flex-wrap items-center gap-x-1.5">
+                <span>{emptiesSummaryText}</span>
+                {emptyShortageText && (
+                  <span className="font-semibold text-orange-700">
+                    • {emptyShortageText}
+                  </span>
+                )}
+              </span>
+            }
+          >
+            {/* Deposit Empties Returned */}
+              <div className="p-3.5 rounded-xl border border-orange-200 bg-orange-50/40 space-y-3">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-xs font-bold text-orange-900  flex items-center gap-1.5">
                     <RotateCcw className="w-4 h-4 text-orange-600" />
                     <span>Müşteriden Alınan Boş Emanet Kaplar</span>
@@ -1607,13 +1933,34 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 )}
               </div>
 
+              <button
+                type="button"
+                onClick={() => openStepAndScroll("payment")}
+                className="w-full min-h-11 px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.99]"
+              >
+                <span>Devam: Tahsilat & Not</span>
+                <ArrowRight className="w-4 h-4 shrink-0" />
+              </button>
+          </StepSection>
+
+          {/* STEP 4: PAYMENT & NOTES */}
+          <StepSection
+            stepKey="payment"
+            step={4}
+            title="Tahsilat & Not"
+            isOpen={!!selectedCustomer && openStep === "payment"}
+            disabled={!selectedCustomer}
+            disabledHint="Önce müşteri seçin"
+            onToggle={() => toggleStep("payment")}
+            summary={paymentSummaryText}
+          >
               {/* Payment Section */}
-              <div className="p-4 rounded-xl border border-slate-200  bg-slate-50/70  space-y-3">
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <label className="text-xs font-bold text-slate-900  uppercase tracking-wider">
-                    Tahsilat & Ödeme Durumu
+                  <label className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    Tahsilat Detayı
                   </label>
-                  {selectedCustomer.isAccountCustomer ? (
+                  {selectedCustomer?.isAccountCustomer ? (
                     <span className="text-[11px] text-slate-500">
                       Faturalı müşteri — tutar bilgisi gizlenir
                     </span>
@@ -1630,12 +1977,12 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 </div>
 
                 {/* Quick Payment Type Buttons */}
-                {selectedCustomer.isAccountCustomer ? (
+                {selectedCustomer?.isAccountCustomer ? (
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => setPaymentType("unpaid")}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                      className={`min-h-11 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
                         paymentType === "unpaid"
                           ? "bg-amber-600 text-white shadow-xs"
                           : "bg-white  text-slate-700  border border-slate-200 "
@@ -1652,7 +1999,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         setCashAmountInput("");
                         setPosAmountInput("");
                       }}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                      className={`min-h-11 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
                         paymentType === "custom"
                           ? "bg-sky-600 text-white shadow-xs"
                           : "bg-white  text-slate-700  border border-slate-200 "
@@ -1662,11 +2009,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => setPaymentType("full")}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                      className={`min-h-11 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
                         paymentType === "full"
                           ? "bg-emerald-600 text-white shadow-xs"
                           : "bg-white  text-slate-700  border border-slate-200 "
@@ -1678,7 +2025,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setPaymentType("unpaid")}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                      className={`min-h-11 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
                         paymentType === "unpaid"
                           ? "bg-amber-600 text-white shadow-xs"
                           : "bg-white  text-slate-700  border border-slate-200 "
@@ -1690,7 +2037,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setPaymentType("custom")}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                      className={`col-span-2 min-h-11 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
                         paymentType === "custom"
                           ? "bg-sky-600 text-white shadow-xs"
                           : "bg-white  text-slate-700  border border-slate-200 "
@@ -1711,7 +2058,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setPaymentMethod("CASH")}
-                        className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+                        className={`min-h-11 py-2 px-2 rounded-lg text-xs font-semibold transition-all ${
                           paymentMethod === "CASH"
                             ? "bg-emerald-100 text-emerald-800 border-2 border-emerald-500"
                             : "bg-white  text-slate-700 border border-slate-200"
@@ -1723,7 +2070,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setPaymentMethod("POS")}
-                        className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+                        className={`min-h-11 py-2 px-2 rounded-lg text-xs font-semibold transition-all ${
                           paymentMethod === "POS"
                             ? "bg-indigo-100 text-indigo-800 border-2 border-indigo-500"
                             : "bg-white  text-slate-700 border border-slate-200"
@@ -1735,7 +2082,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setPaymentMethod("MIXED")}
-                        className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+                        className={`min-h-11 py-2 px-2 rounded-lg text-xs font-semibold transition-all ${
                           paymentMethod === "MIXED"
                             ? "bg-sky-100 text-sky-800 border-2 border-sky-500"
                             : "bg-white  text-slate-700 border border-slate-200"
@@ -1795,7 +2142,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     </span>
                   </div>
 
-                  {!selectedCustomer.isAccountCustomer && uncollectedDiff !== 0 && (
+                  {selectedCustomer &&
+                    !selectedCustomer.isAccountCustomer &&
+                    uncollectedDiff !== 0 && (
                     <div className="mt-1 text-[11px] text-sky-800 ">
                       {uncollectedDiff > 0 ? (
                         <span>
@@ -1832,28 +2181,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   className="w-full p-2.5 rounded-xl border border-slate-200  text-xs bg-slate-50 "
                 />
               </div>
-
-              {isEdit && (
-                <div>
-                  <label className="text-xs font-bold text-amber-800  block mb-1">
-                    Düzenleme Gerekçesi *
-                  </label>
-                  <textarea
-                    required
-                    minLength={3}
-                    rows={3}
-                    placeholder="Örn: Müşteriye 2 adet yerine 3 adet teslim edilmiş."
-                    value={correctionReason}
-                    onChange={(e) => setCorrectionReason(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-amber-300  text-xs bg-amber-50/50  text-slate-900  resize-y"
-                  />
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    En az 3 karakter. Gerekçe denetim kaydında saklanır.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
+          </StepSection>
         </div>
 
         {/* Non-blocking alerts: always above the action bar so they cannot cover it */}
@@ -1930,13 +2258,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
           <button
             type="button"
             onClick={handleSubmitDelivery}
-            disabled={
-              isSubmitting ||
-              !selectedCustomer ||
-              !hasDeliveryContent ||
-              (isEdit && correctionReason.trim().length < 3)
-            }
-            className="w-full sm:w-auto sm:flex-1 min-h-12 px-6 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold text-sm shadow-md shadow-sky-600/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            disabled={isSubmitting}
+            aria-disabled={!isSubmitReady || isSubmitting}
+            className={`w-full sm:w-auto sm:flex-1 min-h-12 px-6 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold text-sm shadow-md shadow-sky-600/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              !isSubmitReady ? "opacity-60" : ""
+            }`}
           >
             <Check className="w-4 h-4 shrink-0" />
             <span className="break-words">
@@ -1949,8 +2275,14 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     : isEdit && correctionReason.trim().length < 3
                       ? "Düzenleme Gerekçesi Giriniz"
                       : isEdit
-                        ? `Düzenlemeyi Kaydet (${totalCollectedVal.toLocaleString("tr-TR")} ₺)`
-                        : `Teslimatı Kaydet (${totalCollectedVal.toLocaleString("tr-TR")} ₺)`}
+                        ? selectedCustomer.isAccountCustomer ||
+                          totalCollectedVal === 0
+                          ? "Düzenlemeyi Kaydet"
+                          : `Düzenlemeyi Kaydet (${totalCollectedVal.toLocaleString("tr-TR")} ₺)`
+                        : selectedCustomer.isAccountCustomer ||
+                            totalCollectedVal === 0
+                          ? "Teslimatı Kaydet"
+                          : `Teslimatı Kaydet (${totalCollectedVal.toLocaleString("tr-TR")} ₺)`}
             </span>
           </button>
         </div>
