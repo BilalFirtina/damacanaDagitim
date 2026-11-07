@@ -358,10 +358,24 @@ export const DriverView: React.FC<DriverViewProps> = ({
                         </span>
                       )}
 
+                      {(del.emptyContainersReceived.tupBuyuk || 0) > 0 && (
+                        <span className="text-[11px] font-semibold text-slate-600 flex items-center gap-0.5">
+                          <RotateCcw className="w-3 h-3" />
+                          {del.emptyContainersReceived.tupBuyuk} Büyük Boş Tüp Alındı
+                        </span>
+                      )}
+
+                      {(del.emptyContainersReceived.tupKucuk || 0) > 0 && (
+                        <span className="text-[11px] font-semibold text-slate-600 flex items-center gap-0.5">
+                          <RotateCcw className="w-3 h-3" />
+                          {del.emptyContainersReceived.tupKucuk} Küçük Boş Tüp Alındı
+                        </span>
+                      )}
+
                       {del.emptyContainersReceived.tup > 0 && (
                         <span className="text-[11px] font-semibold text-slate-600 flex items-center gap-0.5">
                           <RotateCcw className="w-3 h-3" />
-                          {del.emptyContainersReceived.tup} Boş Tüp Alındı
+                          {del.emptyContainersReceived.tup} Boş Tüp Alındı (eski)
                         </span>
                       )}
                     </div>
@@ -371,7 +385,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
                     <div className="font-mono font-extrabold text-sm text-slate-900 ">
                       {isAccount ? (
                         <span className="text-[11px] font-semibold text-slate-400">
-                          Tutar gizli
+                          FATURALI
                         </span>
                       ) : (
                         `${del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺`
@@ -521,7 +535,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
                   <span className="text-slate-500">Teslimat Tutarı</span>
                   <span className="font-mono font-bold text-slate-900 ">
                     {isAccountCustomerDelivery(cancelTarget, customers)
-                      ? 'Tutar gizli'
+                      ? 'FATURALI'
                       : `${cancelTarget.deliveredGrandTotal.toLocaleString('tr-TR')} ₺`}
                   </span>
                 </div>

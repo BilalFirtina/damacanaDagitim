@@ -1,0 +1,496 @@
+import type { Customer, Delivery, Product } from '../types';
+import { isAccountCustomerDelivery } from './customerVisibility';
+
+// Konsolide gün sonu raporu için saf hesaplama katmanı.
+// Şoför bazında, müşteri başına tek satır üretir. Aynı müşteri farklı
+// şoförlerden hizmet alırsa her şoförün kendi bölümünde ayrı satır oluşur.
+// Havale (TRANSFER) kayıtları raporda hiçbir toplama girmez.
+
+export interface ReportPayment {
+  id: string;
+  customerId: string;
+  customerName?: string;
+  amount: number;
+  method: string;
+  note: string;
+  collectedByUserId: string;
+  collectedByUserName: string;
+  collectedAt: string;
+}
+
+export interface ReportDispatch {
+  driverId: string;
+  driverName: string;
+  vehiclePlate: string;
+}
+
+export interface ReportDriver {
+  id: string;
+  name: string;
+}
+
+export interface ConsolidatedRow {
+  key: string;
+  driverId: string;
+  driverName: string;
+  customerId: string;
+  customerName: string;
+  customerAddress: string;
+  isAccount: boolean;
+  balance: number | null;
+  times: number[];
+  firstAt: number;
+  lastAt: number;
+  deliveryCount: number;
+  damacanaFull: number;
+  camDamacanaFull: number;
+  tupBuyukFull: number;
+  tupKucukFull: number;
+  tupLegacyFull: number;
+  damacanaEmpty: number;
+  camDamacanaEmpty: number;
+  tupBuyukEmpty: number;
+  tupKucukEmpty: number;
+  tupEmpty: number;
+  sebilGiven: number;
+  sebilReceived: number;
+  productLines: Array<{ productId: string; name: string; quantity: number }>;
+  deliveredAmount: number;
+  deliveryCash: number;
+  deliveryPos: number;
+  paymentCash: number;
+  paymentPos: number;
+  notes: string[];
+}
+
+export interface ConsolidatedDriverSection {
+  driverId: string;
+  driverName: string;
+  plates: string[];
+  rows: ConsolidatedRow[];
+  cash: number;
+  pos: number;
+  deliveredAmount: number;
+}
+
+export interface ConsolidatedCustomerPaymentRow {
+  driverName: string;
+  customerName: string;
+  source: 'Teslimat' | 'Teslimat Dışı' | 'Teslimat + Tahsilat';
+  cash: number;
+  pos: number;
+}
+
+export interface ConsolidatedProductLine {
+  productId: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  amount: number;
+  hasAccountAmount: boolean;
+}
+
+export interface ConsolidatedReport {
+  drivers: ConsolidatedDriverSection[];
+  adminCash: number;
+  adminPos: number;
+  adminCount: number;
+  customerPayments: ConsolidatedCustomerPaymentRow[];
+  products: ConsolidatedProductLine[];
+  icmal: {
+    deliveryCount: number;
+    visitedCustomerCount: number;
+    driverCount: number;
+    pesinCiro: number;
+    hasAccountDelivery: boolean;
+    deliveryCash: number;
+    deliveryPos: number;
+    standaloneCash: number;
+    standalonePos: number;
+    collectionTotal: number;
+    creditAdded: number;
+    damacanaFull: number;
+    camDamacanaFull: number;
+    tupBuyukFull: number;
+    tupKucukFull: number;
+    tupLegacyFull: number;
+    tupFull: number;
+    damacanaEmpty: number;
+    camDamacanaEmpty: number;
+    tupBuyukEmpty: number;
+    tupKucukEmpty: number;
+    tupEmpty: number;
+    sebilGiven: number;
+    sebilReceived: number;
+  };
+}
+
+const toNumber = (value: unknown): number => Number(value) || 0;
+
+const timeOf = (value: string | null | undefined): number => {
+  const parsed = value ? Date.parse(value) : NaN;
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const isCashOrPos = (method: string) => method === 'CASH' || method === 'POS';
+
+function newRow(
+  driverId: string,
+  driverName: string,
+  customerId: string,
+  customerName: string,
+  customerAddress: string,
+  isAccount: boolean,
+  balance: number | null
+): ConsolidatedRow {
+  return {
+    key: `${driverId}|${customerId}`,
+    driverId,
+    driverName,
+    customerId,
+    customerName,
+    customerAddress,
+    isAccount,
+    balance,
+    times: [],
+    firstAt: 0,
+    lastAt: 0,
+    deliveryCount: 0,
+    damacanaFull: 0,
+    camDamacanaFull: 0,
+    tupBuyukFull: 0,
+    tupKucukFull: 0,
+    tupLegacyFull: 0,
+    damacanaEmpty: 0,
+    camDamacanaEmpty: 0,
+    tupBuyukEmpty: 0,
+    tupKucukEmpty: 0,
+    tupEmpty: 0,
+    sebilGiven: 0,
+    sebilReceived: 0,
+    productLines: [],
+    deliveredAmount: 0,
+    deliveryCash: 0,
+    deliveryPos: 0,
+    paymentCash: 0,
+    paymentPos: 0,
+    notes: [],
+  };
+}
+
+export function rowCash(row: ConsolidatedRow): number {
+  return row.deliveryCash + row.paymentCash;
+}
+
+export function rowPos(row: ConsolidatedRow): number {
+  return row.deliveryPos + row.paymentPos;
+}
+
+export function buildConsolidatedReport(input: {
+  deliveries: Delivery[];
+  payments: ReportPayment[];
+  dispatches: ReportDispatch[];
+  products: Product[];
+  customers: Customer[];
+  drivers: ReportDriver[];
+}): ConsolidatedReport {
+  const productById = new Map(input.products.map((p) => [p.id, p]));
+  const customerById = new Map(input.customers.map((c) => [c.id, c]));
+  const driverNameById = new Map(input.drivers.map((d) => [d.id, d.name]));
+
+  const rows = new Map<string, ConsolidatedRow>();
+  const platesByDriver = new Map<string, Set<string>>();
+  const driverSeen = new Map<string, string>();
+
+  const rowFor = (
+    driverId: string,
+    driverName: string,
+    customerId: string,
+    customerName: string,
+    customerAddress: string,
+    isAccount: boolean
+  ) => {
+    const key = `${driverId}|${customerId}`;
+    let row = rows.get(key);
+    if (!row) {
+      const customer = customerById.get(customerId);
+      row = newRow(
+        driverId,
+        driverName,
+        customerId,
+        customerName,
+        customerAddress,
+        isAccount,
+        customer ? toNumber(customer.currentBalanceTL) : null
+      );
+      rows.set(key, row);
+    }
+    return row;
+  };
+
+  const noteDriver = (driverId: string, driverName: string) => {
+    if (!driverSeen.has(driverId)) driverSeen.set(driverId, driverName);
+  };
+
+  for (const dispatch of input.dispatches) {
+    noteDriver(dispatch.driverId, dispatch.driverName);
+    if (dispatch.vehiclePlate) {
+      const set = platesByDriver.get(dispatch.driverId) || new Set<string>();
+      set.add(dispatch.vehiclePlate);
+      platesByDriver.set(dispatch.driverId, set);
+    }
+  }
+
+  const icmal = {
+    deliveryCount: 0,
+    visitedCustomerCount: 0,
+    driverCount: 0,
+    pesinCiro: 0,
+    hasAccountDelivery: false,
+    deliveryCash: 0,
+    deliveryPos: 0,
+    standaloneCash: 0,
+    standalonePos: 0,
+    collectionTotal: 0,
+    creditAdded: 0,
+    damacanaFull: 0,
+    camDamacanaFull: 0,
+    tupBuyukFull: 0,
+    tupKucukFull: 0,
+    tupLegacyFull: 0,
+    tupFull: 0,
+    damacanaEmpty: 0,
+    camDamacanaEmpty: 0,
+    tupBuyukEmpty: 0,
+    tupKucukEmpty: 0,
+    tupEmpty: 0,
+    sebilGiven: 0,
+    sebilReceived: 0,
+  };
+
+  const productTotals = new Map<string, ConsolidatedProductLine>();
+
+  for (const delivery of input.deliveries) {
+    const driverName = delivery.driverName || driverNameById.get(delivery.driverId) || 'Bilinmeyen Şoför';
+    noteDriver(delivery.driverId, driverName);
+    if (delivery.vehiclePlate) {
+      const set = platesByDriver.get(delivery.driverId) || new Set<string>();
+      set.add(delivery.vehiclePlate);
+      platesByDriver.set(delivery.driverId, set);
+    }
+
+    const customer = customerById.get(delivery.customerId);
+    const isAccount = isAccountCustomerDelivery(delivery, input.customers);
+    const row = rowFor(
+      delivery.driverId,
+      driverName,
+      delivery.customerId,
+      customer?.name || delivery.customerName,
+      customer?.address ?? delivery.customerAddress ?? '',
+      isAccount
+    );
+    if (isAccount) row.isAccount = true;
+
+    row.deliveryCount += 1;
+    row.times.push(timeOf(delivery.timestamp));
+
+    icmal.deliveryCount += 1;
+    if (isAccount) icmal.hasAccountDelivery = true;
+
+    for (const item of delivery.deliveredItems || []) {
+      const quantity = toNumber(item.quantity);
+      if (quantity <= 0) continue;
+      const product = productById.get(item.productId);
+      const depositType = product?.depositType ?? 'none';
+
+      const totals = productTotals.get(item.productId) || {
+        productId: item.productId,
+        name: item.productName || product?.name || item.productId,
+        unit: product?.unit || 'Adet',
+        quantity: 0,
+        amount: 0,
+        hasAccountAmount: false,
+      };
+      totals.quantity += quantity;
+      if (isAccount) totals.hasAccountAmount = true;
+      else totals.amount += toNumber(item.lineTotal);
+      productTotals.set(item.productId, totals);
+
+      if (depositType === 'damacana') {
+        row.damacanaFull += quantity;
+        icmal.damacanaFull += quantity;
+      } else if (depositType === 'cam_damacana') {
+        row.camDamacanaFull += quantity;
+        icmal.camDamacanaFull += quantity;
+      } else if (depositType === 'tup_buyuk') {
+        row.tupBuyukFull += quantity;
+        icmal.tupBuyukFull += quantity;
+        icmal.tupFull += quantity;
+      } else if (depositType === 'tup_kucuk') {
+        row.tupKucukFull += quantity;
+        icmal.tupKucukFull += quantity;
+        icmal.tupFull += quantity;
+      } else if (depositType === 'tup') {
+        // Eski tek tüp kayıtları; boyut bilinmiyor.
+        row.tupLegacyFull += quantity;
+        icmal.tupLegacyFull += quantity;
+        icmal.tupFull += quantity;
+      } else if (depositType === 'sebil') {
+        row.sebilGiven += quantity;
+        icmal.sebilGiven += quantity;
+      } else {
+        const existing = row.productLines.find((line) => line.productId === item.productId);
+        if (existing) existing.quantity += quantity;
+        else
+          row.productLines.push({
+            productId: item.productId,
+            name: item.productName || product?.name || item.productId,
+            quantity,
+          });
+      }
+    }
+
+    if (!isAccount) {
+      const amount = toNumber(delivery.deliveredGrandTotal);
+      row.deliveredAmount += amount;
+      icmal.pesinCiro += amount;
+      const diff = toNumber(delivery.collectedPayment?.diffUncollected);
+      if (diff > 0) icmal.creditAdded += diff;
+    }
+
+    const cash = toNumber(delivery.collectedPayment?.cashAmount);
+    const pos = toNumber(delivery.collectedPayment?.posAmount);
+    row.deliveryCash += cash;
+    row.deliveryPos += pos;
+    icmal.deliveryCash += cash;
+    icmal.deliveryPos += pos;
+
+    const damacana = toNumber(delivery.emptyContainersReceived?.damacana);
+    const camDamacana = toNumber(
+      delivery.emptyContainersReceived?.camDamacana ?? delivery.emptyContainersReceived?.cam_damacana
+    );
+    const tupBuyuk = toNumber(delivery.emptyContainersReceived?.tupBuyuk);
+    const tupKucuk = toNumber(delivery.emptyContainersReceived?.tupKucuk);
+    const tup = toNumber(delivery.emptyContainersReceived?.tup);
+    const sebil = toNumber(delivery.emptyContainersReceived?.sebil);
+    row.damacanaEmpty += damacana;
+    row.camDamacanaEmpty += camDamacana;
+    row.tupBuyukEmpty += tupBuyuk;
+    row.tupKucukEmpty += tupKucuk;
+    row.tupEmpty += tup;
+    row.sebilReceived += sebil;
+    icmal.damacanaEmpty += damacana;
+    icmal.camDamacanaEmpty += camDamacana;
+    icmal.tupBuyukEmpty += tupBuyuk;
+    icmal.tupKucukEmpty += tupKucuk;
+    icmal.tupEmpty += tup;
+    icmal.sebilReceived += sebil;
+
+    const note = (delivery.notes || '').trim();
+    if (note && !row.notes.includes(note)) row.notes.push(note);
+  }
+
+  const adminPayments = { cash: 0, pos: 0, count: 0 };
+
+  for (const payment of input.payments) {
+    if (!isCashOrPos(payment.method)) continue;
+    const amount = toNumber(payment.amount);
+    const cash = payment.method === 'CASH' ? amount : 0;
+    const pos = payment.method === 'POS' ? amount : 0;
+
+    icmal.standaloneCash += cash;
+    icmal.standalonePos += pos;
+
+    if (!driverNameById.has(payment.collectedByUserId)) {
+      adminPayments.cash += cash;
+      adminPayments.pos += pos;
+      adminPayments.count += 1;
+      continue;
+    }
+
+    const driverName = driverNameById.get(payment.collectedByUserId) || payment.collectedByUserName;
+    noteDriver(payment.collectedByUserId, driverName);
+    const customer = customerById.get(payment.customerId);
+    const row = rowFor(
+      payment.collectedByUserId,
+      driverName,
+      payment.customerId,
+      customer?.name || payment.customerName || payment.customerId,
+      customer?.address ?? '',
+      Boolean(customer?.isAccountCustomer)
+    );
+    row.times.push(timeOf(payment.collectedAt));
+    row.paymentCash += cash;
+    row.paymentPos += pos;
+    const note = (payment.note || '').trim();
+    if (note && !row.notes.includes(note)) row.notes.push(note);
+  }
+
+  const allRows = Array.from(rows.values());
+  for (const row of allRows) {
+    row.times = row.times.filter((t) => t > 0);
+    row.firstAt = row.times.length ? Math.min(...row.times) : 0;
+    row.lastAt = row.times.length ? Math.max(...row.times) : 0;
+  }
+
+  const drivers: ConsolidatedDriverSection[] = Array.from(driverSeen.entries())
+    .map(([driverId, driverName]) => {
+      const driverRows = allRows
+        .filter((row) => row.driverId === driverId)
+        .sort(
+          (a, b) =>
+            (a.firstAt || Number.MAX_SAFE_INTEGER) - (b.firstAt || Number.MAX_SAFE_INTEGER) ||
+            a.customerName.localeCompare(b.customerName, 'tr')
+        );
+      return {
+        driverId,
+        driverName,
+        plates: Array.from(platesByDriver.get(driverId) || []),
+        rows: driverRows,
+        cash: driverRows.reduce((sum, row) => sum + rowCash(row), 0),
+        pos: driverRows.reduce((sum, row) => sum + rowPos(row), 0),
+        deliveredAmount: driverRows.reduce((sum, row) => sum + row.deliveredAmount, 0),
+      };
+    })
+    .filter((section) => section.rows.length > 0 || section.plates.length > 0)
+    .sort((a, b) => a.driverName.localeCompare(b.driverName, 'tr'));
+
+  const customerPayments: ConsolidatedCustomerPaymentRow[] = [];
+  for (const row of allRows) {
+    const deliveryPaid = row.deliveryCash + row.deliveryPos;
+    const standalonePaid = row.paymentCash + row.paymentPos;
+    let source: ConsolidatedCustomerPaymentRow['source'] | null = null;
+    if (deliveryPaid > 0 && standalonePaid > 0) source = 'Teslimat + Tahsilat';
+    else if (standalonePaid > 0) source = 'Teslimat Dışı';
+    else if (deliveryPaid > 0) source = 'Teslimat';
+    if (!source) continue;
+    customerPayments.push({
+      driverName: row.driverName,
+      customerName: row.customerName,
+      source,
+      cash: rowCash(row),
+      pos: rowPos(row),
+    });
+  }
+  customerPayments.sort(
+    (a, b) => a.driverName.localeCompare(b.driverName, 'tr') || a.customerName.localeCompare(b.customerName, 'tr')
+  );
+
+  // Teslimat yapılmadan yalnızca tahsilat alınan müşteri de bir müşteri
+  // ilişkisidir; rapordaki tek satırla tutarlı olsun diye tüm satırlar sayılır.
+  const allCustomerIds = new Set(allRows.map((row) => row.customerId));
+  icmal.visitedCustomerCount = allCustomerIds.size;
+  icmal.driverCount = drivers.length;
+  icmal.collectionTotal =
+    icmal.deliveryCash + icmal.deliveryPos + icmal.standaloneCash + icmal.standalonePos;
+
+  return {
+    drivers,
+    adminCash: adminPayments.cash,
+    adminPos: adminPayments.pos,
+    adminCount: adminPayments.count,
+    customerPayments,
+    products: Array.from(productTotals.values()),
+    icmal,
+  };
+}

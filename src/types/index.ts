@@ -16,7 +16,14 @@ export interface User {
 }
 
 export type ProductCategory = 'damacana' | 'pet' | 'soda' | 'tup' | 'bardak' | 'sebil';
-export type DepositType = 'damacana' | 'cam_damacana' | 'tup' | 'sebil' | 'none';
+export type DepositType =
+  | 'damacana'
+  | 'cam_damacana'
+  | 'tup'
+  | 'tup_buyuk'
+  | 'tup_kucuk'
+  | 'sebil'
+  | 'none';
 
 export const PRODUCT_CATEGORY_ORDER: Record<ProductCategory, number> = {
   damacana: 1,
@@ -150,7 +157,9 @@ export interface Customer {
   emptyDepositBalance: {
     damacana: number; // Plastik / polikarbon damacana
     camDamacana: number; // Cam damacana
-    tup: number; // Gaz tüpü
+    tup: number; // Eski tek tüp türü (geriye dönük okuma)
+    tupBuyuk?: number; // Büyük tüp (12 kg) boş bakiyesi
+    tupKucuk?: number; // Küçük tüp (2 kg) boş bakiyesi
     sebil?: number; // Ücretsiz emanet su sebili (adet)
     cam_damacana?: number;
   };
@@ -260,14 +269,18 @@ export interface Delivery {
     damacana: number;
     camDamacana?: number;
     cam_damacana?: number;
-    tup: number;
+    tup: number; // Eski tek tüp türü (geriye dönük okuma)
+    tupBuyuk?: number;
+    tupKucuk?: number;
     sebil?: number;
   };
   emptyContainersDiff: {
     damacana: number; // delivered deposit items - received empty containers
     camDamacana?: number;
     cam_damacana?: number;
-    tup: number;
+    tup: number; // Eski tek tüp türü (geriye dönük okuma)
+    tupBuyuk?: number;
+    tupKucuk?: number;
     sebil?: number;
   };
   notes?: string;

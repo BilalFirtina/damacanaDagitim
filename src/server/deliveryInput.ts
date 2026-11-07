@@ -136,7 +136,17 @@ export function normalizeDeliveryInput(
     }
   });
 
-  const emptiesRecv = {
+  const legacyTup = Math.max(0, Math.floor(Number(emptyContainersReceived?.tup) || 0));
+  const tupBuyuk = Math.max(0, Math.floor(Number(emptyContainersReceived?.tupBuyuk) || 0));
+  const tupKucuk = Math.max(0, Math.floor(Number(emptyContainersReceived?.tupKucuk) || 0));
+  const emptiesRecv: {
+    damacana: number;
+    camDamacana: number;
+    tup: number;
+    tupBuyuk?: number;
+    tupKucuk?: number;
+    sebil: number;
+  } = {
     damacana: Math.max(0, Math.floor(Number(emptyContainersReceived?.damacana) || 0)),
     camDamacana: Math.max(
       0,
@@ -144,9 +154,17 @@ export function normalizeDeliveryInput(
         Number(emptyContainersReceived?.camDamacana ?? emptyContainersReceived?.cam_damacana) || 0
       )
     ),
-    tup: Math.max(0, Math.floor(Number(emptyContainersReceived?.tup) || 0)),
+    // Yeni istemciler büyük/küçük gönderir. Eski istemci uyumluluğu için tek
+    // `tup` alanı yalnızca iki boyut da boşsa kullanılır.
+    tup: tupBuyuk + tupKucuk > 0 ? tupBuyuk + tupKucuk : legacyTup,
     sebil: Math.max(0, Math.floor(Number(emptyContainersReceived?.sebil) || 0)),
   };
+  // Boyut alanları yalnızca veri varsa eklenir; eski istemci/test çıktısı
+  // gereksiz yeni alanlarla değişmez.
+  if (tupBuyuk > 0 || tupKucuk > 0) {
+    emptiesRecv.tupBuyuk = tupBuyuk;
+    emptiesRecv.tupKucuk = tupKucuk;
+  }
 
   const receivedEmptyTotal =
     emptiesRecv.damacana + emptiesRecv.camDamacana + emptiesRecv.tup + emptiesRecv.sebil;
@@ -160,6 +178,13 @@ export function normalizeDeliveryInput(
 
   const deposited = computeDeliveredDeposits(normalizedItems, products);
   const emptyContainersDiff = computeEmptyContainersDiff(deposited, emptiesRecv);
+  // Yeni teslimatta `tup` alanı büyük + küçük toplamıdır. Müşteri bakiyesine
+  // yalnızca boyutlu deltalar yazılır; `tup` deltası eski kayıtlar için kalır.
+  if (tupBuyuk > 0 || tupKucuk > 0) {
+    emptyContainersDiff.tup =
+      (Number(emptyContainersDiff.tupBuyuk) || 0) +
+      (Number(emptyContainersDiff.tupKucuk) || 0);
+  }
 
   const payment = collectedPayment || {
     method: 'UNPAID',

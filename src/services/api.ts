@@ -256,7 +256,14 @@ export interface CustomerStatementResponse {
   };
   statement: import('./statementRules').CustomerStatementResult;
   returnables: {
-    emptyDepositBalance: { damacana: number; camDamacana: number; tup: number; sebil?: number };
+    emptyDepositBalance: {
+      damacana: number;
+      camDamacana: number;
+      tup: number;
+      tupBuyuk?: number;
+      tupKucuk?: number;
+      sebil?: number;
+    };
   };
 }
 
@@ -280,7 +287,14 @@ export interface BalancesReportRow {
   phone: string;
   isAccountCustomer: boolean;
   balance: number;
-  empty: { damacana: number; camDamacana: number; tup: number; sebil: number };
+  empty: {
+    damacana: number;
+    camDamacana: number;
+    tup: number;
+    tupBuyuk: number;
+    tupKucuk: number;
+    sebil: number;
+  };
 }
 
 export interface BalancesReportResponse {
@@ -291,6 +305,8 @@ export interface BalancesReportResponse {
     emptyDamacana: number;
     emptyCamDamacana: number;
     emptyTup: number;
+    emptyTupBuyuk: number;
+    emptyTupKucuk: number;
     emptySebil: number;
   };
 }
@@ -304,7 +320,7 @@ export async function fetchBalancesReport(): Promise<BalancesReportResponse> {
 // Teslimat dışı müşteri tahsilatı — AGENTS.md Bölüm 6.
 export interface CustomerPaymentInput {
   amount: number;
-  method: 'CASH' | 'POS' | 'TRANSFER';
+  method: 'CASH' | 'POS';
   note?: string;
   paymentId?: string;
   /** Şoför tahsilatında aktif sefer kimliği zorunludur. */
@@ -584,8 +600,16 @@ export function normalizeDelivery(deliveryData: any, forceOffline = false): Deli
       damacana: Number(emptyRecv.damacana) || 0,
       camDamacana: Number(emptyRecv.camDamacana) || 0,
       tup: Number(emptyRecv.tup) || 0,
+      tupBuyuk: Number(emptyRecv.tupBuyuk) || 0,
+      tupKucuk: Number(emptyRecv.tupKucuk) || 0,
     },
-    emptyContainersDiff: deliveryData.emptyContainersDiff || { damacana: 0, camDamacana: 0, tup: 0 },
+    emptyContainersDiff: deliveryData.emptyContainersDiff || {
+      damacana: 0,
+      camDamacana: 0,
+      tup: 0,
+      tupBuyuk: 0,
+      tupKucuk: 0,
+    },
     notes: deliveryData.notes || '',
     isOfflineSync: forceOffline || Boolean(deliveryData.isOfflineSync),
   };

@@ -31,7 +31,7 @@ export const CustomerPaymentModal: React.FC<CustomerPaymentModalProps> = ({
   dispatchId,
 }) => {
   const [amount, setAmount] = useState('');
-  const [method, setMethod] = useState<'CASH' | 'POS' | 'TRANSFER'>('CASH');
+  const [method, setMethod] = useState<'CASH' | 'POS'>('CASH');
   const [note, setNote] = useState('');
   // Ağ hatasında aynı kimlikle yeniden denenir; sunucu mükerrer düşürmeyi engeller.
   const [paymentId, setPaymentId] = useState<string>(newPaymentId);
@@ -153,12 +153,11 @@ export const CustomerPaymentModal: React.FC<CustomerPaymentModalProps> = ({
             </span>
             <select
               value={method}
-              onChange={(e) => setMethod(e.target.value as 'CASH' | 'POS' | 'TRANSFER')}
+              onChange={(e) => setMethod(e.target.value as 'CASH' | 'POS')}
               className="w-full p-2.5 rounded-xl border border-slate-200  bg-slate-50  text-xs text-slate-900 "
             >
               <option value="CASH">Nakit</option>
               <option value="POS">POS / Kredi Kartı</option>
-              <option value="TRANSFER">Havale / EFT</option>
             </select>
           </label>
 

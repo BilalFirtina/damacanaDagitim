@@ -159,12 +159,16 @@ function normalizeEmpties(value: any): {
   damacana: number;
   camDamacana: number;
   tup: number;
+  tupBuyuk: number;
+  tupKucuk: number;
   sebil: number;
 } {
   return {
     damacana: Number(value?.damacana) || 0,
     camDamacana: Number(value?.camDamacana ?? value?.cam_damacana) || 0,
     tup: Number(value?.tup) || 0,
+    tupBuyuk: Number(value?.tupBuyuk) || 0,
+    tupKucuk: Number(value?.tupKucuk) || 0,
     sebil: Number(value?.sebil) || 0,
   };
 }

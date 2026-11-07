@@ -51,7 +51,9 @@ const DB_FILE = path.resolve(__dirname, '../../data_store.json');
 const DEPOSIT_TYPES_REF: Array<{ code: string; label_tr: string; is_returnable: boolean; sort_order: number }> = [
   { code: 'damacana', label_tr: 'Damacana (Plastik/Polikarbon)', is_returnable: true, sort_order: 1 },
   { code: 'cam_damacana', label_tr: 'Cam Damacana', is_returnable: true, sort_order: 2 },
-  { code: 'tup', label_tr: 'Gaz Tüpü', is_returnable: true, sort_order: 3 },
+  { code: 'tup', label_tr: 'Gaz Tüpü (eski/genel)', is_returnable: true, sort_order: 3 },
+  { code: 'tup_buyuk', label_tr: 'Büyük Tüp (12 kg)', is_returnable: true, sort_order: 31 },
+  { code: 'tup_kucuk', label_tr: 'Küçük Tüp (2 kg)', is_returnable: true, sort_order: 32 },
   { code: 'none', label_tr: 'Yok', is_returnable: false, sort_order: 99 },
 ];
 
@@ -72,13 +74,23 @@ const PRODUCT_CATEGORIES_REF: Array<{
 
 const DEPOSIT_BUCKETS: Array<{
   depositType: string;
-  key: 'damacana' | 'camDamacana' | 'tup' | 'sebil';
+  key: 'damacana' | 'camDamacana' | 'tup' | 'tupBuyuk' | 'tupKucuk' | 'sebil';
 }> = [
   { depositType: 'damacana', key: 'damacana' },
   { depositType: 'cam_damacana', key: 'camDamacana' },
+  // Yeni teslimatlar iki tüp boyutunu ayrı yazar. `tup` yalnızca eski
+  // kayıtların okunması için kovalarda tutulur.
   { depositType: 'tup', key: 'tup' },
+  { depositType: 'tup_buyuk', key: 'tupBuyuk' },
+  { depositType: 'tup_kucuk', key: 'tupKucuk' },
   { depositType: 'sebil', key: 'sebil' },
 ];
+
+// RPC'ye yeni teslimat yazarken eski tek `tup` kovası gönderilmez; aksi halde
+// büyük/küçük tüp deltalarına ek olarak bir de toplu delta yazılır.
+const PAYLOAD_DEPOSIT_BUCKETS = DEPOSIT_BUCKETS.filter(
+  (bucket) => bucket.depositType !== 'tup'
+);
 
 // ----------------------------------------------------------------------
 // ENVIRONMENT & CREDENTIAL RESOLUTION & CONFIG MANAGEMENT
@@ -355,7 +367,7 @@ const CANONICAL_SEED_PRODUCTS: Product[] = [
     category: 'tup',
     defaultUnitPrice: 750,
     isDeposit: true,
-    depositType: 'tup',
+    depositType: 'tup_buyuk',
     unit: 'Adet',
     description: 'Ev tipi 12kg gaz tüpü - depozitolu boş tüp iadeli'
   },
@@ -365,7 +377,7 @@ const CANONICAL_SEED_PRODUCTS: Product[] = [
     category: 'tup',
     defaultUnitPrice: 160,
     isDeposit: true,
-    depositType: 'tup',
+    depositType: 'tup_kucuk',
     unit: 'Adet',
     description: '2kg piknik gaz tüpü - depozitolu'
   },
@@ -634,25 +646,33 @@ function getLocalCustomerMap(): Map<string, Customer> {
 
 // Normalize edilmiş tablolardan (customer_empty_balances / customer_product_prices)
 // müşteri ilişkilerini hızlı erişim için gruplar.
-interface CustomerRelations {
-  emptyByCustomer: Map<string, { damacana: number; camDamacana: number; tup: number }>;
-  pricesByCustomer: Map<string, Record<string, number>>;
-}
-
-function emptyBucket(): {
+interface EmptyBucket {
   damacana: number;
   camDamacana: number;
   tup: number;
+  tupBuyuk: number;
+  tupKucuk: number;
   sebil: number;
-} {
-  return { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 };
+}
+
+interface CustomerRelations {
+  emptyByCustomer: Map<string, EmptyBucket>;
+  pricesByCustomer: Map<string, Record<string, number>>;
+}
+
+function emptyBucket(): EmptyBucket {
+  return {
+    damacana: 0,
+    camDamacana: 0,
+    tup: 0,
+    tupBuyuk: 0,
+    tupKucuk: 0,
+    sebil: 0,
+  };
 }
 
 function buildCustomerRelations(emptyRows: any[], priceRows: any[]): CustomerRelations {
-  const emptyByCustomer = new Map<
-    string,
-    { damacana: number; camDamacana: number; tup: number; sebil: number }
-  >();
+  const emptyByCustomer = new Map<string, EmptyBucket>();
   const pricesByCustomer = new Map<string, Record<string, number>>();
 
   for (const r of emptyRows || []) {
@@ -662,6 +682,8 @@ function buildCustomerRelations(emptyRows: any[], priceRows: any[]): CustomerRel
     if (r.deposit_type === 'damacana') bucket.damacana = qty;
     else if (r.deposit_type === 'cam_damacana') bucket.camDamacana = qty;
     else if (r.deposit_type === 'tup') bucket.tup = qty;
+    else if (r.deposit_type === 'tup_buyuk') bucket.tupBuyuk = qty;
+    else if (r.deposit_type === 'tup_kucuk') bucket.tupKucuk = qty;
     else if (r.deposit_type === 'sebil') bucket.sebil = qty;
     emptyByCustomer.set(r.customer_id, bucket);
   }
@@ -750,6 +772,8 @@ function mapCustomerFromDb(
       damacana: Number(emptyDepositBalance.damacana) || 0,
       camDamacana: Number(emptyDepositBalance.camDamacana) || 0,
       tup: Number(emptyDepositBalance.tup) || 0,
+      tupBuyuk: Number(emptyDepositBalance.tupBuyuk) || 0,
+      tupKucuk: Number(emptyDepositBalance.tupKucuk) || 0,
       sebil: Number((emptyDepositBalance as any).sebil) || 0,
     },
     customPrices,
@@ -891,8 +915,22 @@ function mapDeliveryFromDb(row: any, itemRows: any[] = [], containerRows: any[] 
       lineTotal: Number(r.line_total) || 0,
     }));
 
-  const emptyContainersReceived = { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 };
-  const emptyContainersDiff = { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 };
+  const emptyContainersReceived = {
+    damacana: 0,
+    camDamacana: 0,
+    tup: 0,
+    tupBuyuk: 0,
+    tupKucuk: 0,
+    sebil: 0,
+  };
+  const emptyContainersDiff = {
+    damacana: 0,
+    camDamacana: 0,
+    tup: 0,
+    tupBuyuk: 0,
+    tupKucuk: 0,
+    sebil: 0,
+  };
   for (const r of containerRows || []) {
     if (!r) continue;
     const recv = Number(r.received_qty) || 0;
@@ -906,6 +944,12 @@ function mapDeliveryFromDb(row: any, itemRows: any[] = [], containerRows: any[] 
     } else if (r.deposit_type === 'tup') {
       emptyContainersReceived.tup = recv;
       emptyContainersDiff.tup = diff;
+    } else if (r.deposit_type === 'tup_buyuk') {
+      emptyContainersReceived.tupBuyuk = recv;
+      emptyContainersDiff.tupBuyuk = diff;
+    } else if (r.deposit_type === 'tup_kucuk') {
+      emptyContainersReceived.tupKucuk = recv;
+      emptyContainersDiff.tupKucuk = diff;
     } else if (r.deposit_type === 'sebil') {
       emptyContainersReceived.sebil = recv;
       emptyContainersDiff.sebil = diff;
@@ -2744,6 +2788,8 @@ export interface ExpectedCustomerSnapshot {
     damacana: number;
     camDamacana?: number;
     tup: number;
+    tupBuyuk?: number;
+    tupKucuk?: number;
   };
 }
 
@@ -2786,6 +2832,8 @@ export async function adminUpdateCustomerAtomic(
         Number(empty.camDamacana ?? empty.cam_damacana) || 0
       ),
       tup: Math.floor(Number(empty.tup) || 0),
+      tup_buyuk: Math.floor(Number((empty as any).tupBuyuk) || 0),
+      tup_kucuk: Math.floor(Number((empty as any).tupKucuk) || 0),
       sebil: Math.floor(
         Number((empty as any).sebil ?? (expected.empty as any)?.sebil) || 0
       ),
@@ -2796,6 +2844,8 @@ export async function adminUpdateCustomerAtomic(
         Number(expectedEmpty.camDamacana ?? expectedEmpty.cam_damacana) || 0
       ),
       tup: Math.floor(Number(expectedEmpty.tup) || 0),
+      tup_buyuk: Math.floor(Number((expectedEmpty as any).tupBuyuk) || 0),
+      tup_kucuk: Math.floor(Number((expectedEmpty as any).tupKucuk) || 0),
       sebil: Math.floor(Number((expectedEmpty as any).sebil) || 0),
     };
   }
@@ -2883,6 +2933,16 @@ export async function adminUpdateCustomerAtomic(
         Number(expectedEmpty.camDamacana ?? expectedEmpty.cam_damacana) || 0,
       ],
       ['tup', Number(currentEmpty.tup) || 0, Number(expectedEmpty.tup) || 0],
+      [
+        'tupBuyuk',
+        Number(currentEmpty.tupBuyuk) || 0,
+        Number(expectedEmpty.tupBuyuk) || 0,
+      ],
+      [
+        'tupKucuk',
+        Number(currentEmpty.tupKucuk) || 0,
+        Number(expectedEmpty.tupKucuk) || 0,
+      ],
     ];
     for (const [, currentQty, expectedQty] of pairs) {
       if (currentQty !== expectedQty) {
@@ -3624,7 +3684,18 @@ function buildApplyDeliveryPayload(del: Delivery): Record<string, any> {
 
   const recv: any = del.emptyContainersReceived || {};
   const diff: any = del.emptyContainersDiff || {};
-  const containerReturns = DEPOSIT_BUCKETS.map((b) => {
+  // Yeni istemci büyük/küçük gönderir. Yalnızca eski çevrimdışı kuyruk
+  // kayıtlarında tek `tup` alanı bulunur; onu da kaybetmemek için koşullu ekle.
+  const payloadBuckets = [...PAYLOAD_DEPOSIT_BUCKETS];
+  if (
+    (Number(recv.tup) || 0) > 0 &&
+    !(Number(recv.tupBuyuk) || 0) &&
+    !(Number(recv.tupKucuk) || 0)
+  ) {
+    const legacyBucket = DEPOSIT_BUCKETS.find((b) => b.depositType === 'tup');
+    if (legacyBucket) payloadBuckets.push(legacyBucket);
+  }
+  const containerReturns = payloadBuckets.map((b) => {
     let rv: any = recv[b.key];
     let dv: any = diff[b.key];
     if (b.key === 'camDamacana') {
@@ -4586,7 +4657,7 @@ export async function createCustomerPayment(input: {
   paymentId: string;
   customerId: string;
   amount: number;
-  method: 'CASH' | 'POS' | 'TRANSFER';
+  method: 'CASH' | 'POS';
   note?: string;
   /** Şoför tahsilatını aktif sefere bağlar; yönetici tahsilatında boş olabilir. */
   dispatchId?: string | null;

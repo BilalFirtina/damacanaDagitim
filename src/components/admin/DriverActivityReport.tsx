@@ -100,7 +100,10 @@ export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({
           delivery.emptyContainersReceived?.camDamacana ??
             (delivery.emptyContainersReceived as any)?.cam_damacana
         ) || 0;
-      row.emptyTup += Number(delivery.emptyContainersReceived?.tup) || 0;
+      row.emptyTup +=
+        Number(delivery.emptyContainersReceived?.tupBuyuk || 0) +
+          Number(delivery.emptyContainersReceived?.tupKucuk || 0) ||
+        Number(delivery.emptyContainersReceived?.tup) || 0;
     }
 
     return Array.from(byDriver.values())

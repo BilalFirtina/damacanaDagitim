@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Customer, Delivery, Dispatch, User, Product } from '../../types';
 import { isAccountCustomerDelivery } from '../../services/customerVisibility';
+import { totalTupEmpty } from '../../services/depositRules';
 import {
   FileSpreadsheet,
   Printer,
@@ -20,11 +21,14 @@ import {
 import { fetchDailyReport } from '../../services/api';
 import { todayUtcDateStr } from '../../services/dateWindow';
 import { ConsolidatedDailyReport } from './ConsolidatedDailyReport';
-import { DeliveryCorrectionsView } from './DeliveryCorrectionsView';
 import { BalancesReportView } from './BalancesReportView';
 import { DriverActivityReport } from './DriverActivityReport';
 import { DiscrepancyReport } from './DiscrepancyReport';
-import { AuditHistoryView } from './AuditHistoryView';
+import { AuditLogView } from './AuditLogView';
+
+// Şoför faaliyeti, uyuşmazlık ve detaylı Excel görünümleri kodda korunur;
+// bu bayrak açılırsa üst sekmelerde yeniden görünür.
+const SHOW_LEGACY_REPORT_TABS = false;
 
 interface DailyReportsViewProps {
   users: User[];
@@ -138,7 +142,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
         isAccount ? '' : del.collectedPayment.diffUncollected,
         del.emptyContainersReceived.damacana || 0,
         Number(del.emptyContainersReceived.camDamacana || del.emptyContainersReceived.cam_damacana) || 0,
-        del.emptyContainersReceived.tup || 0,
+        totalTupEmpty(del.emptyContainersReceived),
         `"${(del.notes || '').replace(/"/g, '""')}"`,
       ].join(';');
     });
@@ -174,7 +178,6 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
     totalEmptyTupCollected: 0,
     totalStandaloneCash: 0,
     totalStandalonePos: 0,
-    totalStandaloneTransfer: 0,
     totalStandaloneCollected: 0,
   };
 
@@ -194,7 +197,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
     }
     driverEmptyDamacana += Number(d.emptyContainersReceived?.damacana) || 0;
     driverEmptyCamDamacana += Number(d.emptyContainersReceived?.camDamacana || d.emptyContainersReceived?.cam_damacana) || 0;
-    driverEmptyTup += Number(d.emptyContainersReceived?.tup) || 0;
+    driverEmptyTup += totalTupEmpty(d.emptyContainersReceived);
   });
 
   const driverTotalCollected = driverCashCollected + driverPosCollected;
@@ -360,6 +363,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
           <FileText className="w-4 h-4 shrink-0" />
           <span>Konsolide Gün Sonu Raporu (A4 / PDF Baskı)</span>
         </button>
+        {SHOW_LEGACY_REPORT_TABS && (<>
         <button
           onClick={() => setSubTab('detailed')}
           className={`w-full sm:w-auto min-h-11 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center sm:justify-start gap-2 text-left ${
@@ -393,6 +397,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span>Araçta Kalan & Kasa Uyuşmazlıkları</span>
         </button>
+        </>)}
         <button
           onClick={() => setSubTab('balances')}
           className={`w-full sm:w-auto min-h-11 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center sm:justify-start gap-2 text-left ${
@@ -405,17 +410,6 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
           <span>Cari & İade Edilebilir Bakiyeler</span>
         </button>
         <button
-          onClick={() => setSubTab('history')}
-          className={`w-full sm:w-auto min-h-11 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center sm:justify-start gap-2 text-left ${
-            subTab === 'history'
-              ? 'bg-white  text-slate-900  shadow-xs'
-              : 'text-slate-600  hover:text-slate-900 '
-          }`}
-        >
-          <History className="w-4 h-4 shrink-0" />
-          <span>İşlem Geçmişi</span>
-        </button>
-        <button
           onClick={() => setSubTab('corrections')}
           className={`w-full sm:w-auto min-h-11 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center sm:justify-start gap-2 text-left ${
             subTab === 'corrections'
@@ -424,7 +418,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
           }`}
         >
           <History className="w-4 h-4 shrink-0" />
-          <span>İptal & Düzenleme Kayıtları</span>
+          <span>Denetim Kayıtları</span>
         </button>
       </div>
 
@@ -441,10 +435,8 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
           customers={customers}
           date={selectedDate}
         />
-      ) : subTab === 'history' ? (
-        <AuditHistoryView />
       ) : subTab === 'corrections' ? (
-        <DeliveryCorrectionsView />
+        <AuditLogView customers={customers} />
       ) : (
         <>
           {/* Top Controls Filter Bar */}
@@ -560,8 +552,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
           </div>
           <span className="text-[10px] text-teal-600/80 font-medium break-words">
             Nakit {(summary.totalStandaloneCash || 0).toLocaleString('tr-TR')} ₺ · POS{' '}
-            {(summary.totalStandalonePos || 0).toLocaleString('tr-TR')} ₺ · Havale{' '}
-            {(summary.totalStandaloneTransfer || 0).toLocaleString('tr-TR')} ₺
+            POS {(summary.totalStandalonePos || 0).toLocaleString('tr-TR')} ₺
           </span>
         </div>
 
@@ -599,7 +590,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
       {summary.hasAccountCustomerDeliveries && (
         <div className="rounded-xl border border-sky-200  bg-sky-50/60  p-3 text-[11px] text-sky-800 ">
           Faturalı müşterilerin birim fiyat, mal tutarı ve cari borç bilgileri
-          gizlenir; bu tutarlar rapor toplamlarına dahil edilmez.
+          FATURALI olarak yazılır; bu tutarlar rapor toplamlarına dahil edilmez.
         </div>
       )}
 
@@ -714,7 +705,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                       </td>
                       <td className="py-3 px-3 text-right font-mono font-bold text-slate-900  tabular-nums">
                         {isAccount ? (
-                          <span className="text-[10px] font-semibold text-slate-400">Gizli</span>
+                          <span className="text-[10px] font-semibold text-slate-400">FATURALI</span>
                         ) : (
                           `${del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺`
                         )}
@@ -739,7 +730,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                       </td>
                       <td className="py-3 px-3 text-right font-mono tabular-nums">
                         {isAccount ? (
-                          <span className="text-[10px] font-semibold text-slate-400">Gizli</span>
+                          <span className="text-[10px] font-semibold text-slate-400">FATURALI</span>
                         ) : del.collectedPayment.diffUncollected > 0 ? (
                           <span className="font-bold text-amber-600">
                             +{del.collectedPayment.diffUncollected.toLocaleString('tr-TR')} ₺
@@ -831,7 +822,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                       <dt className="text-slate-500">Mal Tutarı</dt>
                       <dd className="font-mono font-bold text-slate-900  tabular-nums break-words">
                         {isAccount ? (
-                          <span className="text-[10px] font-semibold text-slate-400">Gizli</span>
+                          <span className="text-[10px] font-semibold text-slate-400">FATURALI</span>
                         ) : (
                           `${del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺`
                         )}
@@ -865,7 +856,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                       <dt className="text-slate-500">Cari Borç</dt>
                       <dd className="font-mono font-bold tabular-nums break-words">
                         {isAccount ? (
-                          <span className="text-[10px] font-semibold text-slate-400">Gizli</span>
+                          <span className="text-[10px] font-semibold text-slate-400">FATURALI</span>
                         ) : del.collectedPayment.diffUncollected > 0 ? (
                           <span className="text-amber-600">
                             +{del.collectedPayment.diffUncollected.toLocaleString('tr-TR')} ₺

@@ -53,7 +53,12 @@ interface DeliveryModalProps {
   onDeliveryUpdated?: () => void;
 }
 
-type DepositKey = "damacana" | "cam_damacana" | "tup" | "sebil";
+type DepositKey =
+  | "damacana"
+  | "cam_damacana"
+  | "tup_buyuk"
+  | "tup_kucuk"
+  | "sebil";
 
 interface EmptyContainerRowProps {
   label: string;
@@ -323,6 +328,16 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         editDelivery.deliveredItems,
         allProducts,
       );
+      const editTupBuyuk =
+        Number(editDelivery.emptyContainersReceived?.tupBuyuk) || 0;
+      const editTupKucuk =
+        Number(editDelivery.emptyContainersReceived?.tupKucuk) || 0;
+      const editTupLegacy =
+        Number(editDelivery.emptyContainersReceived?.tup) || 0;
+      // Eski kayıtta boyut yoksa sayıyı büyük tüp kovasına koyarız; yeni
+      // kayıtlarda iki boyut ayrı gelir.
+      const resolvedTupBuyuk =
+        editTupBuyuk || (editTupKucuk === 0 ? editTupLegacy : 0);
       const editReceived = {
         damacana: Number(editDelivery.emptyContainersReceived?.damacana) || 0,
         camDamacana:
@@ -330,17 +345,22 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
             editDelivery.emptyContainersReceived?.camDamacana ??
               editDelivery.emptyContainersReceived?.cam_damacana,
           ) || 0,
-        tup: Number(editDelivery.emptyContainersReceived?.tup) || 0,
+        tupBuyuk: resolvedTupBuyuk,
+        tupKucuk: editTupKucuk,
         sebil: Number(editDelivery.emptyContainersReceived?.sebil) || 0,
       };
       setEmptyDamacanaReturned(editReceived.damacana);
       setEmptyCamDamacanaReturned(editReceived.camDamacana);
-      setEmptyTupReturned(editReceived.tup);
+      setEmptyTupBuyukReturned(editReceived.tupBuyuk);
+      setEmptyTupKucukReturned(editReceived.tupKucuk);
       setEmptySebilReturned(editReceived.sebil);
       setManualEmpty({
         damacana: editReceived.damacana !== editDelivered.damacana,
         cam_damacana: editReceived.camDamacana !== editDelivered.camDamacana,
-        tup: editReceived.tup !== editDelivered.tup,
+        tup_buyuk:
+          editReceived.tupBuyuk !== (Number(editDelivered.tupBuyuk) || 0),
+        tup_kucuk:
+          editReceived.tupKucuk !== (Number(editDelivered.tupKucuk) || 0),
         sebil: editReceived.sebil !== editDelivered.sebil,
       });
 
@@ -363,7 +383,8 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       setUnitPrices({});
       setEmptyDamacanaReturned(0);
       setEmptyCamDamacanaReturned(0);
-      setEmptyTupReturned(0);
+      setEmptyTupBuyukReturned(0);
+      setEmptyTupKucukReturned(0);
       setEmptySebilReturned(0);
       setSebilBrand("");
       setSebilModel("");
@@ -371,7 +392,8 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       setManualEmpty({
         damacana: false,
         cam_damacana: false,
-        tup: false,
+        tup_buyuk: false,
+        tup_kucuk: false,
         sebil: false,
       });
       setPaymentType("full");
@@ -409,7 +431,12 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const [newProdUnit, setNewProdUnit] = useState("Adet");
   const [newProdIsDeposit, setNewProdIsDeposit] = useState(true);
   const [newProdDepositType, setNewProdDepositType] = useState<
-    "none" | "damacana" | "cam_damacana" | "tup"
+    | "none"
+    | "damacana"
+    | "cam_damacana"
+    | "tup"
+    | "tup_buyuk"
+    | "tup_kucuk"
   >("damacana");
 
   // Quantities & Unit prices
@@ -423,7 +450,8 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const [emptyDamacanaReturned, setEmptyDamacanaReturned] = useState<number>(0);
   const [emptyCamDamacanaReturned, setEmptyCamDamacanaReturned] =
     useState<number>(0);
-  const [emptyTupReturned, setEmptyTupReturned] = useState<number>(0);
+  const [emptyTupBuyukReturned, setEmptyTupBuyukReturned] = useState<number>(0);
+  const [emptyTupKucukReturned, setEmptyTupKucukReturned] = useState<number>(0);
   const [emptySebilReturned, setEmptySebilReturned] = useState<number>(0);
   // Verilen sebilin marka/modeli ve bırakıldığı yer (AGENTS.md 7.1).
   const [sebilBrand, setSebilBrand] = useState("");
@@ -432,7 +460,8 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const [manualEmpty, setManualEmpty] = useState<Record<DepositKey, boolean>>({
     damacana: false,
     cam_damacana: false,
-    tup: false,
+    tup_buyuk: false,
+    tup_kucuk: false,
     sebil: false,
   });
 
@@ -511,7 +540,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     }
   }, [selectedCustomer, allProducts, isEdit]);
 
-  // Faturalı müşteride tutar bilgisi gizlendiği için "tam tahsilat" varsayılanı
+  // Faturalı müşteride tutar bilgisi yazılmadığı için "tam tahsilat" varsayılanı
   // kullanılmaz; şoför tahsilat aldıysa tutarı kendisi girer.
   useEffect(() => {
     if (isEdit || !selectedCustomer) return;
@@ -543,7 +572,8 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const receivedEmptyTotal =
     emptyDamacanaReturned +
     emptyCamDamacanaReturned +
-    emptyTupReturned +
+    emptyTupBuyukReturned +
+    emptyTupKucukReturned +
     emptySebilReturned;
   const hasDeliveryContent =
     deliveredItems.length > 0 || receivedEmptyTotal > 0;
@@ -558,7 +588,8 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   );
   const deliveredDepositDamacana = deliveredDeposits.damacana;
   const deliveredDepositCamDamacana = deliveredDeposits.camDamacana;
-  const deliveredDepositTup = deliveredDeposits.tup;
+  const deliveredDepositTupBuyuk = Number(deliveredDeposits.tupBuyuk) || 0;
+  const deliveredDepositTupKucuk = Number(deliveredDeposits.tupKucuk) || 0;
   const deliveredDepositSebil = deliveredDeposits.sebil;
 
   // Otomatik modda alınan boş kap, bırakılan dolu miktarını canlı takip eder.
@@ -579,8 +610,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     if (!manualEmpty.cam_damacana) {
       setEmptyCamDamacanaReturned(deposits.camDamacana);
     }
-    if (!manualEmpty.tup) {
-      setEmptyTupReturned(deposits.tup);
+    if (!manualEmpty.tup_buyuk) {
+      setEmptyTupBuyukReturned(Number(deposits.tupBuyuk) || 0);
+    }
+    if (!manualEmpty.tup_kucuk) {
+      setEmptyTupKucukReturned(Number(deposits.tupKucuk) || 0);
     }
     if (!manualEmpty.sebil) {
       setEmptySebilReturned(deposits.sebil);
@@ -773,7 +807,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       const emptyContainersReceived = {
         damacana: emptyDamacanaReturned,
         camDamacana: emptyCamDamacanaReturned,
-        tup: emptyTupReturned,
+        tup: emptyTupBuyukReturned + emptyTupKucukReturned,
+        tupBuyuk: emptyTupBuyukReturned,
+        tupKucuk: emptyTupKucukReturned,
         sebil: emptySebilReturned,
       };
 
@@ -889,8 +925,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   if (emptyCamDamacanaReturned > 0) {
     receivedEmptyParts.push(`${emptyCamDamacanaReturned} cam damacana`);
   }
-  if (emptyTupReturned > 0) {
-    receivedEmptyParts.push(`${emptyTupReturned} tüp`);
+  if (emptyTupBuyukReturned > 0) {
+    receivedEmptyParts.push(`${emptyTupBuyukReturned} büyük tüp`);
+  }
+  if (emptyTupKucukReturned > 0) {
+    receivedEmptyParts.push(`${emptyTupKucukReturned} küçük tüp`);
   }
   if (emptySebilReturned > 0) {
     receivedEmptyParts.push(`${emptySebilReturned} sebil`);
@@ -911,9 +950,14 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       `${deliveredDepositCamDamacana - emptyCamDamacanaReturned} cam damacana`,
     );
   }
-  if (deliveredDepositTup - emptyTupReturned > 0) {
+  if (deliveredDepositTupBuyuk - emptyTupBuyukReturned > 0) {
     emptyShortageParts.push(
-      `${deliveredDepositTup - emptyTupReturned} tüp`,
+      `${deliveredDepositTupBuyuk - emptyTupBuyukReturned} büyük tüp`,
+    );
+  }
+  if (deliveredDepositTupKucuk - emptyTupKucukReturned > 0) {
+    emptyShortageParts.push(
+      `${deliveredDepositTupKucuk - emptyTupKucukReturned} küçük tüp`,
     );
   }
   const emptyShortageText =
@@ -1338,13 +1382,21 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
                     {(selectedCustomer.emptyDepositBalance?.damacana > 0 ||
                       selectedCustomer.emptyDepositBalance?.camDamacana > 0 ||
-                      selectedCustomer.emptyDepositBalance?.tup > 0) && (
+                      selectedCustomer.emptyDepositBalance?.tup > 0 ||
+                      (selectedCustomer.emptyDepositBalance?.tupBuyuk || 0) > 0 ||
+                      (selectedCustomer.emptyDepositBalance?.tupKucuk || 0) > 0) && (
                       <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-orange-100 text-orange-800  ">
                         Müşteride Kalan Boş:{" "}
                         {selectedCustomer.emptyDepositBalance?.damacana || 0}{" "}
                         Damacana
                         {selectedCustomer.emptyDepositBalance?.camDamacana > 0
                           ? `, ${selectedCustomer.emptyDepositBalance.camDamacana} Cam Damacana`
+                          : ""}
+                        {(selectedCustomer.emptyDepositBalance?.tupBuyuk || 0) > 0
+                          ? `, ${selectedCustomer.emptyDepositBalance.tupBuyuk} Büyük Tüp`
+                          : ""}
+                        {(selectedCustomer.emptyDepositBalance?.tupKucuk || 0) > 0
+                          ? `, ${selectedCustomer.emptyDepositBalance.tupKucuk} Küçük Tüp`
                           : ""}
                         {selectedCustomer.emptyDepositBalance?.tup > 0
                           ? `, ${selectedCustomer.emptyDepositBalance.tup} Tüp`
@@ -1519,7 +1571,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                               | "none"
                               | "damacana"
                               | "cam_damacana"
-                              | "tup",
+                              | "tup"
+                              | "tup_buyuk"
+                              | "tup_kucuk",
                           )
                         }
                         className="p-2 rounded-lg border border-slate-200  bg-white  text-slate-900  sm:col-span-3"
@@ -1530,7 +1584,15 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         <option value="cam_damacana">
                           🔄 Boş Cam Damacana İadesi Zorunlu
                         </option>
-                        <option value="tup">🔥 Boş Tüp İadesi Zorunlu</option>
+                        <option value="tup_buyuk">
+                          🔥 Büyük Tüp İadesi Zorunlu
+                        </option>
+                        <option value="tup_kucuk">
+                          🔥 Küçük Tüp İadesi Zorunlu
+                        </option>
+                        <option value="tup">
+                          🔥 Tüp (genel / eski kayıt)
+                        </option>
                       </select>
                     )}
                   </div>
@@ -1683,7 +1745,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                           <div className="w-20 text-right">
                             {selectedCustomer?.isAccountCustomer ? (
                               <span className="text-[10px] text-slate-400">
-                                Tutar gizli
+                                FATURALI
                               </span>
                             ) : (
                               <span className="font-mono font-bold text-xs tabular-nums text-slate-900 ">
@@ -1743,8 +1805,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     {deliveredDepositCamDamacana > 0
                       ? `, ${deliveredDepositCamDamacana} Cam Damacana`
                       : ""}
-                    {deliveredDepositTup > 0
-                      ? `, ${deliveredDepositTup} Tüp`
+                    {deliveredDepositTupBuyuk > 0
+                      ? `, ${deliveredDepositTupBuyuk} Büyük Tüp`
+                      : ""}
+                    {deliveredDepositTupKucuk > 0
+                      ? `, ${deliveredDepositTupKucuk} Küçük Tüp`
                       : ""}
                   </span>
                 </div>
@@ -1782,17 +1847,36 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     onChange={setEmptyCamDamacanaReturned}
                   />
                   <EmptyContainerRow
-                    label="Alınan Boş Tüp"
-                    delivered={deliveredDepositTup}
-                    value={emptyTupReturned}
-                    manual={manualEmpty.tup}
+                    label="Alınan Boş Büyük Tüp"
+                    delivered={deliveredDepositTupBuyuk}
+                    value={emptyTupBuyukReturned}
+                    manual={manualEmpty.tup_buyuk}
                     onToggle={(manual) => {
-                      setManualEmpty((prev) => ({ ...prev, tup: manual }));
+                      setManualEmpty((prev) => ({
+                        ...prev,
+                        tup_buyuk: manual,
+                      }));
                       if (!manual) {
-                        setEmptyTupReturned(deliveredDepositTup);
+                        setEmptyTupBuyukReturned(deliveredDepositTupBuyuk);
                       }
                     }}
-                    onChange={setEmptyTupReturned}
+                    onChange={setEmptyTupBuyukReturned}
+                  />
+                  <EmptyContainerRow
+                    label="Alınan Boş Küçük Tüp"
+                    delivered={deliveredDepositTupKucuk}
+                    value={emptyTupKucukReturned}
+                    manual={manualEmpty.tup_kucuk}
+                    onToggle={(manual) => {
+                      setManualEmpty((prev) => ({
+                        ...prev,
+                        tup_kucuk: manual,
+                      }));
+                      if (!manual) {
+                        setEmptyTupKucukReturned(deliveredDepositTupKucuk);
+                      }
+                    }}
+                    onChange={setEmptyTupKucukReturned}
                   />
                   <EmptyContainerRow
                     label="Alınan Su Sebili"
@@ -1908,23 +1992,47 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   </div>
                 )}
 
-                {deliveredDepositTup - emptyTupReturned !== 0 && (
+                {deliveredDepositTupBuyuk - emptyTupBuyukReturned !== 0 && (
                   <div className="text-[11px] text-orange-800 ">
-                    {deliveredDepositTup - emptyTupReturned > 0 ? (
+                    {deliveredDepositTupBuyuk - emptyTupBuyukReturned > 0 ? (
                       <span>
                         ⚠️{" "}
                         <strong>
-                          {deliveredDepositTup - emptyTupReturned} adet boş tüp
-                          eksik alındı.
+                          {deliveredDepositTupBuyuk - emptyTupBuyukReturned} adet
+                          boş büyük tüp eksik alındı.
                         </strong>{" "}
-                        Müşterinin emanet boş tüp borcuna işlenecektir.
+                        Müşterinin emanet boş büyük tüp borcuna işlenecektir.
                       </span>
                     ) : (
                       <span>
                         ℹ️ Müşteriye{" "}
                         <strong>
-                          {emptyTupReturned - deliveredDepositTup} adet boş tüp
-                          borcumuz oluşur.
+                          {emptyTupBuyukReturned - deliveredDepositTupBuyuk} adet
+                          boş büyük tüp borcumuz oluşur.
+                        </strong>{" "}
+                        Emanet bakiyesine işlenecektir.
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {deliveredDepositTupKucuk - emptyTupKucukReturned !== 0 && (
+                  <div className="text-[11px] text-orange-800 ">
+                    {deliveredDepositTupKucuk - emptyTupKucukReturned > 0 ? (
+                      <span>
+                        ⚠️{" "}
+                        <strong>
+                          {deliveredDepositTupKucuk - emptyTupKucukReturned} adet
+                          boş küçük tüp eksik alındı.
+                        </strong>{" "}
+                        Müşterinin emanet boş küçük tüp borcuna işlenecektir.
+                      </span>
+                    ) : (
+                      <span>
+                        ℹ️ Müşteriye{" "}
+                        <strong>
+                          {emptyTupKucukReturned - deliveredDepositTupKucuk} adet
+                          boş küçük tüp borcumuz oluşur.
                         </strong>{" "}
                         Emanet bakiyesine işlenecektir.
                       </span>
@@ -1962,7 +2070,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   </label>
                   {selectedCustomer?.isAccountCustomer ? (
                     <span className="text-[11px] text-slate-500">
-                      Faturalı müşteri — tutar bilgisi gizlenir
+                      FATURALI
                     </span>
                   ) : (
                     <div className="text-right">

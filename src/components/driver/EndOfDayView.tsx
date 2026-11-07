@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Customer, Dispatch, Delivery, Product, User } from '../../types';
 import { isAccountCustomerDelivery } from '../../services/customerVisibility';
 import { todayUtcDateStr, formatDateTr } from '../../services/dateWindow';
+import { totalTupEmpty } from '../../services/depositRules';
 import {
   findOldestStaleOpenDispatch,
   findStaleOpenDispatch,
@@ -162,6 +163,9 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
   let totalEmptyDamacanaCollected = 0;
   let totalEmptyCamDamacanaCollected = 0;
   let totalEmptyTupCollected = 0;
+  let totalEmptyTupBuyukCollected = 0;
+  let totalEmptyTupKucukCollected = 0;
+  let totalEmptyTupLegacyCollected = 0;
   let totalEmptySebilCollected = 0;
 
   dispatchDeliveries.forEach((del) => {
@@ -173,7 +177,12 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
     }
     totalEmptyDamacanaCollected += del.emptyContainersReceived.damacana || 0;
     totalEmptyCamDamacanaCollected += Number(del.emptyContainersReceived.camDamacana || del.emptyContainersReceived.cam_damacana) || 0;
-    totalEmptyTupCollected += del.emptyContainersReceived.tup || 0;
+    totalEmptyTupBuyukCollected +=
+      Number(del.emptyContainersReceived?.tupBuyuk) || 0;
+    totalEmptyTupKucukCollected +=
+      Number(del.emptyContainersReceived?.tupKucuk) || 0;
+    totalEmptyTupLegacyCollected += Number(del.emptyContainersReceived?.tup) || 0;
+    totalEmptyTupCollected += totalTupEmpty(del.emptyContainersReceived);
     totalEmptySebilCollected += Number(del.emptyContainersReceived?.sebil) || 0;
 
     del.deliveredItems.forEach((item) => {
@@ -188,10 +197,10 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
   const standalonePos = dispatchPayments
     .filter((p) => p.method === 'POS')
     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-  const standaloneTransfer = dispatchPayments
-    .filter((p) => p.method === 'TRANSFER')
-    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-  const standaloneTotal = standaloneCash + standalonePos + standaloneTransfer;
+  const standaloneTotal = standaloneCash + standalonePos;
+  const cashPosPayments = dispatchPayments.filter(
+    (p) => p.method === 'CASH' || p.method === 'POS'
+  );
 
   // Calculate expected remaining full items
   const expectedRemainingFull: Record<string, number> = {};
@@ -530,11 +539,18 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-50  border border-slate-200 ">
-            <span className="text-[11px] font-semibold text-slate-500 uppercase">Toplanan Boş Tüp</span>
+            <span className="text-[11px] font-semibold text-slate-500 uppercase">
+              Toplanan Boş Tüp (Büyük / Küçük)
+            </span>
             <div className="text-xl font-bold font-mono text-slate-900  mt-1">
-              {totalEmptyTupCollected} Adet
+              {totalEmptyTupBuyukCollected} / {totalEmptyTupKucukCollected}
             </div>
-            <span className="text-[10px] text-slate-400">Depoya teslim edilecek tüpler</span>
+            <span className="text-[10px] text-slate-400">
+              Toplam {totalEmptyTupCollected} adet
+              {totalEmptyTupLegacyCollected > 0
+                ? ` · Eski kayıt ${totalEmptyTupLegacyCollected}`
+                : ''}
+            </span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-indigo-50/50  border border-indigo-200 ">
@@ -570,19 +586,18 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
             </div>
             <span className="text-[10px] text-teal-600/80 break-words">
               Nakit {standaloneCash.toLocaleString('tr-TR')} ₺ · POS{' '}
-              {standalonePos.toLocaleString('tr-TR')} ₺ · Havale{' '}
-              {standaloneTransfer.toLocaleString('tr-TR')} ₺
+              {standalonePos.toLocaleString('tr-TR')} ₺
             </span>
           </div>
         </div>
 
-        {dispatchPayments.length > 0 && (
+        {cashPosPayments.length > 0 && (
           <div className="rounded-xl border border-slate-200  overflow-hidden">
             <div className="px-3 py-2 bg-slate-50  border-b border-slate-200  text-[11px] font-bold text-slate-700 ">
-              Ürün Verilmeden Alınan Tahsilatlar ({dispatchPayments.length})
+              Ürün Verilmeden Alınan Tahsilatlar ({cashPosPayments.length})
             </div>
             <div className="divide-y divide-slate-100 ">
-              {dispatchPayments.map((payment) => (
+              {cashPosPayments.map((payment) => (
                 <div
                   key={payment.id}
                   className="px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] min-w-0"
@@ -592,11 +607,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                       {payment.customerName || payment.customerId}
                     </div>
                     <div className="text-slate-500 break-words">
-                      {payment.method === 'CASH'
-                        ? 'Nakit'
-                        : payment.method === 'POS'
-                          ? 'POS'
-                          : 'Havale / EFT'}
+                      {payment.method === 'CASH' ? 'Nakit' : 'POS'}
                       {payment.note ? ` · ${payment.note}` : ''}
                     </div>
                   </div>
@@ -670,7 +681,12 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                       {del.deliveredItems.map((i) => `${i.quantity} ${i.productName}`).join(' · ')}
                       {del.emptyContainersReceived.damacana > 0 && ` · ${del.emptyContainersReceived.damacana} Boş`}
                       {(del.emptyContainersReceived.camDamacana || 0) > 0 && ` · ${del.emptyContainersReceived.camDamacana} Boş Cam`}
-                      {del.emptyContainersReceived.tup > 0 && ` · ${del.emptyContainersReceived.tup} Boş Tüp`}
+                      {(del.emptyContainersReceived.tupBuyuk || 0) > 0 &&
+                        ` · ${del.emptyContainersReceived.tupBuyuk} Büyük Boş Tüp`}
+                      {(del.emptyContainersReceived.tupKucuk || 0) > 0 &&
+                        ` · ${del.emptyContainersReceived.tupKucuk} Küçük Boş Tüp`}
+                      {del.emptyContainersReceived.tup > 0 &&
+                        ` · ${del.emptyContainersReceived.tup} Boş Tüp (eski)`}
                     </div>
                   </div>
 

@@ -13,6 +13,11 @@ import {
   DeliveryCorrectionAudit,
 } from '../../services/api';
 import { formatDateTimeTr } from '../../services/dateWindow';
+import type { Customer } from '../../types';
+
+interface DeliveryCorrectionsViewProps {
+  customers?: Customer[];
+}
 
 const EMPTY_LABELS: Record<string, string> = {
   damacana: 'Damacana',
@@ -33,7 +38,9 @@ function nonZeroEmpty(values: Record<string, number>): Array<[string, number]> {
   return Object.entries(values || {}).filter(([, qty]) => Number(qty) !== 0);
 }
 
-export const DeliveryCorrectionsView: React.FC = () => {
+export const DeliveryCorrectionsView: React.FC<DeliveryCorrectionsViewProps> = ({
+  customers = [],
+}) => {
   const [corrections, setCorrections] = useState<DeliveryCorrectionAudit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +63,13 @@ export const DeliveryCorrectionsView: React.FC = () => {
   useEffect(() => {
     loadCorrections();
   }, []);
+
+  const customerOf = (customerId: string) =>
+    customers.find((customer) => customer.id === customerId);
+  const customerNameOf = (customerId: string) =>
+    customerOf(customerId)?.name || 'Müşteri kaydı bulunamadı';
+  const isAccountOf = (customerId: string) =>
+    customerOf(customerId)?.isAccountCustomer === true;
 
   return (
     <div className="space-y-4 w-full max-w-full min-w-0">
@@ -155,7 +169,7 @@ export const DeliveryCorrectionsView: React.FC = () => {
                       </span>
                     </div>
                     <p className="text-xs font-semibold text-slate-800  mt-1.5 break-words">
-                      Müşteri: {item.customerId}
+                      Müşteri: {customerNameOf(item.customerId)}
                     </p>
                     <p className="text-[11px] text-slate-500 break-words">
                       İşlemi yapan: {item.performedByUserName || item.performedByUserId}
@@ -177,6 +191,12 @@ export const DeliveryCorrectionsView: React.FC = () => {
                     <span className="font-bold">Gerekçe:</span> {item.reason}
                   </p>
 
+                  {isAccountOf(item.customerId) ? (
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                      <span className="text-slate-500">Cari bakiye:</span>
+                      <span className="font-mono font-semibold">FATURALI</span>
+                    </div>
+                  ) : (
                   <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
                     <span className="text-slate-500">Cari bakiye:</span>
                     <span className="font-mono font-semibold">
@@ -192,6 +212,7 @@ export const DeliveryCorrectionsView: React.FC = () => {
                       </span>
                     )}
                   </div>
+                  )}
 
                   {reversedEmpty.length > 0 && (
                     <div className="flex flex-wrap items-center gap-1.5 text-[11px]">

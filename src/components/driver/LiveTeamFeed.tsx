@@ -356,6 +356,8 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
                     {/* Deposit empty containers */}
                     {(item.emptyContainersReceived?.damacana > 0 ||
                       (item.emptyContainersReceived?.camDamacana || 0) > 0 ||
+                      (item.emptyContainersReceived?.tupBuyuk || 0) > 0 ||
+                      (item.emptyContainersReceived?.tupKucuk || 0) > 0 ||
                       item.emptyContainersReceived?.tup > 0) && (
                       <div className="flex items-center gap-1 text-[11px] font-medium text-orange-600 ">
                         <RotateCcw className="w-3.5 h-3.5" />
@@ -370,9 +372,19 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
                             , {item.emptyContainersReceived.camDamacana} Boş Cam Damacana
                           </strong>
                         )}
+                        {(item.emptyContainersReceived.tupBuyuk || 0) > 0 && (
+                          <strong className="font-mono">
+                            , {item.emptyContainersReceived.tupBuyuk} Büyük Boş Tüp
+                          </strong>
+                        )}
+                        {(item.emptyContainersReceived.tupKucuk || 0) > 0 && (
+                          <strong className="font-mono">
+                            , {item.emptyContainersReceived.tupKucuk} Küçük Boş Tüp
+                          </strong>
+                        )}
                         {item.emptyContainersReceived.tup > 0 && (
                           <strong className="font-mono">
-                            , {item.emptyContainersReceived.tup} Boş Tüp
+                            , {item.emptyContainersReceived.tup} Boş Tüp (eski)
                           </strong>
                         )}
                       </div>

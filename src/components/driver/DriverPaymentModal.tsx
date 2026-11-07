@@ -16,7 +16,7 @@ const moneyFmt = new Intl.NumberFormat('tr-TR', {
 });
 
 // AGENTS.md 6 ve 6.1 — Şoförün ürün vermeden (teslimat dışı) tahsilat yapması.
-// Peşin müşteride bakiye görünür; faturalı müşteride bakiye gizlenir.
+// Peşin müşteride bakiye görünür; faturalı müşteride bakiye FATURALI olarak yazılır.
 export const DriverPaymentModal: React.FC<DriverPaymentModalProps> = ({
   customers,
   dispatchId,

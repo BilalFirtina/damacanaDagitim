@@ -1,0 +1,21 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "trail": {
+        "type": "local",
+        "command": [
+          "cmd",
+          "/c",
+          "trail",
+          "mcp"
+        ]
+      },
+      "supabase": {
+        "type": "remote",
+        "url": "https://mcp.supabase.com/mcp?project_ref=aejpckknnadzmuytiueg&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching%2Cfeedback%2Cnotebooks",
+        "enabled": true
+      }
+    }
+  }
+}

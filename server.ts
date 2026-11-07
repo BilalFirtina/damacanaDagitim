@@ -776,8 +776,8 @@ app.post('/api/customers/:id/payments', requireAdminOrDriver, async (req, res) =
     if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({ error: 'Tahsilat tutarı sıfırdan büyük olmalıdır.' });
     }
-    if (!['CASH', 'POS', 'TRANSFER'].includes(method)) {
-      return res.status(400).json({ error: 'Geçersiz ödeme yöntemi.' });
+    if (!['CASH', 'POS'].includes(method)) {
+      return res.status(400).json({ error: 'Geçersiz ödeme yöntemi. Yalnızca nakit veya POS kabul edilir.' });
     }
     if (requestedId && !/^pay_[A-Za-z0-9_-]{1,80}$/.test(requestedId)) {
       return res.status(400).json({ error: 'Geçersiz tahsilat kimliği.' });
@@ -908,6 +908,8 @@ app.get('/api/reports/balances', requireAdmin, async (_req, res) => {
             damacana: Number(empty.damacana) || 0,
             camDamacana,
             tup: Number(empty.tup) || 0,
+            tupBuyuk: Number((empty as any).tupBuyuk) || 0,
+            tupKucuk: Number((empty as any).tupKucuk) || 0,
             sebil: Number((empty as any).sebil) || 0,
           },
         };
@@ -918,6 +920,8 @@ app.get('/api/reports/balances', requireAdmin, async (_req, res) => {
           row.empty.damacana !== 0 ||
           row.empty.camDamacana !== 0 ||
           row.empty.tup !== 0 ||
+          row.empty.tupBuyuk !== 0 ||
+          row.empty.tupKucuk !== 0 ||
           row.empty.sebil !== 0;
         return Math.abs(row.balance) > 0.005 || hasEmpty;
       })
@@ -929,6 +933,8 @@ app.get('/api/reports/balances', requireAdmin, async (_req, res) => {
       emptyDamacana: rows.reduce((sum, r) => sum + r.empty.damacana, 0),
       emptyCamDamacana: rows.reduce((sum, r) => sum + r.empty.camDamacana, 0),
       emptyTup: rows.reduce((sum, r) => sum + r.empty.tup, 0),
+      emptyTupBuyuk: rows.reduce((sum, r) => sum + r.empty.tupBuyuk, 0),
+      emptyTupKucuk: rows.reduce((sum, r) => sum + r.empty.tupKucuk, 0),
       emptySebil: rows.reduce((sum, r) => sum + r.empty.sebil, 0),
     };
 
@@ -1440,8 +1446,14 @@ app.post('/api/deliveries', async (req, res) => {
             newDelivery.emptyContainersDiff.cam_damacana ??
             0
         ),
-      tup:
-        (Number(currentEmpty.tup) || 0) + newDelivery.emptyContainersDiff.tup,
+      // Eski tek tüp bakiyesi korunur; yeni teslimatlar boyutlu alanlara yazılır.
+      tup: Number(currentEmpty.tup) || 0,
+      tupBuyuk:
+        (Number(currentEmpty.tupBuyuk) || 0) +
+        (Number(newDelivery.emptyContainersDiff.tupBuyuk) || 0),
+      tupKucuk:
+        (Number(currentEmpty.tupKucuk) || 0) +
+        (Number(newDelivery.emptyContainersDiff.tupKucuk) || 0),
     };
     customer.emptyDepositBalance = nextEmpty;
 
@@ -1859,9 +1871,6 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
     const totalStandalonePos = customerPayments
       .filter((p) => p.method === 'POS')
       .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-    const totalStandaloneTransfer = customerPayments
-      .filter((p) => p.method === 'TRANSFER')
-      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
     let totalDeliveries = deliveries.length;
     let totalCustomersVisited = new Set(deliveries.map((d) => d.customerId)).size;
@@ -1888,7 +1897,13 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
       totalEmptyDamacanaCollected += del.emptyContainersReceived.damacana || 0;
       totalEmptyCamDamacanaCollected +=
         Number(del.emptyContainersReceived.camDamacana || del.emptyContainersReceived.cam_damacana) || 0;
-      totalEmptyTupCollected += del.emptyContainersReceived.tup || 0;
+      {
+        const tupBuyuk = Number(del.emptyContainersReceived.tupBuyuk) || 0;
+        const tupKucuk = Number(del.emptyContainersReceived.tupKucuk) || 0;
+        const tupLegacy = Number(del.emptyContainersReceived.tup) || 0;
+        totalEmptyTupCollected +=
+          tupBuyuk || tupKucuk ? tupBuyuk + tupKucuk : tupLegacy;
+      }
 
       del.deliveredItems.forEach((item) => {
         if (!deliveredProductQuantities[item.productId]) {
@@ -1916,9 +1931,7 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
         totalEmptyTupCollected,
         totalStandaloneCash,
         totalStandalonePos,
-        totalStandaloneTransfer,
-        totalStandaloneCollected:
-          totalStandaloneCash + totalStandalonePos + totalStandaloneTransfer,
+        totalStandaloneCollected: totalStandaloneCash + totalStandalonePos,
         deliveredProductQuantities,
         hasAccountCustomerDeliveries: deliveries.some((del) => del.isAccountCustomer),
       },

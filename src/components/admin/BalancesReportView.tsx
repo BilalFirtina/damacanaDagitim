@@ -52,6 +52,8 @@ export const BalancesReportView: React.FC = () => {
         r.empty.damacana !== 0 ||
         r.empty.camDamacana !== 0 ||
         r.empty.tup !== 0 ||
+        r.empty.tupBuyuk !== 0 ||
+        r.empty.tupKucuk !== 0 ||
         r.empty.sebil !== 0
     );
   }, [data, search, mode]);
@@ -71,6 +73,8 @@ export const BalancesReportView: React.FC = () => {
       emptyDamacana: all.reduce((sum, row) => sum + row.empty.damacana, 0),
       emptyCamDamacana: all.reduce((sum, row) => sum + row.empty.camDamacana, 0),
       emptyTup: all.reduce((sum, row) => sum + row.empty.tup, 0),
+      emptyTupBuyuk: all.reduce((sum, row) => sum + row.empty.tupBuyuk, 0),
+      emptyTupKucuk: all.reduce((sum, row) => sum + row.empty.tupKucuk, 0),
       emptySebil: all.reduce((sum, row) => sum + row.empty.sebil, 0),
     };
   }, [data]);
@@ -128,10 +132,17 @@ export const BalancesReportView: React.FC = () => {
               </div>
             </div>
             <div className="rounded-xl border border-slate-200  p-2.5 min-w-0">
-              <div className="text-[10px] font-semibold text-slate-500">Boş Tüp</div>
-              <div className="font-mono font-bold text-xs text-slate-700  tabular-nums">
-                {visibleTotals.emptyTup}
+              <div className="text-[10px] font-semibold text-slate-500">
+                Boş Tüp (Büyük / Küçük)
               </div>
+              <div className="font-mono font-bold text-xs text-slate-700  tabular-nums">
+                {visibleTotals.emptyTupBuyuk} / {visibleTotals.emptyTupKucuk}
+              </div>
+              {visibleTotals.emptyTup > 0 && (
+                <div className="text-[10px] text-slate-400">
+                  Eski: {visibleTotals.emptyTup}
+                </div>
+              )}
             </div>
             <div className="rounded-xl border border-slate-200  p-2.5 min-w-0">
               <div className="text-[10px] font-semibold text-slate-500">Müşteride Su Sebili</div>
@@ -246,9 +257,19 @@ export const BalancesReportView: React.FC = () => {
                       {row.empty.camDamacana} Boş Cam Damacana
                     </span>
                   )}
+                  {row.empty.tupBuyuk !== 0 && (
+                    <span className="px-2 py-1 rounded-lg bg-cyan-50  text-cyan-800  font-mono">
+                      {row.empty.tupBuyuk} Büyük Tüp
+                    </span>
+                  )}
+                  {row.empty.tupKucuk !== 0 && (
+                    <span className="px-2 py-1 rounded-lg bg-cyan-50  text-cyan-800  font-mono">
+                      {row.empty.tupKucuk} Küçük Tüp
+                    </span>
+                  )}
                   {row.empty.tup !== 0 && (
                     <span className="px-2 py-1 rounded-lg bg-cyan-50  text-cyan-800  font-mono">
-                      {row.empty.tup} Boş Tüp
+                      {row.empty.tup} Tüp (eski)
                     </span>
                   )}
                   {row.empty.sebil !== 0 && (

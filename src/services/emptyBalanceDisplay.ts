@@ -4,6 +4,8 @@ const NEGATIVE_LABELS: Record<keyof EmptiesCounts, string> = {
   damacana: 'boş damacana',
   camDamacana: 'boş cam damacana',
   tup: 'boş tüp',
+  tupBuyuk: 'boş büyük tüp',
+  tupKucuk: 'boş küçük tüp',
   sebil: 'su sebili',
 };
 

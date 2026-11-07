@@ -1,6 +1,7 @@
 import React from 'react';
 import { Dispatch, Delivery, Product } from '../../types';
 import { Droplet, RotateCcw, Wallet, CreditCard, Flame } from 'lucide-react';
+import { totalTupEmpty } from '../../services/depositRules';
 
 interface DriverStatsStripProps {
   dispatch: Dispatch | null;
@@ -42,7 +43,7 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
     posTotal += del.collectedPayment.posAmount || 0;
     collectedEmptyDamacana += del.emptyContainersReceived.damacana || 0;
     collectedEmptyCamDamacana += Number(del.emptyContainersReceived.camDamacana || del.emptyContainersReceived.cam_damacana) || 0;
-    collectedEmptyTup += del.emptyContainersReceived.tup || 0;
+    collectedEmptyTup += totalTupEmpty(del.emptyContainersReceived);
 
     del.deliveredItems.forEach((item) => {
       if (damacanaIds.has(item.productId)) {

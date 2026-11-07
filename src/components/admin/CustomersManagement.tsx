@@ -66,6 +66,8 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
   const [editEmptyDamacana, setEditEmptyDamacana] = useState("0");
   const [editEmptyCamDamacana, setEditEmptyCamDamacana] = useState("0");
   const [editEmptyTup, setEditEmptyTup] = useState("0");
+  const [editEmptyTupBuyuk, setEditEmptyTupBuyuk] = useState("0");
+  const [editEmptyTupKucuk, setEditEmptyTupKucuk] = useState("0");
 
   // Helper to add emails from input (supports comma/semicolon/space separation)
   const addEmailsToNewList = () => {
@@ -156,6 +158,12 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       ),
     );
     setEditEmptyTup(String(Number(cust.emptyDepositBalance?.tup) || 0));
+    setEditEmptyTupBuyuk(
+      String(Number(cust.emptyDepositBalance?.tupBuyuk) || 0),
+    );
+    setEditEmptyTupKucuk(
+      String(Number(cust.emptyDepositBalance?.tupKucuk) || 0),
+    );
   };
 
   const handleCreateCustomer = async (e: React.FormEvent) => {
@@ -219,16 +227,24 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
             editingCustomer.emptyDepositBalance?.cam_damacana,
         ) || 0,
       tup: Number(editingCustomer.emptyDepositBalance?.tup) || 0,
+      tupBuyuk:
+        Number(editingCustomer.emptyDepositBalance?.tupBuyuk) || 0,
+      tupKucuk:
+        Number(editingCustomer.emptyDepositBalance?.tupKucuk) || 0,
     };
     const nextEmpty = {
       damacana: Number(editEmptyDamacana),
       camDamacana: Number(editEmptyCamDamacana),
       tup: Number(editEmptyTup),
+      tupBuyuk: Number(editEmptyTupBuyuk),
+      tupKucuk: Number(editEmptyTupKucuk),
     };
     if (
       !Number.isInteger(nextEmpty.damacana) ||
       !Number.isInteger(nextEmpty.camDamacana) ||
-      !Number.isInteger(nextEmpty.tup)
+      !Number.isInteger(nextEmpty.tup) ||
+      !Number.isInteger(nextEmpty.tupBuyuk) ||
+      !Number.isInteger(nextEmpty.tupKucuk)
     ) {
       alert("Boş kap bakiyeleri tam sayı olmalıdır.");
       return;
@@ -236,7 +252,9 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
     const emptyChanged =
       nextEmpty.damacana !== originalEmpty.damacana ||
       nextEmpty.camDamacana !== originalEmpty.camDamacana ||
-      nextEmpty.tup !== originalEmpty.tup;
+      nextEmpty.tup !== originalEmpty.tup ||
+      nextEmpty.tupBuyuk !== originalEmpty.tupBuyuk ||
+      nextEmpty.tupKucuk !== originalEmpty.tupKucuk;
 
     const updates: CustomerUpdate = {
       name: editName.trim(),
@@ -290,7 +308,14 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       return;
     try {
       const updated = await updateCustomer(cust.id, {
-        emptyDepositBalance: { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 },
+        emptyDepositBalance: {
+          damacana: 0,
+          camDamacana: 0,
+          tup: 0,
+          tupBuyuk: 0,
+          tupKucuk: 0,
+          sebil: 0,
+        },
         expectedEmptyDepositBalance: {
           damacana: cust.emptyDepositBalance?.damacana || 0,
           camDamacana:
@@ -298,6 +323,8 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
             cust.emptyDepositBalance?.cam_damacana ??
             0,
           tup: cust.emptyDepositBalance?.tup || 0,
+          tupBuyuk: cust.emptyDepositBalance?.tupBuyuk || 0,
+          tupKucuk: cust.emptyDepositBalance?.tupKucuk || 0,
           sebil: cust.emptyDepositBalance?.sebil || 0,
         },
       });
@@ -349,7 +376,9 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       return (
         (c.emptyDepositBalance?.damacana || 0) > 0 ||
         (c.emptyDepositBalance?.camDamacana || 0) > 0 ||
-        (c.emptyDepositBalance?.tup || 0) > 0
+        (c.emptyDepositBalance?.tup || 0) > 0 ||
+        (c.emptyDepositBalance?.tupBuyuk || 0) > 0 ||
+        (c.emptyDepositBalance?.tupKucuk || 0) > 0
       );
     // Faturalı müşteri cari borcu gösterilmediği için bu filtrede yer almaz.
     if (filterType === "cash_debt")
@@ -434,6 +463,8 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                 (c.emptyDepositBalance?.damacana || 0) +
                   (c.emptyDepositBalance?.camDamacana || 0) +
                   (c.emptyDepositBalance?.tup || 0) +
+                  (c.emptyDepositBalance?.tupBuyuk || 0) +
+                  (c.emptyDepositBalance?.tupKucuk || 0) +
                   (c.emptyDepositBalance?.sebil || 0) >
                 0,
             ).length
@@ -470,6 +501,12 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
               : null,
             (c.emptyDepositBalance?.camDamacana || 0) > 0
               ? `${c.emptyDepositBalance.camDamacana} Cam Damacana`
+              : null,
+            (c.emptyDepositBalance?.tupBuyuk || 0) > 0
+              ? `${c.emptyDepositBalance.tupBuyuk} Büyük Tüp`
+              : null,
+            (c.emptyDepositBalance?.tupKucuk || 0) > 0
+              ? `${c.emptyDepositBalance.tupKucuk} Küçük Tüp`
               : null,
             (c.emptyDepositBalance?.tup || 0) > 0
               ? `${c.emptyDepositBalance.tup} Tüp`
@@ -1007,7 +1044,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                     gösterir.
                   </p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="font-semibold text-slate-700  block mb-1">
                       Boş Damacana
@@ -1034,13 +1071,25 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                   </div>
                   <div>
                     <label className="font-semibold text-slate-700  block mb-1">
-                      Boş Tüp
+                      Boş Büyük Tüp
                     </label>
                     <input
                       type="number"
                       step="1"
-                      value={editEmptyTup}
-                      onChange={(e) => setEditEmptyTup(e.target.value)}
+                      value={editEmptyTupBuyuk}
+                      onChange={(e) => setEditEmptyTupBuyuk(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-orange-200  bg-white  text-xs text-slate-900  focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-semibold text-slate-700  block mb-1">
+                      Boş Küçük Tüp
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      value={editEmptyTupKucuk}
+                      onChange={(e) => setEditEmptyTupKucuk(e.target.value)}
                       className="w-full p-2.5 rounded-xl border border-orange-200  bg-white  text-xs text-slate-900  focus:outline-none focus:ring-2 focus:ring-orange-500"
                     />
                   </div>

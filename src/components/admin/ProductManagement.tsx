@@ -346,8 +346,12 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                         ? '🔄 Boş Damacana Emanet'
                         : p.depositType === 'cam_damacana'
                         ? '🔄 Boş Cam Damacana Emanet'
+                        : p.depositType === 'tup_buyuk'
+                        ? '🔥 Büyük Tüp Emanet'
+                        : p.depositType === 'tup_kucuk'
+                        ? '🔥 Küçük Tüp Emanet'
                         : p.depositType === 'tup'
-                        ? '🔥 Boş Tüp Emanet'
+                        ? '🔥 Tüp Emanet'
                         : p.depositType === 'sebil'
                         ? '💧 Su Sebili Emanet'
                         : '🔄 Boş Kap Emanet'}
@@ -499,7 +503,9 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                     <option value="none">Depozitosuz (Geri İade Yok)</option>
                     <option value="damacana">🔄 Boş Damacana İadesi Zorunlu</option>
                     <option value="cam_damacana">🔄 Boş Cam Damacana İadesi Zorunlu</option>
-                    <option value="tup">🔥 Boş Tüp İadesi Zorunlu</option>
+                    <option value="tup_buyuk">🔥 Büyük Tüp İadesi Zorunlu</option>
+                    <option value="tup_kucuk">🔥 Küçük Tüp İadesi Zorunlu</option>
+                    <option value="tup">🔥 Tüp (genel / eski kayıt)</option>
                     <option value="sebil">💧 Su Sebili Emanet (fiyatsız)</option>
                   </select>
                 </div>

@@ -68,7 +68,7 @@ Teslimat sırasında alınan ödemeler teslimat kaydına işlenir.
 Şoförler hem peşin hem faturalı müşteriden tahsilat yapabilir.
 Teslimat dışı (sonraki ziyaret) tahsilatlar ayrı kaydedilir; bakiye ve denetim izi tek işlemde güncellenir.
 Şoförün teslimat dışı tahsilatı yalnızca kendi aktif (Dağıtımda) seferi varken kaydedilebilir ve sefere bağlanır; sefer 60 gün sonra silinse bile tahsilat kaydı korunur.
-Her tahsilat; tutar, yöntem (nakit/POS/havale), tahsil eden kullanıcı, tarih, varsa not ve sefer referansı ile saklanır.
+Her tahsilat; tutar, yöntem (nakit/POS), tahsil eden kullanıcı, tarih, varsa not ve sefer referansı ile saklanır.
 Aynı tahsilat kimliğiyle tekrar gönderim bakiyeyi ikinci kez düşürmez.
 Günlük raporda teslimat tahsilatları ve teslimat dışı tahsilatlar ayrı toplanır; şoför filtresinde yalnızca o şoförün tahsilatları görünür.
 Faturalı müşteride birim fiyat/mal tutarı gösterilmediği için tahsilat tutarı manuel girilir; otomatik "tam tahsilat" kullanılmaz.
@@ -99,7 +99,7 @@ Depo yöneticisi şunları yapabilmelidir:
 
 Depo envanterini, ürünleri, şoförleri, müşterileri ve operasyon kayıtlarını yönetmek.
 Ürün tanımlarını uygun şekilde oluşturmak, düzenlemek ve devre dışı bırakmak.
-Müşteri kayıtlarını yönetmek; peşin müşteri hesap bakiyelerini, avanslarını ve işlem geçmişlerini görüntülemek; faturalı müşteride iade edilebilir kalemleri ve operasyon kayıtlarını görmek (faturalı cari tutarlar şu an arayüzde gizlidir).
+Müşteri kayıtlarını yönetmek; peşin müşteri hesap bakiyelerini, avanslarını ve işlem geçmişlerini görüntülemek; faturalı müşteride iade edilebilir kalemleri ve operasyon kayıtlarını görmek (faturalı cari tutarlar arayüzde FATURALI olarak yazılır).
 Her dağıtım seferini yapmaya yetkili şoförü seçmek.
 Sabah yüklemesi sırasında aracın plakasını seçmek.
 Araç yükleme kayıtlarını, gün sonu araçta kalan ürün sayımlarını ve bunların düzeltmelerini kaydetmek ve onaylamak.
@@ -289,9 +289,9 @@ Sistem; satış gelirini, alınan ödemeleri ve bekleyen müşteri borcunu açı
 Peşin müşteride ürün birim fiyatı ve son satış fiyatı şoföre görünür; şoför fiyatı düzenleyebilir. Son fiyat iptal edilmiş bir teslimattan gelmiş olsa bile kullanılabilir; ayrı fiyat geçmişi tutulmaz.
 Faturalı müşteride ürün birim fiyatı, mal tutarı, cari borç ve geçmiş ürün fiyatı şoför ve yönetici arayüzünde gösterilmez.
 Faturalı teslimatta sistem ürünün default fiyatını kullanarak mal tutarını ve kalan borcu hesaplar; istemciden gelen fiyat kullanılmaz.
-Faturalıda tahsilat tutarı manuel girilir; nakit/POS/havale tahsilatları rapor ve kasa toplamlarında görünür.
+Faturalıda tahsilat tutarı manuel girilir; nakit/POS tahsilatları rapor ve kasa toplamlarında görünür.
 Ürün kataloğu/genel ürün fiyatları yönetici tarafından yönetilmeye devam eder; bu, faturalı müşteriye ait fiyat görünürlüğünden ayrıdır.
-Fiyat bilgisi ileride faturalı müşteri takibi açılabilmesi için Supabase'de saklanır; arayüzde gizlenir.
+Fiyat bilgisi ileride faturalı müşteri takibi açılabilmesi için Supabase'de saklanır; arayüzde FATURALI olarak yazılır.
 
 7. Müşteride Bulunan İade Edilebilir Kalem ve Ekipman Takibi
 
@@ -388,7 +388,7 @@ Tahsil edilen nakit ve desteklenen diğer ödeme yöntemleri.
 Stok, nakit veya işlem uyuşmazlıkları.
 Açıklama gerektiren uyuşmazlıkların açıklamaları.
 
-Faturalı müşteri birim fiyat, mal tutarı ve cari borç toplamları raporda gösterilmez; bu tutarlar toplam satış ve cari toplamlarına dahil edilmez. Faturalı nakit/POS/havale tahsilatları kasa ve tahsilat toplamlarında görünür.
+Faturalı müşteri birim fiyat, mal tutarı ve cari borç toplamları raporda gösterilmez; bu tutarlar toplam satış ve cari toplamlarına dahil edilmez. Faturalı nakit/POS tahsilatları kasa ve tahsilat toplamlarında görünür.
 
 Sistem, raporu göndermeden önce doğrulamalıdır.
 
@@ -462,7 +462,7 @@ Müşteri bazında iade edilebilir kalem bakiyeleri.
 Gün sonu mutabakat raporları.
 Stok uyuşmazlığı ve işlem geçmişi raporları.
 
-Faturalı müşteri birim fiyat, mal tutarı ve cari borç toplamları raporlanmaz; bu tutarlar günlük/konsolide rapor toplamlarına ve şoför faaliyet raporu cirosuna dahil edilmez. Bakiye raporunda faturalı cari borç satırları ve toplamları gösterilmez; iade edilebilir kalem miktarları görünür. Faturalı nakit/POS/havale tahsilatları ve tahsil eden kullanıcı raporlanır.
+Faturalı müşteri birim fiyat, mal tutarı ve cari borç toplamları raporlanmaz; bu tutarlar günlük/konsolide rapor toplamlarına ve şoför faaliyet raporu cirosuna dahil edilmez. Bakiye raporunda faturalı cari borç satırları ve toplamları gösterilmez; iade edilebilir kalem miktarları görünür. Faturalı nakit/POS tahsilatları ve tahsil eden kullanıcı raporlanır.
 
 Raporlar Türkçe etiketler, Türk lirası (TRY) için doğru para biçimlendirmesi ve Türk kullanıcılara uygun tarih ve sayı biçimlerini kullanmalıdır.
 
@@ -644,7 +644,7 @@ Birincil hedef: Mevcut Supabase yapılandırmasını, arka uç bağlantısını,
 Aşağıdaki davranışlar mevcut uygulamada geçerlidir ve korunmalıdır:
 
 Faturalı/peşin ayrımı `is_account_customer` alanıyla tutulur; `true` faturalı, `false` peşindir.
-Faturalı müşteride birim fiyat, mal tutarı, cari borç ve geçmiş fiyat arayüzde gizlenir; müşteri kartında "Faturalı Müşteri" etiketi kullanılır.
+Faturalı müşteride birim fiyat, mal tutarı, cari borç ve geçmiş fiyat arayüzde FATURALI olarak yazılır; müşteri kartında "Faturalı Müşteri" etiketi kullanılır.
 Faturalı teslimatta sunucu, istemci fiyatı yerine ürün default fiyatını uygular; `delivery_items.unit_price` ve `customer_product_prices` ileride kullanım için saklanır.
 Peşin müşteride son satış fiyatı gösterilir; kısmi/veresiye kalan tutar `current_balance_tl` alanına borç yazılır.
 Şoför teslimat dışı tahsilatı `customer_payments` tablosuna yazılır; `dispatch_id` ile aktif sefere bağlanır. Sefer silinirse 60 günden yeni tahsilat `ON DELETE SET NULL` ile korunur; 60 günü geçen tahsilat temizlikte silinir.
