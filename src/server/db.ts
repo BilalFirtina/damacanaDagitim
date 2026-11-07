@@ -915,20 +915,16 @@ function mapDeliveryFromDb(row: any, itemRows: any[] = [], containerRows: any[] 
       lineTotal: Number(r.line_total) || 0,
     }));
 
-  const emptyContainersReceived = {
+  const emptyContainersReceived: Delivery['emptyContainersReceived'] = {
     damacana: 0,
     camDamacana: 0,
     tup: 0,
-    tupBuyuk: 0,
-    tupKucuk: 0,
     sebil: 0,
   };
-  const emptyContainersDiff = {
+  const emptyContainersDiff: Delivery['emptyContainersDiff'] = {
     damacana: 0,
     camDamacana: 0,
     tup: 0,
-    tupBuyuk: 0,
-    tupKucuk: 0,
     sebil: 0,
   };
   for (const r of containerRows || []) {
