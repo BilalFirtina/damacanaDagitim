@@ -481,7 +481,6 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                 <th className="pb-2.5 text-center">Yüklenen</th>
                 <th className="pb-2.5 text-center">Teslim Edilen</th>
                 <th className="pb-2.5 text-center text-sky-600">Depoya İndirilen</th>
-                <th className="pb-2.5 text-right">Durum</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 ">
@@ -500,11 +499,6 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                     <td className="py-3 text-center font-mono text-emerald-600 font-bold">{delivered}</td>
                     <td className="py-3 text-center font-mono font-bold text-sky-600">
                       {counted} {p?.unit || 'Adet'}
-                    </td>
-                    <td className="py-3 text-right">
-                      <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50  px-2 py-0.5 rounded-md">
-                        Mutabık
-                      </span>
                     </td>
                   </tr>
                 );
