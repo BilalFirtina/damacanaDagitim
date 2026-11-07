@@ -1,9 +1,8 @@
 // Fırtına Gıda Service Worker
-const CACHE_NAME = 'sudagitim-cache-v4';
+const CACHE_NAME = 'sudagitim-cache-v5';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json',
   '/favicon.ico',
   '/favicon-32.png',
   '/logo-header.png',
@@ -44,7 +43,11 @@ self.addEventListener('fetch', (event) => {
 
   // Backend/API, kimlik doğrulama ve geliştirme kaynak modülleri ASLA önbelleğe alınmaz.
   // (Aksi halde eski istemci kodu servis edilir ve 401 hataları oluşur.)
+  // Manifest da önbelleğe alınmaz: uygulama adı, simge ve tema değişikliklerinin
+  // kurulu PWA'lara gecikmeden yansıması için her zaman ağdan okunur.
   if (
+    url.pathname === '/manifest.json' ||
+    url.pathname === '/manifest.webmanifest' ||
     url.pathname.startsWith('/api/') ||
     url.pathname.startsWith('/src/') ||
     url.pathname.startsWith('/@') ||

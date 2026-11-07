@@ -108,6 +108,9 @@ function sebilNet(delivery: Delivery, products: Product[]): number {
 // PWA Manifest and Service Worker static serving with proper headers
 app.get(['/manifest.json', '/manifest.webmanifest'], (_req, res) => {
   res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+  // Manifest her istekte yeniden doğrulanır; böylece uygulama adı/simge
+  // değişiklikleri tarayıcı ve kurulu PWA'lar tarafından hemen görülür.
+  res.setHeader('Cache-Control', 'no-cache, must-revalidate');
   res.sendFile(path.resolve(__dirname, 'public', 'manifest.json'));
 });
 
