@@ -480,7 +480,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                 <th className="pb-2.5">Ürün Adı</th>
                 <th className="pb-2.5 text-center">Yüklenen</th>
                 <th className="pb-2.5 text-center">Teslim Edilen</th>
-                <th className="pb-2.5 text-center text-sky-600">Depoya İndirilen</th>
+                <th className="pb-2.5 text-center text-sky-600">Depoya İndirilecekler</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 ">

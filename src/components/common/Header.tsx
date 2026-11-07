@@ -82,7 +82,7 @@ export const Header: React.FC<HeaderProps> = ({
     { tab: 'customers', label: 'Müşteriler', ariaLabel: 'Müşteriler & Borçlar', icon: Users, iconClass: 'text-indigo-500', activeClass: 'bg-sky-600' },
     { tab: 'products', label: 'Ürünler', ariaLabel: 'Ürünler & Fiyatlar', icon: Package, iconClass: 'text-violet-500', activeClass: 'bg-sky-600' },
     { tab: 'reports', label: 'Raporlar', ariaLabel: 'Raporlar & Gün Sonu Dökümü', icon: FileText, iconClass: 'text-blue-500', activeClass: 'bg-sky-600' },
-    { tab: 'admin_loads', label: 'Yükleme', ariaLabel: 'Araç Yüklemeleri & Yetki', icon: ShieldCheck, iconClass: 'text-indigo-600', activeClass: 'bg-indigo-600', adminOnly: true },
+    { tab: 'admin_loads', label: 'Araç Yükleme Yetkisi', ariaLabel: 'Araç Yüklemeleri & Yetki', icon: ShieldCheck, iconClass: 'text-indigo-600', activeClass: 'bg-indigo-600', adminOnly: true },
   ];
 
   const visibleNavItems = mobileNavItems.filter((item) => !item.adminOnly || isAdmin);
@@ -195,10 +195,10 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => setActiveTab(item.tab)}
               aria-label={item.ariaLabel}
               title={item.ariaLabel}
-              className={`w-full min-w-0 min-h-[56px] py-1.5 rounded-lg text-[13px] font-semibold flex flex-col justify-center gap-1 transition-all cursor-pointer box-border whitespace-nowrap ${
+              className={`w-full min-w-0 min-h-[56px] py-1.5 rounded-lg text-[13px] font-semibold flex flex-col justify-center gap-1 transition-all cursor-pointer box-border ${
                 item.tab === 'admin_loads'
-                  ? 'items-start text-left pl-2.5 pr-1.5'
-                  : 'items-center text-center px-1.5'
+                  ? 'items-start text-left pl-2.5 pr-1.5 whitespace-normal'
+                  : 'items-center text-center px-1.5 whitespace-nowrap'
               } ${
                 active
                   ? `${item.activeClass} text-white shadow-sm ring-1 ring-white/20 font-bold`
@@ -206,7 +206,13 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               <Icon className={`w-5 h-5 shrink-0 ${active ? 'text-white' : item.iconClass}`} />
-              <span className="leading-tight whitespace-nowrap">{item.label}</span>
+              <span
+                className={`leading-tight ${
+                  item.tab === 'admin_loads' ? 'whitespace-normal break-words' : 'whitespace-nowrap'
+                }`}
+              >
+                {item.label}
+              </span>
             </button>
           );
         })}
