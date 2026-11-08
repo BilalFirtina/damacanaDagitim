@@ -441,8 +441,8 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                     <td className="p-2 text-right font-mono tabular-nums">
                       {line.hasAccountAmount
                         ? line.amount > 0
-                          ? `${money(line.amount)} + FATURALI`
-                          : 'FATURALI'
+                          ? `${money(line.amount)} + FATURALI SATILANLAR`
+                          : 'FATURALI SATILANLAR'
                         : money(line.amount)}
                     </td>
                   </tr>
