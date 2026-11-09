@@ -291,12 +291,12 @@ export default function App() {
     return (
       <div className="min-h-screen bg-slate-50  flex flex-col items-center justify-center p-4">
         <img
-          src="/logo-header.png"
-          alt=""
-          className="w-12 h-12 rounded-2xl bg-white ring-1 ring-slate-200  shadow-xl object-contain animate-bounce"
+          src="/logo-firtina-gida.png"
+          alt="Fırtına Gıda"
+          className="w-52 sm:w-60 max-w-full h-auto mb-4 animate-pulse"
         />
-        <h2 className="mt-4 text-base font-bold text-slate-900 ">
-          Fırtına Gıda Yükleniyor...
+        <h2 className="text-base font-bold text-slate-900 ">
+          Yükleniyor...
         </h2>
         <p className="text-xs text-slate-500 mt-1">Saha ve mutabakat verileri hazırlanıyor</p>
       </div>

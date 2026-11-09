@@ -1,11 +1,12 @@
 // Fırtına Gıda Service Worker
-const CACHE_NAME = 'sudagitim-cache-v5';
+const CACHE_NAME = 'sudagitim-cache-v6';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
   '/favicon.ico',
   '/favicon-32.png',
   '/logo-header.png',
+  '/logo-firtina-gida.png',
   '/pwa-192x192.png',
   '/pwa-512x512.png',
   '/pwa-maskable-512x512.png',

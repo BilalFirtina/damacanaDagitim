@@ -47,13 +47,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
       {/* Top Brand Area */}
       <div className="w-full max-w-md mx-auto text-center mb-6">
         <img
-          src="/logo-header.png"
-          alt=""
-          className="inline-block w-14 h-14 rounded-2xl bg-white ring-1 ring-slate-200  shadow-xl shadow-sky-500/20 mb-3 object-contain"
+          src="/logo-firtina-gida.png"
+          alt="Fırtına Gıda"
+          className="inline-block w-56 sm:w-64 max-w-full h-auto mb-3"
         />
-        <h1 className="text-2xl font-black tracking-tight text-slate-900 ">
-          Fırtına <span className="text-sky-600">Gıda</span>
-        </h1>
         <p className="text-xs text-slate-500  mt-1">
           Saha Dağıtım, Yükleme & Gün Sonu Kasa Mutabakat Portalı
         </p>

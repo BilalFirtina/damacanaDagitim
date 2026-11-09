@@ -96,7 +96,7 @@ export const Header: React.FC<HeaderProps> = ({
           <img
             src="/logo-header.png"
             alt=""
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-white ring-1 ring-slate-200  object-contain shrink-0"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-white ring-1 ring-slate-200  object-contain shrink-0"
           />
           <div className="min-w-0">
             <span className="text-[13px] min-[360px]:text-sm sm:text-lg font-bold tracking-tight text-slate-900  whitespace-nowrap">
