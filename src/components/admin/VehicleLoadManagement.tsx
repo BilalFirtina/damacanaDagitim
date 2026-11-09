@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { Dispatch, Product, User, AUTHORIZED_VEHICLE_PLATES } from '../../types';
+import {
+  Dispatch,
+  Product,
+  User,
+  AUTHORIZED_VEHICLE_PLATES,
+  filterProductsBySearch,
+  groupProductsByCategory,
+} from '../../types';
 import {
   Truck,
   Plus,
@@ -8,7 +15,8 @@ import {
   Pencil,
   Trash2,
   X,
-  AlertTriangle
+  AlertTriangle,
+  Search
 } from 'lucide-react';
 import { createDispatch, updateDispatch, cancelDispatch, updateUser } from '../../services/api';
 import { todayUtcDateStr, formatDateTr } from '../../services/dateWindow';
@@ -39,6 +47,8 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
   const [selectedPlate, setSelectedPlate] = useState<string>('');
   const [loadQuantities, setLoadQuantities] = useState<Record<string, number>>({});
+  const [loadProductSearch, setLoadProductSearch] = useState('');
+  const [editProductSearch, setEditProductSearch] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [editingDispatch, setEditingDispatch] = useState<Dispatch | null>(null);
@@ -68,6 +78,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
     const freePlates = AUTHORIZED_VEHICLE_PLATES.filter((plate) => !busyPlates.has(plate));
     setSelectedPlate(freePlates[0] || '');
     setErrorMsg(null);
+    setLoadProductSearch('');
     setShowLoadModal(true);
   };
 
@@ -149,6 +160,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
   const handleOpenEdit = (disp: Dispatch) => {
     setEditingDispatch(disp);
     setActionError(null);
+    setEditProductSearch('');
     setEditQuantities(
       Object.fromEntries(disp.loadedItems.map((item) => [item.productId, item.quantity]))
     );
@@ -204,6 +216,11 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
       setIsActionSubmitting(false);
     }
   };
+
+  const filteredLoadProducts = filterProductsBySearch(products, loadProductSearch);
+  const groupedLoadProducts = groupProductsByCategory(filteredLoadProducts);
+  const filteredEditProducts = filterProductsBySearch(products, editProductSearch);
+  const groupedEditProducts = groupProductsByCategory(filteredEditProducts);
 
   return (
     <div className="space-y-6 w-full max-w-full min-w-0">
@@ -547,60 +564,83 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                 <label className="font-bold text-slate-900  block mb-2">
                   Yüklenen Ürünler & Adetler
                 </label>
-                <div className="space-y-2 max-h-56 overflow-y-auto p-1">
-                  {products.map((p) => {
-                    const currentQty = loadQuantities[p.id] || 0;
-                    return (
-                      <div
-                        key={p.id}
-                        className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50  border border-slate-100 "
-                      >
-                        <div>
-                          <div className="font-semibold text-slate-900 ">{p.name}</div>
-                          <div className="text-[10px] text-slate-400">{p.unit}</div>
-                        </div>
-
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setLoadQuantities((prev) => ({
-                                ...prev,
-                                [p.id]: Math.max(0, currentQty - (p.category === 'damacana' ? 10 : 5)),
-                              }))
-                            }
-                            className="w-11 h-11 rounded-lg bg-white  border text-sm font-bold"
-                          >
-                            -
-                          </button>
-                          <input
-                            type="number"
-                            value={currentQty === 0 ? '' : currentQty}
-                            onChange={(e) =>
-                              setLoadQuantities((prev) => ({
-                                ...prev,
-                                [p.id]: Math.max(0, parseInt(e.target.value) || 0),
-                              }))
-                            }
-                            placeholder="0"
-                            className="w-16 h-11 rounded-lg border text-center font-mono font-bold text-sm bg-white "
-                          />
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setLoadQuantities((prev) => ({
-                                ...prev,
-                                [p.id]: currentQty + (p.category === 'damacana' ? 10 : 5),
-                              }))
-                            }
-                            className="w-11 h-11 rounded-lg bg-indigo-50 text-indigo-600 text-sm font-bold"
-                          >
-                            +
-                          </button>
-                        </div>
+                <div className="relative mb-2">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={loadProductSearch}
+                    onChange={(e) => setLoadProductSearch(e.target.value)}
+                    placeholder="Ürün adı ile ara..."
+                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+                  />
+                </div>
+                <div className="space-y-3 max-h-56 overflow-y-auto p-1">
+                  {groupedLoadProducts.map((group) => (
+                    <div key={group.code} className="space-y-2">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        {group.title}
                       </div>
-                    );
-                  })}
+                      {group.products.map((p) => {
+                        const currentQty = loadQuantities[p.id] || 0;
+                        const step = p.category === 'damacana' ? 10 : 5;
+                        return (
+                          <div
+                            key={p.id}
+                            className="flex flex-col gap-2 p-2.5 rounded-xl bg-slate-50  border border-slate-100  sm:flex-row sm:items-center sm:justify-between"
+                          >
+                            <div className="min-w-0 pr-2">
+                              <div className="font-semibold text-slate-900  break-words">{p.name}</div>
+                              <div className="text-[10px] text-slate-400">{p.unit}</div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setLoadQuantities((prev) => ({
+                                    ...prev,
+                                    [p.id]: Math.max(0, currentQty - step),
+                                  }))
+                                }
+                                className="w-11 h-11 rounded-lg bg-white  border text-sm font-bold"
+                              >
+                                -
+                              </button>
+                              <input
+                                type="number"
+                                value={currentQty === 0 ? '' : currentQty}
+                                onChange={(e) =>
+                                  setLoadQuantities((prev) => ({
+                                    ...prev,
+                                    [p.id]: Math.max(0, parseInt(e.target.value) || 0),
+                                  }))
+                                }
+                                placeholder="0"
+                                className="w-16 h-11 min-h-11 rounded-lg border text-center font-mono font-bold text-sm bg-white text-slate-900"
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setLoadQuantities((prev) => ({
+                                    ...prev,
+                                    [p.id]: currentQty + step,
+                                  }))
+                                }
+                                className="w-11 h-11 rounded-lg bg-indigo-50 text-indigo-600 text-sm font-bold"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                  {filteredLoadProducts.length === 0 && (
+                    <div className="p-4 text-center text-xs text-slate-400">
+                      Ürün bulunamadı.
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -653,59 +693,87 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
             )}
 
             <form onSubmit={handleSaveEdit} className="space-y-4 text-xs">
-              <div className="space-y-2 max-h-72 overflow-y-auto p-1">
-                {products.map((p) => {
-                  const currentQty = editQuantities[p.id] || 0;
-                  return (
-                    <div
-                      key={p.id}
-                      className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100"
-                    >
-                      <div className="min-w-0">
-                        <div className="font-semibold text-slate-900 break-words">{p.name}</div>
-                        <div className="text-[10px] text-slate-400">{p.unit}</div>
+              <div>
+                <label className="font-bold text-slate-900 block mb-2">
+                  Yüklenen Ürünler & Adetler
+                </label>
+                <div className="relative mb-2">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={editProductSearch}
+                    onChange={(e) => setEditProductSearch(e.target.value)}
+                    placeholder="Ürün adı ile ara..."
+                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+                  />
+                </div>
+                <div className="space-y-3 max-h-72 overflow-y-auto p-1">
+                  {groupedEditProducts.map((group) => (
+                    <div key={group.code} className="space-y-2">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        {group.title}
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setEditQuantities((prev) => ({
-                              ...prev,
-                              [p.id]: Math.max(0, currentQty - (p.category === 'damacana' ? 10 : 5)),
-                            }))
-                          }
-                          className="w-11 h-11 rounded-lg bg-white border text-sm font-bold"
-                        >
-                          -
-                        </button>
-                        <input
-                          type="number"
-                          value={currentQty === 0 ? '' : currentQty}
-                          onChange={(e) =>
-                            setEditQuantities((prev) => ({
-                              ...prev,
-                              [p.id]: Math.max(0, parseInt(e.target.value) || 0),
-                            }))
-                          }
-                          placeholder="0"
-                          className="w-16 h-11 rounded-lg border text-center font-mono font-bold text-sm bg-white"
-                        />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setEditQuantities((prev) => ({
-                              ...prev,
-                              [p.id]: currentQty + (p.category === 'damacana' ? 10 : 5),
-                            }))
-                          }
-                          className="w-11 h-11 rounded-lg bg-indigo-50 text-indigo-600 text-sm font-bold"
-                        >
-                          +
-                        </button>
-                      </div>
+                      {group.products.map((p) => {
+                        const currentQty = editQuantities[p.id] || 0;
+                        const step = p.category === 'damacana' ? 10 : 5;
+                        return (
+                          <div
+                            key={p.id}
+                            className="flex flex-col gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100 sm:flex-row sm:items-center sm:justify-between"
+                          >
+                            <div className="min-w-0 pr-2">
+                              <div className="font-semibold text-slate-900 break-words">{p.name}</div>
+                              <div className="text-[10px] text-slate-400">{p.unit}</div>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setEditQuantities((prev) => ({
+                                    ...prev,
+                                    [p.id]: Math.max(0, currentQty - step),
+                                  }))
+                                }
+                                className="w-11 h-11 rounded-lg bg-white border text-sm font-bold"
+                              >
+                                -
+                              </button>
+                              <input
+                                type="number"
+                                value={currentQty === 0 ? '' : currentQty}
+                                onChange={(e) =>
+                                  setEditQuantities((prev) => ({
+                                    ...prev,
+                                    [p.id]: Math.max(0, parseInt(e.target.value) || 0),
+                                  }))
+                                }
+                                placeholder="0"
+                                className="w-16 h-11 min-h-11 rounded-lg border text-center font-mono font-bold text-sm bg-white text-slate-900"
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setEditQuantities((prev) => ({
+                                    ...prev,
+                                    [p.id]: currentQty + step,
+                                  }))
+                                }
+                                className="w-11 h-11 rounded-lg bg-indigo-50 text-indigo-600 text-sm font-bold"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
+                  ))}
+                  {filteredEditProducts.length === 0 && (
+                    <div className="p-4 text-center text-xs text-slate-400">
+                      Ürün bulunamadı.
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="pt-2 flex items-center gap-3">

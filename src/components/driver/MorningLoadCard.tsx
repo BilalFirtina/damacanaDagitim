@@ -4,6 +4,8 @@ import {
   Product,
   User,
   AUTHORIZED_VEHICLE_PLATES,
+  filterProductsBySearch,
+  groupProductsByCategory,
 } from "../../types";
 import {
   CheckCircle2,
@@ -13,6 +15,7 @@ import {
   Check,
   UserCheck,
   AlertCircle,
+  Search,
 } from "lucide-react";
 import { confirmDispatch, createDispatch } from "../../services/api";
 
@@ -66,6 +69,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
   const [loadQuantities, setLoadQuantities] = useState<Record<string, number>>(
     {},
   );
+  const [productSearch, setProductSearch] = useState("");
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -97,6 +101,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
       setSelectedPlate(freePlates[0]);
     }
     setLoadingError(null);
+    setProductSearch("");
     setShowManualLoadModal(true);
   };
 
@@ -183,6 +188,9 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
   // Render the modal for manual load input
   const renderLoadModal = () => {
     if (!showManualLoadModal) return null;
+
+    const filteredProducts = filterProductsBySearch(products, productSearch);
+    const groupedProducts = groupProductsByCategory(filteredProducts);
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -373,70 +381,93 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                 </span>
               </div>
 
-              <div className="space-y-2">
-                {products.map((p) => {
-                  const currentQty = loadQuantities[p.id] || 0;
-                  const step = p.category === "damacana" ? 5 : 1;
+              <div className="relative mb-3">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  placeholder="Ürün adı ile ara..."
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
+                />
+              </div>
 
-                  return (
-                    <div
-                      key={p.id}
-                      className="flex items-center justify-between p-3 rounded-xl bg-slate-50  border border-slate-100 "
-                    >
-                      <div className="pr-2">
-                        <div className="text-xs font-bold text-slate-900 ">
-                          {p.name}
-                        </div>
-                        <div className="text-[11px] text-slate-500">
-                          {p.unit} · {p.isDeposit ? "Depozitolu" : "Tek Yön"} ·{" "}
-                          {p.defaultUnitPrice} ₺
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setLoadQuantities((prev) => ({
-                              ...prev,
-                              [p.id]: Math.max(0, currentQty - step),
-                            }))
-                          }
-                          className="w-11 h-11 rounded-lg bg-white  border border-slate-200  font-bold text-slate-700  flex items-center justify-center text-base active:scale-90"
-                        >
-                          -
-                        </button>
-                        <input
-                          type="number"
-                          value={currentQty === 0 ? "" : currentQty}
-                          onChange={(e) =>
-                            setLoadQuantities((prev) => ({
-                              ...prev,
-                              [p.id]: Math.max(
-                                0,
-                                parseInt(e.target.value) || 0,
-                              ),
-                            }))
-                          }
-                          placeholder="0"
-                          className="w-16 h-11 rounded-lg border border-slate-200  text-center font-bold font-mono text-sm   focus:outline-none focus:ring-1 focus:ring-sky-500"
-                        />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setLoadQuantities((prev) => ({
-                              ...prev,
-                              [p.id]: currentQty + step,
-                            }))
-                          }
-                          className="w-11 h-11 rounded-lg bg-sky-50  text-sky-600  font-bold flex items-center justify-center text-base active:scale-90"
-                        >
-                          +
-                        </button>
-                      </div>
+              <div className="space-y-3">
+                {groupedProducts.map((group) => (
+                  <div key={group.code} className="space-y-2">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      {group.title}
                     </div>
-                  );
-                })}
+                    {group.products.map((p) => {
+                      const currentQty = loadQuantities[p.id] || 0;
+                      const step = p.category === "damacana" ? 5 : 1;
+
+                      return (
+                        <div
+                          key={p.id}
+                          className="flex flex-col gap-2 p-3 rounded-xl bg-slate-50  border border-slate-100  sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div className="min-w-0 pr-2">
+                            <div className="text-xs font-bold text-slate-900  break-words">
+                              {p.name}
+                            </div>
+                            <div className="text-[11px] text-slate-500">
+                              {p.unit} · {p.isDeposit ? "Depozitolu" : "Tek Yön"} ·{" "}
+                              {p.defaultUnitPrice} ₺
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setLoadQuantities((prev) => ({
+                                  ...prev,
+                                  [p.id]: Math.max(0, currentQty - step),
+                                }))
+                              }
+                              className="w-11 h-11 rounded-lg bg-white  border border-slate-200  font-bold text-slate-700  flex items-center justify-center text-base active:scale-90"
+                            >
+                              -
+                            </button>
+                            <input
+                              type="number"
+                              value={currentQty === 0 ? "" : currentQty}
+                              onChange={(e) =>
+                                setLoadQuantities((prev) => ({
+                                  ...prev,
+                                  [p.id]: Math.max(
+                                    0,
+                                    parseInt(e.target.value) || 0,
+                                  ),
+                                }))
+                              }
+                              placeholder="0"
+                              className="w-16 h-11 min-h-11 rounded-lg border border-slate-200 bg-white text-center font-bold font-mono text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setLoadQuantities((prev) => ({
+                                  ...prev,
+                                  [p.id]: currentQty + step,
+                                }))
+                              }
+                              className="w-11 h-11 rounded-lg bg-sky-50  text-sky-600  font-bold flex items-center justify-center text-base active:scale-90"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+                {filteredProducts.length === 0 && (
+                  <div className="p-4 text-center text-xs text-slate-400">
+                    Ürün bulunamadı.
+                  </div>
+                )}
               </div>
             </div>
           </div>

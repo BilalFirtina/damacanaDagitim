@@ -8,6 +8,8 @@ import {
   ProductCategory,
   getProductCategoryCodes,
   getProductCategoryTitle,
+  filterProductsBySearch,
+  groupProductsByCategory,
 } from "../../types";
 import {
   Search,
@@ -1029,14 +1031,8 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   });
 
   // Filter products for Step 2
-  const filteredProducts = allProducts.filter((p) => {
-    const term = productSearch.toLowerCase().trim();
-    if (!term) return true;
-    return (
-      p.name.toLowerCase().includes(term) ||
-      p.category.toLowerCase().includes(term)
-    );
-  });
+  const filteredProducts = filterProductsBySearch(allProducts, productSearch);
+  const groupedProducts = groupProductsByCategory(filteredProducts);
 
   // Stock check helper: find loaded qty on vehicle
   const getVehicleStock = (productId: string) => {
@@ -1622,7 +1618,13 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     </button>
                   </div>
                 ) : (
-                  filteredProducts.map((p) => {
+                  <div className="space-y-3">
+                    {groupedProducts.map((group) => (
+                      <div key={group.code} className="space-y-2">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                          {group.title}
+                        </div>
+                        {group.products.map((p) => {
                     const qty = quantities[p.id] || 0;
                     const unitPrice = unitPrices[p.id] ?? p.defaultUnitPrice;
                     const lineTotal = qty * unitPrice;
@@ -1758,7 +1760,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         </div>
                       </div>
                     );
-                  })
+                        })}
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
 

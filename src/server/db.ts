@@ -67,9 +67,10 @@ const PRODUCT_CATEGORIES_REF: Array<{
 }> = [
   { code: 'damacana', title_tr: 'Damacana Su', sort_order: 1, default_unit: 'Adet', default_is_deposit: true, default_deposit_type: 'damacana' },
   { code: 'pet', title_tr: 'Pet Su', sort_order: 2, default_unit: 'Koli', default_is_deposit: false, default_deposit_type: 'none' },
-  { code: 'tup', title_tr: 'Tüp', sort_order: 3, default_unit: 'Adet', default_is_deposit: true, default_deposit_type: 'tup' },
-  { code: 'soda', title_tr: 'Maden Suyu / İçecek', sort_order: 4, default_unit: 'Koli', default_is_deposit: false, default_deposit_type: 'none' },
+  { code: 'soda', title_tr: 'Maden Suyu / İçecek', sort_order: 3, default_unit: 'Koli', default_is_deposit: false, default_deposit_type: 'none' },
+  { code: 'tup', title_tr: 'Tüp', sort_order: 4, default_unit: 'Adet', default_is_deposit: true, default_deposit_type: 'tup' },
   { code: 'bardak', title_tr: 'Bardak & Sarf Malzeme', sort_order: 5, default_unit: 'Paket', default_is_deposit: false, default_deposit_type: 'none' },
+  { code: 'sebil', title_tr: 'Su Sebili', sort_order: 6, default_unit: 'Adet', default_is_deposit: true, default_deposit_type: 'sebil' },
 ];
 
 const DEPOSIT_BUCKETS: Array<{

@@ -28,8 +28,8 @@ export type DepositType =
 export const PRODUCT_CATEGORY_ORDER: Record<ProductCategory, number> = {
   damacana: 1,
   pet: 2,
-  tup: 3,
-  soda: 4,
+  soda: 3,
+  tup: 4,
   bardak: 5,
   sebil: 6,
 };
@@ -132,6 +132,54 @@ export function sortProductsByCategory<T extends { category: string; name: strin
     const orderB = getProductCategoryOrder(b.category);
     if (orderA !== orderB) return orderA - orderB;
     return a.name.localeCompare(b.name, 'tr');
+  });
+}
+
+export interface ProductCategoryGroup<T> {
+  code: string;
+  title: string;
+  order: number;
+  products: T[];
+}
+
+// Ürünleri kategori sırasına göre gruplar. Boş kategoriler dönmez.
+export function groupProductsByCategory<T extends { category: string; name: string }>(
+  items: T[]
+): ProductCategoryGroup<T>[] {
+  const groups = new Map<string, ProductCategoryGroup<T>>();
+  for (const product of sortProductsByCategory(items)) {
+    const code = product.category || 'none';
+    let group = groups.get(code);
+    if (!group) {
+      group = {
+        code,
+        title: getProductCategoryTitle(code),
+        order: getProductCategoryOrder(code),
+        products: [],
+      };
+      groups.set(code, group);
+    }
+    group.products.push(product);
+  }
+  return Array.from(groups.values()).sort((a, b) => a.order - b.order);
+}
+
+// Türkçe büyük/küçük harf uyumlu arama için ortak normalizasyon.
+export function normalizeProductSearch(value: string): string {
+  return String(value || '').toLocaleLowerCase('tr-TR').trim();
+}
+
+export function filterProductsBySearch<T extends { category: string; name: string }>(
+  items: T[],
+  search: string
+): T[] {
+  const term = normalizeProductSearch(search);
+  if (!term) return [...items];
+  return items.filter((product) => {
+    const name = normalizeProductSearch(product.name);
+    const code = normalizeProductSearch(product.category);
+    const title = normalizeProductSearch(getProductCategoryTitle(product.category));
+    return name.includes(term) || code.includes(term) || title.includes(term);
   });
 }
 
