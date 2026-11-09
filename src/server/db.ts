@@ -2489,7 +2489,7 @@ function parseDispatchOperationError(e: any, fnName: string): DispatchDbError {
       'Araçta bu üründen yeterli stok yok. Teslimat miktarı yüklenen miktarı aşamaz.'
     );
   }
-  if (/CLOSE_WRITE_NOT_APPLIED|REOPEN_WRITE_NOT_APPLIED|CUSTOMER_UPDATE_NOT_APPLIED/.test(raw)) {
+  if (/CLOSE_WRITE_NOT_APPLIED|CUSTOMER_UPDATE_NOT_APPLIED/.test(raw)) {
     return new DispatchDbError(
       'WRITE_NOT_APPLIED',
       'Veritabanı güncellemesi uygulanmadı. Lütfen sistem yöneticisiyle iletişime geçin.'

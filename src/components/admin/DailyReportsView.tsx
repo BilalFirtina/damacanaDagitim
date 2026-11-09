@@ -160,7 +160,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
         Number(del.emptyContainersReceived.camDamacana || del.emptyContainersReceived.cam_damacana) || 0,
         totalTupEmpty(del.emptyContainersReceived),
         `"${(del.notes || '').replace(/"/g, '""')}"`,
-        '"Teslimat"',
+        del.isLateDelivery ? '"Teslimat - Geç Teslimat"' : '"Teslimat"',
       ].join(';');
     });
 
