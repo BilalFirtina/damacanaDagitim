@@ -285,6 +285,9 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                 <span>
                   Sefer #{idx + 1} ({disp.vehiclePlate})
                 </span>
+                <span className="text-[10px] font-semibold break-words">
+                  Şoför: {disp.driverName}
+                </span>
                 {isStaleDispatch(disp, todayStr) && (
                   <span className="text-[10px] px-1.5 py-0.2 rounded font-bold bg-rose-100 text-rose-800  ">
                     Önceki gün sonlandırılmadı
