@@ -276,7 +276,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                   setSelectedDispatchId(disp.id);
                   setSuccessMsg(false);
                 }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex flex-wrap items-center gap-1.5 max-w-full ${
+                className={`px-3 py-2 sm:py-1.5 rounded-xl text-sm sm:text-xs font-bold transition-all flex flex-wrap items-center gap-x-2 gap-y-1 max-w-full ${
                   disp.id === currentViewDispatch.id
                     ? 'bg-sky-600 text-white shadow-xs'
                     : 'bg-white  text-slate-700  hover:bg-slate-50'
@@ -285,22 +285,22 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                 <span>
                   Sefer #{idx + 1} ({disp.vehiclePlate})
                 </span>
-                <span className="text-[10px] font-semibold break-words">
-                  Şoför: {disp.driverName}
-                </span>
                 {isStaleDispatch(disp, todayStr) && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded font-bold bg-rose-100 text-rose-800  ">
+                  <span className="text-xs sm:text-[10px] px-1.5 py-0.2 rounded font-bold bg-rose-100 text-rose-800  ">
                     Önceki gün sonlandırılmadı
                   </span>
                 )}
                 <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
+                  className={`text-xs sm:text-[10px] px-1.5 py-0.2 rounded font-mono ${
                     disp.status === 'completed'
                       ? 'bg-emerald-100 text-emerald-800  '
                       : 'bg-amber-100 text-amber-800  '
                   }`}
                 >
                   {disp.status === 'completed' ? 'Dağıtım Tamamlandı' : 'Açık'}
+                </span>
+                <span className="w-full text-[13px] font-semibold break-words sm:w-auto sm:text-[10px]">
+                  Şoför: {disp.driverName}
                 </span>
               </button>
             ))}
