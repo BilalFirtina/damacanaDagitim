@@ -121,10 +121,16 @@ async function resetTransactional(c: Client): Promise<void> {
   // Denetim tablosu normalde TRUNCATE edilemez. Test izolasyonu icin trigger
   // yalnizca bu baglantida gecici olarak devre disi birakilir.
   await c.query('ALTER TABLE public.delivery_cancellation_audit DISABLE TRIGGER USER');
+  await c.query('ALTER TABLE public.dispatch_cancellation_audit DISABLE TRIGGER USER');
+  await c.query('ALTER TABLE public.dispatch_loading_audit DISABLE TRIGGER USER');
   try {
     await c.query('TRUNCATE public.delivery_cancellation_audit RESTART IDENTITY');
+    await c.query('TRUNCATE public.dispatch_cancellation_audit RESTART IDENTITY');
+    await c.query('DELETE FROM public.dispatch_loading_audit');
   } finally {
     await c.query('ALTER TABLE public.delivery_cancellation_audit ENABLE TRIGGER USER');
+    await c.query('ALTER TABLE public.dispatch_cancellation_audit ENABLE TRIGGER USER');
+    await c.query('ALTER TABLE public.dispatch_loading_audit ENABLE TRIGGER USER');
   }
   await c.query('DELETE FROM public.customer_empty_balances');
   await c.query('DELETE FROM public.customer_product_prices');
@@ -573,20 +579,6 @@ async function markDispatchCompleted(c: Client): Promise<void> {
   );
 }
 
-async function reopenDispatch(c: Client): Promise<any> {
-  const r = await c.query(
-    `SELECT public.reopen_dispatch($1::jsonb) AS r`,
-    [
-      JSON.stringify({
-        dispatch_id: 'D1',
-        reopened_by_user_id: 'u_admin',
-        reason: 'CI yeniden açma',
-      }),
-    ]
-  );
-  return r.rows[0].r;
-}
-
 async function scenarioCancel(c: Client): Promise<void> {
   console.log('\n[1] Iptal: bakiye ve bos kap geri alinir, idempotent');
   await resetTransactional(c);
@@ -813,7 +805,7 @@ async function scenarioPrivileges(c: Client): Promise<void> {
 }
 
 async function scenarioClosedDispatch(c: Client): Promise<void> {
-  console.log('\n[7] Kapali sefer: ilk iptal/duzenleme reddedilir, reopen sonrasi iptal');
+  console.log('\n[7] Kapali sefer: iptal/duzenleme kalici olarak reddedilir');
   await resetTransactional(c);
   await seedDispatch(c);
   await seedDelivery(c, { emptyDiff: 2, emptyBalance: 2 });
@@ -844,15 +836,130 @@ async function scenarioClosedDispatch(c: Client): Promise<void> {
   check('kapali sefer duzenlemesi bos kabi degistirmedi', (await empty(c)) === 2);
   check('kapali sefer duzenlemesi denetim yazmadi', (await auditCount(c, 'DEL1')) === 0);
 
-  const reopened = await reopenDispatch(c);
-  check('reopen basarili', reopened.reopened === true, JSON.stringify(reopened));
-  check('reopen sonrasi durum in_transit', (await c.query(`SELECT status FROM public.dispatches WHERE id = 'D1'`)).rows[0].status === 'in_transit');
+  const reopenFn = await c.query(
+    `SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public' AND p.proname = 'reopen_dispatch'`
+  );
+  check('reopen fonksiyonu kaldirildi', reopenFn.rowCount === 0);
+  check('kapali sefer durumu completed kaldi', (await c.query(`SELECT status FROM public.dispatches WHERE id = 'D1'`)).rows[0].status === 'completed');
+}
 
-  const res = await callRpc(c, cancelPayload());
-  check('reopen sonrasi ayni iptal basarili', res.cancelled === true && res.duplicate === false);
-  check('reopen sonrasi bakiye 0', (await balance(c)) === 0);
-  check('reopen sonrasi bos kap 0', (await empty(c)) === 0);
-  check('reopen sonrasi tek denetim', (await auditCount(c, 'DEL1')) === 1);
+async function scenarioDispatchCorrection(c: Client): Promise<void> {
+  console.log('\n[7b] Yukleme duzeltme/iptal: admin, teslimatsiz ve tahsilatsiz');
+  await resetTransactional(c);
+  await seedDispatch(c, 20);
+
+  const updated = await c.query(
+    `SELECT public.update_dispatch_loading($1::jsonb) AS r`,
+    [
+      JSON.stringify({
+        dispatch_id: 'D1',
+        changed_by_user_id: 'u_admin',
+        loaded_items: [
+          { product_id: 'p_water', quantity: 25 },
+          { product_id: 'p_cam', quantity: 20 },
+          { product_id: 'p_tup', quantity: 20 },
+        ],
+      }),
+    ]
+  );
+  check('admin yuklemeyi guncelledi', updated.rows[0].r.updated === true, JSON.stringify(updated.rows[0].r));
+  const waterQty = await c.query(
+    `SELECT quantity FROM public.dispatch_items WHERE dispatch_id = 'D1' AND product_id = 'p_water'`
+  );
+  check('yeni yukleme adedi 25', Number(waterQty.rows[0]?.quantity) === 25);
+  const loadingAudit = await c.query(
+    `SELECT count(*)::int AS n FROM public.dispatch_loading_audit WHERE dispatch_id = 'D1'`
+  );
+  check('yukleme denetim kaydi yazildi', Number(loadingAudit.rows[0]?.n) === 1);
+
+  const driverErr = await errorOf(() =>
+    c.query(`SELECT public.update_dispatch_loading($1::jsonb)`, [
+      JSON.stringify({
+        dispatch_id: 'D1',
+        changed_by_user_id: 'u_driver',
+        loaded_items: [{ product_id: 'p_water', quantity: 30 }],
+      }),
+    ])
+  );
+  check('sofor yuklemeyi guncelleyemez', /NOT_AUTHORIZED/.test(driverErr), driverErr);
+
+  await c.query(
+    `INSERT INTO public.customer_payments
+       (id, customer_id, amount, method, note, collected_by_user_id,
+        collected_by_user_name, dispatch_id, collected_at)
+     VALUES ('PAY_CORRECTION', 'c1', 100, 'CASH', 'CI tahsilat', 'u_admin',
+             'Yönetici', 'D1', now())`
+  );
+  const paymentErr = await errorOf(() =>
+    c.query(`SELECT public.update_dispatch_loading($1::jsonb)`, [
+      JSON.stringify({
+        dispatch_id: 'D1',
+        changed_by_user_id: 'u_admin',
+        loaded_items: [{ product_id: 'p_water', quantity: 30 }],
+      }),
+    ])
+  );
+  check('tahsilat varsa yukleme guncellenemez', /PAYMENTS_EXIST/.test(paymentErr), paymentErr);
+
+  const cancelWithPaymentErr = await errorOf(() =>
+    c.query(`SELECT public.cancel_dispatch($1::jsonb)`, [
+      JSON.stringify({
+        dispatch_id: 'D1',
+        cancelled_by_user_id: 'u_admin',
+        reason: 'CI iptal',
+      }),
+    ])
+  );
+  check('tahsilat varsa yukleme iptal edilemez', /PAYMENTS_EXIST/.test(cancelWithPaymentErr), cancelWithPaymentErr);
+
+  await c.query('ALTER TABLE public.customer_payments DISABLE TRIGGER USER');
+  try {
+    await c.query(`DELETE FROM public.customer_payments WHERE id = 'PAY_CORRECTION'`);
+  } finally {
+    await c.query('ALTER TABLE public.customer_payments ENABLE TRIGGER USER');
+  }
+
+  const cancelled = await c.query(
+    `SELECT public.cancel_dispatch($1::jsonb) AS r`,
+    [
+      JSON.stringify({
+        dispatch_id: 'D1',
+        cancelled_by_user_id: 'u_admin',
+        reason: 'CI iptal',
+      }),
+    ]
+  );
+  check('admin yuklemeyi iptal etti', cancelled.rows[0].r.cancelled === true, JSON.stringify(cancelled.rows[0].r));
+  check(
+    'sefer fiziksel olarak silindi',
+    (await c.query(`SELECT 1 FROM public.dispatches WHERE id = 'D1'`)).rowCount === 0
+  );
+  const cancelAudit = await c.query(
+    `SELECT count(*)::int AS n FROM public.dispatch_cancellation_audit WHERE dispatch_id = 'D1'`
+  );
+  check('iptal denetim kaydi yazildi', Number(cancelAudit.rows[0]?.n) === 1);
+
+  const auditId = (
+    await c.query(`SELECT id FROM public.dispatch_cancellation_audit WHERE dispatch_id = 'D1' LIMIT 1`)
+  ).rows[0]?.id;
+  if (auditId) {
+    const mutErr = await errorOf(() =>
+      c.query(`UPDATE public.dispatch_cancellation_audit SET reason = 'degisti' WHERE id = $1`, [auditId])
+    );
+    check('iptal denetim UPDATE reddedildi', /AUDIT_IMMUTABLE/.test(mutErr), mutErr);
+    const delErr = await errorOf(() =>
+      c.query(`DELETE FROM public.dispatch_cancellation_audit WHERE id = $1`, [auditId])
+    );
+    check('iptal denetim DELETE reddedildi', /AUDIT_IMMUTABLE/.test(delErr), delErr);
+  } else {
+    check('iptal denetim UPDATE reddedildi', false, 'denetim kaydi yok');
+    check('iptal denetim DELETE reddedildi', false, 'denetim kaydi yok');
+  }
+
+  // Aynı şoför/plaka ile yeni sefer açılabilmeli (aktiflik kısıtı serbest).
+  await seedDispatch(c, 20);
+  check('iptal sonrasi ayni sofor/plaka ile yeni sefer acilabilir', true);
 }
 
 async function scenarioCashCustomerDebt(c: Client): Promise<void> {
@@ -1507,6 +1614,7 @@ async function main(): Promise<void> {
     await scenarioValidation(c);
     await scenarioPrivileges(c);
     await scenarioClosedDispatch(c);
+    await scenarioDispatchCorrection(c);
     await scenarioCashCustomerDebt(c);
     await scenarioAccountFlagChange(c);
     await scenarioApplyRegression(c);

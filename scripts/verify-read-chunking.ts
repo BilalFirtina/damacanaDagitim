@@ -229,6 +229,8 @@ function refMapDispatch(row: any, loadedItems: any[] = [], reconRows: any[] = []
     })),
     endOfDayReconciliation,
     createdAt: row.created_at || new Date().toISOString(),
+    hasActiveDeliveries: false,
+    hasLinkedPayments: false,
   };
 }
 

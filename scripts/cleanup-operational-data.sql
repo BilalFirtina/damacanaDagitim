@@ -8,7 +8,7 @@
 --   teslimatlar + kalemleri + boş kap hareketleri
 --   seferler + yükleme kalemleri + mutabakat kalemleri
 --   müşteri tahsilatları
---   teslimat iptal/düzeltme, sefer yeniden açma, yükleme düzeltme denetimleri
+--   teslimat iptal/düzeltme, yükleme düzeltme ve yükleme iptali denetimleri
 --   müşteri finansal düzeltme denetimleri
 --   müşteri boş kap (emanet) bakiyeleri
 --   müşteri sebil detayları
@@ -33,14 +33,14 @@ BEGIN;
 ALTER TABLE public.customer_payments DISABLE TRIGGER USER;
 ALTER TABLE public.customer_financial_audit DISABLE TRIGGER USER;
 ALTER TABLE public.delivery_cancellation_audit DISABLE TRIGGER USER;
-ALTER TABLE public.dispatch_reopen_audit DISABLE TRIGGER USER;
+ALTER TABLE public.dispatch_cancellation_audit DISABLE TRIGGER USER;
 ALTER TABLE public.dispatch_loading_audit DISABLE TRIGGER USER;
 
 -- 2. Tahsilat ve denetim kayıtları (önce bunlar) -------------------------
 DELETE FROM public.customer_payments;
 DELETE FROM public.customer_financial_audit;
 DELETE FROM public.delivery_cancellation_audit;
-DELETE FROM public.dispatch_reopen_audit;
+DELETE FROM public.dispatch_cancellation_audit;
 DELETE FROM public.dispatch_loading_audit;
 
 -- 3. Teslimat hareketleri (önce çocuk tablolar) ---------------------------
@@ -69,7 +69,7 @@ UPDATE public.customers
 ALTER TABLE public.customer_payments ENABLE TRIGGER USER;
 ALTER TABLE public.customer_financial_audit ENABLE TRIGGER USER;
 ALTER TABLE public.delivery_cancellation_audit ENABLE TRIGGER USER;
-ALTER TABLE public.dispatch_reopen_audit ENABLE TRIGGER USER;
+ALTER TABLE public.dispatch_cancellation_audit ENABLE TRIGGER USER;
 ALTER TABLE public.dispatch_loading_audit ENABLE TRIGGER USER;
 
 -- 9. Doğrulama (tüm hareket tabloları 0 olmalı) ---------------------------
@@ -82,7 +82,7 @@ UNION ALL SELECT 'dispatch_reconciliation_items', COUNT(*) FROM public.dispatch_
 UNION ALL SELECT 'customer_payments', COUNT(*) FROM public.customer_payments
 UNION ALL SELECT 'customer_financial_audit', COUNT(*) FROM public.customer_financial_audit
 UNION ALL SELECT 'delivery_cancellation_audit', COUNT(*) FROM public.delivery_cancellation_audit
-UNION ALL SELECT 'dispatch_reopen_audit', COUNT(*) FROM public.dispatch_reopen_audit
+UNION ALL SELECT 'dispatch_cancellation_audit', COUNT(*) FROM public.dispatch_cancellation_audit
 UNION ALL SELECT 'dispatch_loading_audit', COUNT(*) FROM public.dispatch_loading_audit
 UNION ALL SELECT 'customer_empty_balances', COUNT(*) FROM public.customer_empty_balances
 UNION ALL SELECT 'customer_dispensers', COUNT(*) FROM public.customer_dispensers

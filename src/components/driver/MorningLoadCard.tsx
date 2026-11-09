@@ -561,6 +561,9 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                   ? "Lütfen aracınızdaki ürün adetlerini fiziki olarak sayarak kontrol ediniz. Sayım doğruysa onaylayarak sefere başlayabilirsiniz."
                   : `Yükleme sisteme işlendi. ${currentDispatch.driverName} sayımı kontrol ettikten sonra sefere başlayacaktır.`}
               </p>
+              <p className="text-[11px] font-semibold text-amber-700 mt-1">
+                Yükleme düzeltmesi veya iptali için depo yöneticisine başvurun.
+              </p>
             </div>
           </div>
 

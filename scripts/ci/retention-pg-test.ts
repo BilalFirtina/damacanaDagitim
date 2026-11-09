@@ -437,11 +437,12 @@ async function scenarioAudit(c: Client): Promise<void> {
   await seedScenario(c);
   const before = await balancesSnapshot(c);
   await c.query(`
-    INSERT INTO public.dispatch_reopen_audit
-      (dispatch_id, reopened_by_user_id, reopened_by_user_name, reason, reopened_at)
+    INSERT INTO public.dispatch_cancellation_audit
+      (dispatch_id, driver_id, driver_name, vehicle_plate,
+       cancelled_by_user_id, cancelled_by_user_name, reason, created_at)
     VALUES
-      ('D61', 'u_admin', 'Yönetici', 'OLD_REOPEN', now() - interval '61 day'),
-      ('D59', 'u_admin', 'Yönetici', 'NEW_REOPEN', now() - interval '1 day');
+      ('D61', 'u_driver', 'Şoför', '34 CI 061', 'u_admin', 'Yönetici', 'OLD_CANCEL', now() - interval '61 day'),
+      ('D59', 'u_driver', 'Şoför', '34 CI 059', 'u_admin', 'Yönetici', 'NEW_CANCEL', now() - interval '1 day');
   `);
   await c.query(`
     INSERT INTO public.dispatch_loading_audit
@@ -486,8 +487,8 @@ async function scenarioAudit(c: Client): Promise<void> {
     );
     return Number(r.rows[0].n);
   };
-  check('eski dispatch_reopen_audit silindi', (await oldAuditCount('dispatch_reopen_audit', 'reopened_at')) === 0);
-  check('yeni dispatch_reopen_audit korundu', (await count(c, 'dispatch_reopen_audit')) >= 1);
+  check('eski dispatch_cancellation_audit silindi', (await oldAuditCount('dispatch_cancellation_audit', 'created_at')) === 0);
+  check('yeni dispatch_cancellation_audit korundu', (await count(c, 'dispatch_cancellation_audit')) >= 1);
   check('eski dispatch_loading_audit silindi', (await oldAuditCount('dispatch_loading_audit', 'changed_at')) === 0);
   check('yeni dispatch_loading_audit korundu', (await count(c, 'dispatch_loading_audit')) >= 1);
   check('eski customer_financial_audit silindi', (await oldAuditCount('customer_financial_audit', 'changed_at')) === 0);
@@ -496,7 +497,7 @@ async function scenarioAudit(c: Client): Promise<void> {
   check('yeni delivery_cancellation_audit korundu', (await count(c, 'delivery_cancellation_audit')) >= 1);
   check(
     'silme sayilari raporlandi',
-    Number(res.purged_dispatch_reopen_audit) === 1 &&
+    Number(res.purged_dispatch_cancellation_audit) === 1 &&
       Number(res.purged_dispatch_loading_audit) === 1 &&
       Number(res.purged_customer_financial_audit) === 1 &&
       Number(res.purged_delivery_cancellation_audit) === 1,

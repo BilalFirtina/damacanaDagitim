@@ -41,6 +41,7 @@ export interface ConsolidatedRow {
   times: number[];
   firstAt: number;
   lastAt: number;
+  hasLateDelivery: boolean;
   deliveryCount: number;
   damacanaFull: number;
   camDamacanaFull: number;
@@ -155,6 +156,7 @@ function newRow(
     times: [],
     firstAt: 0,
     lastAt: 0,
+    hasLateDelivery: false,
     deliveryCount: 0,
     damacanaFull: 0,
     camDamacanaFull: 0,
@@ -292,6 +294,7 @@ export function buildConsolidatedReport(input: {
     if (isAccount) row.isAccount = true;
 
     row.deliveryCount += 1;
+    if (delivery.isLateDelivery) row.hasLateDelivery = true;
     row.times.push(timeOf(delivery.timestamp));
 
     icmal.deliveryCount += 1;

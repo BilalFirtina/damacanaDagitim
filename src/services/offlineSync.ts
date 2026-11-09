@@ -216,28 +216,3 @@ export function canonicalDeliveryPayload(del: Partial<Delivery> | any): string {
 export function deliveryPayloadsMatch(a: Partial<Delivery> | any, b: Partial<Delivery> | any): boolean {
   return canonicalDeliveryPayload(a) === canonicalDeliveryPayload(b);
 }
-
-export interface ReopenValidationInput {
-  role?: string | null;
-  reason?: string | null;
-}
-
-export interface ReopenValidationResult {
-  ok: boolean;
-  errorCode?: 'NOT_AUTHORIZED' | 'REASON_REQUIRED';
-  reason?: string;
-}
-
-// Sunucu uç noktası ve testler için ortak yeniden açma doğrulaması.
-// Gerçek yetki ayrıca requireAdmin middleware'i ve DB fonksiyonu tarafından
-// uygulanır; burada yalnızca erken/tek tip doğrulama yapılır.
-export function validateReopenRequest(input: ReopenValidationInput): ReopenValidationResult {
-  if (input.role !== 'admin') {
-    return { ok: false, errorCode: 'NOT_AUTHORIZED' };
-  }
-  const reason = (input.reason || '').trim();
-  if (reason.length < 3) {
-    return { ok: false, errorCode: 'REASON_REQUIRED' };
-  }
-  return { ok: true, reason };
-}

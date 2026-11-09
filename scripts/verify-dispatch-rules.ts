@@ -1,8 +1,8 @@
 import {
   validateDispatchUpdate,
+  validateDispatchCancel,
   validateConfirmTransition,
   validateCloseTransition,
-  validateReopenTransition,
   compareExpectedBalance,
   compareExpectedQuantity,
 } from '../src/services/dispatchRules.ts';
@@ -34,7 +34,7 @@ function section(title: string) {
 // 1. PUT /api/dispatches/:id alan ve durum kısıtları
 // ---------------------------------------------------------------------------
 section('1) Dispatch update restrictions');
-const pendingCtx = { role: 'admin', canLoadVehicle: false, status: 'pending_confirmation' };
+const pendingCtx = { role: 'admin', status: 'pending_confirmation' };
 const loaded = [{ productId: 'prod_1', quantity: 5 }];
 
 check(
@@ -42,13 +42,30 @@ check(
   validateDispatchUpdate({ loadedItems: loaded }, pendingCtx).ok
 );
 check(
-  'yükleyici rolü güncelleyebilir',
-  validateDispatchUpdate({ loadedItems: loaded }, { ...pendingCtx, role: 'driver', canLoadVehicle: true }).ok
+  'onay sonrası teslimatsız yükleme güncellenebilir',
+  validateDispatchUpdate(
+    { loadedItems: loaded },
+    { ...pendingCtx, status: 'in_transit' }
+  ).ok
 );
 check(
-  'yükleme yetkisi olmayan şoför reddedilir',
+  'yükleyici şoför yükleme güncelleyemez',
   validateDispatchUpdate({ loadedItems: loaded }, { ...pendingCtx, role: 'driver' }).errorCode ===
     'NOT_AUTHORIZED'
+);
+check(
+  'aktif teslimat varsa yükleme güncellenemez',
+  validateDispatchUpdate(
+    { loadedItems: loaded },
+    { ...pendingCtx, status: 'in_transit', hasActiveDeliveries: true }
+  ).errorCode === 'DELIVERIES_EXIST'
+);
+check(
+  'sefere bağlı tahsilat varsa yükleme güncellenemez',
+  validateDispatchUpdate(
+    { loadedItems: loaded },
+    { ...pendingCtx, hasLinkedPayments: true }
+  ).errorCode === 'PAYMENTS_EXIST'
 );
 check(
   'status alanı yasak',
@@ -70,11 +87,6 @@ check(
   'kapatılmış sefer güncellenemez',
   validateDispatchUpdate({ loadedItems: loaded }, { ...pendingCtx, status: 'completed' }).errorCode ===
     'DISPATCH_ALREADY_COMPLETED'
-);
-check(
-  'onay sonrası yükleme değiştirilemez',
-  validateDispatchUpdate({ loadedItems: loaded }, { ...pendingCtx, status: 'in_transit' }).errorCode ===
-    'INVALID_STATE'
 );
 check(
   'boş gövde reddedilir',
@@ -107,8 +119,41 @@ check(
   'kapatma: completed reddedilir',
   validateCloseTransition('completed').errorCode === 'DISPATCH_ALREADY_COMPLETED'
 );
-check('yeniden açma: completed kabul', validateReopenTransition('completed').ok);
-check('yeniden açma: in_transit reddedilir', validateReopenTransition('in_transit').errorCode === 'INVALID_STATE');
+check(
+  'iptal: pending + gerekçe kabul',
+  validateDispatchCancel({ ...pendingCtx, reason: 'Yanlış yükleme' }).ok
+);
+check(
+  'iptal: şoför reddedilir',
+  validateDispatchCancel({ ...pendingCtx, role: 'driver', reason: 'Yanlış yükleme' }).errorCode ===
+    'NOT_AUTHORIZED'
+);
+check(
+  'iptal: aktif teslimat varsa reddedilir',
+  validateDispatchCancel({
+    ...pendingCtx,
+    status: 'in_transit',
+    hasActiveDeliveries: true,
+    reason: 'Yanlış yükleme',
+  }).errorCode === 'DELIVERIES_EXIST'
+);
+check(
+  'iptal: tahsilat varsa reddedilir',
+  validateDispatchCancel({
+    ...pendingCtx,
+    hasLinkedPayments: true,
+    reason: 'Yanlış yükleme',
+  }).errorCode === 'PAYMENTS_EXIST'
+);
+check(
+  'iptal: kısa gerekçe reddedilir',
+  validateDispatchCancel({ ...pendingCtx, reason: '  ' }).errorCode === 'REASON_REQUIRED'
+);
+check(
+  'iptal: completed reddedilir',
+  validateDispatchCancel({ ...pendingCtx, status: 'completed', reason: 'Yanlış yükleme' })
+    .errorCode === 'DISPATCH_ALREADY_COMPLETED'
+);
 
 // ---------------------------------------------------------------------------
 // 3. Beklenen değer kontrollü mutlak yazım

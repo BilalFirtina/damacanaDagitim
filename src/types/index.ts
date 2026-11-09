@@ -227,6 +227,9 @@ export interface Dispatch {
   loadedItems: LoadedItem[];
   endOfDayReconciliation?: EndOfDayReconciliation;
   createdAt: string;
+  /** Yükleme düzeltme/iptal uygunluğu için okuma modeli alanları. */
+  hasActiveDeliveries?: boolean;
+  hasLinkedPayments?: boolean;
 }
 
 export interface DeliveryItem {
@@ -285,6 +288,8 @@ export interface Delivery {
   };
   notes?: string;
   isOfflineSync?: boolean;
+  /** Rapor, teslimatın yükleme gününden farklı bir güne kaldığını işaretler. */
+  isLateDelivery?: boolean;
   status?: 'active' | 'cancelled';
   cancelledAt?: string | null;
   cancelledByUserId?: string | null;
@@ -316,7 +321,7 @@ export interface RetentionCounts {
   customer_payments?: number;
   customer_financial_audit?: number;
   delivery_cancellation_audit?: number;
-  dispatch_reopen_audit?: number;
+  dispatch_cancellation_audit?: number;
   dispatch_loading_audit?: number;
   customer_operations?: number;
   retention_archive?: number;

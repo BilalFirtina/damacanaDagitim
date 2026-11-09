@@ -37,18 +37,18 @@ import {
   getCustomerFinancialAudit,
   createCustomerPayment,
   getCustomerPayments,
-  getCustomerPaymentsByDate,
   getCustomerPaymentsByDispatch,
+  getCustomerPaymentsForReport,
   getCustomerPaymentById,
   adjustCustomerDispenserQuantity,
   getDeliveryById,
   getDeliveryCorrections,
-  getDispatchReopenAudits,
+  getDispatchCancellationAudits,
   getDispatchLoadingAudits,
   createDeliveryRecord,
   cancelDeliveryAtomic,
   replaceDeliveryAtomic,
-  reopenDispatch,
+  cancelDispatch,
   DeliveryDbError,
   DispatchDbError,
   assertRpcAuthorizationReady,
@@ -66,16 +66,16 @@ import {
 } from './src/server/deliveryInput.ts';
 import {
   isDispatchOpenForDelivery,
-  validateReopenRequest,
   deliveryPayloadsMatch,
 } from './src/services/offlineSync.ts';
 import {
   validateDispatchUpdate,
+  validateDispatchCancel,
   validateConfirmTransition,
   validateCloseTransition,
   DispatchRuleResult,
 } from './src/services/dispatchRules.ts';
-import { todayUtcDateStr, getNext2300Time } from './src/services/dateWindow.ts';
+import { todayUtcDateStr, getNext2300Time, isSameUtcDate } from './src/services/dateWindow.ts';
 import { buildCustomerStatement } from './src/services/statementRules.ts';
 import { maskCustomerFinancialsForDriver } from './src/services/customerVisibility.ts';
 import {
@@ -301,6 +301,8 @@ function sendDispatchRuleError(res: Response, result: DispatchRuleResult<any>) {
       : result.errorCode === 'DISPATCH_ALREADY_COMPLETED' ||
           result.errorCode === 'DISPATCH_CLOSED' ||
           result.errorCode === 'INVALID_STATE' ||
+          result.errorCode === 'DELIVERIES_EXIST' ||
+          result.errorCode === 'PAYMENTS_EXIST' ||
           result.errorCode === 'BALANCE_CONFLICT' ||
           result.errorCode === 'EMPTY_CONFLICT'
         ? 409
@@ -325,7 +327,7 @@ function sendDispatchDbError(res: Response, err: any) {
             code === 'RPC_AUTH_REQUIRED' ||
             code === 'REMOTE_REQUIRED'
           ? 503
-          : code === 'VALIDATION_ERROR' || code === 'EXPECTATION_REQUIRED'
+          : code === 'VALIDATION_ERROR' || code === 'EXPECTATION_REQUIRED' || code === 'REASON_REQUIRED'
             ? 400
             : code === 'DISPATCH_ALREADY_COMPLETED' ||
                 code === 'DISPATCH_CLOSED' ||
@@ -336,7 +338,8 @@ function sendDispatchDbError(res: Response, err: any) {
                 code === 'ACTIVE_DISPATCH_CONFLICT' ||
                 code === 'HISTORICAL_DELIVERY_ITEMS_MISSING' ||
                 code === 'PAYMENT_DATA_INCONSISTENT' ||
-                code === 'HISTORICAL_REOPEN_BLOCKED' ||
+                code === 'DELIVERIES_EXIST' ||
+                code === 'PAYMENTS_EXIST' ||
                 code === 'INSUFFICIENT_VEHICLE_STOCK'
               ? 409
               : 500;
@@ -1164,17 +1167,25 @@ app.post('/api/dispatches', requireAdminOrLoader, async (req, res) => {
   }
 });
 
-app.put('/api/dispatches/:id', async (req, res) => {
+app.put('/api/dispatches/:id', requireAdmin, async (req, res) => {
   try {
     const allDispatches = await getDispatches();
     const existing = allDispatches.find((d) => d.id === req.params.id);
     if (!existing) return res.status(404).json({ error: 'Sefer bulunamadı' });
 
     const session = getAuthUser(req)!;
+    const hasActiveDeliveries =
+      existing.hasActiveDeliveries ??
+      (await getDeliveries({ dispatchId: existing.id, includeCancelled: false })).length > 0;
+    const hasLinkedPayments =
+      existing.hasLinkedPayments ??
+      (await getCustomerPaymentsByDispatch(existing.id)).length > 0;
+
     const validation = validateDispatchUpdate(req.body, {
       role: session.role,
-      canLoadVehicle: session.canLoadVehicle,
       status: existing.status,
+      hasActiveDeliveries,
+      hasLinkedPayments,
     });
     if (!validation.ok) return sendDispatchRuleError(res, validation);
 
@@ -1184,6 +1195,41 @@ app.put('/api/dispatches/:id', async (req, res) => {
       { id: session.userId, name: session.name }
     );
     res.json({ dispatch: updated });
+  } catch (err: any) {
+    sendDispatchDbError(res, err);
+  }
+});
+
+// Yükleme iptali — yalnızca depo yöneticisi. Fiziksel silme + immutable
+// denetim kaydı DB fonksiyonunda tek transaction içinde yapılır.
+app.post('/api/dispatches/:id/cancel', requireAdmin, async (req, res) => {
+  try {
+    const allDispatches = await getDispatches();
+    const existing = allDispatches.find((d) => d.id === req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Sefer bulunamadı' });
+
+    const session = getAuthUser(req)!;
+    const hasActiveDeliveries =
+      existing.hasActiveDeliveries ??
+      (await getDeliveries({ dispatchId: existing.id, includeCancelled: false })).length > 0;
+    const hasLinkedPayments =
+      existing.hasLinkedPayments ??
+      (await getCustomerPaymentsByDispatch(existing.id)).length > 0;
+
+    const validation = validateDispatchCancel({
+      role: session.role,
+      status: existing.status,
+      hasActiveDeliveries,
+      hasLinkedPayments,
+      reason: req.body?.reason,
+    });
+    if (!validation.ok) return sendDispatchRuleError(res, validation);
+
+    await cancelDispatch(existing.id, validation.value!.reason, {
+      id: session.userId,
+      name: session.name,
+    });
+    res.json({ cancelled: true, dispatchId: existing.id });
   } catch (err: any) {
     sendDispatchDbError(res, err);
   }
@@ -1245,64 +1291,6 @@ app.post('/api/dispatches/:id/close', async (req, res) => {
     res.json({ dispatch: updated });
   } catch (err: any) {
     sendDispatchDbError(res, err);
-  }
-});
-
-// Kapatılmış seferi denetim kaydıyla yeniden açma.
-// Yalnızca yönetici (role='admin') çağırabilir; şoför erişimi reddedilir.
-app.post('/api/dispatches/:id/reopen', requireAdmin, async (req, res) => {
-  const session = getAuthUser(req)!;
-  const validation = validateReopenRequest({
-    role: session.role,
-    reason: typeof req.body?.reason === 'string' ? req.body.reason : '',
-  });
-  if (!validation.ok) {
-    if (validation.errorCode === 'NOT_AUTHORIZED') {
-      return res.status(403).json({
-        error: 'Bu işlemi yalnızca yönetici yapabilir.',
-        code: 'NOT_AUTHORIZED',
-      });
-    }
-    return res.status(400).json({
-      error: 'Yeniden açma için geçerli bir gerekçe girin.',
-      code: 'REASON_REQUIRED',
-    });
-  }
-
-  const reason = validation.reason!;
-  try {
-    const result = await reopenDispatch(req.params.id, session.userId, session.name, reason);
-    if (!result.reopened) {
-      if (result.code === 'NOT_COMPLETED') {
-        return res.status(409).json({
-          error: 'Yalnızca kapatılmış seferler yeniden açılabilir.',
-          code: 'NOT_COMPLETED',
-        });
-      }
-      return res.status(409).json({
-        error: 'Sefer yeniden açılamadı.',
-        code: result.code || 'NOT_REOPENED',
-      });
-    }
-    res.json(result);
-  } catch (err: any) {
-    const code = err instanceof DeliveryDbError ? err.code : err?.code;
-    if (code === 'DISPATCH_NOT_FOUND') {
-      return res.status(404).json({ error: err.message, code });
-    }
-    if (code === 'NOT_AUTHORIZED') {
-      return res.status(403).json({ error: err.message, code });
-    }
-    if (code === 'REASON_REQUIRED') {
-      return res.status(400).json({ error: err.message, code });
-    }
-    if (code === 'ACTIVE_DISPATCH_CONFLICT' || code === 'HISTORICAL_REOPEN_BLOCKED') {
-      return res.status(409).json({ error: err.message, code });
-    }
-    if (code === 'MIGRATION_REQUIRED' || code === 'RPC_AUTH_REQUIRED') {
-      return res.status(503).json({ error: err.message, code });
-    }
-    res.status(500).json({ error: err.message, code: code || 'REOPEN_FAILED' });
   }
 });
 
@@ -1757,15 +1745,15 @@ app.get('/api/delivery-corrections', requireAdmin, async (req, res) => {
   }
 });
 
-// 5e. Birleşik işlem geçmişi — teslimat düzeltme + sefer yeniden açma + yükleme düzeltme
+// 5e. Birleşik işlem geçmişi — teslimat düzeltme + yükleme düzeltme/iptal
 app.get('/api/audit/history', requireAdmin, async (req, res) => {
   try {
     const requested = Number(req.query.limit);
     const limit = Math.min(Math.max(Number.isFinite(requested) ? requested : 100, 1), 200);
 
-    const [corrections, reopens, loadings] = await Promise.all([
+    const [corrections, cancellations, loadings] = await Promise.all([
       getDeliveryCorrections(limit),
-      getDispatchReopenAudits(limit),
+      getDispatchCancellationAudits(limit),
       getDispatchLoadingAudits(limit),
     ]);
 
@@ -1784,15 +1772,15 @@ app.get('/api/audit/history', requireAdmin, async (req, res) => {
         dispatchId: c.dispatchId,
         deliveryId: c.deliveryId,
       })),
-      ...reopens.map((r) => ({
-        id: r.id,
-        kind: 'dispatch_reopen',
-        at: r.changedAt,
-        by: r.userName,
-        title: 'Sefer yeniden açıldı',
-        reason: r.reason,
-        detail: r.detail,
-        dispatchId: r.dispatchId,
+      ...cancellations.map((c) => ({
+        id: c.id,
+        kind: 'dispatch_cancellation',
+        at: c.changedAt,
+        by: c.userName,
+        title: 'Yükleme iptal edildi',
+        reason: c.reason,
+        detail: c.detail,
+        dispatchId: c.dispatchId,
         deliveryId: null,
       })),
       ...loadings.map((l) => ({
@@ -1841,7 +1829,11 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
       dispatches = dispatches.filter((d) => d.driverId === driverId);
     }
 
-    const allDeliveries = await getDeliveries({ date });
+    // Rapor esası yükleme günüdür: seçilen günün seferlerine ait tüm aktif
+    // teslimatlar, teslimatın yapıldığı günden bağımsız olarak rapora girer.
+    const allDispatchIds = allDispatches.map((d) => d.id);
+    const dispatchDateById = new Map(allDispatches.map((d) => [d.id, d.date]));
+    const allDeliveries = await getDeliveries({ dispatchIds: allDispatchIds });
     let deliveries = allDeliveries;
     if (driverId && driverId !== 'all') {
       deliveries = deliveries.filter((del) => del.driverId === driverId);
@@ -1850,16 +1842,23 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
     const accountCustomerIds = new Set(
       allCustomers.filter((c) => c.isAccountCustomer).map((c) => c.id)
     );
-    deliveries = deliveries.map((del) => ({
-      ...del,
-      isAccountCustomer: accountCustomerIds.has(del.customerId),
-    }));
+    deliveries = deliveries.map((del) => {
+      const loadingDate = dispatchDateById.get(del.dispatchId);
+      return {
+        ...del,
+        isAccountCustomer: accountCustomerIds.has(del.customerId),
+        isLateDelivery: loadingDate ? !isSameUtcDate(del.timestamp, loadingDate) : false,
+      };
+    });
 
     // Teslimat dışı (sonraki ziyaret) tahsilatlar hem yönetici hem şoför
-    // tarafından alınabilir. Şoför filtresinde yalnızca o şoförün tahsilatları
-    // raporlanır; toplamlar da bu filtreye göre hesaplanır.
+    // tarafından alınabilir. Yükleme günü raporunda sefere bağlı tahsilatlar
+    // seferin yükleme gününe, sefere bağlı olmayanlar tahsilat gününe yazılır.
     const isAllDrivers = !driverId || driverId === 'all';
-    const allCustomerPayments = await getCustomerPaymentsByDate(date);
+    const allCustomerPayments = await getCustomerPaymentsForReport(
+      allDispatchIds,
+      date
+    );
     const customerPayments = (
       isAllDrivers
         ? allCustomerPayments

@@ -507,16 +507,16 @@ export async function closeDispatch(id: string, reconciliationData: any): Promis
   return json.dispatch;
 }
 
-export async function reopenDispatch(
+export async function cancelDispatch(
   id: string,
   reason: string
-): Promise<{ reopened: boolean; code?: string; dispatch: Dispatch | null }> {
-  const res = await apiFetch(`/api/dispatches/${id}/reopen`, {
+): Promise<{ cancelled: boolean; dispatchId: string }> {
+  const res = await apiFetch(`/api/dispatches/${id}/cancel`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reason }),
   });
-  if (!res.ok) await throwServerError(res, 'Sefer yeniden açılamadı');
+  if (!res.ok) await throwServerError(res, 'Yükleme iptal edilemedi');
   return res.json();
 }
 
@@ -882,7 +882,7 @@ export async function triggerManualCleanup(): Promise<any> {
 // Birleşik işlem geçmişi — AGENTS.md Bölüm 10.2.
 export interface AuditHistoryEvent {
   id: string;
-  kind: 'delivery_correction' | 'dispatch_reopen' | 'dispatch_loading';
+  kind: 'delivery_correction' | 'dispatch_cancellation' | 'dispatch_loading';
   at: string;
   by: string;
   title: string;

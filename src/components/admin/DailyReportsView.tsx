@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Customer, Delivery, Dispatch, User, Product } from '../../types';
+import { Customer, Delivery, User, Product } from '../../types';
 import { isAccountCustomerDelivery } from '../../services/customerVisibility';
 import { totalTupEmpty } from '../../services/depositRules';
 import {
@@ -34,7 +34,6 @@ interface DailyReportsViewProps {
   users: User[];
   products: Product[];
   currentUser?: User;
-  dispatches?: Dispatch[];
   customers?: Customer[];
 }
 
@@ -42,7 +41,6 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
   users,
   products,
   currentUser,
-  dispatches = [],
   customers = [],
 }) => {
   const isDriver = currentUser?.role === 'driver';
@@ -63,7 +61,11 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
   const loadReport = async () => {
     try {
       setLoading(true);
-      const data = await fetchDailyReport(selectedDate, effectiveDriverId);
+      // Konsolide rapor her zaman tüm şoförleri gösterir; diğer günlük
+      // sekmeler seçili şoför filtresini kullanır.
+      const reportDriverId =
+        !isDriver && subTab === 'consolidated' ? 'all' : effectiveDriverId;
+      const data = await fetchDailyReport(selectedDate, reportDriverId);
       setReportData(data);
     } catch (err: any) {
       console.error('Failed to load report', err);
@@ -74,7 +76,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
 
   useEffect(() => {
     loadReport();
-  }, [selectedDate, effectiveDriverId]);
+  }, [selectedDate, effectiveDriverId, subTab]);
 
   const deliveries: Delivery[] = reportData?.deliveries || [];
 
@@ -88,8 +90,21 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
 
   // Export to Excel / CSV with UTF-8 BOM for perfect Excel Turkish characters
   const handleExportCSV = () => {
-    if (filteredDeliveries.length === 0) {
-      alert('Dışa aktarılacak teslimat verisi bulunmuyor');
+    const term = searchTerm.trim().toLowerCase();
+    const paymentsForExport = (reportData?.customerPayments || []).filter((payment: any) => {
+      if (payment.method !== 'CASH' && payment.method !== 'POS') return false;
+      if (effectiveDriverId !== 'all' && payment.collectedByUserId !== effectiveDriverId) {
+        return false;
+      }
+      if (!term) return true;
+      return (
+        String(payment.customerName || '').toLowerCase().includes(term) ||
+        String(payment.collectedByUserName || '').toLowerCase().includes(term)
+      );
+    });
+
+    if (filteredDeliveries.length === 0 && paymentsForExport.length === 0) {
+      alert('Dışa aktarılacak teslimat veya tahsilat verisi bulunmuyor');
       return;
     }
 
@@ -111,9 +126,10 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
       'Alınan Boş Cam Damacana',
       'Alınan Boş Tüp',
       'Notlar',
+      'Kaynak',
     ];
 
-    const rows = filteredDeliveries.map((del) => {
+    const rows: string[] = filteredDeliveries.map((del) => {
       const timeStr = new Date(del.timestamp).toLocaleTimeString('tr-TR', {
         hour: '2-digit',
         minute: '2-digit',
@@ -144,8 +160,38 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
         Number(del.emptyContainersReceived.camDamacana || del.emptyContainersReceived.cam_damacana) || 0,
         totalTupEmpty(del.emptyContainersReceived),
         `"${(del.notes || '').replace(/"/g, '""')}"`,
+        '"Teslimat"',
       ].join(';');
     });
+
+    for (const payment of paymentsForExport) {
+      const paymentTime = new Date(payment.collectedAt).toLocaleTimeString('tr-TR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      rows.push(
+        [
+          `"${selectedDate}"`,
+          `"${paymentTime}"`,
+          '""',
+          `"${String(payment.collectedByUserName || '').replace(/"/g, '""')}"`,
+          `"${String(payment.customerName || '').replace(/"/g, '""')}"`,
+          '""',
+          '""',
+          '"Teslimat dışı tahsilat"',
+          '',
+          payment.method === 'CASH' ? payment.amount : 0,
+          payment.method === 'POS' ? payment.amount : 0,
+          payment.amount,
+          '',
+          0,
+          0,
+          0,
+          `"${String(payment.note || '').replace(/"/g, '""')}"`,
+          '"Teslimat Dışı"',
+        ].join(';')
+      );
+    }
 
     const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -200,7 +246,18 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
     driverEmptyTup += totalTupEmpty(d.emptyContainersReceived);
   });
 
-  const driverTotalCollected = driverCashCollected + driverPosCollected;
+  const driverStandalonePayments = (reportData?.customerPayments || []).filter(
+    (payment: any) => payment.collectedByUserId === currentUser?.id
+  );
+  const driverStandaloneCash = driverStandalonePayments
+    .filter((payment: any) => payment.method === 'CASH')
+    .reduce((sum: number, payment: any) => sum + (Number(payment.amount) || 0), 0);
+  const driverStandalonePos = driverStandalonePayments
+    .filter((payment: any) => payment.method === 'POS')
+    .reduce((sum: number, payment: any) => sum + (Number(payment.amount) || 0), 0);
+
+  const driverTotalCollected =
+    driverCashCollected + driverPosCollected + driverStandaloneCash + driverStandalonePos;
 
   // If logged in as driver, display only the simplified End-of-Day Collection Summary
   if (isDriver) {
@@ -297,6 +354,20 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
               {driverPosCollected.toLocaleString('tr-TR')} ₺
             </div>
             <p className="text-[11px] text-slate-400">Banka slip toplamı</p>
+          </div>
+
+          <div className="bg-white  p-5 rounded-2xl border border-slate-200  shadow-xs space-y-1">
+            <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
+              <span>Teslimat Dışı Tahsilat</span>
+              <Wallet className="w-4 h-4 text-sky-600" />
+            </div>
+            <div className="text-2xl font-black font-mono text-sky-700  tabular-nums">
+              {(driverStandaloneCash + driverStandalonePos).toLocaleString('tr-TR')} ₺
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Nakit {driverStandaloneCash.toLocaleString('tr-TR')} ₺ · POS{' '}
+              {driverStandalonePos.toLocaleString('tr-TR')} ₺
+            </p>
           </div>
 
           <div className="bg-white  p-5 rounded-2xl border border-slate-200  shadow-xs space-y-1">
@@ -423,15 +494,25 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
       </div>
 
       {subTab === 'consolidated' ? (
-        <ConsolidatedDailyReport users={users} products={products} customers={customers} />
+        <ConsolidatedDailyReport
+          users={users}
+          products={products}
+          customers={customers}
+          date={selectedDate}
+          onDateChange={setSelectedDate}
+          reportData={reportData}
+          loading={loading}
+          onReload={loadReport}
+        />
       ) : subTab === 'balances' ? (
         <BalancesReportView />
       ) : subTab === 'discrepancies' ? (
-        <DiscrepancyReport dispatches={dispatches} products={products} />
+        <DiscrepancyReport dispatches={reportData?.dispatches || []} products={products} />
       ) : subTab === 'drivers' ? (
         <DriverActivityReport
           dispatches={reportData?.dispatches || []}
           deliveries={deliveries}
+          payments={reportData?.customerPayments || []}
           customers={customers}
           date={selectedDate}
         />
@@ -645,7 +726,14 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                   return (
                     <tr key={del.id} className="hover:bg-slate-50/80 ">
                       <td className="py-3 px-3 font-mono text-slate-500 whitespace-nowrap">
-                        {timeStr}
+                        <div className="flex flex-col gap-0.5">
+                          <span>{timeStr}</span>
+                          {del.isLateDelivery && (
+                            <span className="w-fit rounded bg-amber-100 px-1 py-0.5 text-[9px] font-bold text-amber-900">
+                              Geç Teslimat
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap">
                         <div className="font-semibold text-slate-900 ">
@@ -774,8 +862,13 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                         {del.customerAddress}
                       </div>
                     </div>
-                    <span className="shrink-0 font-mono text-[11px] text-slate-500">
-                      {timeStr}
+                    <span className="shrink-0 text-right font-mono text-[11px] text-slate-500">
+                      <span className="block">{timeStr}</span>
+                      {del.isLateDelivery && (
+                        <span className="mt-0.5 inline-block rounded bg-amber-100 px-1 py-0.5 text-[9px] font-bold text-amber-900">
+                          Geç Teslimat
+                        </span>
+                      )}
                     </span>
                   </div>
 

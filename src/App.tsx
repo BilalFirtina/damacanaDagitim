@@ -256,6 +256,10 @@ export default function App() {
     setDispatches((prev) => [created, ...prev]);
   };
 
+  const handleDispatchCancelled = (dispatchId: string) => {
+    setDispatches((prev) => prev.filter((d) => d.id !== dispatchId));
+  };
+
   const handleDeliveryCreated = (newDelivery: Delivery, updatedCustomer?: Customer) => {
     setDeliveries((prev) => [normalizeDelivery(newDelivery, newDelivery.isOfflineSync), ...prev]);
     if (updatedCustomer) {
@@ -402,7 +406,6 @@ export default function App() {
             users={users}
             products={products}
             currentUser={currentUser}
-            dispatches={dispatches}
             customers={customers}
           />
         )}
@@ -414,6 +417,8 @@ export default function App() {
             products={products}
             currentUser={currentUser}
             onDispatchCreated={handleDispatchCreated}
+            onDispatchUpdated={handleDispatchUpdated}
+            onDispatchCancelled={handleDispatchCancelled}
             onUsersUpdated={setUsers}
           />
         )}

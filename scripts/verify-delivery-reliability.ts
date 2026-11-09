@@ -4,7 +4,6 @@ import {
   buildQueueItemAfterSync,
   shouldAttemptSync,
   isConflictQueueItem,
-  validateReopenRequest,
 } from '../src/services/offlineSync.ts';
 
 let passed = 0;
@@ -131,24 +130,13 @@ check('hata sonrası retry başarılı olur', retried.duplicate === false);
 check('retry bakiyeyi yalnızca bir kez uygular', committedBalance === 400, committedBalance);
 
 // ---------------------------------------------------------------------------
-// 5. Yeniden açma yetkisi / gerekçe
+// 5. Kapatılmış sefer artık yeniden açılmaz
 // ---------------------------------------------------------------------------
-section('5) Manager-only reopen validation');
+section('5) Closed dispatch is final');
+check('kapatılmış sefer teslimata kapalı', !isDispatchOpenForDelivery('completed'));
 check(
-  'yönetici + gerekçe kabul',
-  validateReopenRequest({ role: 'admin', reason: 'Kapanış sonrası geç senkron' }).ok
-);
-check(
-  'şoför reddedilir',
-  validateReopenRequest({ role: 'driver', reason: 'geç senkron' }).errorCode === 'NOT_AUTHORIZED'
-);
-check(
-  'boş gerekçe reddedilir',
-  validateReopenRequest({ role: 'admin', reason: '   ' }).errorCode === 'REASON_REQUIRED'
-);
-check(
-  'kısa gerekçe reddedilir',
-  validateReopenRequest({ role: 'admin', reason: 'ok' }).errorCode === 'REASON_REQUIRED'
+  'açık sefer teslimata açık',
+  isDispatchOpenForDelivery('pending_confirmation') && isDispatchOpenForDelivery('in_transit')
 );
 
 // ---------------------------------------------------------------------------

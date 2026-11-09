@@ -4,9 +4,13 @@ import {
   Truck,
   Plus,
   ShieldCheck,
-  Check
+  Check,
+  Pencil,
+  Trash2,
+  X,
+  AlertTriangle
 } from 'lucide-react';
-import { createDispatch, updateUser } from '../../services/api';
+import { createDispatch, updateDispatch, cancelDispatch, updateUser } from '../../services/api';
 import { todayUtcDateStr, formatDateTr } from '../../services/dateWindow';
 import { isStaleDispatch } from '../../services/dispatchRules';
 
@@ -16,6 +20,8 @@ interface VehicleLoadManagementProps {
   products: Product[];
   currentUser: User;
   onDispatchCreated: (dispatch: Dispatch) => void;
+  onDispatchUpdated: (dispatch: Dispatch) => void;
+  onDispatchCancelled: (dispatchId: string) => void;
   onUsersUpdated: (users: User[]) => void;
 }
 
@@ -25,6 +31,8 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
   products,
   currentUser,
   onDispatchCreated,
+  onDispatchUpdated,
+  onDispatchCancelled,
   onUsersUpdated,
 }) => {
   const [showLoadModal, setShowLoadModal] = useState(false);
@@ -33,6 +41,12 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
   const [loadQuantities, setLoadQuantities] = useState<Record<string, number>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [editingDispatch, setEditingDispatch] = useState<Dispatch | null>(null);
+  const [editQuantities, setEditQuantities] = useState<Record<string, number>>({});
+  const [cancelTarget, setCancelTarget] = useState<Dispatch | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isActionSubmitting, setIsActionSubmitting] = useState(false);
 
   const todayStr = todayUtcDateStr();
 
@@ -124,6 +138,70 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
       setErrorMsg(err.message || 'Yükleme oluşturulamadı');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const canCorrectDispatch = (disp: Dispatch) =>
+    disp.status !== 'completed' &&
+    !disp.hasActiveDeliveries &&
+    !disp.hasLinkedPayments;
+
+  const handleOpenEdit = (disp: Dispatch) => {
+    setEditingDispatch(disp);
+    setActionError(null);
+    setEditQuantities(
+      Object.fromEntries(disp.loadedItems.map((item) => [item.productId, item.quantity]))
+    );
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingDispatch) return;
+    const items = Object.entries(editQuantities)
+      .filter(([, quantity]) => quantity > 0)
+      .map(([productId, quantity]) => ({ productId, quantity }));
+    if (items.length === 0) {
+      setActionError('En az bir ürün için sıfırdan büyük adet girmelisiniz.');
+      return;
+    }
+    try {
+      setIsActionSubmitting(true);
+      setActionError(null);
+      const updated = await updateDispatch(editingDispatch.id, { loadedItems: items });
+      onDispatchUpdated(updated);
+      setEditingDispatch(null);
+    } catch (err: any) {
+      setActionError(err.message || 'Yükleme düzenlenemedi');
+    } finally {
+      setIsActionSubmitting(false);
+    }
+  };
+
+  const handleOpenCancel = (disp: Dispatch) => {
+    setCancelTarget(disp);
+    setCancelReason('');
+    setActionError(null);
+  };
+
+  const handleConfirmCancel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cancelTarget) return;
+    const reason = cancelReason.trim();
+    if (reason.length < 3) {
+      setActionError('İptal için en az 3 karakterlik bir gerekçe girin.');
+      return;
+    }
+    try {
+      setIsActionSubmitting(true);
+      setActionError(null);
+      await cancelDispatch(cancelTarget.id, reason);
+      onDispatchCancelled(cancelTarget.id);
+      setCancelTarget(null);
+      setCancelReason('');
+    } catch (err: any) {
+      setActionError(err.message || 'Yükleme iptal edilemedi');
+    } finally {
+      setIsActionSubmitting(false);
     }
   };
 
@@ -291,6 +369,35 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                   })}
                 </div>
               </div>
+
+              {disp.status !== 'completed' && (
+                <div className="flex flex-wrap items-center gap-2 shrink-0 self-start sm:self-center">
+                  {canCorrectDispatch(disp) ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(disp)}
+                        className="min-h-11 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs flex items-center gap-1.5"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        <span>Düzenle</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenCancel(disp)}
+                        className="min-h-11 px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 font-semibold text-xs flex items-center gap-1.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>İptal</span>
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-[10px] font-semibold text-slate-400">
+                      Teslimat veya tahsilat başladı; yükleme düzeltilemez.
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -511,6 +618,167 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                   className="w-1/2 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-md"
                 >
                   {isSubmitting ? 'Kaydediliyor...' : 'Yüklemeyi Sisteme Gir'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Load Modal — yalnızca yönetici */}
+      {editingDispatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 my-auto max-h-[90vh] overflow-y-auto p-5 sm:p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Yüklemeyi Düzenle</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {editingDispatch.driverName} · {editingDispatch.vehiclePlate}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingDispatch(null)}
+                className="w-10 h-10 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center shrink-0"
+                aria-label="Kapat"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {actionError && (
+              <div className="mb-3 p-2.5 rounded-lg bg-red-50 text-red-700 text-xs font-semibold">
+                {actionError}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveEdit} className="space-y-4 text-xs">
+              <div className="space-y-2 max-h-72 overflow-y-auto p-1">
+                {products.map((p) => {
+                  const currentQty = editQuantities[p.id] || 0;
+                  return (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-semibold text-slate-900 break-words">{p.name}</div>
+                        <div className="text-[10px] text-slate-400">{p.unit}</div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditQuantities((prev) => ({
+                              ...prev,
+                              [p.id]: Math.max(0, currentQty - (p.category === 'damacana' ? 10 : 5)),
+                            }))
+                          }
+                          className="w-11 h-11 rounded-lg bg-white border text-sm font-bold"
+                        >
+                          -
+                        </button>
+                        <input
+                          type="number"
+                          value={currentQty === 0 ? '' : currentQty}
+                          onChange={(e) =>
+                            setEditQuantities((prev) => ({
+                              ...prev,
+                              [p.id]: Math.max(0, parseInt(e.target.value) || 0),
+                            }))
+                          }
+                          placeholder="0"
+                          className="w-16 h-11 rounded-lg border text-center font-mono font-bold text-sm bg-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditQuantities((prev) => ({
+                              ...prev,
+                              [p.id]: currentQty + (p.category === 'damacana' ? 10 : 5),
+                            }))
+                          }
+                          className="w-11 h-11 rounded-lg bg-indigo-50 text-indigo-600 text-sm font-bold"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="pt-2 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingDispatch(null)}
+                  className="w-1/2 min-h-11 py-2.5 rounded-xl border border-slate-200 font-semibold"
+                >
+                  Vazgeç
+                </button>
+                <button
+                  type="submit"
+                  disabled={isActionSubmitting}
+                  className="w-1/2 min-h-11 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold shadow-md"
+                >
+                  {isActionSubmitting ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Load Modal — yalnızca yönetici */}
+      {cancelTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 my-auto p-5 sm:p-6 shadow-2xl">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-slate-900">Yüklemeyi İptal Et</h3>
+                <p className="text-xs text-slate-500 mt-0.5 break-words">
+                  {cancelTarget.driverName} · {cancelTarget.vehiclePlate} yüklemesi fiziksel olarak
+                  silinecek. İşlem denetim kaydına alınacak.
+                </p>
+              </div>
+            </div>
+
+            {actionError && (
+              <div className="mb-3 p-2.5 rounded-lg bg-red-50 text-red-700 text-xs font-semibold">
+                {actionError}
+              </div>
+            )}
+
+            <form onSubmit={handleConfirmCancel} className="space-y-3 text-xs">
+              <label className="font-semibold text-slate-700 block">
+                İptal Gerekçesi *
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={3}
+                maxLength={500}
+                placeholder="Yanlış yükleme girildi..."
+                className="w-full p-2.5 rounded-xl border border-slate-200 bg-white text-xs"
+                required
+              />
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setCancelTarget(null)}
+                  className="w-1/2 min-h-11 py-2.5 rounded-xl border border-slate-200 font-semibold"
+                >
+                  Vazgeç
+                </button>
+                <button
+                  type="submit"
+                  disabled={isActionSubmitting || cancelReason.trim().length < 3}
+                  className="w-1/2 min-h-11 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-semibold"
+                >
+                  {isActionSubmitting ? 'İptal ediliyor...' : 'Yüklemeyi İptal Et'}
                 </button>
               </div>
             </form>

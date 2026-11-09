@@ -18,9 +18,17 @@ const statusLabel: Record<string, string> = {
   completed: 'Dağıtım Tamamlandı',
 };
 
+interface DriverActivityPayment {
+  collectedByUserId: string;
+  collectedByUserName?: string;
+  method: string;
+  amount: number;
+}
+
 interface DriverActivityReportProps {
   dispatches: Dispatch[];
   deliveries: Delivery[];
+  payments?: DriverActivityPayment[];
   date: string;
   customers?: Customer[];
 }
@@ -30,6 +38,7 @@ interface DriverActivityReportProps {
 export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({
   dispatches,
   deliveries,
+  payments = [],
   date,
   customers = [],
 }) => {
@@ -42,10 +51,13 @@ export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({
         plates: Set<string>;
         statuses: Set<string>;
         deliveryCount: number;
+        hasLateDelivery: boolean;
         customers: Set<string>;
         sales: number;
         cash: number;
         pos: number;
+        standaloneCash: number;
+        standalonePos: number;
         unpaid: number;
         emptyDamacana: number;
         emptyCamDamacana: number;
@@ -61,10 +73,13 @@ export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({
           plates: new Set(),
           statuses: new Set(),
           deliveryCount: 0,
+          hasLateDelivery: false,
           customers: new Set(),
           sales: 0,
           cash: 0,
           pos: 0,
+          standaloneCash: 0,
+          standalonePos: 0,
           unpaid: 0,
           emptyDamacana: 0,
           emptyCamDamacana: 0,
@@ -85,6 +100,7 @@ export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({
       if (delivery.vehiclePlate) row.plates.add(delivery.vehiclePlate);
       const isAccount = isAccountCustomerDelivery(delivery, customers);
       row.deliveryCount += 1;
+      if (delivery.isLateDelivery) row.hasLateDelivery = true;
       row.customers.add(delivery.customerId);
       if (!isAccount) {
         row.sales += Number(delivery.deliveredGrandTotal) || 0;
@@ -106,6 +122,29 @@ export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({
         Number(delivery.emptyContainersReceived?.tup) || 0;
     }
 
+    const knownDriverIds = new Set<string>();
+    for (const dispatch of dispatches) knownDriverIds.add(dispatch.driverId);
+    for (const delivery of deliveries) knownDriverIds.add(delivery.driverId);
+
+    for (const payment of payments) {
+      if (payment.method !== 'CASH' && payment.method !== 'POS') continue;
+      // Yönetici/diğer tahsilatları şoför faaliyeti raporuna yazılmaz;
+      // konsolide raporda ayrı "Yönetici / Diğer" olarak gösterilir.
+      if (!knownDriverIds.has(payment.collectedByUserId)) continue;
+      const row = ensure(
+        payment.collectedByUserId,
+        payment.collectedByUserName || 'Bilinmeyen Şoför'
+      );
+      const amount = Number(payment.amount) || 0;
+      if (payment.method === 'CASH') {
+        row.cash += amount;
+        row.standaloneCash += amount;
+      } else {
+        row.pos += amount;
+        row.standalonePos += amount;
+      }
+    }
+
     return Array.from(byDriver.values())
       .map((row) => ({
         ...row,
@@ -115,7 +154,7 @@ export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({
           .join(' / '),
       }))
       .sort((a, b) => b.sales - a.sales || a.driverName.localeCompare(b.driverName, 'tr'));
-  }, [dispatches, deliveries]);
+  }, [dispatches, deliveries, payments]);
 
   if (rows.length === 0) {
     return (
@@ -156,6 +195,11 @@ export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({
                 </span>
                 <span>·</span>
                 <span className="break-words">{row.statusText || 'Sefer Kaydı Yok'}</span>
+                {row.hasLateDelivery && (
+                  <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-900">
+                    Geç Teslimat
+                  </span>
+                )}
               </div>
             </div>
             <div className="shrink-0 text-right">
@@ -192,6 +236,13 @@ export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({
               </dd>
             </div>
           </dl>
+
+          {(row.standaloneCash > 0 || row.standalonePos > 0) && (
+            <div className="text-[10px] text-slate-500">
+              Teslimat dışı tahsilat: Nakit {money(row.standaloneCash)} · POS{' '}
+              {money(row.standalonePos)}
+            </div>
+          )}
 
           <div className="flex flex-wrap gap-1.5 text-[10px] font-mono">
             <span className="px-2 py-0.5 rounded bg-cyan-50  text-cyan-800 ">

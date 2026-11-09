@@ -12,7 +12,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Wallet,
-  RotateCcw,
   Droplet,
   Printer,
   FileCheck,
@@ -23,7 +22,6 @@ import {
 } from 'lucide-react';
 import {
   closeDispatch,
-  reopenDispatch,
   fetchDispatchPayments,
   type DispatchPayment,
 } from '../../services/api';
@@ -93,8 +91,6 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState(false);
   const [closureNotes, setClosureNotes] = useState('');
-  const [reopenReason, setReopenReason] = useState('');
-  const [isReopening, setIsReopening] = useState(false);
   const [dispatchPayments, setDispatchPayments] = useState<DispatchPayment[]>([]);
 
   // Ürün verilmeden alınan tahsilatlar kasa/POS mutabakatına girer.
@@ -259,32 +255,6 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
     }
   };
 
-  const handleReopen = async () => {
-    if (reopenReason.trim().length < 3) {
-      alert('Yeniden açma için en az 3 karakterlik bir gerekçe girin.');
-      return;
-    }
-    try {
-      setIsReopening(true);
-      const result = await reopenDispatch(currentViewDispatch.id, reopenReason.trim());
-      if (result.dispatch) onDispatchUpdated(result.dispatch);
-      if (onRefreshData) {
-        try {
-          await onRefreshData();
-        } catch (e) {
-          console.error('Refresh after reopen failed', e);
-        }
-      }
-      setReopenReason('');
-      setSuccessMsg(false);
-      alert('Sefer yeniden açıldı. Bu işlem denetim kaydına alındı.');
-    } catch (err: any) {
-      alert(err.message || 'Sefer yeniden açılamadı');
-    } finally {
-      setIsReopening(false);
-    }
-  };
-
   const handlePrint = () => {
     window.print();
   };
@@ -423,41 +393,6 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
           </button>
         </div>
       </div>
-
-      {currentUser.role === 'admin' && isAlreadyClosed && (
-        <div className="bg-amber-50  border border-amber-200  rounded-2xl p-4 sm:p-5 space-y-3">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-            <div>
-              <h3 className="text-sm font-bold text-amber-900 ">
-                Yönetici İşlemi: Seferi Yeniden Aç
-              </h3>
-              <p className="text-xs text-amber-800/80  mt-1">
-                Kapatılmış sefer yeniden açıldığında şoför ve araç tekrar aktif seferde görünür.
-                İşlem gerekçesiyle birlikte denetim kaydına alınır ve geçmiş toplamlar silinmez.
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <input
-              type="text"
-              value={reopenReason}
-              onChange={(e) => setReopenReason(e.target.value)}
-              placeholder="Yeniden açma gerekçesi (zorunlu)"
-              maxLength={500}
-              className="flex-1 min-w-0 p-2.5 rounded-xl border border-amber-300  text-xs bg-white  "
-            />
-            <button
-              onClick={handleReopen}
-              disabled={isReopening || reopenReason.trim().length < 3}
-              className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-1.5 shrink-0"
-            >
-              <RotateCcw className={`w-4 h-4 ${isReopening ? 'animate-spin' : ''}`} />
-              <span>{isReopening ? 'Açılıyor...' : 'Seferi Yeniden Aç'}</span>
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Grid 1: Dolu ve Boş Ürün Sayım Tablosu */}
       <div className="bg-white  rounded-2xl border border-slate-200  p-5 shadow-xs space-y-4">

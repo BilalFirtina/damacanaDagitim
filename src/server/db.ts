@@ -290,15 +290,6 @@ interface LocalDatabaseSchema {
   deliveries: Delivery[];
   lastCleanupDate?: string;
   purgedCountTotal?: number;
-  reopenAudit?: Array<{
-    dispatchId: string;
-    reopenedByUserId: string;
-    reopenedByUserName: string;
-    reason: string;
-    previousClosedAt: string | null;
-    previousReconciliation: EndOfDayReconciliation | null;
-    reopenedAt: string;
-  }>;
   loadingAudit?: Array<{
     dispatchId: string;
     changedByUserId: string;
@@ -306,6 +297,17 @@ interface LocalDatabaseSchema {
     previousItems: LoadedItem[];
     newItems: LoadedItem[];
     changedAt: string;
+  }>;
+  cancellationAudit?: Array<{
+    dispatchId: string;
+    driverId: string;
+    driverName: string;
+    vehiclePlate: string;
+    cancelledByUserId: string;
+    cancelledByUserName: string;
+    reason: string;
+    snapshot: any;
+    cancelledAt: string;
   }>;
   financialAudit?: Array<{
     customerId: string;
@@ -2260,7 +2262,7 @@ export async function getDispatches(date?: string): Promise<Dispatch[]> {
       const { data, error } = await query;
       if (!error && data) {
         const ids = data.map((d: any) => d.id);
-        const [items, recons] = await Promise.all([
+        const [items, recons, activeDeliveries, linkedPayments] = await Promise.all([
           fetchInChunks(
             ids,
             (batch) =>
@@ -2279,16 +2281,44 @@ export async function getDispatches(date?: string): Promise<Dispatch[]> {
                 .in('dispatch_id', batch),
             '[Supabase getDispatches recon]'
           ),
+          fetchInChunks(
+            ids,
+            (batch) =>
+              supabase!
+                .from('deliveries')
+                .select('dispatch_id')
+                .in('dispatch_id', batch)
+                .neq('status', 'cancelled'),
+            '[Supabase getDispatches active deliveries]'
+          ),
+          fetchInChunks(
+            ids,
+            (batch) =>
+              supabase!
+                .from('customer_payments')
+                .select('dispatch_id')
+                .in('dispatch_id', batch)
+                .not('dispatch_id', 'is', null),
+            '[Supabase getDispatches linked payments]'
+          ),
         ]);
         const itemsByDispatch = groupRows(items, (i: any) => i.dispatch_id);
         const reconsByDispatch = groupRows(recons, (r: any) => r.dispatch_id);
-        return data.map((row: any) =>
-          mapDispatchFromDb(
+        const activeDeliveryDispatchIds = new Set(
+          activeDeliveries.map((row: any) => row.dispatch_id)
+        );
+        const linkedPaymentDispatchIds = new Set(
+          linkedPayments.map((row: any) => row.dispatch_id)
+        );
+        return data.map((row: any) => ({
+          ...mapDispatchFromDb(
             row,
             itemsByDispatch.get(row.id) || [],
             reconsByDispatch.get(row.id) || []
-          )
-        );
+          ),
+          hasActiveDeliveries: activeDeliveryDispatchIds.has(row.id),
+          hasLinkedPayments: linkedPaymentDispatchIds.has(row.id),
+        }));
       }
       console.error('[Supabase getDispatches]', error);
     } catch (e) {
@@ -2307,8 +2337,10 @@ export async function getDispatches(date?: string): Promise<Dispatch[]> {
       const ids = res.rows.map((r) => r.id);
       let items: any[] = [];
       let recons: any[] = [];
+      let activeDeliveries: any[] = [];
+      let linkedPayments: any[] = [];
       if (ids.length > 0) {
-        const [iRes, rRes] = await Promise.all([
+        const [iRes, rRes, dRes, pRes] = await Promise.all([
           pgPool.query(
             'SELECT dispatch_id, product_id, quantity FROM public.dispatch_items WHERE dispatch_id = ANY($1::text[])',
             [ids]
@@ -2317,25 +2349,46 @@ export async function getDispatches(date?: string): Promise<Dispatch[]> {
             'SELECT dispatch_id, product_id, expected_qty, counted_qty FROM public.dispatch_reconciliation_items WHERE dispatch_id = ANY($1::text[])',
             [ids]
           ),
+          pgPool.query(
+            "SELECT DISTINCT dispatch_id FROM public.deliveries WHERE dispatch_id = ANY($1::text[]) AND status <> 'cancelled'",
+            [ids]
+          ),
+          pgPool.query(
+            'SELECT DISTINCT dispatch_id FROM public.customer_payments WHERE dispatch_id = ANY($1::text[])',
+            [ids]
+          ),
         ]);
         items = iRes.rows;
         recons = rRes.rows;
+        activeDeliveries = dRes.rows;
+        linkedPayments = pRes.rows;
       }
-      return res.rows.map((row) =>
-        mapDispatchFromDb(
+      const activeDeliveryDispatchIds = new Set(activeDeliveries.map((row) => row.dispatch_id));
+      const linkedPaymentDispatchIds = new Set(linkedPayments.map((row) => row.dispatch_id));
+      return res.rows.map((row) => ({
+        ...mapDispatchFromDb(
           row,
           items.filter((i) => i.dispatch_id === row.id),
           recons.filter((r) => r.dispatch_id === row.id)
-        )
-      );
+        ),
+        hasActiveDeliveries: activeDeliveryDispatchIds.has(row.id),
+        hasLinkedPayments: linkedPaymentDispatchIds.has(row.id),
+      }));
     } catch (e) {
       console.error('[Postgres getDispatches]', e);
     }
   }
 
-  let list = loadLocalDatabase().dispatches;
+  const db = loadLocalDatabase();
+  let list = db.dispatches;
   if (date) list = list.filter((d) => d.date === date);
-  return list;
+  return list.map((dispatch) => ({
+    ...dispatch,
+    hasActiveDeliveries: (db.deliveries || []).some(
+      (delivery) => delivery.dispatchId === dispatch.id && delivery.status !== 'cancelled'
+    ),
+    hasLinkedPayments: false,
+  }));
 }
 
 // Tek bir seferi, yükleme ve mutabakat kalemleriyle birlikte okur.
@@ -2385,7 +2438,7 @@ function parseDispatchOperationError(e: any, fnName: string): DispatchDbError {
   if (/DISPATCH_ALREADY_COMPLETED/.test(raw)) {
     return new DispatchDbError(
       'DISPATCH_ALREADY_COMPLETED',
-      'Sefer zaten kapatılmış. Değişiklik için yönetici seferi yeniden açmalıdır.'
+      'Sefer zaten kapatılmış. Kapatılmış sefer değiştirilemez ve yeniden açılamaz.'
     );
   }
   if (/DISPATCH_NOT_FOUND/.test(raw)) {
@@ -2393,6 +2446,21 @@ function parseDispatchOperationError(e: any, fnName: string): DispatchDbError {
   }
   if (/INVALID_DISPATCH_STATE/.test(raw)) {
     return new DispatchDbError('INVALID_DISPATCH_STATE', 'Sefer bu işlem için uygun durumda değil.');
+  }
+  if (/DELIVERIES_EXIST/.test(raw)) {
+    return new DispatchDbError(
+      'DELIVERIES_EXIST',
+      'Teslimat başladığı için yükleme düzeltilemez/iptal edilemez. Önce teslimatları iptal edin.'
+    );
+  }
+  if (/PAYMENTS_EXIST/.test(raw)) {
+    return new DispatchDbError(
+      'PAYMENTS_EXIST',
+      'Sefere bağlı tahsilat olduğu için yükleme düzeltilemez/iptal edilemez.'
+    );
+  }
+  if (/REASON_REQUIRED/.test(raw)) {
+    return new DispatchDbError('REASON_REQUIRED', 'İptal için en az 3 karakterlik gerekçe girin.');
   }
   if (/CUSTOMER_NOT_FOUND/.test(raw)) {
     return new DispatchDbError('CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
@@ -2413,12 +2481,6 @@ function parseDispatchOperationError(e: any, fnName: string): DispatchDbError {
     return new DispatchDbError(
       'PAYMENT_DATA_INCONSISTENT',
       'Teslimat ödeme tutarları birbiriyle uyuşmuyor. Eski/eksik ödeme verisi kapatmaya yansıtılamaz; yönetici düzeltmesi gerekir.'
-    );
-  }
-  if (/HISTORICAL_REOPEN_BLOCKED/.test(raw)) {
-    return new DispatchDbError(
-      'HISTORICAL_REOPEN_BLOCKED',
-      'Kapanış zamanı doğrulanmamış eski sefer güvenli biçimde yeniden açılamaz. Yönetici düzeltme süreci gerekir.'
     );
   }
   if (/INSUFFICIENT_VEHICLE_STOCK/.test(raw)) {
@@ -2612,19 +2674,26 @@ export async function updateDispatchLoading(
   if (db.dispatches[idx].status === 'completed') {
     throw new DispatchDbError(
       'DISPATCH_ALREADY_COMPLETED',
-      'Kapatılmış sefer değiştirilemez. Yönetici seferi yeniden açmalıdır.'
+      'Kapatılmış sefer değiştirilemez ve yeniden açılamaz.'
     );
   }
-  if (db.dispatches[idx].status !== 'pending_confirmation') {
+  if (
+    db.dispatches[idx].status !== 'pending_confirmation' &&
+    db.dispatches[idx].status !== 'in_transit'
+  ) {
     throw new DispatchDbError(
       'INVALID_DISPATCH_STATE',
-      'Yükleme kalemleri yalnızca şoför onayından önce değiştirilebilir.'
+      'Sefer bu durumda yükleme düzeltmesine uygun değil.'
     );
   }
-  if (db.deliveries.some((d) => d.dispatchId === id)) {
+  if (
+    db.deliveries.some(
+      (d) => d.dispatchId === id && d.status !== 'cancelled'
+    )
+  ) {
     throw new DispatchDbError(
-      'INVALID_DISPATCH_STATE',
-      'Teslimat başladıktan sonra yükleme listesi değiştirilemez.'
+      'DELIVERIES_EXIST',
+      'Teslimat başladığı için yükleme düzeltilemez. Önce teslimatları iptal edin.'
     );
   }
 
@@ -2641,6 +2710,88 @@ export async function updateDispatchLoading(
   });
   saveLocalDatabase(db);
   return db.dispatches[idx];
+}
+
+// Yükleme iptali: sefer fiziksel olarak silinir, denetim kaydı korunur.
+// Yalnızca yönetici çağırabilir; sunucu ayrıca requireAdmin ile korur.
+export async function cancelDispatch(
+  id: string,
+  reason: string,
+  actor: { id: string; name: string }
+): Promise<{ cancelled: boolean }> {
+  const payload = {
+    dispatch_id: id,
+    cancelled_by_user_id: actor.id,
+    cancelled_by_user_name: actor.name,
+    reason,
+  };
+
+  if (isSupabaseOperational() && supabase) {
+    try {
+      const { error } = await supabase.rpc('cancel_dispatch', { p: payload });
+      if (error) throw error;
+      return { cancelled: true };
+    } catch (e: any) {
+      console.error('[Supabase cancel_dispatch]', e);
+      throw parseDispatchOperationError(e, 'cancel_dispatch');
+    }
+  }
+
+  if (pgPool) {
+    try {
+      await pgPool.query('SELECT public.cancel_dispatch($1::jsonb)', [
+        JSON.stringify(payload),
+      ]);
+      return { cancelled: true };
+    } catch (e: any) {
+      console.error('[Postgres cancel_dispatch]', e);
+      throw parseDispatchOperationError(e, 'cancel_dispatch');
+    }
+  }
+
+  const db = loadLocalDatabase();
+  const idx = db.dispatches.findIndex((d) => d.id === id);
+  if (idx === -1) throw new DispatchDbError('DISPATCH_NOT_FOUND', 'Sefer bulunamadı.');
+  const dispatch = db.dispatches[idx];
+  if (dispatch.status === 'completed') {
+    throw new DispatchDbError(
+      'DISPATCH_ALREADY_COMPLETED',
+      'Kapatılmış sefer iptal edilemez ve yeniden açılamaz.'
+    );
+  }
+  if (
+    db.deliveries.some(
+      (d) => d.dispatchId === id && d.status !== 'cancelled'
+    )
+  ) {
+    throw new DispatchDbError(
+      'DELIVERIES_EXIST',
+      'Teslimat başladığı için yükleme iptal edilemez. Önce teslimatları iptal edin.'
+    );
+  }
+
+  const cancelledDeliveries = db.deliveries.filter(
+    (d) => d.dispatchId === id && d.status === 'cancelled'
+  );
+  if (!Array.isArray(db.cancellationAudit)) db.cancellationAudit = [];
+  db.cancellationAudit.push({
+    dispatchId: dispatch.id,
+    driverId: dispatch.driverId,
+    driverName: dispatch.driverName,
+    vehiclePlate: dispatch.vehiclePlate,
+    cancelledByUserId: actor.id,
+    cancelledByUserName: actor.name,
+    reason,
+    snapshot: {
+      dispatch,
+      cancelledDeliveries,
+    },
+    cancelledAt: new Date().toISOString(),
+  });
+  db.deliveries = db.deliveries.filter((d) => d.dispatchId !== id);
+  db.dispatches = db.dispatches.filter((d) => d.id !== id);
+  saveLocalDatabase(db);
+  return { cancelled: true };
 }
 
 export interface CloseDispatchInput {
@@ -3251,6 +3402,7 @@ export async function updateDispatch(id: string, updates: Partial<Dispatch>): Pr
 // 5. Deliveries
 export async function getDeliveries(params?: {
   dispatchId?: string;
+  dispatchIds?: string[];
   driverId?: string;
   customerId?: string;
   date?: string;
@@ -3258,21 +3410,47 @@ export async function getDeliveries(params?: {
 }): Promise<Delivery[]> {
   if (isSupabaseOperational() && supabase) {
     try {
-      let query = supabase.from('deliveries').select('*').order('timestamp', { ascending: false });
-      if (!params?.includeCancelled) query = query.neq('status', 'cancelled');
-      if (params?.dispatchId) query = query.eq('dispatch_id', params.dispatchId);
-      if (params?.driverId) query = query.eq('driver_id', params.driverId);
-      if (params?.customerId) query = query.eq('customer_id', params.customerId);
-      if (params?.date) {
-        // Gün filtresi sunucu tarafında dar bir aralığa indirilir; kesin gün
-        // eşleşmesi aşağıda bellekte doğrulanır. Böylece tüm geçmiş çekilmez
-        // ve idx_deliveries_timestamp indeksi kullanılabilir.
-        const window = utcDayQueryWindow(params.date);
-        if (window) {
-          query = query.gte('timestamp', window.lower).lt('timestamp', window.upper);
+      let data: any[] | null = null;
+      let error: any = null;
+
+      if (params?.dispatchIds) {
+        if (params.dispatchIds.length === 0) return [];
+        data = await fetchInChunks(
+          params.dispatchIds,
+          (batch) => {
+            let q = supabase!
+              .from('deliveries')
+              .select('*')
+              .in('dispatch_id', batch)
+              .order('timestamp', { ascending: false });
+            if (!params?.includeCancelled) q = q.neq('status', 'cancelled');
+            return q;
+          },
+          '[Supabase getDeliveries by dispatch ids]'
+        );
+      } else {
+        let query = supabase
+          .from('deliveries')
+          .select('*')
+          .order('timestamp', { ascending: false });
+        if (!params?.includeCancelled) query = query.neq('status', 'cancelled');
+        if (params?.dispatchId) query = query.eq('dispatch_id', params.dispatchId);
+        if (params?.driverId) query = query.eq('driver_id', params.driverId);
+        if (params?.customerId) query = query.eq('customer_id', params.customerId);
+        if (params?.date) {
+          // Gün filtresi sunucu tarafında dar bir aralığa indirilir; kesin gün
+          // eşleşmesi aşağıda bellekte doğrulanır. Böylece tüm geçmiş çekilmez
+          // ve idx_deliveries_timestamp indeksi kullanılabilir.
+          const window = utcDayQueryWindow(params.date);
+          if (window) {
+            query = query.gte('timestamp', window.lower).lt('timestamp', window.upper);
+          }
         }
+        const result = await query;
+        data = result.data;
+        error = result.error;
       }
-      const { data, error } = await query;
+
       if (!error && data) {
         const ids = data.map((d: any) => d.id);
         const [items, containers] = await Promise.all([
@@ -3307,6 +3485,11 @@ export async function getDeliveries(params?: {
         if (params?.date) {
           list = list.filter((d) => isSameUtcDate(d.timestamp, params.date!));
         }
+        // dispatchIds yolu birden çok chunk'tan geldiği için sıra garanti
+        // değildir; raporlarda kronolojik sıra için burada sıralanır.
+        if (params?.dispatchIds) {
+          list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        }
         return list;
       }
       console.error('[Supabase getDeliveries]', error);
@@ -3318,6 +3501,10 @@ export async function getDeliveries(params?: {
   let list = [...loadLocalDatabase().deliveries];
   if (!params?.includeCancelled) list = list.filter((d) => d.status !== 'cancelled');
   if (params?.dispatchId) list = list.filter((d) => d.dispatchId === params.dispatchId);
+  if (params?.dispatchIds) {
+    const allowed = new Set(params.dispatchIds);
+    list = list.filter((d) => allowed.has(d.dispatchId));
+  }
   if (params?.driverId) list = list.filter((d) => d.driverId === params.driverId);
   if (params?.customerId) list = list.filter((d) => d.customerId === params.customerId);
   if (params?.date) list = list.filter((d) => isSameUtcDate(d.timestamp, params.date!));
@@ -4063,153 +4250,6 @@ export async function replaceDeliveryAtomic(
   );
 }
 
-// Yönetici tarafından kapatılmış seferi denetim kaydıyla yeniden açar.
-// Asıl yetki sınırı sunucu katmanındaki requireAdmin'dir. DB fonksiyonu,
-// çağıranın verdiği kullanıcı kimliğinin role='admin' olmasını kontrol eder;
-// ancak bu kimlik DB oturumundan doğrulanmadığı için tek başına güvenilir
-// değildir (bkz. migration güven sınırı notu).
-export async function reopenDispatch(
-  dispatchId: string,
-  managerUserId: string,
-  managerUserName: string,
-  reason: string
-): Promise<{ reopened: boolean; code?: string; dispatch: Dispatch | null }> {
-  const payload = {
-    dispatch_id: dispatchId,
-    reopened_by_user_id: managerUserId,
-    reopened_by_user_name: managerUserName,
-    reason,
-  };
-
-  const parseReopenError = (e: any): DeliveryDbError => {
-    const raw = `${e?.message || ''} ${e?.details || ''} ${e?.hint || ''}`.trim();
-    if (/REASON_REQUIRED/.test(raw)) {
-      return new DeliveryDbError('REASON_REQUIRED', 'Yeniden açma için geçerli bir gerekçe girin.');
-    }
-    if (/NOT_AUTHORIZED/.test(raw)) {
-      return new DeliveryDbError('NOT_AUTHORIZED', 'Bu işlemi yalnızca yönetici yapabilir.');
-    }
-    if (/DISPATCH_NOT_FOUND/.test(raw)) {
-      return new DeliveryDbError('DISPATCH_NOT_FOUND', 'Sefer bulunamadı.');
-    }
-    if (/HISTORICAL_REOPEN_BLOCKED/.test(raw)) {
-      return new DeliveryDbError(
-        'HISTORICAL_REOPEN_BLOCKED',
-        'Kapanış zamanı doğrulanmamış eski sefer güvenli biçimde yeniden açılamaz.'
-      );
-    }
-    if (/REOPEN_WRITE_NOT_APPLIED/.test(raw)) {
-      return new DeliveryDbError(
-        'WRITE_NOT_APPLIED',
-        'Yeniden açma veritabanına uygulanmadı. Sistem yöneticisiyle iletişime geçin.'
-      );
-    }
-    if (String(e?.code || '') === '23505') {
-      return new DeliveryDbError(
-        'ACTIVE_DISPATCH_CONFLICT',
-        "Şoförün başka bir aktif seferi var. Yeniden açmadan önce onu kapatın."
-      );
-    }
-    if (hasRpcMissingSignature(e)) {
-      return new DeliveryDbError(
-        'MIGRATION_REQUIRED',
-        'Sunucu veritabanı güncellemesi eksik: reopen_dispatch fonksiyonu bulunamadı.'
-      );
-    }
-    return new DeliveryDbError('DB_ERROR', 'Sefer yeniden açılamadı. Lütfen tekrar deneyin.');
-  };
-
-  if (isSupabaseOperational() && supabase) {
-    let data: any;
-    try {
-      const rpc = await supabase.rpc('reopen_dispatch', { p: payload });
-      if (rpc.error) throw rpc.error;
-      data = rpc.data;
-    } catch (e: any) {
-      console.error('[Supabase reopen_dispatch]', e);
-      throw parseReopenError(e);
-    }
-
-    const all = await getDispatches();
-    return {
-      reopened: !!data?.reopened,
-      code: data?.code,
-      dispatch: all.find((d) => d.id === dispatchId) || null,
-    };
-  }
-
-  if (pgPool) {
-    let data: any;
-    try {
-      const res = await pgPool.query('SELECT public.reopen_dispatch($1::jsonb) AS result', [
-        JSON.stringify(payload),
-      ]);
-      data = res.rows[0]?.result;
-    } catch (e: any) {
-      console.error('[Postgres reopen_dispatch]', e);
-      throw parseReopenError(e);
-    }
-
-    const all = await getDispatches();
-    return {
-      reopened: !!data?.reopened,
-      code: data?.code,
-      dispatch: all.find((d) => d.id === dispatchId) || null,
-    };
-  }
-
-  const db = loadLocalDatabase();
-  const manager = db.users.find((u) => u.id === managerUserId);
-  if (!manager || manager.role !== 'admin') {
-    throw new DeliveryDbError('NOT_AUTHORIZED', 'Bu işlemi yalnızca yönetici yapabilir.');
-  }
-  const idx = db.dispatches.findIndex((d) => d.id === dispatchId);
-  if (idx === -1) {
-    throw new DeliveryDbError('DISPATCH_NOT_FOUND', 'Sefer bulunamadı.');
-  }
-  const dispatch = db.dispatches[idx];
-  if (dispatch.status !== 'completed') {
-    return { reopened: false, code: 'NOT_COMPLETED', dispatch };
-  }
-  const previousReconciliation = dispatch.endOfDayReconciliation || null;
-  if (!previousReconciliation?.closedAt) {
-    throw new DeliveryDbError(
-      'HISTORICAL_REOPEN_BLOCKED',
-      'Kapanış zamanı doğrulanmamış eski sefer güvenli biçimde yeniden açılamaz.'
-    );
-  }
-  const activeConflict = db.dispatches.some(
-    (d) =>
-      d.id !== dispatchId &&
-      d.status !== 'completed' &&
-      (d.driverId === dispatch.driverId || d.vehiclePlate === dispatch.vehiclePlate)
-  );
-  if (activeConflict) {
-    throw new DeliveryDbError(
-      'ACTIVE_DISPATCH_CONFLICT',
-      'Şoförün veya aracın başka bir aktif seferi var. Yeniden açmadan önce onu kapatın.'
-    );
-  }
-
-  if (!Array.isArray(db.reopenAudit)) db.reopenAudit = [];
-  db.reopenAudit.push({
-    dispatchId,
-    reopenedByUserId: managerUserId,
-    reopenedByUserName: managerUserName,
-    reason,
-    previousClosedAt: previousReconciliation.closedAt,
-    previousReconciliation,
-    reopenedAt: new Date().toISOString(),
-  });
-
-  db.dispatches[idx] = {
-    ...dispatch,
-    status: 'in_transit',
-  };
-  saveLocalDatabase(db);
-  return { reopened: true, dispatch: db.dispatches[idx] };
-}
-
 // 6. Retention 60-Day Cleanup Routine (Every night at 23:00 and manual on-demand)
 let inMemoryLastPurged = 0;
 let inMemoryLastCleanupDate: string | null = null;
@@ -4374,7 +4414,7 @@ export async function runRetentionCleanup(): Promise<RetentionRunResult> {
     const isOld = (value: string | undefined) =>
       !value || new Date(value).getTime() < cutoffMs;
     db.financialAudit = (db.financialAudit || []).filter((a) => !isOld(a.changedAt));
-    db.reopenAudit = (db.reopenAudit || []).filter((a) => !isOld(a.reopenedAt));
+    db.cancellationAudit = (db.cancellationAudit || []).filter((a) => !isOld(a.cancelledAt));
     db.loadingAudit = (db.loadingAudit || []).filter((a) => !isOld(a.changedAt));
     db.retentionArchive = (db.retentionArchive || []).filter(
       (a) => !a.purgeDate || a.purgeDate >= thresholdDateStr
@@ -4757,6 +4797,54 @@ export async function getCustomerPaymentsByDispatch(
   return [];
 }
 
+// Birden fazla sefere bağlı tahsilatlar (yükleme günü raporu).
+export async function getCustomerPaymentsByDispatchIds(
+  dispatchIds: string[]
+): Promise<CustomerPaymentRow[]> {
+  if (!dispatchIds || dispatchIds.length === 0) return [];
+  if (isSupabaseOperational() && supabase) {
+    const data = await fetchInChunks(
+      dispatchIds,
+      (batch) =>
+        supabase!
+          .from('customer_payments')
+          .select('*')
+          .in('dispatch_id', batch)
+          .order('collected_at', { ascending: true }),
+      '[Supabase getCustomerPaymentsByDispatchIds]'
+    );
+    return data.map(mapCustomerPayment);
+  }
+  if (pgPool) {
+    const res = await pgPool.query(
+      'SELECT * FROM public.customer_payments WHERE dispatch_id = ANY($1::text[]) ORDER BY collected_at ASC',
+      [dispatchIds]
+    );
+    return res.rows.map(mapCustomerPayment);
+  }
+  return [];
+}
+
+// Yükleme günü raporu: seçili günün seferlerine bağlı tahsilatlar + sefere
+// bağlı olmayan (yönetici) tahsilatların aynı güne düşenleri.
+export async function getCustomerPaymentsForReport(
+  dispatchIds: string[],
+  date: string
+): Promise<CustomerPaymentRow[]> {
+  const [linked, byDate] = await Promise.all([
+    getCustomerPaymentsByDispatchIds(dispatchIds),
+    getCustomerPaymentsByDate(date),
+  ]);
+  const merged = new Map<string, CustomerPaymentRow>();
+  for (const payment of linked) merged.set(payment.id, payment);
+  for (const payment of byDate) {
+    if (!payment.dispatchId) merged.set(payment.id, payment);
+  }
+  return Array.from(merged.values()).sort((a, b) =>
+    a.collectedAt < b.collectedAt ? 1 : a.collectedAt > b.collectedAt ? -1 : 0
+  );
+}
+
 function mapCustomerPayment(row: any): CustomerPaymentRow {
   return {
     id: row.id,
@@ -4773,12 +4861,12 @@ function mapCustomerPayment(row: any): CustomerPaymentRow {
 
 // =============================================================================
 // BİRLEŞİK İŞLEM GEÇMİŞİ — AGENTS.md Bölüm 10.2
-// Teslimat iptal/düzeltme, sefer yeniden açma ve yükleme düzeltme kayıtları.
+// Teslimat iptal/düzeltme, yükleme düzeltme ve yükleme iptali kayıtları.
 // =============================================================================
 
 export interface DispatchAuditRow {
   id: string;
-  kind: 'dispatch_reopen' | 'dispatch_loading';
+  kind: 'dispatch_cancellation' | 'dispatch_loading';
   dispatchId: string;
   userId: string;
   userName: string;
@@ -4787,16 +4875,16 @@ export interface DispatchAuditRow {
   changedAt: string;
 }
 
-function mapReopenAudit(row: any): DispatchAuditRow {
+function mapCancellationAudit(row: any): DispatchAuditRow {
   return {
-    id: `reopen_${row.id}`,
-    kind: 'dispatch_reopen',
+    id: `cancellation_${row.id}`,
+    kind: 'dispatch_cancellation',
     dispatchId: row.dispatch_id,
-    userId: row.reopened_by_user_id || '',
-    userName: row.reopened_by_user_name || '',
+    userId: row.cancelled_by_user_id || '',
+    userName: row.cancelled_by_user_name || '',
     reason: row.reason || '',
-    detail: 'Kapatılmış sefer yeniden açıldı; önceki mutabakat arşivlendi.',
-    changedAt: row.reopened_at,
+    detail: `Yükleme iptal edildi (${row.vehicle_plate || '-'} · ${row.driver_name || '-'}).`,
+    changedAt: row.created_at,
   };
 }
 
@@ -4815,37 +4903,39 @@ function mapLoadingAudit(row: any): DispatchAuditRow {
   };
 }
 
-export async function getDispatchReopenAudits(limit = 100): Promise<DispatchAuditRow[]> {
+export async function getDispatchCancellationAudits(limit = 100): Promise<DispatchAuditRow[]> {
   const safeLimit = Math.min(Math.max(Math.trunc(limit) || 100, 1), 200);
   if (isSupabaseOperational() && supabase) {
     const { data, error } = await supabase
-      .from('dispatch_reopen_audit')
-      .select('id, dispatch_id, reopened_by_user_id, reopened_by_user_name, reason, reopened_at')
-      .order('reopened_at', { ascending: false })
+      .from('dispatch_cancellation_audit')
+      .select('id, dispatch_id, driver_name, vehicle_plate, cancelled_by_user_id, cancelled_by_user_name, reason, created_at')
+      .order('created_at', { ascending: false })
       .limit(safeLimit);
     if (error) {
-      console.error('[Supabase getDispatchReopenAudits]', error);
-      throw new Error(toTurkishDbError(error, 'Sefer yeniden açma kayıtları sorgulanamadı.'));
+      console.error('[Supabase getDispatchCancellationAudits]', error);
+      throw new Error(toTurkishDbError(error, 'Yükleme iptal kayıtları sorgulanamadı.'));
     }
-    return (data || []).map(mapReopenAudit);
+    return (data || []).map(mapCancellationAudit);
   }
   if (pgPool) {
     const result = await pgPool.query(
-      'SELECT id, dispatch_id, reopened_by_user_id, reopened_by_user_name, reason, reopened_at FROM public.dispatch_reopen_audit ORDER BY reopened_at DESC, id DESC LIMIT $1',
+      'SELECT id, dispatch_id, driver_name, vehicle_plate, cancelled_by_user_id, cancelled_by_user_name, reason, created_at FROM public.dispatch_cancellation_audit ORDER BY created_at DESC, id DESC LIMIT $1',
       [safeLimit]
     );
-    return result.rows.map(mapReopenAudit);
+    return result.rows.map(mapCancellationAudit);
   }
   const db = loadLocalDatabase();
-  return (db.reopenAudit || [])
+  return (db.cancellationAudit || [])
     .map((row, idx) =>
-      mapReopenAudit({
+      mapCancellationAudit({
         id: idx,
         dispatch_id: row.dispatchId,
-        reopened_by_user_id: row.reopenedByUserId,
-        reopened_by_user_name: row.reopenedByUserName,
+        driver_name: row.driverName,
+        vehicle_plate: row.vehiclePlate,
+        cancelled_by_user_id: row.cancelledByUserId,
+        cancelled_by_user_name: row.cancelledByUserName,
         reason: row.reason,
-        reopened_at: row.reopenedAt,
+        created_at: row.cancelledAt,
       })
     )
     .sort((a, b) => (a.changedAt < b.changedAt ? 1 : -1))

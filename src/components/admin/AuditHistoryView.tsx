@@ -4,7 +4,6 @@ import {
   AlertCircle,
   History,
   RefreshCw,
-  RotateCcw,
   Truck,
   XCircle,
 } from 'lucide-react';
@@ -20,10 +19,10 @@ const kindMeta: Record<
     icon: <XCircle className="w-4 h-4" />,
     tone: 'bg-amber-100 text-amber-800  ',
   },
-  dispatch_reopen: {
-    label: 'Sefer',
-    icon: <RotateCcw className="w-4 h-4" />,
-    tone: 'bg-sky-100 text-sky-800  ',
+  dispatch_cancellation: {
+    label: 'İptal',
+    icon: <XCircle className="w-4 h-4" />,
+    tone: 'bg-rose-100 text-rose-800  ',
   },
   dispatch_loading: {
     label: 'Yükleme',
@@ -33,8 +32,8 @@ const kindMeta: Record<
 };
 
 // AGENTS.md Bölüm 10.2 — Stok/işlem geçmişi raporu.
-// Teslimat iptal/düzeltme, sefer yeniden açma ve yükleme düzeltmelerini
-// tek, kronolojik listede birleştirir. Kayıtlar silinemez.
+// Teslimat iptal/düzeltme, yükleme düzeltme ve yükleme iptallerini tek,
+// kronolojik listede birleştirir. Kayıtlar silinemez.
 export const AuditHistoryView: React.FC = () => {
   const [events, setEvents] = useState<AuditHistoryEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,7 +71,7 @@ export const AuditHistoryView: React.FC = () => {
               <span className="break-words">İşlem Geçmişi</span>
             </h2>
             <p className="text-xs text-slate-500">
-              Teslimat iptal/düzeltme, sefer yeniden açma ve yükleme düzeltmeleri. Kayıtlar
+              Teslimat iptal/düzeltme, yükleme düzeltme ve yükleme iptalleri. Kayıtlar
               değiştirilemez ve silinemez.
             </p>
           </div>
@@ -92,7 +91,7 @@ export const AuditHistoryView: React.FC = () => {
             [
               ['all', 'Tümü'],
               ['delivery_correction', 'Teslimat'],
-              ['dispatch_reopen', 'Sefer'],
+              ['dispatch_cancellation', 'İptal'],
               ['dispatch_loading', 'Yükleme'],
             ] as Array<[FilterKind, string]>
           ).map(([kind, label]) => (

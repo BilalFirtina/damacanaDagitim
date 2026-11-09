@@ -54,9 +54,10 @@ WHERE table_schema = 'public'
     OR (table_name = 'delivery_container_returns' AND column_name IN (
       'delivery_id', 'deposit_type', 'received_qty', 'diff_qty'
     ))
-    OR (table_name = 'dispatch_reopen_audit' AND column_name IN (
-      'id', 'dispatch_id', 'reopened_by_user_id', 'reopened_by_user_name',
-      'reason', 'reopened_at', 'previous_closed_at', 'previous_reconciliation'
+    OR (table_name = 'dispatch_cancellation_audit' AND column_name IN (
+      'id', 'dispatch_id', 'driver_id', 'driver_name', 'vehicle_plate',
+      'cancelled_by_user_id', 'cancelled_by_user_name', 'reason',
+      'dispatch_snapshot', 'created_at'
     ))
     OR (table_name = 'dispatch_loading_audit' AND column_name IN (
       'id', 'dispatch_id', 'changed_by_user_id', 'changed_by_user_name',
@@ -78,7 +79,7 @@ FROM (VALUES
   ('customer_empty_balances'), ('customer_product_prices'),
   ('dispatch_items'), ('dispatch_reconciliation_items'),
   ('delivery_items'), ('delivery_container_returns'),
-  ('dispatch_reopen_audit'), ('customer_financial_audit'), ('dispatch_loading_audit')
+  ('dispatch_cancellation_audit'), ('customer_financial_audit'), ('dispatch_loading_audit')
 ) AS t(table_name)
 LEFT JOIN information_schema.columns c
   ON c.table_schema = 'public' AND c.table_name = t.table_name
@@ -99,7 +100,7 @@ WHERE n.nspname = 'public'
     'dispatches', 'deliveries', 'customers', 'customer_empty_balances',
     'customer_product_prices', 'dispatch_items',
     'dispatch_reconciliation_items', 'delivery_items',
-    'delivery_container_returns', 'dispatch_reopen_audit', 'customer_financial_audit', 'dispatch_loading_audit'
+    'delivery_container_returns', 'dispatch_cancellation_audit', 'customer_financial_audit', 'dispatch_loading_audit'
   )
 ORDER BY rel.relname, con.contype, con.conname;
 
@@ -111,7 +112,7 @@ WHERE schemaname = 'public'
     'dispatches', 'deliveries', 'customers', 'customer_empty_balances',
     'customer_product_prices', 'dispatch_items',
     'dispatch_reconciliation_items', 'delivery_items',
-    'delivery_container_returns', 'dispatch_reopen_audit', 'customer_financial_audit', 'dispatch_loading_audit'
+    'delivery_container_returns', 'dispatch_cancellation_audit', 'customer_financial_audit', 'dispatch_loading_audit'
   )
 ORDER BY tablename, indexname;
 
@@ -124,7 +125,7 @@ WHERE n.nspname = 'public'
     'dispatches', 'deliveries', 'customers', 'customer_empty_balances',
     'customer_product_prices', 'dispatch_items',
     'dispatch_reconciliation_items', 'delivery_items',
-    'delivery_container_returns', 'dispatch_reopen_audit', 'customer_financial_audit', 'dispatch_loading_audit'
+    'delivery_container_returns', 'dispatch_cancellation_audit', 'customer_financial_audit', 'dispatch_loading_audit'
   )
 ORDER BY c.relname;
 
@@ -135,7 +136,7 @@ WHERE schemaname = 'public'
     'dispatches', 'deliveries', 'customers', 'customer_empty_balances',
     'customer_product_prices', 'dispatch_items',
     'dispatch_reconciliation_items', 'delivery_items',
-    'delivery_container_returns', 'dispatch_reopen_audit', 'customer_financial_audit', 'dispatch_loading_audit'
+    'delivery_container_returns', 'dispatch_cancellation_audit', 'customer_financial_audit', 'dispatch_loading_audit'
   )
 ORDER BY tablename, policyname;
 
@@ -150,7 +151,7 @@ JOIN pg_class c ON c.oid = t.tgrelid
 JOIN pg_namespace n ON n.oid = c.relnamespace
 WHERE n.nspname = 'public'
   AND NOT t.tgisinternal
-  AND c.relname IN ('dispatch_reopen_audit', 'customer_financial_audit', 'dispatch_loading_audit')
+  AND c.relname IN ('dispatch_cancellation_audit', 'customer_financial_audit', 'dispatch_loading_audit')
 ORDER BY c.relname, t.tgname;
 
 \echo '=== 7. Fonksiyonlar, SECURITY ve search_path ==='
@@ -165,8 +166,8 @@ JOIN pg_namespace n ON n.oid = p.pronamespace
 WHERE n.nspname = 'public'
   AND p.proname IN (
     'apply_delivery', 'update_dispatch_loading', 'close_dispatch',
-    'reopen_dispatch', 'admin_update_customer', 'rpc_authorization_ready',
-    'prevent_dispatch_reopen_audit_mutation'
+    'cancel_dispatch', 'admin_update_customer', 'rpc_authorization_ready',
+    'prevent_dispatch_cancellation_audit_mutation'
   )
 ORDER BY p.proname;
 
@@ -176,8 +177,8 @@ FROM information_schema.routine_privileges
 WHERE routine_schema = 'public'
   AND routine_name IN (
     'apply_delivery', 'update_dispatch_loading', 'close_dispatch',
-    'reopen_dispatch', 'admin_update_customer', 'rpc_authorization_ready',
-    'prevent_dispatch_reopen_audit_mutation'
+    'cancel_dispatch', 'admin_update_customer', 'rpc_authorization_ready',
+    'prevent_dispatch_cancellation_audit_mutation'
   )
 ORDER BY routine_name, grantee;
 
@@ -186,7 +187,7 @@ SELECT table_schema, table_name, grantee, privilege_type
 FROM information_schema.table_privileges
 WHERE table_schema = 'public'
   AND table_name IN (
-    'dispatch_reopen_audit', 'customer_financial_audit', 'dispatch_loading_audit', 'deliveries', 'dispatches', 'customers',
+    'dispatch_cancellation_audit', 'customer_financial_audit', 'dispatch_loading_audit', 'deliveries', 'dispatches', 'customers',
     'customer_empty_balances', 'customer_product_prices', 'dispatch_items',
     'dispatch_reconciliation_items', 'delivery_items',
     'delivery_container_returns'
@@ -197,7 +198,7 @@ ORDER BY table_name, grantee, privilege_type;
 SELECT object_schema, object_name, grantee, privilege_type
 FROM information_schema.role_usage_grants
 WHERE object_schema = 'public'
-  AND object_name IN ('dispatch_reopen_audit_id_seq', 'customer_financial_audit_id_seq', 'dispatch_loading_audit_id_seq')
+  AND object_name IN ('dispatch_cancellation_audit_id_seq', 'customer_financial_audit_id_seq', 'dispatch_loading_audit_id_seq')
 ORDER BY grantee, privilege_type;
 
 \echo '=== 11. Mevcut aktivite: açık seferler ve kapatma tutarlılığı ==='
@@ -227,7 +228,7 @@ ORDER BY driver_id;
 \echo '=== 13. Eski audit FK'si kalmış mı? ==='
 SELECT conname, pg_get_constraintdef(oid) AS tanim
 FROM pg_constraint
-WHERE conrelid = to_regclass('public.dispatch_reopen_audit')
+WHERE conrelid = to_regclass('public.dispatch_cancellation_audit')
   AND contype = 'f';
 
 \echo '=== 14. RPC yetki sertleştirmesi hazır mı? ==='

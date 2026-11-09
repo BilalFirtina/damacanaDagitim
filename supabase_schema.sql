@@ -266,17 +266,20 @@ ON CONFLICT (code) DO UPDATE SET
 -- 14. TESLİMAT GÜVENİLİRLİĞİ / ATOMİK RPC NESNELERİ
 --
 -- Bu dosya yalnızca temel şemayı tanımlar. Aşağıdaki nesneler
--- migrations/20261019_delivery_atomic_and_reopen.sql tarafından eklenir:
+-- migrations/20261019_delivery_atomic_and_reopen.sql ve
+-- migrations/20261109_dispatch_correction_and_reopen_removal.sql tarafından eklenir:
 --
---   * public.dispatch_reopen_audit  (yalnızca SELECT + INSERT; immutable)
+--   * public.dispatch_cancellation_audit (yalnızca SELECT + INSERT; immutable)
 --   * public.customer_financial_audit (yalnızca SELECT + INSERT; immutable)
 --   * public.dispatch_loading_audit (yalnızca SELECT + INSERT; immutable)
 --   * public.prevent_dispatch_reopen_audit_mutation()
 --   * public.apply_delivery(jsonb)              -- atomik + idempotent teslimat
---   * public.update_dispatch_loading(jsonb)     -- yalnızca pending_confirmation
+--   * public.update_dispatch_loading(jsonb)     -- admin; aktif teslimat/tahsilat yoksa
+--   * public.cancel_dispatch(jsonb)             -- admin; fiziksel silme + denetim
 --   * public.close_dispatch(jsonb)              -- atomik gün sonu kapatma
---   * public.reopen_dispatch(jsonb)             -- yönetici + denetim kaydı
 --   * public.admin_update_customer(jsonb)       -- beklenen değer kontrollü yazım
+--
+-- Not: Kapatılmış seferler yeniden açılamaz; reopen nesneleri kaldırılmıştır.
 --
 -- Uygulama sırası (yeni kurulum):
 --   1) Bu dosya ile temel şema oluşturulur.

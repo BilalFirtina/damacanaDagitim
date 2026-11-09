@@ -15,6 +15,11 @@ interface ConsolidatedDailyReportProps {
   users: User[];
   products: Product[];
   customers?: Customer[];
+  date?: string;
+  onDateChange?: (date: string) => void;
+  reportData?: any;
+  loading?: boolean;
+  onReload?: () => void;
 }
 
 const POS_ICON_SRC = '/pos%20simgesi.png';
@@ -105,41 +110,70 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
   users,
   products,
   customers = [],
+  date,
+  onDateChange,
+  reportData: controlledReportData,
+  loading: controlledLoading,
+  onReload,
 }) => {
   const todayStr = todayUtcDateStr();
-  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [reportData, setReportData] = useState<any>(null);
+  const [internalDate, setInternalDate] = useState<string>(todayStr);
+  const [internalLoading, setInternalLoading] = useState<boolean>(false);
+  const [internalReportData, setInternalReportData] = useState<any>(null);
+
+  const selectedDate = date ?? internalDate;
+  const setSelectedDate = onDateChange ?? setInternalDate;
+  const isLoading = controlledLoading ?? internalLoading;
+  const data = controlledReportData ?? internalReportData;
 
   const loadReport = async () => {
+    if (onReload) {
+      onReload();
+      return;
+    }
     try {
-      setLoading(true);
-      const data = await fetchDailyReport(selectedDate, 'all');
-      setReportData(data);
+      setInternalLoading(true);
+      const result = await fetchDailyReport(selectedDate, 'all');
+      setInternalReportData(result);
     } catch (err: any) {
       console.error('Failed to load consolidated report', err);
     } finally {
-      setLoading(false);
+      setInternalLoading(false);
     }
   };
 
   useEffect(() => {
-    loadReport();
-  }, [selectedDate]);
+    if (controlledReportData !== undefined) return;
+    let cancelled = false;
+    setInternalLoading(true);
+    fetchDailyReport(selectedDate, 'all')
+      .then((result) => {
+        if (!cancelled) setInternalReportData(result);
+      })
+      .catch((err) => {
+        console.error('Failed to load consolidated report', err);
+      })
+      .finally(() => {
+        if (!cancelled) setInternalLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDate, controlledReportData]);
 
   const report = useMemo(
     () =>
       buildConsolidatedReport({
-        deliveries: reportData?.deliveries || [],
-        payments: (reportData?.customerPayments || []) as ReportPayment[],
-        dispatches: reportData?.dispatches || [],
+        deliveries: data?.deliveries || [],
+        payments: (data?.customerPayments || []) as ReportPayment[],
+        dispatches: data?.dispatches || [],
         products,
         customers,
         drivers: users
           .filter((u) => u.role === 'driver')
           .map((u) => ({ id: u.id, name: u.name })),
       }),
-    [reportData, products, customers, users]
+    [data, products, customers, users]
   );
 
   const { icmal } = report;
@@ -185,11 +219,11 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
 
           <button
             onClick={loadReport}
-            disabled={loading}
+            disabled={isLoading}
             className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600"
             title="Raporu Yenile"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
 
           <button
@@ -504,7 +538,16 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                           {section.rows.map((row, index) => (
                             <tr key={row.key} className="border-b border-black align-top">
                               <td className="p-2 border-r border-black font-mono">{index + 1}</td>
-                              <td className="p-2 border-r border-black font-mono">{timeText(row)}</td>
+                              <td className="p-2 border-r border-black font-mono">
+                                <div className="flex flex-col gap-0.5">
+                                  <span>{timeText(row)}</span>
+                                  {row.hasLateDelivery && (
+                                    <span className="inline-block w-fit rounded bg-amber-100 px-1 py-0.5 text-[9px] font-bold text-amber-900">
+                                      Geç Teslimat
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
                               <td className="p-2 border-r border-black font-bold break-words">
                                 {row.customerName}
                                 {row.customerAddress && (
@@ -566,7 +609,14 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                 <div className="text-[10px] break-words">{row.customerAddress}</div>
                               )}
                             </div>
-                            <span className="shrink-0 font-mono text-[10px]">{timeText(row)}</span>
+                            <span className="shrink-0 text-right font-mono text-[10px]">
+                              <span className="block">{timeText(row)}</span>
+                              {row.hasLateDelivery && (
+                                <span className="mt-0.5 inline-block rounded bg-amber-100 px-1 py-0.5 text-[9px] font-bold text-amber-900">
+                                  Geç Teslimat
+                                </span>
+                              )}
+                            </span>
                           </div>
                           <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11px]">
                             <div className="min-w-0">

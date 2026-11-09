@@ -12,6 +12,9 @@ export type DispatchRuleCode =
   | 'FORBIDDEN_FIELD'
   | 'NO_FIELDS'
   | 'INVALID_LOAD_ITEMS'
+  | 'DELIVERIES_EXIST'
+  | 'PAYMENTS_EXIST'
+  | 'REASON_REQUIRED'
   | 'EXPECTATION_REQUIRED'
   | 'BALANCE_CONFLICT'
   | 'EMPTY_CONFLICT'
@@ -26,8 +29,9 @@ export interface DispatchRuleResult<T = undefined> {
 
 export interface DispatchUpdateContext {
   role?: string | null;
-  canLoadVehicle?: boolean;
   status: DispatchStatus | string;
+  hasActiveDeliveries?: boolean;
+  hasLinkedPayments?: boolean;
 }
 
 export interface DispatchUpdateResult extends DispatchRuleResult<{ loadedItems: LoadedItem[] }> {
@@ -40,6 +44,7 @@ function fail<T>(errorCode: DispatchRuleCode, message: string): DispatchRuleResu
 
 // PUT /api/dispatches/:id yalnızca yükleme kalemlerini değiştirebilir.
 // Durum, mutabakat ve kapatan kullanıcı alanları bu uçtan ASLA yazılamaz.
+// Yükleme düzeltmesi yalnızca depo yöneticisine açıktır.
 export function validateDispatchUpdate(
   body: any,
   ctx: DispatchUpdateContext
@@ -61,22 +66,36 @@ export function validateDispatchUpdate(
     );
   }
 
+  if (ctx.role !== 'admin') {
+    return fail(
+      'NOT_AUTHORIZED',
+      'Yükleme düzeltmesi yalnızca depo yöneticisi tarafından yapılabilir.'
+    );
+  }
+
   if (ctx.status === 'completed') {
     return fail(
       'DISPATCH_ALREADY_COMPLETED',
-      'Kapatılmış sefer değiştirilemez. Yönetici seferi yeniden açmalıdır.'
+      'Kapatılmış sefer değiştirilemez ve yeniden açılamaz.'
     );
   }
 
-  if (ctx.status !== 'pending_confirmation') {
+  if (ctx.status !== 'pending_confirmation' && ctx.status !== 'in_transit') {
+    return fail('INVALID_STATE', 'Sefer bu durumda yükleme düzeltmesine uygun değil.');
+  }
+
+  if (ctx.hasActiveDeliveries) {
     return fail(
-      'INVALID_STATE',
-      'Yükleme kalemleri yalnızca şoför onayından önce değiştirilebilir.'
+      'DELIVERIES_EXIST',
+      'Teslimat başladığı için yükleme düzeltilemez. Önce teslimatları iptal edin.'
     );
   }
 
-  if (!(ctx.role === 'admin' || ctx.canLoadVehicle)) {
-    return fail('NOT_AUTHORIZED', 'Bu seferin yükleme kalemlerini değiştirme yetkiniz yok.');
+  if (ctx.hasLinkedPayments) {
+    return fail(
+      'PAYMENTS_EXIST',
+      'Sefere bağlı tahsilat olduğu için yükleme düzeltilemez.'
+    );
   }
 
   const rawItems = (body as any).loadedItems;
@@ -100,6 +119,61 @@ export function validateDispatchUpdate(
   }
 
   return { ok: true, value: { loadedItems }, updates: { loadedItems } };
+}
+
+export interface DispatchCancelContext {
+  role?: string | null;
+  status: DispatchStatus | string;
+  hasActiveDeliveries?: boolean;
+  hasLinkedPayments?: boolean;
+  reason?: string | null;
+}
+
+export interface DispatchCancelResult extends DispatchRuleResult<{ reason: string }> {}
+
+// Yükleme iptali yalnızca depo yöneticisine açıktır. Fiziksel silme
+// sunucu/DB tarafında denetim kaydıyla birlikte yapılır.
+export function validateDispatchCancel(
+  ctx: DispatchCancelContext
+): DispatchCancelResult {
+  if (ctx.role !== 'admin') {
+    return fail(
+      'NOT_AUTHORIZED',
+      'Yükleme iptali yalnızca depo yöneticisi tarafından yapılabilir.'
+    );
+  }
+
+  if (ctx.status === 'completed') {
+    return fail(
+      'DISPATCH_ALREADY_COMPLETED',
+      'Kapatılmış sefer iptal edilemez ve yeniden açılamaz.'
+    );
+  }
+
+  if (ctx.status !== 'pending_confirmation' && ctx.status !== 'in_transit') {
+    return fail('INVALID_STATE', 'Sefer bu durumda iptal edilemez.');
+  }
+
+  if (ctx.hasActiveDeliveries) {
+    return fail(
+      'DELIVERIES_EXIST',
+      'Teslimat başladığı için yükleme iptal edilemez. Önce teslimatları iptal edin.'
+    );
+  }
+
+  if (ctx.hasLinkedPayments) {
+    return fail(
+      'PAYMENTS_EXIST',
+      'Sefere bağlı tahsilat olduğu için yükleme iptal edilemez.'
+    );
+  }
+
+  const reason = String(ctx.reason || '').trim();
+  if (reason.length < 3) {
+    return fail('REASON_REQUIRED', 'Yükleme iptali için en az 3 karakterlik gerekçe girin.');
+  }
+
+  return { ok: true, value: { reason } };
 }
 
 export interface TransitionResult extends DispatchRuleResult {
@@ -133,11 +207,6 @@ export function validateCloseTransition(status: string): TransitionResult {
     );
   }
   return fail('INVALID_STATE', 'Sefer bu durumda kapatılamaz.');
-}
-
-export function validateReopenTransition(status: string): TransitionResult {
-  if (status === 'completed') return { ok: true };
-  return fail('INVALID_STATE', 'Yalnızca kapatılmış seferler yeniden açılabilir.');
 }
 
 export interface ExpectedValueResult extends DispatchRuleResult {
