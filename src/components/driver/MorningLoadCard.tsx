@@ -673,6 +673,10 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
         </div>
       </div>
 
+      <p className="mt-3 text-[11px] font-semibold text-slate-500">
+        Yükleme düzeltmesi veya iptali için depo yöneticisine başvurun.
+      </p>
+
       <div className="mt-3 flex flex-wrap items-center gap-2 py-1 text-xs w-full max-w-full">
         <span className="text-slate-400 text-[11px] font-medium whitespace-nowrap">
           Yüklenenler:
