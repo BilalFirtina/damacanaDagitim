@@ -569,7 +569,12 @@ export function normalizeDelivery(deliveryData: any, forceOffline = false): Deli
     status = 'partial';
   }
 
-  const emptyRecv = deliveryData.emptyContainersReceived || { damacana: 0, camDamacana: 0, tup: 0 };
+  const emptyRecv = deliveryData.emptyContainersReceived || {};
+  const emptyDiff = deliveryData.emptyContainersDiff || {};
+  const receivedCamDamacana =
+    Number(emptyRecv.camDamacana ?? emptyRecv.cam_damacana) || 0;
+  const diffCamDamacana =
+    Number(emptyDiff.camDamacana ?? emptyDiff.cam_damacana) || 0;
 
   return {
     id:
@@ -598,17 +603,21 @@ export function normalizeDelivery(deliveryData: any, forceOffline = false): Deli
     },
     emptyContainersReceived: {
       damacana: Number(emptyRecv.damacana) || 0,
-      camDamacana: Number(emptyRecv.camDamacana) || 0,
+      camDamacana: receivedCamDamacana,
+      cam_damacana: receivedCamDamacana,
       tup: Number(emptyRecv.tup) || 0,
       tupBuyuk: Number(emptyRecv.tupBuyuk) || 0,
       tupKucuk: Number(emptyRecv.tupKucuk) || 0,
+      sebil: Number(emptyRecv.sebil) || 0,
     },
-    emptyContainersDiff: deliveryData.emptyContainersDiff || {
-      damacana: 0,
-      camDamacana: 0,
-      tup: 0,
-      tupBuyuk: 0,
-      tupKucuk: 0,
+    emptyContainersDiff: {
+      damacana: Number(emptyDiff.damacana) || 0,
+      camDamacana: diffCamDamacana,
+      cam_damacana: diffCamDamacana,
+      tup: Number(emptyDiff.tup) || 0,
+      tupBuyuk: Number(emptyDiff.tupBuyuk) || 0,
+      tupKucuk: Number(emptyDiff.tupKucuk) || 0,
+      sebil: Number(emptyDiff.sebil) || 0,
     },
     notes: deliveryData.notes || '',
     isOfflineSync: forceOffline || Boolean(deliveryData.isOfflineSync),

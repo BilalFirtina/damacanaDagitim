@@ -19,9 +19,34 @@ export interface ReportPayment {
 }
 
 export interface ReportDispatch {
+  id?: string;
   driverId: string;
   driverName: string;
   vehiclePlate: string;
+  loadedItems?: Array<{ productId: string; quantity: number }>;
+}
+
+export interface DispatchReturnProduct {
+  productId: string;
+  name: string;
+  unit: string;
+  loaded: number;
+  delivered: number;
+  remaining: number;
+  isDeposit: boolean;
+}
+
+export interface DispatchReturnSummary {
+  dispatchId: string;
+  driverId: string;
+  driverName: string;
+  vehiclePlate: string;
+  emptyDamacana: number;
+  emptyCamDamacana: number;
+  emptyTupBuyuk: number;
+  emptyTupKucuk: number;
+  sebilReceived: number;
+  remainingProducts: DispatchReturnProduct[];
 }
 
 export interface ReportDriver {
@@ -72,6 +97,7 @@ export interface ConsolidatedDriverSection {
   cash: number;
   pos: number;
   deliveredAmount: number;
+  returns: DispatchReturnSummary[];
 }
 
 export interface ConsolidatedCustomerPaymentRow {
@@ -203,6 +229,17 @@ export function buildConsolidatedReport(input: {
   const rows = new Map<string, ConsolidatedRow>();
   const platesByDriver = new Map<string, Set<string>>();
   const driverSeen = new Map<string, string>();
+  const deliveredByDispatch = new Map<string, Map<string, number>>();
+  const emptyByDispatch = new Map<
+    string,
+    {
+      damacana: number;
+      camDamacana: number;
+      tupBuyuk: number;
+      tupKucuk: number;
+      sebil: number;
+    }
+  >();
 
   const rowFor = (
     driverId: string,
@@ -279,6 +316,38 @@ export function buildConsolidatedReport(input: {
       const set = platesByDriver.get(delivery.driverId) || new Set<string>();
       set.add(delivery.vehiclePlate);
       platesByDriver.set(delivery.driverId, set);
+    }
+
+    // Sefer bazında teslim edilen ürünler ve toplanan boşlar. Yükleme günü
+    // raporunda bir sonraki güne kayan teslimatlar da buraya girer.
+    if (delivery.dispatchId) {
+      let deliveredMap = deliveredByDispatch.get(delivery.dispatchId);
+      if (!deliveredMap) {
+        deliveredMap = new Map<string, number>();
+        deliveredByDispatch.set(delivery.dispatchId, deliveredMap);
+      }
+      for (const item of delivery.deliveredItems || []) {
+        const productId = String(item?.productId || '');
+        if (!productId) continue;
+        deliveredMap.set(
+          productId,
+          (deliveredMap.get(productId) || 0) + toNumber(item.quantity)
+        );
+      }
+
+      let empty = emptyByDispatch.get(delivery.dispatchId);
+      if (!empty) {
+        empty = { damacana: 0, camDamacana: 0, tupBuyuk: 0, tupKucuk: 0, sebil: 0 };
+        emptyByDispatch.set(delivery.dispatchId, empty);
+      }
+      empty.damacana += toNumber(delivery.emptyContainersReceived?.damacana);
+      empty.camDamacana += toNumber(
+        delivery.emptyContainersReceived?.camDamacana ??
+          delivery.emptyContainersReceived?.cam_damacana
+      );
+      empty.tupBuyuk += toNumber(delivery.emptyContainersReceived?.tupBuyuk);
+      empty.tupKucuk += toNumber(delivery.emptyContainersReceived?.tupKucuk);
+      empty.sebil += toNumber(delivery.emptyContainersReceived?.sebil);
     }
 
     const customer = customerById.get(delivery.customerId);
@@ -436,6 +505,63 @@ export function buildConsolidatedReport(input: {
     row.lastAt = row.times.length ? Math.max(...row.times) : 0;
   }
 
+  // Sefer bazında depoya iade özeti. Sadece adedi sıfırdan büyük kalemler
+  // tutulur; tamamen boş seferler rapora hiç girmez.
+  const returnsByDriver = new Map<string, DispatchReturnSummary[]>();
+  for (const dispatch of input.dispatches) {
+    if (!dispatch.id) continue;
+
+    const empty = emptyByDispatch.get(dispatch.id) || {
+      damacana: 0,
+      camDamacana: 0,
+      tupBuyuk: 0,
+      tupKucuk: 0,
+      sebil: 0,
+    };
+    const deliveredMap = deliveredByDispatch.get(dispatch.id);
+    const remainingProducts: DispatchReturnProduct[] = [];
+
+    for (const loaded of dispatch.loadedItems || []) {
+      const loadedQuantity = toNumber(loaded.quantity);
+      const deliveredQuantity = deliveredMap?.get(loaded.productId) || 0;
+      const remaining = loadedQuantity - deliveredQuantity;
+      if (remaining <= 0) continue;
+      const product = productById.get(loaded.productId);
+      remainingProducts.push({
+        productId: loaded.productId,
+        name: product?.name || loaded.productId,
+        unit: product?.unit || 'Adet',
+        loaded: loadedQuantity,
+        delivered: deliveredQuantity,
+        remaining,
+        isDeposit: Boolean(product?.isDeposit),
+      });
+    }
+
+    const hasEmpty =
+      empty.damacana > 0 ||
+      empty.camDamacana > 0 ||
+      empty.tupBuyuk > 0 ||
+      empty.tupKucuk > 0 ||
+      empty.sebil > 0;
+    if (!hasEmpty && remainingProducts.length === 0) continue;
+
+    const driverReturns = returnsByDriver.get(dispatch.driverId) || [];
+    driverReturns.push({
+      dispatchId: dispatch.id,
+      driverId: dispatch.driverId,
+      driverName: dispatch.driverName,
+      vehiclePlate: dispatch.vehiclePlate,
+      emptyDamacana: empty.damacana,
+      emptyCamDamacana: empty.camDamacana,
+      emptyTupBuyuk: empty.tupBuyuk,
+      emptyTupKucuk: empty.tupKucuk,
+      sebilReceived: empty.sebil,
+      remainingProducts,
+    });
+    returnsByDriver.set(dispatch.driverId, driverReturns);
+  }
+
   const drivers: ConsolidatedDriverSection[] = Array.from(driverSeen.entries())
     .map(([driverId, driverName]) => {
       const driverRows = allRows
@@ -453,6 +579,7 @@ export function buildConsolidatedReport(input: {
         cash: driverRows.reduce((sum, row) => sum + rowCash(row), 0),
         pos: driverRows.reduce((sum, row) => sum + rowPos(row), 0),
         deliveredAmount: driverRows.reduce((sum, row) => sum + row.deliveredAmount, 0),
+        returns: returnsByDriver.get(driverId) || [],
       };
     })
     .filter((section) => section.rows.length > 0 || section.plates.length > 0)
