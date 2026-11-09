@@ -276,22 +276,20 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                   setSelectedDispatchId(disp.id);
                   setSuccessMsg(false);
                 }}
-                className={`px-3 py-2 sm:py-1.5 rounded-xl text-sm sm:text-xs font-bold transition-all flex flex-wrap items-center gap-x-2 gap-y-1 max-w-full ${
+                className={`w-full sm:w-auto px-3.5 py-2.5 rounded-xl text-sm sm:text-[15px] font-bold transition-all flex flex-col items-start text-left gap-1 max-w-full ${
                   disp.id === currentViewDispatch.id
                     ? 'bg-sky-600 text-white shadow-xs'
                     : 'bg-white  text-slate-700  hover:bg-slate-50'
                 }`}
               >
-                <span>
+                <span className="break-words">
                   Sefer #{idx + 1} ({disp.vehiclePlate})
                 </span>
-                {isStaleDispatch(disp, todayStr) && (
-                  <span className="text-xs sm:text-[10px] px-1.5 py-0.2 rounded font-bold bg-rose-100 text-rose-800  ">
-                    Önceki gün sonlandırılmadı
-                  </span>
-                )}
+                <span className="text-[13px] sm:text-sm font-semibold break-words">
+                  Şoför: {disp.driverName}
+                </span>
                 <span
-                  className={`text-xs sm:text-[10px] px-1.5 py-0.2 rounded font-mono ${
+                  className={`text-xs sm:text-[13px] px-2 py-0.5 rounded font-mono ${
                     disp.status === 'completed'
                       ? 'bg-emerald-100 text-emerald-800  '
                       : 'bg-amber-100 text-amber-800  '
@@ -299,9 +297,11 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                 >
                   {disp.status === 'completed' ? 'Dağıtım Tamamlandı' : 'Açık'}
                 </span>
-                <span className="w-full text-[13px] font-semibold break-words sm:w-auto sm:text-[10px]">
-                  Şoför: {disp.driverName}
-                </span>
+                {isStaleDispatch(disp, todayStr) && (
+                  <span className="text-xs sm:text-[13px] px-2 py-0.5 rounded font-bold bg-rose-100 text-rose-800 break-words">
+                    Önceki gün sonlandırılmadı
+                  </span>
+                )}
               </button>
             ))}
           </div>
