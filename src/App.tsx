@@ -311,7 +311,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-50/80  text-slate-900  flex flex-col font-sans">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-50/80  text-slate-900  flex flex-col font-sans print:min-h-0 print:bg-white print:overflow-visible">
       {/* Top Bar Header with 3-Zone Contract */}
       <Header
         currentUser={currentUser}
@@ -323,16 +323,16 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl 2xl:max-w-[1500px] w-full mx-auto p-3 sm:p-6 pb-20 min-w-0 overflow-x-hidden">
+      <main className="flex-1 max-w-7xl 2xl:max-w-[1500px] w-full mx-auto p-3 sm:p-6 pb-20 min-w-0 overflow-x-hidden print:max-w-none print:p-0 print:pb-0 print:overflow-visible">
         {isUpdateReady && (
-          <div className="mb-4">
+          <div className="mb-4 print:hidden">
             <UpdateAvailableBanner />
           </div>
         )}
 
         {/* AGENTS.md Bölüm 9.1: kapatılamaz uyarı, sefer sonlandırılana kadar her girişte görünür */}
         {currentUser.role === 'driver' && staleDispatch && activeTab !== 'eod' && (
-          <div className="mb-4">
+          <div className="mb-4 print:hidden">
             <StaleDispatchWarning
               dispatch={staleDispatch}
               onCompleteEndOfDay={() => {

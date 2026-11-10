@@ -8,7 +8,7 @@ export const UpdateAvailableBanner: React.FC = () => {
   return (
     <div
       role="status"
-      className="w-full max-w-full min-w-0 rounded-2xl border-2 border-sky-300  bg-sky-50  p-3 sm:p-4 shadow-xs flex flex-col sm:flex-row sm:items-center gap-3"
+      className="w-full max-w-full min-w-0 rounded-2xl border-2 border-sky-300  bg-sky-50  p-3 sm:p-4 shadow-xs flex flex-col sm:flex-row sm:items-center gap-3 print:hidden"
     >
       <div className="flex items-start gap-2.5 min-w-0 flex-1">
         <div className="w-9 h-9 rounded-xl bg-sky-600 text-white flex items-center justify-center shrink-0 shadow-sm">

@@ -88,7 +88,7 @@ export const Header: React.FC<HeaderProps> = ({
   const visibleNavItems = mobileNavItems.filter((item) => !item.adminOnly || isAdmin);
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95  backdrop-blur-md border-b border-slate-200  shadow-xs w-full max-w-full">
+    <header className="sticky top-0 z-40 bg-white/95  backdrop-blur-md border-b border-slate-200  shadow-xs w-full max-w-full print:hidden">
       {/* Top Bar Header */}
       <div className="w-full px-2.5 sm:px-6 flex items-center justify-between gap-2 sm:gap-4 md:gap-8 h-14 sm:h-16 max-w-full">
         {/* Zone 1: Brand Wordmark (Directly displayed, no open/close toggle) */}

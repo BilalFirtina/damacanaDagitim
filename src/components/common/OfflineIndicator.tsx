@@ -64,7 +64,7 @@ export const OfflineIndicator: React.FC = () => {
       <button
         type="button"
         onClick={() => setCollapsed(false)}
-        className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-4 z-30 min-w-11 min-h-11 px-2.5 rounded-xl bg-slate-900/95 text-white shadow-2xl border border-slate-700 backdrop-blur-md flex items-center justify-center gap-1.5"
+        className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-4 z-30 min-w-11 min-h-11 px-2.5 rounded-xl bg-slate-900/95 text-white shadow-2xl border border-slate-700 backdrop-blur-md flex items-center justify-center gap-1.5 print:hidden"
         aria-label={
           hasUnsynced
             ? `Senkronizasyon bekleyen ${pendingCount} kayıt. Detayları aç.`
@@ -93,7 +93,7 @@ export const OfflineIndicator: React.FC = () => {
   return (
     <div
       onClick={() => setCollapsed(true)}
-      className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-4 z-30 max-w-[calc(100vw-2rem)] flex flex-wrap items-center gap-2 rounded-xl bg-slate-900/95 text-white px-3.5 py-2 shadow-2xl border border-slate-700 backdrop-blur-md text-sm cursor-pointer"
+      className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-4 z-30 max-w-[calc(100vw-2rem)] flex flex-wrap items-center gap-2 rounded-xl bg-slate-900/95 text-white px-3.5 py-2 shadow-2xl border border-slate-700 backdrop-blur-md text-sm cursor-pointer print:hidden"
       title="Daraltmak için dokunun"
     >
       {!isOnline ? (
