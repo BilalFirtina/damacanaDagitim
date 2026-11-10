@@ -396,23 +396,33 @@ const CANONICAL_SEED_PRODUCTS: Product[] = [
   },
   {
     id: 'prod_pet_hayat_1_5l_6',
-    name: "Hayat 1.5 lt Pet Su (6'lı Koli)",
+    name: "Hayat 1.5 lt Pet Su (6'lı Paket)",
     category: 'pet',
     defaultUnitPrice: 110,
     isDeposit: false,
     depositType: 'none',
-    unit: 'Koli',
+    unit: 'Paket',
     description: '6 adet 1.5 litre pet şişe su'
   },
   {
     id: 'prod_pet_hayat_0_5l_12',
-    name: "Hayat 0.5 lt Pet Su (12'li Koli)",
+    name: "Hayat 0.5 lt Pet Su (12'li Paket)",
     category: 'pet',
     defaultUnitPrice: 120,
     isDeposit: false,
     depositType: 'none',
-    unit: 'Koli',
+    unit: 'Paket',
     description: '12 adet 500 ml pet şişe doğal kaynak suyu'
+  },
+  {
+    id: 'prod_pet_cam_su_0_33_12',
+    name: "0.33 lt Cam Su (12'li Koli)",
+    category: 'pet',
+    defaultUnitPrice: 400,
+    isDeposit: false,
+    depositType: 'none',
+    unit: 'Koli',
+    description: "0.33 litre cam şişe su - 12'li koli"
   },
   {
     id: 'prod_soda_beypazari_24',
@@ -443,6 +453,46 @@ const CANONICAL_SEED_PRODUCTS: Product[] = [
     depositType: 'none',
     unit: 'Koli',
     description: 'Limonlu maden suyu 200ml cam şişe'
+  },
+  {
+    id: 'prod_soda_sirma_meyveli_24',
+    name: "Sırma Meyveli Soda (24'lü Paket)",
+    category: 'soda',
+    defaultUnitPrice: 350,
+    isDeposit: false,
+    depositType: 'none',
+    unit: 'Paket',
+    description: "Sırma marka meyveli soda - 24'lü paket"
+  },
+  {
+    id: 'prod_soda_narli_24',
+    name: "Narlı Soda (24'lü Paket)",
+    category: 'soda',
+    defaultUnitPrice: 350,
+    isDeposit: false,
+    depositType: 'none',
+    unit: 'Paket',
+    description: "Narlı soda - 24'lü paket"
+  },
+  {
+    id: 'prod_soda_karpuz_cilek_24',
+    name: "Karpuz Çilek Soda (24'lü Paket)",
+    category: 'soda',
+    defaultUnitPrice: 350,
+    isDeposit: false,
+    depositType: 'none',
+    unit: 'Paket',
+    description: "Karpuz çilek aromalı soda - 24'lü paket"
+  },
+  {
+    id: 'prod_soda_nigde_gazoz_24',
+    name: "Niğde Gazozu (24'lü Paket)",
+    category: 'soda',
+    defaultUnitPrice: 350,
+    isDeposit: false,
+    depositType: 'none',
+    unit: 'Paket',
+    description: "Niğde gazozu - 24'lü paket"
   },
   {
     id: 'prod_bardak_karton_6_5oz_3000',
@@ -503,6 +553,36 @@ const CANONICAL_SEED_PRODUCTS: Product[] = [
     depositType: 'none',
     unit: 'Paket',
     description: 'Dökme çay 1 kg paket'
+  },
+  {
+    id: 'prod_seker_dokme',
+    name: 'Dökme Şeker',
+    category: 'bardak',
+    defaultUnitPrice: 400,
+    isDeposit: false,
+    depositType: 'none',
+    unit: 'Koli',
+    description: 'Dökme şeker - koli'
+  },
+  {
+    id: 'prod_seker_sargili',
+    name: 'Sargılı Şeker',
+    category: 'bardak',
+    defaultUnitPrice: 400,
+    isDeposit: false,
+    depositType: 'none',
+    unit: 'Koli',
+    description: 'Sargılı şeker - koli'
+  },
+  {
+    id: 'prod_tahta_karistirici',
+    name: 'Tahta Karıştırıcı',
+    category: 'bardak',
+    defaultUnitPrice: 100,
+    isDeposit: false,
+    depositType: 'none',
+    unit: 'Paket',
+    description: 'Tahta karıştırıcı - paket'
   }
 ];
 
