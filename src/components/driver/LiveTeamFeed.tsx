@@ -217,10 +217,10 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
             )}
           </div>
 
-          <div className="flex w-full min-w-0 flex-wrap items-stretch gap-2">
+          <div className="flex w-full min-w-0 flex-col gap-2 min-[426px]:flex-row min-[426px]:flex-wrap min-[426px]:items-stretch">
             <button
               onClick={() => setFilterDriverId('all')}
-              className={`flex min-w-0 flex-auto items-center justify-center whitespace-nowrap px-2.5 py-1 rounded-xl text-xs font-semibold transition-all ${
+              className={`flex w-full min-w-0 items-center justify-center whitespace-nowrap px-2.5 py-1 rounded-xl text-xs font-semibold transition-all min-[426px]:w-auto min-[426px]:flex-auto sm:min-h-11 sm:py-2 ${
                 filterDriverId === 'all'
                   ? 'bg-slate-800 text-white   shadow-xs'
                   : 'bg-slate-100  text-slate-600  hover:bg-slate-200'
@@ -237,7 +237,7 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
                 <button
                   key={driver.id}
                   onClick={() => setFilterDriverId(isSelected ? 'all' : driver.id)}
-                  className={`flex min-w-0 flex-auto items-center justify-center gap-1.5 whitespace-nowrap px-3 py-1 rounded-xl text-xs font-bold transition-all border ${
+                  className={`flex w-full min-w-0 items-center justify-center gap-1.5 whitespace-nowrap px-3 py-1 rounded-xl text-xs font-bold transition-all border min-[426px]:w-auto min-[426px]:flex-auto sm:min-h-11 sm:py-2 ${
                     pal.badgeClass
                   } ${
                     isSelected
