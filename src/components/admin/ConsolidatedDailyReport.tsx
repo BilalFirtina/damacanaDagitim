@@ -712,14 +712,14 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                 <table className="w-full text-xs border border-black border-collapse text-left">
                                   <thead>
                                     <tr className="border-b border-black bg-white">
-                                      <th className="p-0 border-r border-black text-center align-middle">Kalem</th>
+                                      <th className="p-0 border-r border-black text-left align-middle">Kalem</th>
                                       <th className="p-0 text-center align-middle w-24">Adet</th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {ret.emptyDamacana > 0 && (
                                       <tr className="border-b border-black last:border-b-0 align-middle">
-                                        <td className="p-0 border-r border-black text-center align-middle font-bold">Boş Damacana</td>
+                                        <td className="p-0 border-r border-black text-left align-middle font-bold">Boş Damacana</td>
                                         <td className="p-0 text-center align-middle font-mono font-bold tabular-nums">
                                           {ret.emptyDamacana}
                                         </td>
@@ -727,7 +727,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                     )}
                                     {ret.emptyCamDamacana > 0 && (
                                       <tr className="border-b border-black last:border-b-0 align-middle">
-                                        <td className="p-0 border-r border-black text-center align-middle font-bold">Boş Cam Damacana</td>
+                                        <td className="p-0 border-r border-black text-left align-middle font-bold">Boş Cam Damacana</td>
                                         <td className="p-0 text-center align-middle font-mono font-bold tabular-nums">
                                           {ret.emptyCamDamacana}
                                         </td>
@@ -735,7 +735,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                     )}
                                     {ret.emptyTupBuyuk > 0 && (
                                       <tr className="border-b border-black last:border-b-0 align-middle">
-                                        <td className="p-0 border-r border-black text-center align-middle font-bold">Büyük Boş Tüp</td>
+                                        <td className="p-0 border-r border-black text-left align-middle font-bold">Büyük Boş Tüp</td>
                                         <td className="p-0 text-center align-middle font-mono font-bold tabular-nums">
                                           {ret.emptyTupBuyuk}
                                         </td>
@@ -743,7 +743,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                     )}
                                     {ret.emptyTupKucuk > 0 && (
                                       <tr className="border-b border-black last:border-b-0 align-middle">
-                                        <td className="p-0 border-r border-black text-center align-middle font-bold">Küçük Boş Tüp</td>
+                                        <td className="p-0 border-r border-black text-left align-middle font-bold">Küçük Boş Tüp</td>
                                         <td className="p-0 text-center align-middle font-mono font-bold tabular-nums">
                                           {ret.emptyTupKucuk}
                                         </td>
@@ -751,7 +751,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                     )}
                                     {ret.sebilReceived > 0 && (
                                       <tr className="border-b border-black last:border-b-0 align-middle">
-                                        <td className="p-0 border-r border-black text-center align-middle font-bold">Alınan Sebil</td>
+                                        <td className="p-0 border-r border-black text-left align-middle font-bold">Alınan Sebil</td>
                                         <td className="p-0 text-center align-middle font-mono font-bold tabular-nums">
                                           {ret.sebilReceived}
                                         </td>
@@ -772,7 +772,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                 <table className="w-full text-xs border border-black border-collapse text-left">
                                   <thead>
                                     <tr className="border-b border-black bg-white">
-                                      <th className="p-0 border-r border-black text-center align-middle">Ürün</th>
+                                      <th className="p-0 border-r border-black text-left align-middle">Ürün</th>
                                       <th className="p-0 border-r border-black text-center align-middle w-20">Arabaya Yüklenen</th>
                                       <th className="p-0 border-r border-black text-center align-middle w-24">Teslim Edilen</th>
                                       <th className="p-0 text-center align-middle w-28">Depoya İndirilecek</th>
@@ -784,7 +784,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                         key={product.productId}
                                         className="border-b border-black last:border-b-0 align-middle"
                                       >
-                                        <td className="p-0 border-r border-black text-center align-middle font-bold break-words">
+                                        <td className="p-0 border-r border-black text-left align-middle font-bold break-words">
                                           {product.name}
                                         </td>
                                         <td className="p-0 border-r border-black text-center align-middle font-mono tabular-nums">
