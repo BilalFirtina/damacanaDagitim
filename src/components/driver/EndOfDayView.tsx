@@ -416,7 +416,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
             <thead>
               <tr className="border-b border-slate-100  text-slate-400 font-semibold">
                 <th className="pb-2.5">Ürün Adı</th>
-                <th className="pb-2.5 text-center">Yüklenen</th>
+                <th className="pb-2.5 text-center">Arabaya Yüklenen</th>
                 <th className="pb-2.5 text-center">Teslim Edilen</th>
                 <th className="pb-2.5 text-center text-sky-600">Depoya İndirilecekler</th>
               </tr>

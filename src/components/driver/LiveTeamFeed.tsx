@@ -406,7 +406,7 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
                   {/* Right: Payment Breakdown Card */}
                   <div className="bg-white/80  p-3 rounded-xl border border-slate-200  shrink-0 min-w-[200px] text-right space-y-1 shadow-2xs">
                     <div className="text-[11px] text-slate-500">
-                      {isAccount ? 'Tahsilat' : 'Mal Bedeli / Tutar'}
+                      {isAccount ? 'Faturalı Müşteri' : 'Mal Bedeli / Tutar'}
                     </div>
                     {!isAccount && (
                       <div className="text-base font-extrabold font-mono text-slate-900  tabular-nums">
@@ -417,22 +417,22 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
                     {/* Payment badges */}
                     <div className="flex items-center justify-end gap-1.5 pt-1">
                       {item.collectedPayment.cashAmount > 0 && (
-                        <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                          <Wallet className="w-3 h-3" />
+                        <span className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded bg-emerald-100 text-emerald-800">
+                          <Wallet className="w-3.5 h-3.5" />
                           {item.collectedPayment.cashAmount.toLocaleString('tr-TR')} ₺ Nakit
                         </span>
                       )}
 
                       {item.collectedPayment.posAmount > 0 && (
-                        <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-800">
-                          <CreditCard className="w-3 h-3" />
+                        <span className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded bg-indigo-100 text-indigo-800">
+                          <CreditCard className="w-3.5 h-3.5" />
                           {item.collectedPayment.posAmount.toLocaleString('tr-TR')} ₺ POS
                         </span>
                       )}
 
                       {item.collectedPayment.totalCollected === 0 && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">
-                          {isAccount ? 'Tahsilat kaydı yok' : 'Tahsilat Alınmadı (0 ₺)'}
+                        <span className="text-xs font-bold px-2.5 py-1 rounded bg-amber-100 text-amber-800">
+                          {isAccount ? 'Tahsilat Yapılmadı' : 'Tahsilat Alınmadı (0 ₺)'}
                         </span>
                       )}
                     </div>

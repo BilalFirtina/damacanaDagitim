@@ -525,30 +525,30 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                   <>
                     {/* Masaüstü ve yazdırma: tek tablo */}
                     <div className="hidden md:block print:block overflow-x-auto print:overflow-visible">
-                      <table className="w-full text-xs border-collapse text-left">
+                      <table className="w-full table-fixed text-xs border-collapse text-left">
                         <thead>
                           <tr className="border-b border-black bg-white">
-                            <th className="p-2 border-r border-black w-8">No</th>
-                            <th className="p-2 border-r border-black w-24">Saat</th>
-                            <th className="p-2 border-r border-black w-40">Müşteri Adı</th>
-                            <th className="p-2 border-r border-black text-center w-16">Dolu</th>
-                            <th className="p-2 border-r border-black text-center w-16">Boş</th>
-                            <th className="p-2 border-r border-black">Teslim Edilen Ürünler</th>
-                            <th className="p-2 border-r border-black text-right w-24">Tutar</th>
-                            <th className="p-2 border-r border-black text-right w-28">Tahsilat</th>
-                            <th className="p-2 border-r border-black text-right w-24">Cari Borç</th>
-                            <th className="p-2 w-24">Not</th>
+                            <th className="p-2 border-r border-black w-[3.5%]">No</th>
+                            <th className="p-2 border-r border-black w-[5%]">Saat</th>
+                            <th className="p-2 border-r border-black w-[12%]">Müşteri Adı</th>
+                            <th className="p-2 border-r border-black text-center w-[6%]">Dolu</th>
+                            <th className="p-2 border-r border-black text-center w-[6%]">Boş</th>
+                            <th className="p-2 border-r border-black w-[40%]">Teslim Edilen Ürünler</th>
+                            <th className="p-2 border-r border-black text-right w-[7%]">Tutar</th>
+                            <th className="p-2 border-r border-black text-right w-[7%]">Tahsilat</th>
+                            <th className="p-2 border-r border-black text-right w-[5.5%]">Cari Borç</th>
+                            <th className="p-2 w-[8%]">Not</th>
                           </tr>
                         </thead>
                         <tbody>
                           {section.rows.map((row, index) => (
                             <tr key={row.key} className="border-b border-black align-top">
                               <td className="p-2 border-r border-black font-mono">{index + 1}</td>
-                              <td className="p-2 border-r border-black font-mono">
+                              <td className="p-1 border-r border-black font-mono">
                                 <div className="flex flex-col gap-0.5">
-                                  <span>{timeText(row)}</span>
+                                  <span className="text-[11px]">{timeText(row)}</span>
                                   {row.hasLateDelivery && (
-                                    <span className="inline-block w-fit rounded bg-amber-100 px-1 py-0.5 text-[9px] font-bold text-amber-900">
+                                    <span className="inline-block w-fit max-w-full rounded bg-amber-100 px-0.5 py-0 text-[9px] font-bold leading-tight text-amber-900 break-words">
                                       Geç Teslimat
                                     </span>
                                   )}
@@ -560,22 +560,24 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                   <div className="text-[10px] font-normal mt-0.5">{row.customerAddress}</div>
                                 )}
                               </td>
-                              <td className="p-2 border-r border-black text-center font-mono">
+                              <td className="p-1.5 border-r border-black text-center font-mono">
                                 <LinesCell items={fullLines(row)} />
                               </td>
-                              <td className="p-2 border-r border-black text-center font-mono">
+                              <td className="p-1.5 border-r border-black text-center font-mono">
                                 <LinesCell items={emptyLines(row)} />
                               </td>
                               <td className="p-2 border-r border-black font-medium">
-                                <LinesCell items={productLines(row)} />
+                                <div className="min-[1440px]:whitespace-nowrap">
+                                  <LinesCell items={productLines(row)} />
+                                </div>
                               </td>
-                              <td className="p-2 border-r border-black text-right font-mono font-bold tabular-nums">
+                              <td className="p-1 border-r border-black text-right font-mono font-bold text-[10px] tabular-nums">
                                 {amountText(row)}
                               </td>
                               <td className="p-2 border-r border-black text-right font-mono tabular-nums">
                                 <CollectionCell cash={rowCash(row)} pos={rowPos(row)} />
                               </td>
-                              <td className="p-2 border-r border-black text-right font-mono tabular-nums">
+                              <td className="p-1 border-r border-black text-right font-mono text-[9px] leading-tight tracking-tight tabular-nums">
                                 {balanceText(row)}
                               </td>
                               <td className="p-2 text-[10px] break-words">
@@ -744,7 +746,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                 <thead>
                                   <tr className="border-b border-black bg-white">
                                     <th className="p-2 border-r border-black">Ürün</th>
-                                    <th className="p-2 border-r border-black text-right w-20">Yüklenen</th>
+                                    <th className="p-2 border-r border-black text-right w-20">Arabaya Yüklenen</th>
                                     <th className="p-2 border-r border-black text-right w-24">Teslim Edilen</th>
                                     <th className="p-2 text-right w-28">Depoya İndirilecek</th>
                                   </tr>
