@@ -525,19 +525,19 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                   <>
                     {/* Masaüstü ve yazdırma: tek tablo */}
                     <div className="hidden md:block print:block overflow-x-auto print:overflow-visible">
-                      <table className="w-full table-fixed text-xs border-collapse text-left">
+                      <table className="w-full table-fixed print:table-auto text-xs border-collapse text-left">
                         <thead>
                           <tr className="border-b border-black bg-white">
-                            <th className="p-2 border-r border-black w-[3.5%]">No</th>
-                            <th className="p-2 border-r border-black w-[5%]">Saat</th>
-                            <th className="p-2 border-r border-black w-[12%]">Müşteri Adı</th>
-                            <th className="p-2 border-r border-black text-center w-[6%]">Dolu</th>
-                            <th className="p-2 border-r border-black text-center w-[6%]">Boş</th>
-                            <th className="p-2 border-r border-black w-[40%]">Teslim Edilen Ürünler</th>
-                            <th className="p-2 border-r border-black text-right w-[7%]">Tutar</th>
-                            <th className="p-2 border-r border-black text-right w-[7%]">Tahsilat</th>
-                            <th className="p-2 border-r border-black text-right w-[5.5%]">Cari Borç</th>
-                            <th className="p-2 w-[8%]">Not</th>
+                            <th className="p-2 border-r border-black w-[3.5%] print:w-auto">No</th>
+                            <th className="p-2 border-r border-black w-[5%] print:w-auto">Saat</th>
+                            <th className="p-2 border-r border-black w-[12%] print:w-auto">Müşteri Adı</th>
+                            <th className="p-2 border-r border-black text-center w-[6%] print:w-auto">Dolu</th>
+                            <th className="p-2 border-r border-black text-center w-[6%] print:w-auto">Boş</th>
+                            <th className="p-2 border-r border-black w-[40%] print:w-auto">Teslim Edilen Ürünler</th>
+                            <th className="p-2 border-r border-black text-right w-[7%] print:w-auto">Tutar</th>
+                            <th className="p-2 border-r border-black text-right w-[7%] print:w-auto">Tahsilat</th>
+                            <th className="p-2 border-r border-black text-right w-[5.5%] print:w-auto">Cari Borç</th>
+                            <th className="p-2 w-[8%] print:w-auto">Not</th>
                           </tr>
                         </thead>
                         <tbody>
