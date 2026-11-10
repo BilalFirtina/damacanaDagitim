@@ -705,73 +705,103 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                           </div>
 
                           {hasEmpty && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
-                              {ret.emptyDamacana > 0 && (
-                                <div className="flex justify-between gap-2">
-                                  <span>Boş Damacana</span>
-                                  <strong className="font-mono tabular-nums">{ret.emptyDamacana}</strong>
-                                </div>
-                              )}
-                              {ret.emptyCamDamacana > 0 && (
-                                <div className="flex justify-between gap-2">
-                                  <span>Boş Cam Damacana</span>
-                                  <strong className="font-mono tabular-nums">{ret.emptyCamDamacana}</strong>
-                                </div>
-                              )}
-                              {ret.emptyTupBuyuk > 0 && (
-                                <div className="flex justify-between gap-2">
-                                  <span>Büyük Boş Tüp</span>
-                                  <strong className="font-mono tabular-nums">{ret.emptyTupBuyuk}</strong>
-                                </div>
-                              )}
-                              {ret.emptyTupKucuk > 0 && (
-                                <div className="flex justify-between gap-2">
-                                  <span>Küçük Boş Tüp</span>
-                                  <strong className="font-mono tabular-nums">{ret.emptyTupKucuk}</strong>
-                                </div>
-                              )}
-                              {ret.sebilReceived > 0 && (
-                                <div className="flex justify-between gap-2">
-                                  <span>Alınan Sebil</span>
-                                  <strong className="font-mono tabular-nums">{ret.sebilReceived}</strong>
-                                </div>
-                              )}
+                            <div className="space-y-1">
+                              <div className="text-[11px] font-bold uppercase tracking-wide">
+                                Toplanan Boş Kap ve Ekipmanlar
+                              </div>
+                              <div className="overflow-x-auto print:overflow-visible">
+                                <table className="w-full text-xs border border-black border-collapse text-left">
+                                  <thead>
+                                    <tr className="border-b border-black bg-white">
+                                      <th className="p-2 border-r border-black">Kalem</th>
+                                      <th className="p-2 text-right w-24">Adet</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {ret.emptyDamacana > 0 && (
+                                      <tr className="border-b border-black last:border-b-0">
+                                        <td className="p-2 border-r border-black font-bold">Boş Damacana</td>
+                                        <td className="p-2 text-right font-mono font-bold tabular-nums">
+                                          {ret.emptyDamacana}
+                                        </td>
+                                      </tr>
+                                    )}
+                                    {ret.emptyCamDamacana > 0 && (
+                                      <tr className="border-b border-black last:border-b-0">
+                                        <td className="p-2 border-r border-black font-bold">Boş Cam Damacana</td>
+                                        <td className="p-2 text-right font-mono font-bold tabular-nums">
+                                          {ret.emptyCamDamacana}
+                                        </td>
+                                      </tr>
+                                    )}
+                                    {ret.emptyTupBuyuk > 0 && (
+                                      <tr className="border-b border-black last:border-b-0">
+                                        <td className="p-2 border-r border-black font-bold">Büyük Boş Tüp</td>
+                                        <td className="p-2 text-right font-mono font-bold tabular-nums">
+                                          {ret.emptyTupBuyuk}
+                                        </td>
+                                      </tr>
+                                    )}
+                                    {ret.emptyTupKucuk > 0 && (
+                                      <tr className="border-b border-black last:border-b-0">
+                                        <td className="p-2 border-r border-black font-bold">Küçük Boş Tüp</td>
+                                        <td className="p-2 text-right font-mono font-bold tabular-nums">
+                                          {ret.emptyTupKucuk}
+                                        </td>
+                                      </tr>
+                                    )}
+                                    {ret.sebilReceived > 0 && (
+                                      <tr className="border-b border-black last:border-b-0">
+                                        <td className="p-2 border-r border-black font-bold">Alınan Sebil</td>
+                                        <td className="p-2 text-right font-mono font-bold tabular-nums">
+                                          {ret.sebilReceived}
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
                             </div>
                           )}
 
                           {ret.remainingProducts.length > 0 && (
-                            <div className="overflow-x-auto print:overflow-visible">
-                              <table className="w-full text-xs border border-black border-collapse text-left">
-                                <thead>
-                                  <tr className="border-b border-black bg-white">
-                                    <th className="p-2 border-r border-black">Ürün</th>
-                                    <th className="p-2 border-r border-black text-right w-20">Arabaya Yüklenen</th>
-                                    <th className="p-2 border-r border-black text-right w-24">Teslim Edilen</th>
-                                    <th className="p-2 text-right w-28">Depoya İndirilecek</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {ret.remainingProducts.map((product) => (
-                                    <tr
-                                      key={product.productId}
-                                      className="border-b border-black last:border-b-0 align-top"
-                                    >
-                                      <td className="p-2 border-r border-black font-bold break-words">
-                                        {product.name}
-                                      </td>
-                                      <td className="p-2 border-r border-black text-right font-mono tabular-nums">
-                                        {product.loaded}
-                                      </td>
-                                      <td className="p-2 border-r border-black text-right font-mono tabular-nums">
-                                        {product.delivered}
-                                      </td>
-                                      <td className="p-2 text-right font-mono font-bold tabular-nums">
-                                        {product.remaining} {product.unit}
-                                      </td>
+                            <div className="space-y-1">
+                              <div className="text-[11px] font-bold uppercase tracking-wide">
+                                Araçta Kalan Dolu/Satılmayan Ürünler
+                              </div>
+                              <div className="overflow-x-auto print:overflow-visible">
+                                <table className="w-full text-xs border border-black border-collapse text-left">
+                                  <thead>
+                                    <tr className="border-b border-black bg-white">
+                                      <th className="p-2 border-r border-black">Ürün</th>
+                                      <th className="p-2 border-r border-black text-right w-20">Arabaya Yüklenen</th>
+                                      <th className="p-2 border-r border-black text-right w-24">Teslim Edilen</th>
+                                      <th className="p-2 text-right w-28">Depoya İndirilecek</th>
                                     </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                                  </thead>
+                                  <tbody>
+                                    {ret.remainingProducts.map((product) => (
+                                      <tr
+                                        key={product.productId}
+                                        className="border-b border-black last:border-b-0 align-top"
+                                      >
+                                        <td className="p-2 border-r border-black font-bold break-words">
+                                          {product.name}
+                                        </td>
+                                        <td className="p-2 border-r border-black text-right font-mono tabular-nums">
+                                          {product.loaded}
+                                        </td>
+                                        <td className="p-2 border-r border-black text-right font-mono tabular-nums">
+                                          {product.delivered}
+                                        </td>
+                                        <td className="p-2 text-right font-mono font-bold tabular-nums">
+                                          {product.remaining} {product.unit}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
                             </div>
                           )}
                         </div>
