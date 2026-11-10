@@ -1,5 +1,5 @@
 // Fırtına Gıda Service Worker
-const CACHE_NAME = 'sudagitim-cache-v7';
+const CACHE_NAME = 'sudagitim-cache-v8';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
