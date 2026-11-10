@@ -135,6 +135,36 @@ export function sortProductsByCategory<T extends { category: string; name: strin
   });
 }
 
+// Cam damacana, plastik damacanalardan görsel olarak ayrılır ve yükleme
+// ekranlarında her zaman kategorinin en sonunda gösterilir.
+export function isGlassDamacana(product: {
+  category?: string;
+  depositType?: string;
+  name?: string;
+}): boolean {
+  if (!product || (product.category && product.category !== 'damacana')) return false;
+  if (product.depositType === 'cam_damacana') return true;
+  return normalizeProductSearch(String(product.name || '')).includes('cam damacana');
+}
+
+// Yükleme ekranı sıralaması: kategori içinde cam damacana en sonda,
+// diğer ürünler Türkçe ada göre alfabetik.
+export function sortProductsForLoading<
+  T extends { category: string; name: string; depositType?: string }
+>(items: T[]): T[] {
+  return [...items].sort((a, b) => {
+    const orderA = getProductCategoryOrder(a.category);
+    const orderB = getProductCategoryOrder(b.category);
+    if (orderA !== orderB) return orderA - orderB;
+    if (a.category === 'damacana') {
+      const glassA = isGlassDamacana(a) ? 1 : 0;
+      const glassB = isGlassDamacana(b) ? 1 : 0;
+      if (glassA !== glassB) return glassA - glassB;
+    }
+    return a.name.localeCompare(b.name, 'tr');
+  });
+}
+
 export interface ProductCategoryGroup<T> {
   code: string;
   title: string;
@@ -143,11 +173,14 @@ export interface ProductCategoryGroup<T> {
 }
 
 // Ürünleri kategori sırasına göre gruplar. Boş kategoriler dönmez.
+// İsteğe bağlı sıralayıcı ile ekranlara özel ürün sırası uygulanabilir.
 export function groupProductsByCategory<T extends { category: string; name: string }>(
-  items: T[]
+  items: T[],
+  sorter?: (items: T[]) => T[]
 ): ProductCategoryGroup<T>[] {
   const groups = new Map<string, ProductCategoryGroup<T>>();
-  for (const product of sortProductsByCategory(items)) {
+  const sorted = sorter ? sorter(items) : sortProductsByCategory(items);
+  for (const product of sorted) {
     const code = product.category || 'none';
     let group = groups.get(code);
     if (!group) {

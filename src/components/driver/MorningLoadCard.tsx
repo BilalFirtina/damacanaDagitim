@@ -6,6 +6,8 @@ import {
   AUTHORIZED_VEHICLE_PLATES,
   filterProductsBySearch,
   groupProductsByCategory,
+  isGlassDamacana,
+  sortProductsForLoading,
 } from "../../types";
 import {
   CheckCircle2,
@@ -16,6 +18,8 @@ import {
   UserCheck,
   AlertCircle,
   Search,
+  ChevronDown,
+  Gem,
 } from "lucide-react";
 import { confirmDispatch, createDispatch } from "../../services/api";
 
@@ -70,6 +74,10 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
     {},
   );
   const [productSearch, setProductSearch] = useState("");
+  // Varsayılan olarak yalnızca Damacana Su açıktır; diğer kategoriler kapalıdır.
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>(
+    { damacana: true },
+  );
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -102,7 +110,25 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
     }
     setLoadingError(null);
     setProductSearch("");
+    setOpenCategories({ damacana: true });
     setShowManualLoadModal(true);
+  };
+
+  const handleProductSearchChange = (value: string) => {
+    setProductSearch(value);
+    if (!value.trim()) {
+      setOpenCategories({ damacana: true });
+      return;
+    }
+    const matches = filterProductsBySearch(products, value);
+    const codes = new Set(matches.map((p) => p.category || "none"));
+    setOpenCategories(
+      Object.fromEntries(Array.from(codes).map((code) => [code, true])),
+    );
+  };
+
+  const toggleCategory = (code: string) => {
+    setOpenCategories((prev) => ({ ...prev, [code]: !prev[code] }));
   };
 
   const handleConfirmLoad = async () => {
@@ -190,7 +216,10 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
     if (!showManualLoadModal) return null;
 
     const filteredProducts = filterProductsBySearch(products, productSearch);
-    const groupedProducts = groupProductsByCategory(filteredProducts);
+    const groupedProducts = groupProductsByCategory(
+      filteredProducts,
+      sortProductsForLoading,
+    );
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -386,83 +415,141 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                 <input
                   type="text"
                   value={productSearch}
-                  onChange={(e) => setProductSearch(e.target.value)}
+                  onChange={(e) => handleProductSearchChange(e.target.value)}
                   placeholder="Ürün adı ile ara..."
                   className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
                 />
               </div>
 
-              <div className="space-y-3">
-                {groupedProducts.map((group) => (
-                  <div key={group.code} className="space-y-2">
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                      {group.title}
-                    </div>
-                    {group.products.map((p) => {
-                      const currentQty = loadQuantities[p.id] || 0;
-                      const step = p.category === "damacana" ? 5 : 1;
+              <div className="space-y-2">
+                {groupedProducts.map((group) => {
+                  const isOpen = Boolean(openCategories[group.code]);
+                  const selectedCount = group.products.filter(
+                    (p) => (loadQuantities[p.id] || 0) > 0,
+                  ).length;
 
-                      return (
+                  return (
+                    <section
+                      key={group.code}
+                      className="rounded-xl border border-slate-200 bg-white overflow-hidden"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleCategory(group.code)}
+                        aria-expanded={isOpen}
+                        aria-controls={`load-cat-${group.code}`}
+                        className={`w-full min-h-11 px-3 py-2.5 flex items-center justify-between gap-2 text-left transition-colors ${
+                          isOpen
+                            ? "bg-slate-50"
+                            : "bg-white hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                          {group.title}
+                        </span>
+                        <span className="flex items-center gap-2 shrink-0">
+                          {!isOpen && selectedCount > 0 && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700">
+                              {selectedCount} kalem
+                            </span>
+                          )}
+                          <ChevronDown
+                            className={`w-4 h-4 text-slate-400 transition-transform ${
+                              isOpen ? "rotate-180" : ""
+                            }`}
+                          />
+                        </span>
+                      </button>
+
+                      {isOpen && (
                         <div
-                          key={p.id}
-                          className="flex flex-col gap-2 p-3 rounded-xl bg-slate-50  border border-slate-100  sm:flex-row sm:items-center sm:justify-between"
+                          id={`load-cat-${group.code}`}
+                          role="region"
+                          aria-label={group.title}
+                          className="p-2 pt-0 space-y-2"
                         >
-                          <div className="min-w-0 pr-2">
-                            <div className="text-xs font-bold text-slate-900  break-words">
-                              {p.name}
-                            </div>
-                            <div className="text-[11px] text-slate-500">
-                              {p.unit} · {p.isDeposit ? "Depozitolu" : "Tek Yön"} ·{" "}
-                              {p.defaultUnitPrice} ₺
-                            </div>
-                          </div>
+                          {group.products.map((p) => {
+                            const currentQty = loadQuantities[p.id] || 0;
+                            const step = p.category === "damacana" ? 5 : 1;
+                            const isGlass = isGlassDamacana(p);
 
-                          <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setLoadQuantities((prev) => ({
-                                  ...prev,
-                                  [p.id]: Math.max(0, currentQty - step),
-                                }))
-                              }
-                              className="w-11 h-11 rounded-lg bg-white  border border-slate-200  font-bold text-slate-700  flex items-center justify-center text-base active:scale-90"
-                            >
-                              -
-                            </button>
-                            <input
-                              type="number"
-                              value={currentQty === 0 ? "" : currentQty}
-                              onChange={(e) =>
-                                setLoadQuantities((prev) => ({
-                                  ...prev,
-                                  [p.id]: Math.max(
-                                    0,
-                                    parseInt(e.target.value) || 0,
-                                  ),
-                                }))
-                              }
-                              placeholder="0"
-                              className="w-16 h-11 min-h-11 rounded-lg border border-slate-200 bg-white text-center font-bold font-mono text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                            />
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setLoadQuantities((prev) => ({
-                                  ...prev,
-                                  [p.id]: currentQty + step,
-                                }))
-                              }
-                              className="w-11 h-11 rounded-lg bg-sky-50  text-sky-600  font-bold flex items-center justify-center text-base active:scale-90"
-                            >
-                              +
-                            </button>
-                          </div>
+                            return (
+                              <div
+                                key={p.id}
+                                className={`flex flex-col gap-2 p-3 rounded-xl border sm:flex-row sm:items-center sm:justify-between ${
+                                  isGlass
+                                    ? "border-cyan-200 bg-gradient-to-br from-cyan-50 via-sky-50 to-white ring-1 ring-cyan-100 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)]"
+                                    : "bg-slate-50 border-slate-100"
+                                }`}
+                              >
+                                <div className="min-w-0 pr-2">
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <div className="text-xs font-bold text-slate-900  break-words">
+                                      {p.name}
+                                    </div>
+                                    {isGlass && (
+                                      <span className="inline-flex items-center gap-1 rounded-full border border-cyan-200 bg-white/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-cyan-700">
+                                        <Gem className="w-2.5 h-2.5" />
+                                        Cam
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] text-slate-500">
+                                    {p.unit} ·{" "}
+                                    {p.isDeposit ? "Depozitolu" : "Tek Yön"} ·{" "}
+                                    {p.defaultUnitPrice} ₺
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setLoadQuantities((prev) => ({
+                                        ...prev,
+                                        [p.id]: Math.max(0, currentQty - step),
+                                      }))
+                                    }
+                                    className="w-11 h-11 rounded-lg bg-white  border border-slate-200  font-bold text-slate-700  flex items-center justify-center text-base active:scale-90"
+                                  >
+                                    -
+                                  </button>
+                                  <input
+                                    type="number"
+                                    value={currentQty === 0 ? "" : currentQty}
+                                    onChange={(e) =>
+                                      setLoadQuantities((prev) => ({
+                                        ...prev,
+                                        [p.id]: Math.max(
+                                          0,
+                                          parseInt(e.target.value) || 0,
+                                        ),
+                                      }))
+                                    }
+                                    placeholder="0"
+                                    className="w-16 h-11 min-h-11 rounded-lg border border-slate-200 bg-white text-center font-bold font-mono text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setLoadQuantities((prev) => ({
+                                        ...prev,
+                                        [p.id]: currentQty + step,
+                                      }))
+                                    }
+                                    className="w-11 h-11 rounded-lg bg-sky-50  text-sky-600  font-bold flex items-center justify-center text-base active:scale-90"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
-                  </div>
-                ))}
+                      )}
+                    </section>
+                  );
+                })}
                 {filteredProducts.length === 0 && (
                   <div className="p-4 text-center text-xs text-slate-400">
                     Ürün bulunamadı.

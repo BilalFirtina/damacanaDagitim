@@ -6,6 +6,8 @@ import {
   AUTHORIZED_VEHICLE_PLATES,
   filterProductsBySearch,
   groupProductsByCategory,
+  isGlassDamacana,
+  sortProductsForLoading,
 } from '../../types';
 import {
   Truck,
@@ -16,7 +18,9 @@ import {
   Trash2,
   X,
   AlertTriangle,
-  Search
+  Search,
+  ChevronDown,
+  Gem
 } from 'lucide-react';
 import { createDispatch, updateDispatch, cancelDispatch, updateUser } from '../../services/api';
 import { todayUtcDateStr, formatDateTr } from '../../services/dateWindow';
@@ -49,6 +53,13 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
   const [loadQuantities, setLoadQuantities] = useState<Record<string, number>>({});
   const [loadProductSearch, setLoadProductSearch] = useState('');
   const [editProductSearch, setEditProductSearch] = useState('');
+  // Varsayılan olarak yalnızca Damacana Su açıktır; diğer kategoriler kapalıdır.
+  const [openLoadCategories, setOpenLoadCategories] = useState<Record<string, boolean>>({
+    damacana: true,
+  });
+  const [openEditCategories, setOpenEditCategories] = useState<Record<string, boolean>>({
+    damacana: true,
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [editingDispatch, setEditingDispatch] = useState<Dispatch | null>(null);
@@ -68,6 +79,29 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
   const busyDriverIds = new Set(activeDispatches.map((d) => d.driverId));
   const busyPlates = new Set(activeDispatches.map((d) => d.vehiclePlate));
 
+  const openMatchingCategories = (
+    search: string,
+    setOpen: React.Dispatch<React.SetStateAction<Record<string, boolean>>>
+  ) => {
+    if (!search.trim()) {
+      setOpen({ damacana: true });
+      return;
+    }
+    const matches = filterProductsBySearch(products, search);
+    const codes = new Set(matches.map((p) => p.category || 'none'));
+    setOpen(Object.fromEntries(Array.from(codes).map((code) => [code, true])));
+  };
+
+  const handleLoadProductSearchChange = (value: string) => {
+    setLoadProductSearch(value);
+    openMatchingCategories(value, setOpenLoadCategories);
+  };
+
+  const handleEditProductSearchChange = (value: string) => {
+    setEditProductSearch(value);
+    openMatchingCategories(value, setOpenEditCategories);
+  };
+
   const handleOpenLoadModal = () => {
     const firstFreeDriver = drivers.find((d) => !busyDriverIds.has(d.id));
     if (firstFreeDriver) {
@@ -79,6 +113,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
     setSelectedPlate(freePlates[0] || '');
     setErrorMsg(null);
     setLoadProductSearch('');
+    setOpenLoadCategories({ damacana: true });
     setShowLoadModal(true);
   };
 
@@ -161,6 +196,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
     setEditingDispatch(disp);
     setActionError(null);
     setEditProductSearch('');
+    setOpenEditCategories({ damacana: true });
     setEditQuantities(
       Object.fromEntries(disp.loadedItems.map((item) => [item.productId, item.quantity]))
     );
@@ -218,9 +254,23 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
   };
 
   const filteredLoadProducts = filterProductsBySearch(products, loadProductSearch);
-  const groupedLoadProducts = groupProductsByCategory(filteredLoadProducts);
+  const groupedLoadProducts = groupProductsByCategory(
+    filteredLoadProducts,
+    sortProductsForLoading
+  );
   const filteredEditProducts = filterProductsBySearch(products, editProductSearch);
-  const groupedEditProducts = groupProductsByCategory(filteredEditProducts);
+  const groupedEditProducts = groupProductsByCategory(
+    filteredEditProducts,
+    sortProductsForLoading
+  );
+
+  const toggleLoadCategory = (code: string) => {
+    setOpenLoadCategories((prev) => ({ ...prev, [code]: !prev[code] }));
+  };
+
+  const toggleEditCategory = (code: string) => {
+    setOpenEditCategories((prev) => ({ ...prev, [code]: !prev[code] }));
+  };
 
   return (
     <div className="space-y-6 w-full max-w-full min-w-0">
@@ -569,73 +619,130 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                   <input
                     type="text"
                     value={loadProductSearch}
-                    onChange={(e) => setLoadProductSearch(e.target.value)}
+                    onChange={(e) => handleLoadProductSearchChange(e.target.value)}
                     placeholder="Ürün adı ile ara..."
                     className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
                   />
                 </div>
-                <div className="space-y-3 max-h-56 overflow-y-auto p-1">
-                  {groupedLoadProducts.map((group) => (
-                    <div key={group.code} className="space-y-2">
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        {group.title}
-                      </div>
-                      {group.products.map((p) => {
-                        const currentQty = loadQuantities[p.id] || 0;
-                        const step = p.category === 'damacana' ? 10 : 5;
-                        return (
-                          <div
-                            key={p.id}
-                            className="flex flex-col gap-2 p-2.5 rounded-xl bg-slate-50  border border-slate-100  sm:flex-row sm:items-center sm:justify-between"
-                          >
-                            <div className="min-w-0 pr-2">
-                              <div className="font-semibold text-slate-900  break-words">{p.name}</div>
-                              <div className="text-[10px] text-slate-400">{p.unit}</div>
-                            </div>
+                <div className="space-y-2 max-h-56 overflow-y-auto p-1">
+                  {groupedLoadProducts.map((group) => {
+                    const isOpen = Boolean(openLoadCategories[group.code]);
+                    const selectedCount = group.products.filter(
+                      (p) => (loadQuantities[p.id] || 0) > 0
+                    ).length;
 
-                            <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setLoadQuantities((prev) => ({
-                                    ...prev,
-                                    [p.id]: Math.max(0, currentQty - step),
-                                  }))
-                                }
-                                className="w-11 h-11 rounded-lg bg-white  border text-sm font-bold"
-                              >
-                                -
-                              </button>
-                              <input
-                                type="number"
-                                value={currentQty === 0 ? '' : currentQty}
-                                onChange={(e) =>
-                                  setLoadQuantities((prev) => ({
-                                    ...prev,
-                                    [p.id]: Math.max(0, parseInt(e.target.value) || 0),
-                                  }))
-                                }
-                                placeholder="0"
-                                className="w-16 h-11 min-h-11 rounded-lg border text-center font-mono font-bold text-sm bg-white text-slate-900"
-                              />
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setLoadQuantities((prev) => ({
-                                    ...prev,
-                                    [p.id]: currentQty + step,
-                                  }))
-                                }
-                                className="w-11 h-11 rounded-lg bg-indigo-50 text-indigo-600 text-sm font-bold"
-                              >
-                                +
-                              </button>
-                            </div>
+                    return (
+                      <section
+                        key={group.code}
+                        className="rounded-xl border border-slate-200 bg-white overflow-hidden"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleLoadCategory(group.code)}
+                          aria-expanded={isOpen}
+                          aria-controls={`admin-load-cat-${group.code}`}
+                          className={`w-full min-h-11 px-3 py-2.5 flex items-center justify-between gap-2 text-left transition-colors ${
+                            isOpen ? 'bg-slate-50' : 'bg-white hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                            {group.title}
+                          </span>
+                          <span className="flex items-center gap-2 shrink-0">
+                            {!isOpen && selectedCount > 0 && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                                {selectedCount} kalem
+                              </span>
+                            )}
+                            <ChevronDown
+                              className={`w-4 h-4 text-slate-400 transition-transform ${
+                                isOpen ? 'rotate-180' : ''
+                              }`}
+                            />
+                          </span>
+                        </button>
+
+                        {isOpen && (
+                          <div
+                            id={`admin-load-cat-${group.code}`}
+                            role="region"
+                            aria-label={group.title}
+                            className="p-2 pt-0 space-y-2"
+                          >
+                            {group.products.map((p) => {
+                              const currentQty = loadQuantities[p.id] || 0;
+                              const step = p.category === 'damacana' ? 10 : 5;
+                              const isGlass = isGlassDamacana(p);
+                              return (
+                                <div
+                                  key={p.id}
+                                  className={`flex flex-col gap-2 p-2.5 rounded-xl border sm:flex-row sm:items-center sm:justify-between ${
+                                    isGlass
+                                      ? 'border-cyan-200 bg-gradient-to-br from-cyan-50 via-sky-50 to-white ring-1 ring-cyan-100 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)]'
+                                      : 'bg-slate-50 border-slate-100'
+                                  }`}
+                                >
+                                  <div className="min-w-0 pr-2">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <div className="font-semibold text-slate-900  break-words">
+                                        {p.name}
+                                      </div>
+                                      {isGlass && (
+                                        <span className="inline-flex items-center gap-1 rounded-full border border-cyan-200 bg-white/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-cyan-700">
+                                          <Gem className="w-2.5 h-2.5" />
+                                          Cam
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-[10px] text-slate-400">{p.unit}</div>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setLoadQuantities((prev) => ({
+                                          ...prev,
+                                          [p.id]: Math.max(0, currentQty - step),
+                                        }))
+                                      }
+                                      className="w-11 h-11 rounded-lg bg-white  border text-sm font-bold"
+                                    >
+                                      -
+                                    </button>
+                                    <input
+                                      type="number"
+                                      value={currentQty === 0 ? '' : currentQty}
+                                      onChange={(e) =>
+                                        setLoadQuantities((prev) => ({
+                                          ...prev,
+                                          [p.id]: Math.max(0, parseInt(e.target.value) || 0),
+                                        }))
+                                      }
+                                      placeholder="0"
+                                      className="w-16 h-11 min-h-11 rounded-lg border text-center font-mono font-bold text-sm bg-white text-slate-900"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setLoadQuantities((prev) => ({
+                                          ...prev,
+                                          [p.id]: currentQty + step,
+                                        }))
+                                      }
+                                      className="w-11 h-11 rounded-lg bg-indigo-50 text-indigo-600 text-sm font-bold"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                        );
-                      })}
-                    </div>
-                  ))}
+                        )}
+                      </section>
+                    );
+                  })}
                   {filteredLoadProducts.length === 0 && (
                     <div className="p-4 text-center text-xs text-slate-400">
                       Ürün bulunamadı.
@@ -702,72 +809,129 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                   <input
                     type="text"
                     value={editProductSearch}
-                    onChange={(e) => setEditProductSearch(e.target.value)}
+                    onChange={(e) => handleEditProductSearchChange(e.target.value)}
                     placeholder="Ürün adı ile ara..."
                     className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
                   />
                 </div>
-                <div className="space-y-3 max-h-72 overflow-y-auto p-1">
-                  {groupedEditProducts.map((group) => (
-                    <div key={group.code} className="space-y-2">
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        {group.title}
-                      </div>
-                      {group.products.map((p) => {
-                        const currentQty = editQuantities[p.id] || 0;
-                        const step = p.category === 'damacana' ? 10 : 5;
-                        return (
+                <div className="space-y-2 max-h-72 overflow-y-auto p-1">
+                  {groupedEditProducts.map((group) => {
+                    const isOpen = Boolean(openEditCategories[group.code]);
+                    const selectedCount = group.products.filter(
+                      (p) => (editQuantities[p.id] || 0) > 0
+                    ).length;
+
+                    return (
+                      <section
+                        key={group.code}
+                        className="rounded-xl border border-slate-200 bg-white overflow-hidden"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleEditCategory(group.code)}
+                          aria-expanded={isOpen}
+                          aria-controls={`admin-edit-cat-${group.code}`}
+                          className={`w-full min-h-11 px-3 py-2.5 flex items-center justify-between gap-2 text-left transition-colors ${
+                            isOpen ? 'bg-slate-50' : 'bg-white hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                            {group.title}
+                          </span>
+                          <span className="flex items-center gap-2 shrink-0">
+                            {!isOpen && selectedCount > 0 && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                                {selectedCount} kalem
+                              </span>
+                            )}
+                            <ChevronDown
+                              className={`w-4 h-4 text-slate-400 transition-transform ${
+                                isOpen ? 'rotate-180' : ''
+                              }`}
+                            />
+                          </span>
+                        </button>
+
+                        {isOpen && (
                           <div
-                            key={p.id}
-                            className="flex flex-col gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100 sm:flex-row sm:items-center sm:justify-between"
+                            id={`admin-edit-cat-${group.code}`}
+                            role="region"
+                            aria-label={group.title}
+                            className="p-2 pt-0 space-y-2"
                           >
-                            <div className="min-w-0 pr-2">
-                              <div className="font-semibold text-slate-900 break-words">{p.name}</div>
-                              <div className="text-[10px] text-slate-400">{p.unit}</div>
-                            </div>
-                            <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setEditQuantities((prev) => ({
-                                    ...prev,
-                                    [p.id]: Math.max(0, currentQty - step),
-                                  }))
-                                }
-                                className="w-11 h-11 rounded-lg bg-white border text-sm font-bold"
-                              >
-                                -
-                              </button>
-                              <input
-                                type="number"
-                                value={currentQty === 0 ? '' : currentQty}
-                                onChange={(e) =>
-                                  setEditQuantities((prev) => ({
-                                    ...prev,
-                                    [p.id]: Math.max(0, parseInt(e.target.value) || 0),
-                                  }))
-                                }
-                                placeholder="0"
-                                className="w-16 h-11 min-h-11 rounded-lg border text-center font-mono font-bold text-sm bg-white text-slate-900"
-                              />
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setEditQuantities((prev) => ({
-                                    ...prev,
-                                    [p.id]: currentQty + step,
-                                  }))
-                                }
-                                className="w-11 h-11 rounded-lg bg-indigo-50 text-indigo-600 text-sm font-bold"
-                              >
-                                +
-                              </button>
-                            </div>
+                            {group.products.map((p) => {
+                              const currentQty = editQuantities[p.id] || 0;
+                              const step = p.category === 'damacana' ? 10 : 5;
+                              const isGlass = isGlassDamacana(p);
+                              return (
+                                <div
+                                  key={p.id}
+                                  className={`flex flex-col gap-2 p-2.5 rounded-xl border sm:flex-row sm:items-center sm:justify-between ${
+                                    isGlass
+                                      ? 'border-cyan-200 bg-gradient-to-br from-cyan-50 via-sky-50 to-white ring-1 ring-cyan-100 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)]'
+                                      : 'bg-slate-50 border-slate-100'
+                                  }`}
+                                >
+                                  <div className="min-w-0 pr-2">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <div className="font-semibold text-slate-900 break-words">
+                                        {p.name}
+                                      </div>
+                                      {isGlass && (
+                                        <span className="inline-flex items-center gap-1 rounded-full border border-cyan-200 bg-white/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-cyan-700">
+                                          <Gem className="w-2.5 h-2.5" />
+                                          Cam
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-[10px] text-slate-400">{p.unit}</div>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setEditQuantities((prev) => ({
+                                          ...prev,
+                                          [p.id]: Math.max(0, currentQty - step),
+                                        }))
+                                      }
+                                      className="w-11 h-11 rounded-lg bg-white border text-sm font-bold"
+                                    >
+                                      -
+                                    </button>
+                                    <input
+                                      type="number"
+                                      value={currentQty === 0 ? '' : currentQty}
+                                      onChange={(e) =>
+                                        setEditQuantities((prev) => ({
+                                          ...prev,
+                                          [p.id]: Math.max(0, parseInt(e.target.value) || 0),
+                                        }))
+                                      }
+                                      placeholder="0"
+                                      className="w-16 h-11 min-h-11 rounded-lg border text-center font-mono font-bold text-sm bg-white text-slate-900"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setEditQuantities((prev) => ({
+                                          ...prev,
+                                          [p.id]: currentQty + step,
+                                        }))
+                                      }
+                                      className="w-11 h-11 rounded-lg bg-indigo-50 text-indigo-600 text-sm font-bold"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                        );
-                      })}
-                    </div>
-                  ))}
+                        )}
+                      </section>
+                    );
+                  })}
                   {filteredEditProducts.length === 0 && (
                     <div className="p-4 text-center text-xs text-slate-400">
                       Ürün bulunamadı.

@@ -365,6 +365,16 @@ const CANONICAL_SEED_PRODUCTS: Product[] = [
     description: 'Sırma doğal kaynak suyu 19L - depozitolu'
   },
   {
+    id: 'prod_damacana_tekir_19l',
+    name: 'Tekir Damacana',
+    category: 'damacana',
+    defaultUnitPrice: 100,
+    isDeposit: true,
+    depositType: 'damacana',
+    unit: 'Adet',
+    description: 'Tekir doğal kaynak suyu 19L - depozitolu'
+  },
+  {
     id: 'prod_tup_12kg',
     name: 'Büyük Tüp (12 Kg - Tombul/Uzun)',
     category: 'tup',

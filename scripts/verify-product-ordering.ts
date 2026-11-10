@@ -8,7 +8,9 @@ import {
   getProductCategoryTitle,
   filterProductsBySearch,
   groupProductsByCategory,
+  isGlassDamacana,
   sortProductsByCategory,
+  sortProductsForLoading,
 } from '../src/types/index.ts';
 
 let passed = 0;
@@ -117,6 +119,67 @@ check('olmayan ürün araması boş döner', filterProductsBySearch(products, 'x
 check(
   'Türkçe büyük/küçük harf uyumu',
   filterProductsBySearch(products, 'KÜÇÜK TÜP').length === 1
+);
+
+console.log('\n[5) Yükleme sırası ve cam damacana]');
+const loadProducts = [
+  { id: 'ld1', name: 'Hayat Cam Damacana', category: 'damacana', depositType: 'cam_damacana' },
+  { id: 'ld2', name: 'Tekir Damacana', category: 'damacana', depositType: 'damacana' },
+  { id: 'ld3', name: 'Sırma Damacana', category: 'damacana', depositType: 'damacana' },
+  { id: 'ld4', name: 'Hayat Damacana', category: 'damacana', depositType: 'damacana' },
+  { id: 'ld5', name: 'Beypazarı Maden Suyu', category: 'soda', depositType: 'none' },
+];
+
+const loadSorted = sortProductsForLoading(loadProducts);
+const loadDamacanaNames = loadSorted
+  .filter((p) => p.category === 'damacana')
+  .map((p) => p.name);
+check(
+  'damacana sırası Hayat -> Sırma -> Tekir -> Cam',
+  loadDamacanaNames.join('|') ===
+    'Hayat Damacana|Sırma Damacana|Tekir Damacana|Hayat Cam Damacana',
+  loadDamacanaNames
+);
+check(
+  'cam damacana kategorinin en sonunda',
+  loadDamacanaNames[loadDamacanaNames.length - 1] === 'Hayat Cam Damacana'
+);
+check(
+  'Tekir yokken sıra Hayat -> Sırma -> Cam',
+  sortProductsForLoading(loadProducts.filter((p) => p.id !== 'ld2'))
+    .filter((p) => p.category === 'damacana')
+    .map((p) => p.name)
+    .join('|') === 'Hayat Damacana|Sırma Damacana|Hayat Cam Damacana'
+);
+check(
+  'diğer kategori sırası değişmez',
+  loadSorted.map((p) => p.category).join(',') ===
+    'damacana,damacana,damacana,damacana,soda',
+  loadSorted.map((p) => p.category)
+);
+check(
+  'cam damacana tespiti deposit_type ile',
+  isGlassDamacana({ category: 'damacana', depositType: 'cam_damacana' }) === true
+);
+check(
+  'plastik damacana cam sayılmaz',
+  isGlassDamacana({
+    category: 'damacana',
+    depositType: 'damacana',
+    name: 'Hayat Damacana',
+  }) === false
+);
+check(
+  'farklı kategoride cam kuralı uygulanmaz',
+  isGlassDamacana({ category: 'soda', depositType: 'cam_damacana' }) === false
+);
+check(
+  'gruplama yükleme sırasını korur',
+  groupProductsByCategory(loadProducts, sortProductsForLoading)
+    .find((g) => g.code === 'damacana')!
+    .products.map((p) => p.name)
+    .join('|') ===
+    'Hayat Damacana|Sırma Damacana|Tekir Damacana|Hayat Cam Damacana'
 );
 
 console.log(`\nResult: ${passed} passed, ${failed} failed`);
