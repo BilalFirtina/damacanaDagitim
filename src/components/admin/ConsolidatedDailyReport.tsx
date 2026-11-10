@@ -306,68 +306,68 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
           <table className="w-full text-base text-left border border-black border-collapse">
             <tbody>
               <tr className="border-b border-black">
-                <td className="p-0 font-bold border-r border-black w-1/4">Dağıtım Şoförü:</td>
-                <td className="p-0 font-mono font-bold w-1/4 tabular-nums">{icmal.driverCount} Şoför</td>
-                <td className="p-0 font-bold border-r border-l border-black w-1/4">Teslimat Sayısı:</td>
-                <td className="p-0 font-mono font-bold w-1/4 tabular-nums">
+                <td className="p-0 pl-[2px] font-bold border-r border-black w-1/4">Dağıtım Şoförü:</td>
+                <td className="p-0 pl-[2px] font-mono font-bold w-1/4 tabular-nums">{icmal.driverCount} Şoför</td>
+                <td className="p-0 pl-[2px] font-bold border-r border-l border-black w-1/4">Teslimat Sayısı:</td>
+                <td className="p-0 pl-[2px] font-mono font-bold w-1/4 tabular-nums">
                   {icmal.deliveryCount} Teslimat · {icmal.visitedCustomerCount} Müşteri
                 </td>
               </tr>
               <tr className="border-b border-black">
-                <td className="p-0 font-bold border-r border-black">Peşin Ciro (Mal Bedeli):</td>
-                <td className="p-0 font-mono font-black tabular-nums">
+                <td className="p-0 pl-[2px] font-bold border-r border-black">Peşin Ciro (Mal Bedeli):</td>
+                <td className="p-0 pl-[2px] font-mono font-black tabular-nums">
                   {money(icmal.pesinCiro)}
                   {icmal.hasAccountDelivery && <span className="ml-2">+ FATURALI</span>}
                 </td>
-                <td className="p-0 font-bold border-r border-l border-black">Cariye Kalan Borç (Peşin):</td>
-                <td className="p-0 font-mono font-bold tabular-nums">{money(icmal.creditAdded)}</td>
+                <td className="p-0 pl-[2px] font-bold border-r border-l border-black">Cariye Kalan Borç (Peşin):</td>
+                <td className="p-0 pl-[2px] font-mono font-bold tabular-nums">{money(icmal.creditAdded)}</td>
               </tr>
               <tr className="border-b border-black">
-                <td className="p-0 font-bold border-r border-black">Teslimat Tahsilatı (Nakit / POS):</td>
-                <td className="p-0 font-mono font-bold tabular-nums">
+                <td className="p-0 pl-[2px] font-bold border-r border-black">Teslimat Tahsilatı (Nakit / POS):</td>
+                <td className="p-0 pl-[2px] font-mono font-bold tabular-nums">
                   {money(icmal.deliveryCash)} / {money(icmal.deliveryPos)}
                 </td>
-                <td className="p-0 font-bold border-r border-l border-black">Teslimat Dışı Tahsilat (Nakit / POS):</td>
-                <td className="p-0 font-mono font-bold tabular-nums">
+                <td className="p-0 pl-[2px] font-bold border-r border-l border-black">Teslimat Dışı Tahsilat (Nakit / POS):</td>
+                <td className="p-0 pl-[2px] font-mono font-bold tabular-nums">
                   {money(icmal.standaloneCash)} / {money(icmal.standalonePos)}
                 </td>
               </tr>
               <tr className="border-b border-black">
-                <td className="p-0 font-bold border-r border-black">Genel Tahsilat Toplamı:</td>
-                <td className="p-0 font-mono font-black tabular-nums">{money(generalCollection)}</td>
-                <td className="p-0 font-bold border-r border-l border-black">Dolu Damacana / Cam / Tüp:</td>
-                <td className="p-0 font-mono font-bold tabular-nums">
+                <td className="p-0 pl-[2px] font-bold border-r border-black">Genel Tahsilat Toplamı:</td>
+                <td className="p-0 pl-[2px] font-mono font-black tabular-nums">{money(generalCollection)}</td>
+                <td className="p-0 pl-[2px] font-bold border-r border-l border-black">Dolu Damacana / Cam / Tüp:</td>
+                <td className="p-0 pl-[2px] font-mono font-bold tabular-nums">
                   {icmal.damacanaFull} / {icmal.camDamacanaFull} / {icmal.tupFull}
                 </td>
               </tr>
               <tr className="border-b border-black">
-                <td className="p-0 font-bold border-r border-black">Boş Damacana / Cam / Tüp:</td>
-                <td className="p-0 font-mono font-bold tabular-nums">
+                <td className="p-0 pl-[2px] font-bold border-r border-black">Boş Damacana / Cam / Tüp:</td>
+                <td className="p-0 pl-[2px] font-mono font-bold tabular-nums">
                   {icmal.damacanaEmpty} / {icmal.camDamacanaEmpty} /{' '}
                   {icmal.tupBuyukEmpty + icmal.tupKucukEmpty + icmal.tupEmpty}
                 </td>
-                <td className="p-0 font-bold border-r border-l border-black">Su Sebili Verildi / Alındı:</td>
-                <td className="p-0 font-mono font-bold tabular-nums">
+                <td className="p-0 pl-[2px] font-bold border-r border-l border-black">Su Sebili Verildi / Alındı:</td>
+                <td className="p-0 pl-[2px] font-mono font-bold tabular-nums">
                   {icmal.sebilGiven} / {icmal.sebilReceived}
                 </td>
               </tr>
               <tr className="border-b border-black">
-                <td className="p-0 font-bold border-r border-black">Büyük Tüp Dolu / Boş:</td>
-                <td className="p-0 font-mono font-bold tabular-nums">
+                <td className="p-0 pl-[2px] font-bold border-r border-black">Büyük Tüp Dolu / Boş:</td>
+                <td className="p-0 pl-[2px] font-mono font-bold tabular-nums">
                   {icmal.tupBuyukFull} / {icmal.tupBuyukEmpty}
                 </td>
-                <td className="p-0 font-bold border-r border-l border-black">Küçük Tüp Dolu / Boş:</td>
-                <td className="p-0 font-mono font-bold tabular-nums">
+                <td className="p-0 pl-[2px] font-bold border-r border-l border-black">Küçük Tüp Dolu / Boş:</td>
+                <td className="p-0 pl-[2px] font-mono font-bold tabular-nums">
                   {icmal.tupKucukFull} / {icmal.tupKucukEmpty}
                 </td>
               </tr>
               {(icmal.tupLegacyFull > 0 || icmal.tupEmpty > 0) && (
                 <tr className="border-b border-black">
-                  <td className="p-0 font-bold border-r border-black">Eski Tek Tüp Dolu / Boş:</td>
-                  <td className="p-0 font-mono font-bold tabular-nums">
+                  <td className="p-0 pl-[2px] font-bold border-r border-black">Eski Tek Tüp Dolu / Boş:</td>
+                  <td className="p-0 pl-[2px] font-mono font-bold tabular-nums">
                     {icmal.tupLegacyFull} / {icmal.tupEmpty}
                   </td>
-                  <td className="p-0 border-r border-l border-black" colSpan={2}></td>
+                  <td className="p-0 pl-[2px] border-r border-l border-black" colSpan={2}></td>
                 </tr>
               )}
             </tbody>
