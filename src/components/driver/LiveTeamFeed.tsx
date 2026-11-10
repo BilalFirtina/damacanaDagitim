@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Customer, Delivery, User } from '../../types';
+import { Customer, Delivery, Product, User } from '../../types';
 import { isAccountCustomerDelivery } from '../../services/customerVisibility';
 import {
   Clock,
@@ -17,6 +17,7 @@ interface LiveTeamFeedProps {
   deliveries: Delivery[];
   currentUser: User;
   customers?: Customer[];
+  products?: Product[];
 }
 
 // Ayırt edici şoför renk paletleri (Her şoför alt alta listelendiğinde belirgin şekilde ayrışır)
@@ -110,6 +111,7 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
   deliveries,
   currentUser,
   customers = [],
+  products = [],
 }) => {
   const [filterPlate, setFilterPlate] = useState<string>('all');
   const [filterDriverId, setFilterDriverId] = useState<string>('all');
@@ -335,22 +337,26 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
 
                     {/* Delivered Products Badges */}
                     <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                      {item.deliveredItems.map((prod, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2.5 py-1 rounded-lg bg-white/90  text-slate-800  text-xs font-medium border border-slate-200  shadow-2xs"
-                        >
-                          <strong className={`font-mono tabular-nums ${pal.textClass}`}>
-                            {prod.quantity}
-                          </strong>{' '}
-                          {prod.productName}{' '}
-                          {!isAccount && (
-                            <span className="text-slate-400 font-normal">
-                              ({prod.unitPrice} ₺)
-                            </span>
-                          )}
-                        </span>
-                      ))}
+                      {item.deliveredItems.map((prod, idx) => {
+                        const unit = products.find((p) => p.id === prod.productId)?.unit;
+                        return (
+                          <span
+                            key={idx}
+                            className="px-2.5 py-1 rounded-lg bg-white/90  text-slate-800  text-xs font-medium border border-slate-200  shadow-2xs max-w-full break-words"
+                          >
+                            {prod.productName} -{' '}
+                            <strong className={`font-mono tabular-nums ${pal.textClass}`}>
+                              {prod.quantity}
+                            </strong>
+                            {unit ? ` ${unit}` : ''}{' '}
+                            {!isAccount && (
+                              <span className="text-slate-400 font-normal">
+                                ({prod.unitPrice} ₺)
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })}
                     </div>
 
                     {/* Deposit empty containers */}

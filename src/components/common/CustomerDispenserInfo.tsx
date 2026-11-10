@@ -71,22 +71,23 @@ export const CustomerDispenserInfo: React.FC<CustomerDispenserInfoProps> = ({
               Bu müşteri için kayıtlı sebil detayı yok.
             </div>
           )}
-          {(dispensers || []).map((d) => (
-            <div
-              key={d.id}
-              className="text-[11px] text-slate-700  border-b border-slate-100  last:border-0 pb-2 last:pb-0 min-w-0"
-            >
-              <div className="font-semibold break-words">
-                {d.quantity} adet
-                {[d.brand, d.model].filter(Boolean).length > 0
-                  ? ` · ${[d.brand, d.model].filter(Boolean).join(' ')}`
-                  : ''}
+          {(dispensers || []).map((d) => {
+            const label =
+              [d.brand, d.model].filter(Boolean).join(' ') || 'Su Sebili';
+            return (
+              <div
+                key={d.id}
+                className="text-[11px] text-slate-700  border-b border-slate-100  last:border-0 pb-2 last:pb-0 min-w-0"
+              >
+                <div className="font-semibold break-words">
+                  {label} - {d.quantity} adet
+                </div>
+                {d.note && (
+                  <div className="text-slate-500 break-words mt-0.5">{d.note}</div>
+                )}
               </div>
-              {d.note && (
-                <div className="text-slate-500 break-words mt-0.5">{d.note}</div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

@@ -180,7 +180,7 @@ export const DiscrepancyReport: React.FC<DiscrepancyReportProps> = ({
                         key={d.productId}
                         className="px-2 py-1 rounded-lg bg-amber-50  text-amber-800  text-[11px] font-mono break-words"
                       >
-                        {productName(d.productId)}: beklenen {d.expected}, sayılan {d.counted} (
+                        {productName(d.productId)} - beklenen {d.expected}, sayılan {d.counted} (
                         {d.diff > 0 ? '+' : ''}
                         {d.diff})
                       </span>

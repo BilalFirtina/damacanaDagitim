@@ -497,22 +497,22 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
           const negativeEmpty = negativeEmptyMessages(c.emptyDepositBalance);
           const positiveEmptyParts = [
             (c.emptyDepositBalance?.damacana || 0) > 0
-              ? `${c.emptyDepositBalance.damacana} Damacana`
+              ? `Damacana - ${c.emptyDepositBalance.damacana}`
               : null,
             (c.emptyDepositBalance?.camDamacana || 0) > 0
-              ? `${c.emptyDepositBalance.camDamacana} Cam Damacana`
+              ? `Cam Damacana - ${c.emptyDepositBalance.camDamacana}`
               : null,
             (c.emptyDepositBalance?.tupBuyuk || 0) > 0
-              ? `${c.emptyDepositBalance.tupBuyuk} Büyük Tüp`
+              ? `Büyük Tüp - ${c.emptyDepositBalance.tupBuyuk}`
               : null,
             (c.emptyDepositBalance?.tupKucuk || 0) > 0
-              ? `${c.emptyDepositBalance.tupKucuk} Küçük Tüp`
+              ? `Küçük Tüp - ${c.emptyDepositBalance.tupKucuk}`
               : null,
             (c.emptyDepositBalance?.tup || 0) > 0
-              ? `${c.emptyDepositBalance.tup} Tüp`
+              ? `Tüp - ${c.emptyDepositBalance.tup}`
               : null,
             (c.emptyDepositBalance?.sebil || 0) > 0
-              ? `${c.emptyDepositBalance.sebil} Su Sebili`
+              ? `Su Sebili - ${c.emptyDepositBalance.sebil}`
               : null,
           ].filter((part): part is string => part !== null);
 
@@ -635,7 +635,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                     ) : (
                       negativeEmpty.length === 0 && (
                         <span className="font-mono font-bold text-orange-600">
-                          0 Damacana
+                          Damacana - 0
                         </span>
                       )
                     )}
@@ -677,10 +677,9 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                           return (
                             <span
                               key={pId}
-                              className="px-1.5 py-0.2 rounded bg-slate-100  text-[10px]"
+                              className="px-1.5 py-0.2 rounded bg-slate-100  text-[10px] break-words max-w-full"
                             >
-                              {p?.name.split(" ")[0]}:{" "}
-                              <strong>{price} ₺</strong>
+                              {p?.name || pId} - <strong>{price} ₺</strong>
                             </span>
                           );
                         })}

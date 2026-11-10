@@ -366,6 +366,7 @@ export default function App() {
             deliveries={deliveries}
             currentUser={currentUser}
             customers={customers}
+            products={products}
           />
         )}
 

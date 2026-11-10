@@ -334,15 +334,19 @@ export const DriverView: React.FC<DriverViewProps> = ({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                      {del.deliveredItems.map((item, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2 py-0.5 rounded bg-slate-100  text-[11px]"
-                        >
-                          <strong>{item.quantity}</strong> {item.productName}
-                          {!isAccount && ` (${item.unitPrice} ₺)`}
-                        </span>
-                      ))}
+                      {del.deliveredItems.map((item, idx) => {
+                        const unit = products.find((p) => p.id === item.productId)?.unit;
+                        return (
+                          <span
+                            key={idx}
+                            className="px-2 py-0.5 rounded bg-slate-100  text-[11px] break-words max-w-full"
+                          >
+                            {item.productName} - <strong>{item.quantity}</strong>
+                            {unit ? ` ${unit}` : ""}
+                            {!isAccount && ` (${item.unitPrice} ₺)`}
+                          </span>
+                        );
+                      })}
 
                       {del.emptyContainersReceived.damacana > 0 && (
                         <span className="text-[11px] font-semibold text-orange-600 flex items-center gap-0.5">

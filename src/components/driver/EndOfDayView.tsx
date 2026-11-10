@@ -610,7 +610,12 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                       </span>
                     </div>
                     <div className="text-[11px] text-slate-500">
-                      {del.deliveredItems.map((i) => `${i.quantity} ${i.productName}`).join(' · ')}
+                      {del.deliveredItems
+                        .map((i) => {
+                          const unit = products.find((p) => p.id === i.productId)?.unit;
+                          return `${i.productName} - ${i.quantity}${unit ? ` ${unit}` : ''}`;
+                        })
+                        .join(' · ')}
                       {del.emptyContainersReceived.damacana > 0 && ` · ${del.emptyContainersReceived.damacana} Boş`}
                       {(del.emptyContainersReceived.camDamacana || 0) > 0 && ` · ${del.emptyContainersReceived.camDamacana} Boş Cam`}
                       {(del.emptyContainersReceived.tupBuyuk || 0) > 0 &&

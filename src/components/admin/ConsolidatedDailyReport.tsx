@@ -54,7 +54,9 @@ const emptyLines = (row: ConsolidatedRow): string[] => {
 
 // Teslim edilen ürünler: her kalem ayrı satırda. Damacana ve cam damacana bu sütunda yer almaz.
 const productLines = (row: ConsolidatedRow): string[] => {
-  const lines = row.productLines.map((line) => `${line.quantity} ${line.name}`);
+  const lines = row.productLines.map(
+    (line) => `${line.name} - ${line.quantity} ${line.unit || 'Adet'}`
+  );
   if (row.tupBuyukFull > 0) lines.push(`Büyük Dolu - ${row.tupBuyukFull}`);
   if (row.tupKucukFull > 0) lines.push(`Küçük Dolu - ${row.tupKucukFull}`);
   if (row.tupLegacyFull > 0) lines.push(`Tüp - ${row.tupLegacyFull}`);
@@ -82,10 +84,14 @@ const balanceText = (row: ConsolidatedRow): string => {
 
 const LinesCell: React.FC<{ items: string[] }> = ({ items }) => {
   if (items.length === 0) return <span>-</span>;
+  // Her kalem kendi blok satırında gösterilir; ekran, mobil kart ve
+  // A4/PDF baskıda iki ürün asla aynı satıra gelmez.
   return (
-    <div className="flex flex-col gap-0.5">
+    <div className="space-y-0.5">
       {items.map((item, index) => (
-        <span key={`${index}-${item}`}>{item}</span>
+        <div key={`${index}-${item}`} className="block break-words">
+          {item}
+        </div>
       ))}
     </div>
   );
@@ -444,7 +450,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
         {/* III. Ürün dökümü */}
         <section className="mb-6 print-avoid-break">
           <div className="text-xs font-black uppercase tracking-wider mb-2 border-b border-black pb-1">
-            III. Gün İçinde Teslim Edilen Ürün ve Adet Dökümü
+            III. Gün İçinde Teslim Edilen Ürün ve Miktar Dökümü
           </div>
           <table className="w-full text-xs border border-black border-collapse text-left">
             <thead>
@@ -452,7 +458,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                 <th className="p-2 border-r border-black w-10">S.No</th>
                 <th className="p-2 border-r border-black">Ürün Tanımı</th>
                 <th className="p-2 border-r border-black text-center w-20">Birim</th>
-                <th className="p-2 border-r border-black text-right w-24">Toplam Adet</th>
+                <th className="p-2 border-r border-black text-right w-24">Toplam Miktar</th>
                 <th className="p-2 text-right w-40">Toplam Tutar</th>
               </tr>
             </thead>

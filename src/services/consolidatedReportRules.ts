@@ -80,7 +80,7 @@ export interface ConsolidatedRow {
   tupEmpty: number;
   sebilGiven: number;
   sebilReceived: number;
-  productLines: Array<{ productId: string; name: string; quantity: number }>;
+  productLines: Array<{ productId: string; name: string; unit: string; quantity: number }>;
   deliveredAmount: number;
   deliveryCash: number;
   deliveryPos: number;
@@ -417,6 +417,7 @@ export function buildConsolidatedReport(input: {
           row.productLines.push({
             productId: item.productId,
             name: item.productName || product?.name || item.productId,
+            unit: product?.unit || 'Adet',
             quantity,
           });
       }

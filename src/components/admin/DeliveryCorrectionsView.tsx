@@ -224,7 +224,7 @@ export const DeliveryCorrectionsView: React.FC<DeliveryCorrectionsViewProps> = (
                           key={type}
                           className="px-2 py-0.5 rounded bg-orange-100 text-orange-800   font-semibold"
                         >
-                          {EMPTY_LABELS[type] || type}: {Number(qty)}
+                          {EMPTY_LABELS[type] || type} - {Number(qty)}
                         </span>
                       ))}
                     </div>

@@ -104,7 +104,7 @@ export function buildCustomerStatement(params: {
     const sale = Number(delivery.deliveredGrandTotal) || 0;
     if (sale !== 0) {
       const itemText = delivery.deliveredItems
-        .map((i) => `${i.quantity} ${i.productName}`)
+        .map((i) => `${i.productName} - ${i.quantity}`)
         .join(', ');
       allEntries.push({
         id: `sale_${delivery.id}`,

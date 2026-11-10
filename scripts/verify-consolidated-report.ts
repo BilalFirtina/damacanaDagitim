@@ -202,8 +202,8 @@ check('Ali / Yılmaz Market dolu damacana toplamı', aliPesin.damacanaFull, 3);
 check('Ali / Yılmaz Market cam dolu ayrı tutulur', aliPesin.camDamacanaFull, 1);
 check('Ali / Yılmaz Market boş damacana toplamı', aliPesin.damacanaEmpty, 3);
 check('Ali / Yılmaz Market cam boş ayrı tutulur', aliPesin.camDamacanaEmpty, 1);
-check('ürün satırı pet suyu', aliPesin.productLines.map((l) => [l.name, l.quantity]), [
-  ["Hayat 1.5 lt Pet Su (6'lı Koli)", 1],
+check('ürün satırı pet suyu', aliPesin.productLines.map((l) => [l.name, l.quantity, l.unit]), [
+  ["Hayat 1.5 lt Pet Su (6'lı Koli)", 1, 'Koli'],
 ]);
 
 console.log('\n[3) Farklı şoförler aynı müşteriyi ayrı satırda gösterir]');

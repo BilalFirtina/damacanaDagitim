@@ -136,10 +136,12 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
       });
       const isAccount = isAccountCustomerDelivery(del, customers);
       const itemsStr = del.deliveredItems
-        .map(
-          (i) =>
-            `${i.quantity} ${i.productName}${isAccount ? '' : ` (${i.unitPrice} TL)`}`
-        )
+        .map((i) => {
+          const unit = products.find((p) => p.id === i.productId)?.unit;
+          return `${i.productName} - ${i.quantity}${unit ? ` ${unit}` : ''}${
+            isAccount ? '' : ` (${i.unitPrice} TL)`
+          }`;
+        })
         .join(' + ');
 
       return [
@@ -752,18 +754,22 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                         </div>
                       </td>
                       <td className="py-3 px-3">
-                        <div className="flex flex-wrap gap-1">
-                          {del.deliveredItems.map((item, idx) => (
-                            <span
-                              key={idx}
-                              className="px-2 py-0.5 rounded bg-slate-100  text-[11px]"
-                            >
-                              <strong>{item.quantity}</strong> {item.productName}
-                              {!isAccount && (
-                                <span className="text-slate-500"> ({item.unitPrice} ₺)</span>
-                              )}
-                            </span>
-                          ))}
+                        <div className="flex flex-col items-start gap-1">
+                          {del.deliveredItems.map((item, idx) => {
+                            const unit = products.find((p) => p.id === item.productId)?.unit;
+                            return (
+                              <span
+                                key={idx}
+                                className="px-2 py-0.5 rounded bg-slate-100  text-[11px] break-words max-w-full"
+                              >
+                                {item.productName} - <strong>{item.quantity}</strong>
+                                {unit ? ` ${unit}` : ''}
+                                {!isAccount && (
+                                  <span className="text-slate-500"> ({item.unitPrice} ₺)</span>
+                                )}
+                              </span>
+                            );
+                          })}
                         </div>
                       </td>
                       <td className="py-3 px-3 text-center whitespace-nowrap">
@@ -876,18 +882,22 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                     {del.driverName} · <span className="font-mono">{del.vehiclePlate}</span>
                   </div>
 
-                  <div className="flex flex-wrap gap-1">
-                    {del.deliveredItems.map((item, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2 py-0.5 rounded bg-slate-100  text-[11px] break-words"
-                      >
-                        <strong>{item.quantity}</strong> {item.productName}
-                        {!isAccount && (
-                          <span className="text-slate-500"> ({item.unitPrice} ₺)</span>
-                        )}
-                      </span>
-                    ))}
+                  <div className="flex flex-col items-start gap-1">
+                    {del.deliveredItems.map((item, idx) => {
+                      const unit = products.find((p) => p.id === item.productId)?.unit;
+                      return (
+                        <span
+                          key={idx}
+                          className="px-2 py-0.5 rounded bg-slate-100  text-[11px] break-words max-w-full"
+                        >
+                          {item.productName} - <strong>{item.quantity}</strong>
+                          {unit ? ` ${unit}` : ''}
+                          {!isAccount && (
+                            <span className="text-slate-500"> ({item.unitPrice} ₺)</span>
+                          )}
+                        </span>
+                      );
+                    })}
                   </div>
 
                   {hasEmpties && (

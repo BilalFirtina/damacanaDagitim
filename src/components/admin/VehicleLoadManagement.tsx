@@ -428,9 +428,9 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                     return (
                       <span
                         key={item.productId}
-                        className="px-2 py-0.5 rounded bg-slate-50  border border-slate-200  text-[11px]"
+                        className="px-2 py-0.5 rounded bg-slate-50  border border-slate-200  text-[11px] break-words max-w-full"
                       >
-                        {p?.name.split(' ')[0]}: <strong className="font-mono">{item.quantity}</strong> {p?.unit}
+                        {p?.name || item.productId} - <strong className="font-mono">{item.quantity}</strong> {p?.unit || 'Adet'}
                       </span>
                     );
                   })}

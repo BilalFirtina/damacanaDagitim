@@ -249,32 +249,32 @@ export const BalancesReportView: React.FC = () => {
                 <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
                   {row.empty.damacana !== 0 && (
                     <span className="px-2 py-1 rounded-lg bg-cyan-50  text-cyan-800  font-mono">
-                      {row.empty.damacana} Boş Damacana
+                      Boş Damacana - {row.empty.damacana}
                     </span>
                   )}
                   {row.empty.camDamacana !== 0 && (
                     <span className="px-2 py-1 rounded-lg bg-cyan-50  text-cyan-800  font-mono">
-                      {row.empty.camDamacana} Boş Cam Damacana
+                      Boş Cam Damacana - {row.empty.camDamacana}
                     </span>
                   )}
                   {row.empty.tupBuyuk !== 0 && (
                     <span className="px-2 py-1 rounded-lg bg-cyan-50  text-cyan-800  font-mono">
-                      {row.empty.tupBuyuk} Büyük Tüp
+                      Büyük Tüp - {row.empty.tupBuyuk}
                     </span>
                   )}
                   {row.empty.tupKucuk !== 0 && (
                     <span className="px-2 py-1 rounded-lg bg-cyan-50  text-cyan-800  font-mono">
-                      {row.empty.tupKucuk} Küçük Tüp
+                      Küçük Tüp - {row.empty.tupKucuk}
                     </span>
                   )}
                   {row.empty.tup !== 0 && (
                     <span className="px-2 py-1 rounded-lg bg-cyan-50  text-cyan-800  font-mono">
-                      {row.empty.tup} Tüp (eski)
+                      Tüp (eski) - {row.empty.tup}
                     </span>
                   )}
                   {row.empty.sebil !== 0 && (
                     <span className="px-2 py-1 rounded-lg bg-indigo-50  text-indigo-800  font-mono">
-                      {row.empty.sebil} Su Sebili
+                      Su Sebili - {row.empty.sebil}
                     </span>
                   )}
                 </div>

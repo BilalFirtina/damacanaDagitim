@@ -795,22 +795,29 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
         Yükleme düzeltmesi veya iptali için depo yöneticisine başvurun.
       </p>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2 py-1 text-xs w-full max-w-full">
-        <span className="text-slate-400 text-[11px] font-medium whitespace-nowrap">
-          Yüklenenler:
+      <div className="mt-3 flex flex-wrap items-center gap-2 py-1 w-full max-w-full min-w-0">
+        <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">
+          Yüklenen Ürünler:
         </span>
         {currentDispatch.loadedItems.map((item) => {
           const product = products.find((p) => p.id === item.productId);
           return (
             <span
               key={item.productId}
-              className="px-2.5 py-1 rounded-lg bg-slate-100  text-slate-700  whitespace-nowrap text-[11px]"
+              className="inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-x-1.5 gap-y-0.5 px-3 py-1.5 rounded-lg bg-slate-100  text-slate-700  border border-slate-200/70 text-sm"
             >
-              {product?.name.split(" ")[0]}:{" "}
-              <strong className="font-mono tabular-nums">
-                {item.quantity}
-              </strong>{" "}
-              {product?.unit}
+              <span className="font-semibold break-words">
+                {product?.name || item.productId}
+              </span>
+              <span className="whitespace-nowrap">
+                -{" "}
+                <strong className="font-mono tabular-nums text-base text-slate-900 ">
+                  {item.quantity}
+                </strong>{" "}
+                <span className="text-xs text-slate-500">
+                  {product?.unit || "Adet"}
+                </span>
+              </span>
             </span>
           );
         })}
