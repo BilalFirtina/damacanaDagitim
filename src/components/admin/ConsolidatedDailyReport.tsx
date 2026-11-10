@@ -96,13 +96,20 @@ const LinesCell: React.FC<{ items: string[] }> = ({ items }) => {
   );
 };
 
-const CollectionCell: React.FC<{ cash: number; pos: number }> = ({ cash, pos }) => {
+const CollectionCell: React.FC<{
+  cash: number;
+  pos: number;
+  align?: 'right' | 'center';
+}> = ({ cash, pos, align = 'right' }) => {
   if (cash <= 0 && pos <= 0) return <span>-</span>;
+  const horizontalClass =
+    align === 'center' ? 'items-center text-center' : 'items-end text-right';
+  const posClass = align === 'center' ? 'items-center' : 'items-end';
   return (
-    <div className="flex flex-col items-end gap-0.5">
+    <div className={`flex flex-col ${horizontalClass} gap-0.5`}>
       {cash > 0 && <span>{money(cash)}</span>}
       {pos > 0 && (
-        <span className="flex flex-col items-end">
+        <span className={`flex flex-col ${posClass}`}>
           <span>{money(pos)}</span>
           <img src={POS_ICON_SRC} alt="" title="POS" className="w-5 h-5 object-contain" />
         </span>
@@ -242,7 +249,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
       </div>
 
       {/* A4 yazdırılabilir belge */}
-      <div className="bg-white text-black p-6 sm:p-10 rounded-2xl border border-black shadow-sm font-sans mx-auto max-w-5xl print:p-0 print:border-none print:shadow-none print:max-w-none print:m-0 print:w-full">
+      <div className="bg-white text-black p-6 sm:p-10 rounded-2xl border border-black shadow-sm font-sans mx-auto max-w-5xl xl:max-w-6xl print:p-0 print:border-none print:shadow-none print:max-w-none print:m-0 print:w-full">
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             body {
@@ -522,13 +529,13 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                             <th className="p-2 border-r border-black w-[3.5%] print:w-auto">No</th>
                             <th className="p-2 border-r border-black w-[5%] print:w-auto">Saat</th>
                             <th className="p-2 border-r border-black w-[14%] print:w-auto">Müşteri Adı</th>
-                            <th className="p-2 border-r border-black text-center w-[6%] print:w-auto">Dolu</th>
-                            <th className="p-2 border-r border-black text-center w-[6%] print:w-auto">Boş</th>
-                            <th className="p-2 border-r border-black text-center w-[36%] print:w-auto">Teslim Edilen Ürünler</th>
-                            <th className="p-2 border-r border-black text-right w-[7%] print:w-auto">Tutar</th>
-                            <th className="p-2 border-r border-black text-right w-[7%] print:w-auto">Tahsilat</th>
-                            <th className="p-2 border-r border-black text-right w-[7.5%] print:w-auto">Cari Borç</th>
-                            <th className="p-2 w-[8%] print:w-auto">Not</th>
+                            <th className="p-2 border-r border-black text-center align-middle w-[6%] print:w-auto">Dolu</th>
+                            <th className="p-2 border-r border-black text-center align-middle w-[6%] print:w-auto">Boş</th>
+                            <th className="p-2 border-r border-black text-center w-[35%] print:w-auto">Teslim Edilen Ürünler</th>
+                            <th className="p-2 border-r border-black text-center w-[7%] print:w-auto xl:text-sm">Tutar</th>
+                            <th className="p-0 border-r border-black text-center align-middle w-[8%] print:w-auto xl:text-sm">Tahsilat</th>
+                            <th className="p-2 border-r border-black text-center w-[7.5%] print:w-auto xl:text-sm">Cari Borç</th>
+                            <th className="p-2 w-[8%] print:w-auto text-center xl:text-sm">Not</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -551,10 +558,10 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                   <div className="text-[10px] font-normal mt-0.5">{row.customerAddress}</div>
                                 )}
                               </td>
-                              <td className="p-1.5 border-r border-black text-center font-mono">
+                              <td className="p-1.5 border-r border-black text-center align-middle font-mono">
                                 <LinesCell items={fullLines(row)} />
                               </td>
-                              <td className="p-1.5 border-r border-black text-center font-mono">
+                              <td className="p-1.5 border-r border-black text-center align-middle font-mono">
                                 <LinesCell items={emptyLines(row)} />
                               </td>
                               <td className="p-2 border-r border-black font-medium text-center">
@@ -562,16 +569,16 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                   <LinesCell items={productLines(row)} />
                                 </div>
                               </td>
-                              <td className="p-1 border-r border-black text-right font-mono font-bold text-[10px] tabular-nums">
+                              <td className="p-1 border-r border-black text-center font-mono font-bold text-xs xl:text-sm tracking-tight tabular-nums">
                                 {amountText(row)}
                               </td>
-                              <td className="p-2 border-r border-black text-right font-mono tabular-nums">
-                                <CollectionCell cash={rowCash(row)} pos={rowPos(row)} />
+                              <td className="p-0 border-r border-black text-center align-middle font-mono tabular-nums xl:text-sm">
+                                <CollectionCell cash={rowCash(row)} pos={rowPos(row)} align="center" />
                               </td>
-                              <td className="p-1 border-r border-black text-right font-mono text-[10px] leading-tight tabular-nums">
+                              <td className="p-1 border-r border-black text-center font-mono text-xs xl:text-sm leading-tight tracking-tight tabular-nums">
                                 {balanceText(row)}
                               </td>
-                              <td className="p-2 text-[10px] break-words">
+                              <td className="p-2 text-center text-xs xl:text-sm break-words">
                                 {row.notes.length ? row.notes.join(' · ') : '-'}
                               </td>
                             </tr>
@@ -582,11 +589,11 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                             <td colSpan={6} className="p-2 text-right border-r border-black uppercase">
                               {section.driverName} Ara Toplamı:
                             </td>
-                            <td className="p-2 text-right font-mono border-r border-black tabular-nums">
+                            <td className="p-1 text-center font-mono border-r border-black tabular-nums">
                               {money(section.deliveredAmount)}
                             </td>
-                            <td className="p-2 text-right font-mono border-r border-black tabular-nums">
-                              <CollectionCell cash={section.cash} pos={section.pos} />
+                            <td className="p-0 text-center align-middle font-mono border-r border-black tabular-nums">
+                              <CollectionCell cash={section.cash} pos={section.pos} align="center" />
                             </td>
                             <td className="p-2 border-r border-black" />
                             <td className="p-2" />
