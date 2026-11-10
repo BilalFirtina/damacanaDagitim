@@ -4,7 +4,7 @@
 // toplar, arayüz yalnızca gösterir. Böylece "tek doğruluk kaynağı" korunur ve
 // kural scripts/verify-statement.ts ile test edilebilir.
 //
-// Bakiye işareti: pozitif = müşteri bize borçlu, negatif = müşteri avanslı.
+// Bakiye işareti: pozitif = müşteri bize borçlu, negatif = müşteri alacaklı.
 // Bir teslimat iki hareket üretir: satış (borcu artırır) ve tahsilat (borcu
 // azaltır). Ödenmemiş kısım bu ikisinin farkı olarak kendiliğinden görünür.
 

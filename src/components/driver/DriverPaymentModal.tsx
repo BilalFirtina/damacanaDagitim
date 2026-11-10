@@ -154,7 +154,7 @@ export const DriverPaymentModal: React.FC<DriverPaymentModalProps> = ({
                           {hasCashDebt
                             ? `${moneyFmt.format(balance)} ₺ Borç`
                             : balance < 0
-                              ? `${moneyFmt.format(Math.abs(balance))} ₺ Avans`
+                              ? `${moneyFmt.format(Math.abs(balance))} ₺ Alacaklı`
                               : 'Borç yok'}
                         </span>
                       )}

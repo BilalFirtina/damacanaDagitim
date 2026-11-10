@@ -5,6 +5,7 @@ import {
   fetchCustomerStatement,
 } from '../../services/api';
 import { formatDateTr, todayUtcDateStr } from '../../services/dateWindow';
+import { formatCustomerBalance } from '../../services/customerBalanceDisplay';
 import {
   AlertCircle,
   ArrowDownLeft,
@@ -70,16 +71,42 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
   const statement = data?.statement;
   const entries = statement?.entries || [];
 
-  const summary = useMemo(
-    () => [
-      { label: 'Açılış Bakiyesi', value: statement?.openingBalance ?? 0, tone: 'slate' },
-      { label: 'Toplam Satış', value: statement?.totalSales ?? 0, tone: 'sky' },
-      { label: 'Tahsilat', value: statement?.totalPayments ?? 0, tone: 'emerald' },
-      { label: 'Düzeltme', value: statement?.totalAdjustments ?? 0, tone: 'amber' },
-      { label: 'Kapanış Bakiyesi', value: statement?.closingBalance ?? 0, tone: 'rose' },
-    ],
-    [statement]
-  );
+  const summary = useMemo(() => {
+    const opening = statement?.openingBalance ?? 0;
+    const closing = statement?.closingBalance ?? 0;
+    return [
+      {
+        label: 'Açılış Bakiyesi',
+        value: opening,
+        display: formatCustomerBalance(opening, money),
+        tone: 'slate',
+      },
+      {
+        label: 'Toplam Satış',
+        value: statement?.totalSales ?? 0,
+        display: money(statement?.totalSales ?? 0),
+        tone: 'sky',
+      },
+      {
+        label: 'Tahsilat',
+        value: statement?.totalPayments ?? 0,
+        display: money(statement?.totalPayments ?? 0),
+        tone: 'emerald',
+      },
+      {
+        label: 'Düzeltme',
+        value: statement?.totalAdjustments ?? 0,
+        display: money(statement?.totalAdjustments ?? 0),
+        tone: 'amber',
+      },
+      {
+        label: 'Kapanış Bakiyesi',
+        value: closing,
+        display: formatCustomerBalance(closing, money),
+        tone: 'rose',
+      },
+    ];
+  }, [statement]);
 
   const toneClass = (tone: string) =>
     tone === 'sky'
@@ -181,7 +208,7 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
                         s.tone
                       )}`}
                     >
-                      {money(s.value)}
+                      {s.display}
                     </div>
                   </div>
                 ))}

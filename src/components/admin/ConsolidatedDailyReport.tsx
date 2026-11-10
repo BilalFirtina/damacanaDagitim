@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Customer, User, Product } from '../../types';
 import { fetchDailyReport } from '../../services/api';
 import { todayUtcDateStr } from '../../services/dateWindow';
+import { formatCustomerBalance } from '../../services/customerBalanceDisplay';
 import {
   buildConsolidatedReport,
   rowCash,
@@ -77,9 +78,7 @@ const amountText = (row: ConsolidatedRow): string => {
 const balanceText = (row: ConsolidatedRow): string => {
   if (row.isAccount) return 'FATURALI';
   if (row.balance === null) return '-';
-  if (row.balance > 0) return money(row.balance);
-  if (row.balance < 0) return `Avans ${money(-row.balance)}`;
-  return money(0);
+  return formatCustomerBalance(row.balance, money);
 };
 
 const LinesCell: React.FC<{ items: string[] }> = ({ items }) => {
@@ -458,8 +457,8 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                 <th className="p-2 border-r border-black w-10">S.No</th>
                 <th className="p-2 border-r border-black">Ürün Tanımı</th>
                 <th className="p-2 border-r border-black text-center w-20">Birim</th>
-                <th className="p-2 border-r border-black text-right w-24">Toplam Miktar</th>
-                <th className="p-2 text-right w-40">Toplam Tutar</th>
+                <th className="p-2 border-r border-black text-center w-24">Toplam Miktar</th>
+                <th className="p-2 text-center w-40">Toplam Tutar</th>
               </tr>
             </thead>
             <tbody>
@@ -475,10 +474,10 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                     <td className="p-2 border-r border-black font-mono">{index + 1}</td>
                     <td className="p-2 border-r border-black font-bold">{line.name}</td>
                     <td className="p-2 border-r border-black text-center">{line.unit}</td>
-                    <td className="p-2 border-r border-black text-right font-mono font-bold tabular-nums">
+                    <td className="p-2 border-r border-black text-center font-mono font-bold tabular-nums">
                       {line.quantity}
                     </td>
-                    <td className="p-2 text-right font-mono tabular-nums">
+                    <td className="p-2 text-center font-mono tabular-nums">
                       {line.hasAccountAmount
                         ? line.amount > 0
                           ? `${money(line.amount)} + FATURALI SATILANLAR`
@@ -530,13 +529,13 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                           <tr className="border-b border-black bg-white">
                             <th className="p-2 border-r border-black w-[3.5%] print:w-auto">No</th>
                             <th className="p-2 border-r border-black w-[5%] print:w-auto">Saat</th>
-                            <th className="p-2 border-r border-black w-[12%] print:w-auto">Müşteri Adı</th>
+                            <th className="p-2 border-r border-black w-[14%] print:w-auto">Müşteri Adı</th>
                             <th className="p-2 border-r border-black text-center w-[6%] print:w-auto">Dolu</th>
                             <th className="p-2 border-r border-black text-center w-[6%] print:w-auto">Boş</th>
-                            <th className="p-2 border-r border-black w-[40%] print:w-auto">Teslim Edilen Ürünler</th>
+                            <th className="p-2 border-r border-black text-center w-[36%] print:w-auto">Teslim Edilen Ürünler</th>
                             <th className="p-2 border-r border-black text-right w-[7%] print:w-auto">Tutar</th>
                             <th className="p-2 border-r border-black text-right w-[7%] print:w-auto">Tahsilat</th>
-                            <th className="p-2 border-r border-black text-right w-[5.5%] print:w-auto">Cari Borç</th>
+                            <th className="p-2 border-r border-black text-right w-[7.5%] print:w-auto">Cari Borç</th>
                             <th className="p-2 w-[8%] print:w-auto">Not</th>
                           </tr>
                         </thead>
@@ -566,7 +565,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                               <td className="p-1.5 border-r border-black text-center font-mono">
                                 <LinesCell items={emptyLines(row)} />
                               </td>
-                              <td className="p-2 border-r border-black font-medium">
+                              <td className="p-2 border-r border-black font-medium text-center">
                                 <div className="min-[1440px]:whitespace-nowrap">
                                   <LinesCell items={productLines(row)} />
                                 </div>
@@ -577,7 +576,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                               <td className="p-2 border-r border-black text-right font-mono tabular-nums">
                                 <CollectionCell cash={rowCash(row)} pos={rowPos(row)} />
                               </td>
-                              <td className="p-1 border-r border-black text-right font-mono text-[9px] leading-tight tracking-tight tabular-nums">
+                              <td className="p-1 border-r border-black text-right font-mono text-[10px] leading-tight tabular-nums">
                                 {balanceText(row)}
                               </td>
                               <td className="p-2 text-[10px] break-words">

@@ -1144,7 +1144,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                           {Math.abs(
                             selectedCustomer.currentBalanceTL,
                           ).toLocaleString("tr-TR")}{" "}
-                          ₺ avans
+                          ₺ alacaklı
                         </span>
                       )}
                   </span>
@@ -1414,7 +1414,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       >
                         {selectedCustomer.currentBalanceTL > 0
                           ? `Önceki Borcu: ${selectedCustomer.currentBalanceTL.toLocaleString("tr-TR")} ₺`
-                          : `Avansı: ${Math.abs(selectedCustomer.currentBalanceTL).toLocaleString("tr-TR")} ₺`}
+                          : `Alacağı: ${Math.abs(selectedCustomer.currentBalanceTL).toLocaleString("tr-TR")} ₺`}
                       </span>
                     )}
                   </div>

@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BalancesReportResponse, fetchBalancesReport } from '../../services/api';
+import {
+  customerBalanceStatus,
+  formatCustomerBalanceAmount,
+} from '../../services/customerBalanceDisplay';
 import { AlertCircle, Search, Wallet, Droplet } from 'lucide-react';
 
 const moneyFmt = new Intl.NumberFormat('tr-TR', {
@@ -114,7 +118,7 @@ export const BalancesReportView: React.FC = () => {
               </div>
             </div>
             <div className="rounded-xl border border-slate-200  p-2.5 min-w-0">
-              <div className="text-[10px] font-semibold text-slate-500">Toplam Avans</div>
+              <div className="text-[10px] font-semibold text-slate-500">Toplam Alacak</div>
               <div className="font-mono font-bold text-xs text-emerald-600  tabular-nums break-words">
                 {money(visibleTotals.totalAdvance)}
               </div>
@@ -236,10 +240,10 @@ export const BalancesReportView: React.FC = () => {
                           : 'text-emerald-600 '
                       }`}
                     >
-                      {money(row.balance)}
+                      {formatCustomerBalanceAmount(row.balance, money)}
                     </div>
                     <div className="text-[10px] text-slate-400">
-                      {row.balance > 0 ? 'Borçlu' : 'Avanslı'}
+                      {customerBalanceStatus(row.balance)}
                     </div>
                   </div>
                 )}
