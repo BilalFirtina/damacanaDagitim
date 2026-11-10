@@ -457,14 +457,13 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                 <th className="p-2 border-r border-black w-10">S.No</th>
                 <th className="p-2 border-r border-black">Ürün Tanımı</th>
                 <th className="p-2 border-r border-black text-center w-20">Birim</th>
-                <th className="p-2 border-r border-black text-center w-24">Toplam Miktar</th>
-                <th className="p-2 text-center w-40">Toplam Tutar</th>
+                <th className="p-2 text-center w-24">Toplam Miktar</th>
               </tr>
             </thead>
             <tbody>
               {report.products.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-3 text-center italic border-b border-black">
+                  <td colSpan={4} className="p-3 text-center italic border-b border-black">
                     Seçilen tarihte teslimat kaydı bulunmuyor.
                   </td>
                 </tr>
@@ -474,15 +473,8 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                     <td className="p-2 border-r border-black font-mono">{index + 1}</td>
                     <td className="p-2 border-r border-black font-bold">{line.name}</td>
                     <td className="p-2 border-r border-black text-center">{line.unit}</td>
-                    <td className="p-2 border-r border-black text-center font-mono font-bold tabular-nums">
+                    <td className="p-2 text-center font-mono font-bold tabular-nums">
                       {line.quantity}
-                    </td>
-                    <td className="p-2 text-center font-mono tabular-nums">
-                      {line.hasAccountAmount
-                        ? line.amount > 0
-                          ? `${money(line.amount)} + FATURALI SATILANLAR`
-                          : 'FATURALI SATILANLAR'
-                        : money(line.amount)}
                     </td>
                   </tr>
                 ))
