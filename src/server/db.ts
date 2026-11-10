@@ -426,32 +426,32 @@ const CANONICAL_SEED_PRODUCTS: Product[] = [
   },
   {
     id: 'prod_soda_beypazari_24',
-    name: "Beypazarı Maden Suyu (24'lü Koli)",
+    name: "Beypazarı Maden Suyu (24'lü Paket)",
     category: 'soda',
     defaultUnitPrice: 180,
     isDeposit: false,
     depositType: 'none',
-    unit: 'Koli',
+    unit: 'Paket',
     description: 'Doğal maden suyu 200ml cam şişe'
   },
   {
     id: 'prod_soda_kizilay_24',
-    name: "Kızılay Maden Suyu (24'lü Koli)",
+    name: "Kızılay Maden Suyu (24'lü Paket)",
     category: 'soda',
     defaultUnitPrice: 175,
     isDeposit: false,
     depositType: 'none',
-    unit: 'Koli',
+    unit: 'Paket',
     description: '24 adet 200ml sade maden suyu'
   },
   {
     id: 'prod_soda_limonlu_24',
-    name: "Limonlu Soda (24'lü Koli)",
+    name: "Limonlu Soda (24'lü Paket)",
     category: 'soda',
     defaultUnitPrice: 100,
     isDeposit: false,
     depositType: 'none',
-    unit: 'Koli',
+    unit: 'Paket',
     description: 'Limonlu maden suyu 200ml cam şişe'
   },
   {
