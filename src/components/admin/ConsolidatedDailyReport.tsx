@@ -249,7 +249,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
       </div>
 
       {/* A4 yazdırılabilir belge */}
-      <div className="bg-white text-black p-6 sm:p-10 rounded-2xl border border-black shadow-sm font-sans mx-auto max-w-5xl xl:max-w-6xl print:p-0 print:border-none print:shadow-none print:max-w-none print:m-0 print:w-full">
+      <div className="bg-white text-black p-6 sm:p-10 rounded-2xl border border-black shadow-sm font-sans mx-auto max-w-5xl xl:max-w-7xl print:p-0 print:border-none print:shadow-none print:max-w-none print:m-0 print:w-full">
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             body {
@@ -526,24 +526,24 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                       <table className="w-full table-fixed print:table-auto text-xs border-collapse text-left">
                         <thead>
                           <tr className="border-b border-black bg-white">
-                            <th className="p-2 border-r border-black w-[3.5%] print:w-auto">No</th>
-                            <th className="p-2 border-r border-black w-[5%] print:w-auto">Saat</th>
-                            <th className="p-2 border-r border-black w-[14%] print:w-auto">Müşteri Adı</th>
-                            <th className="p-2 border-r border-black text-center align-middle w-[6%] print:w-auto">Dolu</th>
-                            <th className="p-2 border-r border-black text-center align-middle w-[6%] print:w-auto">Boş</th>
-                            <th className="p-2 border-r border-black text-center w-[35%] print:w-auto">Teslim Edilen Ürünler</th>
-                            <th className="p-2 border-r border-black text-center w-[7%] print:w-auto xl:text-sm">Tutar</th>
+                            <th className="p-0 border-r border-black text-center align-middle w-[3.5%] print:w-auto">No</th>
+                            <th className="p-0 border-r border-black text-center align-middle w-[5%] print:w-auto">Saat</th>
+                            <th className="p-0 border-r border-black text-center align-middle w-[14%] print:w-auto">Müşteri Adı</th>
+                            <th className="p-0 border-r border-black text-center align-middle w-[7.5%] print:w-auto">Dolu</th>
+                            <th className="p-0 border-r border-black text-center align-middle w-[7.5%] print:w-auto">Boş</th>
+                            <th className="p-0 border-r border-black text-center align-middle w-[32%] print:w-auto">Teslim Edilen Ürünler</th>
+                            <th className="p-0 border-r border-black text-center align-middle w-[7%] print:w-auto xl:text-sm">Tutar</th>
                             <th className="p-0 border-r border-black text-center align-middle w-[8%] print:w-auto xl:text-sm">Tahsilat</th>
-                            <th className="p-2 border-r border-black text-center w-[7.5%] print:w-auto xl:text-sm">Cari Borç</th>
-                            <th className="p-2 w-[8%] print:w-auto text-center xl:text-sm">Not</th>
+                            <th className="p-0 border-r border-black text-center align-middle w-[7.5%] print:w-auto xl:text-sm">Cari Borç</th>
+                            <th className="p-0 w-[8%] print:w-auto text-center align-middle xl:text-sm">Not</th>
                           </tr>
                         </thead>
                         <tbody>
                           {section.rows.map((row, index) => (
-                            <tr key={row.key} className="border-b border-black align-top">
-                              <td className="p-2 border-r border-black font-mono">{index + 1}</td>
-                              <td className="p-1 border-r border-black font-mono">
-                                <div className="flex flex-col gap-0.5">
+                            <tr key={row.key} className="border-b border-black align-middle">
+                              <td className="p-0 border-r border-black text-center align-middle font-mono">{index + 1}</td>
+                              <td className="p-0 border-r border-black text-center align-middle font-mono">
+                                <div className="flex flex-col items-center gap-0.5">
                                   <span className="text-[11px]">{timeText(row)}</span>
                                   {row.hasLateDelivery && (
                                     <span className="inline-block w-fit max-w-full rounded bg-amber-100 px-0.5 py-0 text-[9px] font-bold leading-tight text-amber-900 break-words">
@@ -552,33 +552,33 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                   )}
                                 </div>
                               </td>
-                              <td className="p-2 border-r border-black font-bold break-words">
+                              <td className="p-0 border-r border-black text-center align-middle font-bold break-words">
                                 {row.customerName}
                                 {row.customerAddress && (
                                   <div className="text-[10px] font-normal mt-0.5">{row.customerAddress}</div>
                                 )}
                               </td>
-                              <td className="p-1.5 border-r border-black text-center align-middle font-mono">
+                              <td className="p-0 border-r border-black text-center align-middle font-mono xl:text-base">
                                 <LinesCell items={fullLines(row)} />
                               </td>
-                              <td className="p-1.5 border-r border-black text-center align-middle font-mono">
+                              <td className="p-0 border-r border-black text-center align-middle font-mono xl:text-base">
                                 <LinesCell items={emptyLines(row)} />
                               </td>
-                              <td className="p-2 border-r border-black font-medium text-center">
+                              <td className="p-0 border-r border-black text-center align-middle font-medium xl:text-base">
                                 <div className="min-[1440px]:whitespace-nowrap">
                                   <LinesCell items={productLines(row)} />
                                 </div>
                               </td>
-                              <td className="p-1 border-r border-black text-center font-mono font-bold text-xs xl:text-sm tracking-tight tabular-nums">
+                              <td className="p-0 border-r border-black text-center align-middle font-mono font-bold text-xs xl:text-sm tracking-tight tabular-nums">
                                 {amountText(row)}
                               </td>
                               <td className="p-0 border-r border-black text-center align-middle font-mono tabular-nums xl:text-sm">
                                 <CollectionCell cash={rowCash(row)} pos={rowPos(row)} align="center" />
                               </td>
-                              <td className="p-1 border-r border-black text-center font-mono text-xs xl:text-sm leading-tight tracking-tight tabular-nums">
+                              <td className="p-0 border-r border-black text-center align-middle font-mono text-xs xl:text-sm leading-tight tracking-tight tabular-nums">
                                 {balanceText(row)}
                               </td>
-                              <td className="p-2 text-center text-xs xl:text-sm break-words">
+                              <td className="p-0 text-center align-middle text-xs xl:text-sm break-words">
                                 {row.notes.length ? row.notes.join(' · ') : '-'}
                               </td>
                             </tr>
@@ -586,17 +586,17 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                         </tbody>
                         <tfoot>
                           <tr className="bg-white font-bold border-t-2 border-black">
-                            <td colSpan={6} className="p-2 text-right border-r border-black uppercase">
+                            <td colSpan={6} className="p-0 text-center align-middle border-r border-black uppercase">
                               {section.driverName} Ara Toplamı:
                             </td>
-                            <td className="p-1 text-center font-mono border-r border-black tabular-nums">
+                            <td className="p-0 text-center align-middle font-mono border-r border-black tabular-nums xl:text-sm tracking-tight">
                               {money(section.deliveredAmount)}
                             </td>
-                            <td className="p-0 text-center align-middle font-mono border-r border-black tabular-nums">
+                            <td className="p-0 text-center align-middle font-mono border-r border-black tabular-nums xl:text-sm">
                               <CollectionCell cash={section.cash} pos={section.pos} align="center" />
                             </td>
-                            <td className="p-2 border-r border-black" />
-                            <td className="p-2" />
+                            <td className="p-0 border-r border-black" />
+                            <td className="p-0" />
                           </tr>
                         </tfoot>
                       </table>
@@ -712,47 +712,47 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                 <table className="w-full text-xs border border-black border-collapse text-left">
                                   <thead>
                                     <tr className="border-b border-black bg-white">
-                                      <th className="p-2 border-r border-black">Kalem</th>
-                                      <th className="p-2 text-right w-24">Adet</th>
+                                      <th className="p-0 border-r border-black text-center align-middle">Kalem</th>
+                                      <th className="p-0 text-center align-middle w-24">Adet</th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {ret.emptyDamacana > 0 && (
-                                      <tr className="border-b border-black last:border-b-0">
-                                        <td className="p-2 border-r border-black font-bold">Boş Damacana</td>
-                                        <td className="p-2 text-right font-mono font-bold tabular-nums">
+                                      <tr className="border-b border-black last:border-b-0 align-middle">
+                                        <td className="p-0 border-r border-black text-center align-middle font-bold">Boş Damacana</td>
+                                        <td className="p-0 text-center align-middle font-mono font-bold tabular-nums">
                                           {ret.emptyDamacana}
                                         </td>
                                       </tr>
                                     )}
                                     {ret.emptyCamDamacana > 0 && (
-                                      <tr className="border-b border-black last:border-b-0">
-                                        <td className="p-2 border-r border-black font-bold">Boş Cam Damacana</td>
-                                        <td className="p-2 text-right font-mono font-bold tabular-nums">
+                                      <tr className="border-b border-black last:border-b-0 align-middle">
+                                        <td className="p-0 border-r border-black text-center align-middle font-bold">Boş Cam Damacana</td>
+                                        <td className="p-0 text-center align-middle font-mono font-bold tabular-nums">
                                           {ret.emptyCamDamacana}
                                         </td>
                                       </tr>
                                     )}
                                     {ret.emptyTupBuyuk > 0 && (
-                                      <tr className="border-b border-black last:border-b-0">
-                                        <td className="p-2 border-r border-black font-bold">Büyük Boş Tüp</td>
-                                        <td className="p-2 text-right font-mono font-bold tabular-nums">
+                                      <tr className="border-b border-black last:border-b-0 align-middle">
+                                        <td className="p-0 border-r border-black text-center align-middle font-bold">Büyük Boş Tüp</td>
+                                        <td className="p-0 text-center align-middle font-mono font-bold tabular-nums">
                                           {ret.emptyTupBuyuk}
                                         </td>
                                       </tr>
                                     )}
                                     {ret.emptyTupKucuk > 0 && (
-                                      <tr className="border-b border-black last:border-b-0">
-                                        <td className="p-2 border-r border-black font-bold">Küçük Boş Tüp</td>
-                                        <td className="p-2 text-right font-mono font-bold tabular-nums">
+                                      <tr className="border-b border-black last:border-b-0 align-middle">
+                                        <td className="p-0 border-r border-black text-center align-middle font-bold">Küçük Boş Tüp</td>
+                                        <td className="p-0 text-center align-middle font-mono font-bold tabular-nums">
                                           {ret.emptyTupKucuk}
                                         </td>
                                       </tr>
                                     )}
                                     {ret.sebilReceived > 0 && (
-                                      <tr className="border-b border-black last:border-b-0">
-                                        <td className="p-2 border-r border-black font-bold">Alınan Sebil</td>
-                                        <td className="p-2 text-right font-mono font-bold tabular-nums">
+                                      <tr className="border-b border-black last:border-b-0 align-middle">
+                                        <td className="p-0 border-r border-black text-center align-middle font-bold">Alınan Sebil</td>
+                                        <td className="p-0 text-center align-middle font-mono font-bold tabular-nums">
                                           {ret.sebilReceived}
                                         </td>
                                       </tr>
@@ -772,28 +772,28 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                 <table className="w-full text-xs border border-black border-collapse text-left">
                                   <thead>
                                     <tr className="border-b border-black bg-white">
-                                      <th className="p-2 border-r border-black">Ürün</th>
-                                      <th className="p-2 border-r border-black text-right w-20">Arabaya Yüklenen</th>
-                                      <th className="p-2 border-r border-black text-right w-24">Teslim Edilen</th>
-                                      <th className="p-2 text-right w-28">Depoya İndirilecek</th>
+                                      <th className="p-0 border-r border-black text-center align-middle">Ürün</th>
+                                      <th className="p-0 border-r border-black text-center align-middle w-20">Arabaya Yüklenen</th>
+                                      <th className="p-0 border-r border-black text-center align-middle w-24">Teslim Edilen</th>
+                                      <th className="p-0 text-center align-middle w-28">Depoya İndirilecek</th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {ret.remainingProducts.map((product) => (
                                       <tr
                                         key={product.productId}
-                                        className="border-b border-black last:border-b-0 align-top"
+                                        className="border-b border-black last:border-b-0 align-middle"
                                       >
-                                        <td className="p-2 border-r border-black font-bold break-words">
+                                        <td className="p-0 border-r border-black text-center align-middle font-bold break-words">
                                           {product.name}
                                         </td>
-                                        <td className="p-2 border-r border-black text-right font-mono tabular-nums">
+                                        <td className="p-0 border-r border-black text-center align-middle font-mono tabular-nums">
                                           {product.loaded}
                                         </td>
-                                        <td className="p-2 border-r border-black text-right font-mono tabular-nums">
+                                        <td className="p-0 border-r border-black text-center align-middle font-mono tabular-nums">
                                           {product.delivered}
                                         </td>
-                                        <td className="p-2 text-right font-mono font-bold tabular-nums">
+                                        <td className="p-0 text-center align-middle font-mono font-bold tabular-nums">
                                           {product.remaining} {product.unit}
                                         </td>
                                       </tr>
