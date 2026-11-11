@@ -1,4 +1,5 @@
 import type { Customer, Delivery, Product } from '../types';
+import { isGlassDamacana } from '../types';
 import { isAccountCustomerDelivery } from './customerVisibility';
 
 // Konsolide gün sonu raporu için saf hesaplama katmanı.
@@ -115,6 +116,7 @@ export interface ConsolidatedProductLine {
   quantity: number;
   amount: number;
   hasAccountAmount: boolean;
+  category: string;
 }
 
 export interface ConsolidatedReport {
@@ -160,6 +162,45 @@ const timeOf = (value: string | null | undefined): number => {
 };
 
 const isCashOrPos = (method: string) => method === 'CASH' || method === 'POS';
+
+// III. "Gün İçinde Teslim Edilen Ürün ve Miktar Dökümü" tablosunun sırası:
+// damacana → pet → bardak su → soda → tüp → bardak/sarf → sebil.
+// Bardak Su ürünleri bardak kategorisinde tutulsa da pet ile soda arasında
+// gösterilir; grupların içinde Türkçe alfabetik sıralama yapılır.
+const REPORT_CATEGORY_RANK: Record<string, number> = {
+  damacana: 1,
+  pet: 2,
+  bardak_su: 3,
+  soda: 4,
+  tup: 5,
+  bardak: 6,
+  sebil: 7,
+};
+
+const isBardakSuLine = (line: { name: string }): boolean =>
+  line.name.toLocaleLowerCase('tr-TR').includes('bardak su');
+
+export function sortConsolidatedProductLines(
+  lines: ConsolidatedProductLine[]
+): ConsolidatedProductLine[] {
+  const rankOf = (line: ConsolidatedProductLine): number =>
+    isBardakSuLine(line)
+      ? REPORT_CATEGORY_RANK.bardak_su
+      : REPORT_CATEGORY_RANK[line.category] ?? 99;
+
+  return [...lines].sort((a, b) => {
+    const rankA = rankOf(a);
+    const rankB = rankOf(b);
+    if (rankA !== rankB) return rankA - rankB;
+    if (rankA === REPORT_CATEGORY_RANK.damacana) {
+      // Cam damacana, damacana grubunun en sonunda (yükleme ekranıyla aynı kural).
+      const glassA = isGlassDamacana({ category: a.category, name: a.name }) ? 1 : 0;
+      const glassB = isGlassDamacana({ category: b.category, name: b.name }) ? 1 : 0;
+      if (glassA !== glassB) return glassA - glassB;
+    }
+    return a.name.localeCompare(b.name, 'tr');
+  });
+}
 
 function newRow(
   driverId: string,
@@ -382,6 +423,7 @@ export function buildConsolidatedReport(input: {
         quantity: 0,
         amount: 0,
         hasAccountAmount: false,
+        category: product?.category || 'none',
       };
       totals.quantity += quantity;
       if (isAccount) totals.hasAccountAmount = true;
@@ -621,7 +663,7 @@ export function buildConsolidatedReport(input: {
     adminPos: adminPayments.pos,
     adminCount: adminPayments.count,
     customerPayments,
-    products: Array.from(productTotals.values()),
+    products: sortConsolidatedProductLines(Array.from(productTotals.values())),
     icmal,
   };
 }
