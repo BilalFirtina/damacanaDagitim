@@ -17,6 +17,10 @@ import {
   type CustomerUpdate,
 } from "../../services/api";
 import { negativeEmptyMessages } from "../../services/emptyBalanceDisplay";
+import {
+  matchCustomerSearch,
+  normalizeSearchText,
+} from "../../services/searchText";
 import { CustomerStatementModal } from "./CustomerStatementModal";
 import { CustomerPaymentModal } from "./CustomerPaymentModal";
 
@@ -362,15 +366,10 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
     }
   };
 
-  const filtered = customers.filter((c) => {
-    const term = searchTerm.toLowerCase();
-    const matchesSearch =
-      c.name.toLowerCase().includes(term) ||
-      c.address.toLowerCase().includes(term) ||
-      c.phone.includes(term) ||
-      (c.emails && c.emails.some((em) => em.toLowerCase().includes(term)));
+  const normalizedSearchTerm = normalizeSearchText(searchTerm);
 
-    if (!matchesSearch) return false;
+  const filtered = customers.filter((c) => {
+    if (!matchCustomerSearch(c, normalizedSearchTerm)) return false;
     if (filterType === "account") return c.isAccountCustomer;
     if (filterType === "deposit_debt")
       return (
@@ -714,6 +713,26 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
             </div>
           );
         })}
+
+        {filtered.length === 0 && (
+          <div className="md:col-span-2 lg:col-span-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-8 text-center space-y-2">
+            <Search className="w-6 h-6 text-slate-300 mx-auto" />
+            <p className="text-sm font-semibold text-slate-700">
+              {customers.length === 0
+                ? "Henüz müşteri kaydı yok."
+                : normalizedSearchTerm
+                  ? "Aramaya uygun müşteri bulunamadı."
+                  : "Bu filtrede müşteri bulunamadı."}
+            </p>
+            <p className="text-xs text-slate-500">
+              {customers.length === 0
+                ? "Yeni Müşteri Ekle düğmesiyle ilk kaydı oluşturabilirsiniz."
+                : filterType !== "all"
+                  ? 'Sonuçları görmek için "Tüm Müşteriler" sekmesini seçin veya farklı bir arama terimi deneyin.'
+                  : "Farklı bir ad, adres, telefon veya e-posta ile aramayı deneyin."}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* 1. Create Customer Modal */}

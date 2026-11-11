@@ -41,6 +41,10 @@ import {
 } from "../../services/stockWarning";
 import { computeDeliveredDeposits } from "../../services/depositRules";
 import { negativeEmptyMessages } from "../../services/emptyBalanceDisplay";
+import {
+  matchCustomerSearch,
+  normalizeSearchText,
+} from "../../services/searchText";
 
 interface DeliveryModalProps {
   isOpen: boolean;
@@ -1019,16 +1023,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   if (!isOpen) return null;
 
   // Filter customers
-  const filteredCustomers = allCustomers.filter((c) => {
-    const term = customerSearch.toLowerCase().trim();
-    if (!term) return true;
-    return (
-      c.name.toLowerCase().includes(term) ||
-      c.address.toLowerCase().includes(term) ||
-      c.phone.includes(term) ||
-      (c.emails && c.emails.some((em) => em.toLowerCase().includes(term)))
-    );
-  });
+  const normalizedCustomerSearch = normalizeSearchText(customerSearch);
+  const filteredCustomers = allCustomers.filter((c) =>
+    matchCustomerSearch(c, normalizedCustomerSearch),
+  );
 
   // Filter products for Step 2
   const filteredProducts = filterProductsBySearch(allProducts, productSearch);

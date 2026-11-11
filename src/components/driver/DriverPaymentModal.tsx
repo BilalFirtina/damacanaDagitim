@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Customer } from '../../types';
 import { CustomerPaymentModal } from '../admin/CustomerPaymentModal';
+import { matchCustomerSearch, normalizeSearchText } from '../../services/searchText';
 import { Building2, Search, Wallet, X } from 'lucide-react';
 
 interface DriverPaymentModalProps {
@@ -45,15 +46,9 @@ export const DriverPaymentModal: React.FC<DriverPaymentModalProps> = ({
     );
   }
 
-  const needle = search.trim().toLocaleLowerCase('tr-TR');
+  const normalizedSearch = normalizeSearchText(search);
   const filtered = customers
-    .filter((c) => {
-      if (!needle) return true;
-      return (
-        c.name.toLocaleLowerCase('tr-TR').includes(needle) ||
-        (c.phone || '').toLocaleLowerCase('tr-TR').includes(needle)
-      );
-    })
+    .filter((c) => matchCustomerSearch(c, normalizedSearch))
     .sort((a, b) => {
       const debtA = !a.isAccountCustomer ? Math.max(Number(a.currentBalanceTL) || 0, 0) : 0;
       const debtB = !b.isAccountCustomer ? Math.max(Number(b.currentBalanceTL) || 0, 0) : 0;
