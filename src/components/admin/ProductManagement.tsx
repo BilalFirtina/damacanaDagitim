@@ -4,7 +4,7 @@ import {
   ProductCategory,
   DepositType,
   User,
-  sortProductsByCategory,
+  sortProductsForLoading,
   getProductCategoryCodes,
   getProductCategoryTitle,
   getProductCategoryDefaults,
@@ -160,7 +160,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
   };
 
   // Filtering and Sorting
-  const filteredProducts = sortProductsByCategory(products).filter((p) => {
+  const filteredProducts = sortProductsForLoading(products).filter((p) => {
     const matchesSearch =
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
