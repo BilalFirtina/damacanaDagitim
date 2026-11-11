@@ -394,14 +394,14 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
             <Building2 className="w-5 h-5 text-sky-600 shrink-0" />
             <span>Müşteri Rehberi</span>
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 mt-0.5 max-[425px]:hidden">
             E-Fatura, muhasebe ve sipariş için birden fazla e-posta adresi
             tanımlama, cari bakiye ve boş damacana takibi
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 w-full md:w-auto">
-          <div className="relative flex-1 md:w-72">
+        <div className="flex items-center gap-2.5 w-full md:w-auto max-[425px]:flex-col max-[425px]:items-stretch">
+          <div className="relative flex-1 md:w-72 max-[425px]:w-full max-[425px]:flex-auto">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -414,7 +414,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
           <button
             onClick={handleOpenCreateModal}
-            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all whitespace-nowrap shrink-0"
+            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all whitespace-nowrap shrink-0 max-[425px]:w-full max-[425px]:justify-center"
           >
             <Plus className="w-4 h-4" />
             <span>Yeni Müşteri Ekle</span>
@@ -423,10 +423,10 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex flex-wrap items-center gap-2 py-1 text-xs w-full max-w-full">
+      <div className="flex flex-wrap items-center gap-2 py-1 text-xs w-full max-w-full max-[425px]:items-stretch">
         <button
           onClick={() => setFilterType("all")}
-          className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors ${
+          className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors max-[425px]:w-[calc(50%-0.25rem)] max-[425px]:whitespace-normal max-[425px]:px-2 max-[425px]:text-center max-[425px]:leading-tight ${
             filterType === "all"
               ? "bg-slate-900 text-white  "
               : "bg-white  text-slate-600  border border-slate-200 "
@@ -437,7 +437,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
         <button
           onClick={() => setFilterType("account")}
-          className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors ${
+          className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors max-[425px]:w-[calc(50%-0.25rem)] max-[425px]:whitespace-normal max-[425px]:px-2 max-[425px]:text-center max-[425px]:leading-tight ${
             filterType === "account"
               ? "bg-sky-600 text-white"
               : "bg-white  text-slate-600  border border-slate-200 "
@@ -449,7 +449,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
         <button
           onClick={() => setFilterType("deposit_debt")}
-          className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors ${
+          className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors max-[425px]:w-[calc(50%-0.25rem)] max-[425px]:whitespace-normal max-[425px]:px-2 max-[425px]:text-center max-[425px]:leading-tight ${
             filterType === "deposit_debt"
               ? "bg-orange-600 text-white"
               : "bg-white  text-slate-600  border border-slate-200 "
@@ -473,7 +473,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
         <button
           onClick={() => setFilterType("cash_debt")}
-          className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors ${
+          className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors max-[425px]:w-[calc(50%-0.25rem)] max-[425px]:whitespace-normal max-[425px]:px-2 max-[425px]:text-center max-[425px]:leading-tight ${
             filterType === "cash_debt"
               ? "bg-red-600 text-white"
               : "bg-white  text-slate-600  border border-slate-200 "
