@@ -285,6 +285,18 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
               margin: 10mm;
             }
             .print-avoid-break {
+              break-inside: avoid;
+              page-break-inside: avoid;
+            }
+            .print-keep-with-next {
+              break-after: avoid;
+              page-break-after: avoid;
+            }
+            thead {
+              display: table-header-group;
+            }
+            tr {
+              break-inside: avoid;
               page-break-inside: avoid;
             }
           }
@@ -399,12 +411,12 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
         </section>
 
         {/* II. Tahsilat özeti */}
-        <section className="mb-6 print-avoid-break">
-          <div className="text-xs font-black uppercase tracking-wider mb-2 border-b border-black pb-1">
+        <section className="mb-6">
+          <div className="print-keep-with-next text-xs font-black uppercase tracking-wider mb-2 border-b border-black pb-1">
             II. Tahsilat Özeti
           </div>
 
-          <div className="text-[11px] font-bold mb-1">A. Şoför Bazında Tahsilat</div>
+          <div className="print-keep-with-next text-[11px] font-bold mb-1">A. Şoför Bazında Tahsilat</div>
           <table className="w-full text-xs border border-black border-collapse mb-4">
             <thead>
               <tr className="border-b border-black">
@@ -444,7 +456,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
             </tbody>
           </table>
 
-          <div className="text-[11px] font-bold mb-1">B. Müşteri Bazında Tahsilat</div>
+          <div className="print-keep-with-next text-[11px] font-bold mb-1">B. Müşteri Bazında Tahsilat</div>
           {report.customerPayments.length === 0 ? (
             <div className="p-3 text-center italic text-xs border border-black">
               Bu tarihte tahsilat kaydı bulunmuyor.
@@ -516,7 +528,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
 
         {/* IV. Şoför bazında müşteri dökümü */}
         <section className="space-y-6">
-          <div className="text-xs font-black uppercase tracking-wider mb-2 border-b border-black pb-1">
+          <div className="print-keep-with-next text-xs font-black uppercase tracking-wider mb-2 border-b border-black pb-1">
             IV. Şoför Bazında Müşteri Dökümü
           </div>
 
@@ -526,8 +538,8 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
             </div>
           ) : (
             report.drivers.map((section, driverIndex) => (
-              <div key={section.driverId} className="border border-black print-avoid-break">
-                <div className="p-3 bg-white border-b border-black flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div key={section.driverId} className="border border-black">
+                <div className="print-keep-with-next p-3 bg-white border-b border-black flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-mono font-bold text-sm">#{driverIndex + 1}</span>
                     <span className="font-black text-sm uppercase">{section.driverName}</span>
@@ -562,12 +574,13 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                             <th className="p-0 w-[8%] print:w-auto text-center align-middle xl:text-sm">Not</th>
                           </tr>
                         </thead>
-                        <tbody>
-                          {section.rows.flatMap((row, index) => {
-                            const containers = containerTableRows(row);
-                            return containers.map((container, containerIndex) => {
-                              const isFirst = containerIndex === 0;
-                              return (
+                        {section.rows.map((row, index) => {
+                          const containers = containerTableRows(row);
+                          return (
+                            <tbody key={row.key} className="print-avoid-break">
+                              {containers.map((container, containerIndex) => {
+                                const isFirst = containerIndex === 0;
+                                return (
                                 <tr
                                   key={`${row.key}-${containerIndex}`}
                                   className="border-b border-black align-middle"
@@ -641,11 +654,12 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                     </>
                                   )}
                                 </tr>
-                              );
-                            });
-                          })}
-                        </tbody>
-                        <tfoot>
+                                );
+                              })}
+                            </tbody>
+                          );
+                        })}
+                        <tbody>
                           <tr className="bg-white font-bold border-t-2 border-black">
                             <td colSpan={6} className="p-0 text-center align-middle border-r border-black uppercase">
                               {section.driverName} Ara Toplamı:
@@ -659,7 +673,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                             <td className="p-0 border-r border-black" />
                             <td className="p-0" />
                           </tr>
-                        </tfoot>
+                        </tbody>
                       </table>
                     </div>
 
@@ -871,53 +885,6 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
           )}
         </section>
 
-        {/* V. İmzalar */}
-        <div className="mt-8 pt-4 border-t-2 border-black print-avoid-break">
-          <div className="text-xs font-black uppercase tracking-wider mb-4">V. Resmî Teslim ve Onay İmzaları</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 text-xs">
-            <div className="border border-black p-4 space-y-8">
-              <div className="space-y-1">
-                <div className="font-bold uppercase">Kontrol ve Onay: Depo Yöneticisi</div>
-                <div>
-                  Yukarıda dökümü yapılan günlük teslimatlar, kasa nakitleri, POS slipleri ve boş kaplar sayılmış
-                  olup mutabakat sağlanarak teslim alınmıştır.
-                </div>
-              </div>
-              <div className="flex justify-between items-end pt-4 border-t border-black">
-                <div>
-                  <div><strong>Yetkili:</strong> Uğur Fırtına</div>
-                  <div><strong>Tarih:</strong> {new Date().toLocaleDateString('tr-TR')}</div>
-                </div>
-                <div className="text-right">
-                  <div className="italic text-[10px]">İmza / Kaşe</div>
-                  <div className="h-10 w-24"></div>
-                </div>
-              </div>
-            </div>
-
-            <div className="border border-black p-4 space-y-8">
-              <div className="space-y-1">
-                <div className="font-bold uppercase">Teslim Eden: Dağıtım Şoförleri</div>
-                <div>
-                  Aracımdaki kalan dolu ürünleri depoya boşalttığımı, topladığım boş kapları ve tahsilat tutarlarını
-                  eksiksiz teslim ettiğimi beyan ederim.
-                </div>
-              </div>
-              <div className="flex justify-between items-end pt-4 border-t border-black">
-                <div>
-                  <div>
-                    <strong>Şoförler:</strong> {report.drivers.map((d) => d.driverName).join(', ') || 'Şoför'}
-                  </div>
-                  <div><strong>Tarih:</strong> {new Date().toLocaleDateString('tr-TR')}</div>
-                </div>
-                <div className="text-right">
-                  <div className="italic text-[10px]">Şoför İmzaları</div>
-                  <div className="h-10 w-24"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
