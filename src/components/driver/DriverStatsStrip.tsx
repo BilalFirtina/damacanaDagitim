@@ -98,147 +98,128 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-      {/* 1. Kalan Dolu Damacana */}
-      <div
-        className={`bg-white  p-4 rounded-2xl border border-slate-200  shadow-xs ${
-          showGlassDamacana ? "" : "flex items-center justify-between"
-        }`}
-      >
-        {showGlassDamacana ? (
-          <div className="w-full min-w-0">
-            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-              Arabada Kalan Dolu
-            </span>
-            <div className="mt-1 divide-y divide-slate-100">
-              {loadedPlasticDamacana > 0 && (
-                <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0 py-1.5">
-                  <span className="font-mono font-extrabold text-sm text-sky-600  tabular-nums">
-                    {remainingPlasticDamacana} / {loadedPlasticDamacana}
-                  </span>
-                  <span className="text-[11px] font-semibold text-slate-500">
-                    Damacana
-                  </span>
-                </div>
-              )}
-              <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0 py-1.5">
-                <span className="font-mono font-extrabold text-sm text-amber-600  tabular-nums">
+      {/* 1. Kalan Dolu Damacana — plastik her zaman görünür, cam yalnızca yüklüyse */}
+      <div className="relative overflow-hidden bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+        <FullDamacanaIcon className="pointer-events-none absolute inset-0 m-auto w-20 h-20 sm:w-24 sm:h-24 text-sky-600/20" />
+        <div className="relative w-full min-w-0">
+          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+            Arabada Kalan Dolu
+          </span>
+          <div className="mt-1 divide-y divide-slate-100">
+            <div className="py-1.5">
+              <span className="block w-full font-mono font-extrabold text-base sm:text-2xl text-sky-600 tabular-nums">
+                {remainingPlasticDamacana} / {loadedPlasticDamacana}
+              </span>
+              <span className="block text-[11px] font-semibold text-slate-500">
+                Damacana
+              </span>
+            </div>
+            {showGlassDamacana && (
+              <div className="py-1.5">
+                <span className="block w-full font-mono font-extrabold text-base sm:text-2xl text-amber-600 tabular-nums">
                   {remainingGlassDamacana} / {loadedGlassDamacana}
                 </span>
-                <span className="text-[11px] font-semibold text-amber-600">
+                <span className="block text-[11px] font-semibold text-amber-600">
                   Cam Damacana
                 </span>
               </div>
-            </div>
+            )}
           </div>
-        ) : (
-          <>
-            <div>
-              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-                Arabada Kalan Dolu
-              </span>
-              <div className="flex items-baseline gap-1.5 mt-1">
-                <span className="text-2xl font-extrabold font-mono text-sky-600  tabular-nums">
-                  {remainingPlasticDamacana}
-                </span>
-                <span className="text-xs text-slate-400">
-                  / {loadedPlasticDamacana} Damacana
-                </span>
-              </div>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-sky-50  text-sky-600 flex items-center justify-center shrink-0">
-              <FullDamacanaIcon className="w-6 h-6" />
-            </div>
-          </>
-        )}
+        </div>
       </div>
 
       {/* 2. Toplanan Boş Damacana (Depoya Teslim Edilecek) */}
-      <div className="bg-white  p-4 rounded-2xl border border-slate-200  shadow-xs flex items-center justify-between">
-        <div>
-          <span className="text-[11px] font-semibold text-orange-600  uppercase tracking-wider block">
+      <div className="relative overflow-hidden bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+        <RotateCcw
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 m-auto w-20 h-20 sm:w-24 sm:h-24 text-orange-600/20"
+        />
+        <div className="relative min-w-0">
+          <span className="text-[11px] font-semibold text-orange-600 uppercase tracking-wider block">
             Toplanan Boş Damacana
           </span>
-          <div className="flex items-baseline gap-1.5 mt-1">
-            <span className="text-2xl font-extrabold font-mono text-orange-600  tabular-nums">
+          <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 mt-1">
+            <span className="text-2xl font-extrabold font-mono text-orange-600 tabular-nums">
               {collectedEmptyDamacana}
             </span>
             <span className="text-xs text-slate-400">Depoya İnecek</span>
           </div>
         </div>
-        <div className="w-10 h-10 rounded-xl bg-orange-50  text-orange-600 flex items-center justify-center shrink-0">
-          <RotateCcw className="w-5 h-5" />
-        </div>
       </div>
 
       {/* 3. Toplanan Boş Cam Damacana (Depoya Teslim Edilecek) */}
-      <div className="bg-white  p-4 rounded-2xl border border-slate-200  shadow-xs flex items-center justify-between">
-        <div>
-          <span className="text-[11px] font-semibold text-amber-600  uppercase tracking-wider block">
+      <div className="relative overflow-hidden bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+        <RotateCcw
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 m-auto w-20 h-20 sm:w-24 sm:h-24 text-amber-600/20"
+        />
+        <div className="relative min-w-0">
+          <span className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider block">
             Toplanan Boş Cam Damacana
           </span>
-          <div className="flex items-baseline gap-1.5 mt-1">
-            <span className="text-2xl font-extrabold font-mono text-amber-600  tabular-nums">
+          <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 mt-1">
+            <span className="text-2xl font-extrabold font-mono text-amber-600 tabular-nums">
               {collectedEmptyCamDamacana}
             </span>
             <span className="text-xs text-slate-400">Depoya İnecek</span>
           </div>
         </div>
-        <div className="w-10 h-10 rounded-xl bg-amber-50  text-amber-600 flex items-center justify-center shrink-0">
-          <RotateCcw className="w-5 h-5" />
-        </div>
       </div>
 
       {/* 4. Toplanan Boş Tüp */}
-      <div className="bg-white  p-4 rounded-2xl border border-slate-200  shadow-xs flex items-center justify-between">
-        <div>
+      <div className="relative overflow-hidden bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+        <Flame
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 m-auto w-20 h-20 sm:w-24 sm:h-24 text-amber-600/20"
+        />
+        <div className="relative min-w-0">
           <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
             Toplanan Boş Tüp
           </span>
-          <div className="flex items-baseline gap-1.5 mt-1">
-            <span className="text-2xl font-extrabold font-mono text-slate-800  tabular-nums">
+          <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 mt-1">
+            <span className="text-2xl font-extrabold font-mono text-slate-800 tabular-nums">
               {collectedEmptyTup}
             </span>
             <span className="text-xs text-slate-400">Adet Boş Tüp</span>
           </div>
         </div>
-        <div className="w-10 h-10 rounded-xl bg-amber-50  text-amber-600 flex items-center justify-center shrink-0">
-          <Flame className="w-5 h-5" />
-        </div>
       </div>
 
       {/* 5. Kasadaki Fiili Nakit */}
-      <div className="bg-white  p-4 rounded-2xl border border-slate-200  shadow-xs flex items-center justify-between">
-        <div>
-          <span className="text-[11px] font-semibold text-emerald-600  uppercase tracking-wider block">
+      <div className="relative overflow-hidden bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+        <Wallet
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 m-auto w-20 h-20 sm:w-24 sm:h-24 text-emerald-600/20"
+        />
+        <div className="relative min-w-0">
+          <span className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider block">
             Cepteki Fiili Nakit
           </span>
-          <div className="flex items-baseline gap-1 mt-1">
-            <span className="text-2xl font-extrabold font-mono text-emerald-600  tabular-nums">
+          <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0.5 mt-1">
+            <span className="text-2xl font-extrabold font-mono text-emerald-600 tabular-nums">
               {cashTotal.toLocaleString('tr-TR')}
             </span>
             <span className="text-xs font-semibold text-emerald-600">₺</span>
           </div>
         </div>
-        <div className="w-10 h-10 rounded-xl bg-emerald-50  text-emerald-600 flex items-center justify-center shrink-0">
-          <Wallet className="w-5 h-5" />
-        </div>
       </div>
 
       {/* 6. Çekilen POS Toplamı */}
-      <div className="bg-white  p-4 rounded-2xl border border-slate-200  shadow-xs flex items-center justify-between">
-        <div>
-          <span className="text-[11px] font-semibold text-indigo-600  uppercase tracking-wider block">
+      <div className="relative overflow-hidden bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+        <CreditCard
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 m-auto w-20 h-20 sm:w-24 sm:h-24 text-indigo-600/20"
+        />
+        <div className="relative min-w-0">
+          <span className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wider block">
             POS Kart Çekimleri
           </span>
-          <div className="flex items-baseline gap-1 mt-1">
-            <span className="text-2xl font-extrabold font-mono text-indigo-600  tabular-nums">
+          <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0.5 mt-1">
+            <span className="text-2xl font-extrabold font-mono text-indigo-600 tabular-nums">
               {posTotal.toLocaleString('tr-TR')}
             </span>
             <span className="text-xs font-semibold text-indigo-600">₺</span>
           </div>
-        </div>
-        <div className="w-10 h-10 rounded-xl bg-indigo-50  text-indigo-600 flex items-center justify-center shrink-0">
-          <CreditCard className="w-5 h-5" />
         </div>
       </div>
     </div>
