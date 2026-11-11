@@ -273,7 +273,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
       </div>
 
       {/* A4 yazdırılabilir belge */}
-      <div className="bg-white text-black p-6 sm:p-10 rounded-2xl border border-black shadow-sm font-sans mx-auto max-w-5xl xl:max-w-7xl print:p-0 print:border-none print:shadow-none print:max-w-none print:m-0 print:w-full">
+      <div className="bg-white text-black p-6 sm:p-10 rounded-2xl border border-black shadow-sm report-arial mx-auto max-w-5xl xl:max-w-7xl print:p-0 print:border-none print:shadow-none print:max-w-none print:m-0 print:w-full">
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             body {
