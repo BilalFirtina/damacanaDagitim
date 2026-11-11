@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dispatch, Delivery, Product } from '../../types';
+import { Dispatch, Delivery, Product, isGlassDamacana } from '../../types';
 import { Droplet, RotateCcw, Wallet, CreditCard, Flame } from 'lucide-react';
 import { totalTupEmpty } from '../../services/depositRules';
 
@@ -19,19 +19,29 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
   // Filter deliveries belonging to this dispatch
   const currentDeliveries = deliveries.filter((d) => d.dispatchId === dispatch.id);
 
-  // Set of all product IDs categorized as damacana or with damacana deposit
-  const damacanaIds = new Set(
-    products
-      .filter((p) => p.category === 'damacana' || p.depositType === 'damacana')
-      .map((p) => p.id)
+  // Damacana ürünlerini plastik ve cam olarak iki gruba ayır. Cam damacana,
+  // aynı "damacana" kategorisinde olup depositType = 'cam_damacana' taşır.
+  const damacanaProducts = products.filter(
+    (p) => p.category === 'damacana' || p.depositType === 'damacana'
+  );
+  const plasticDamacanaIds = new Set(
+    damacanaProducts.filter((p) => !isGlassDamacana(p)).map((p) => p.id)
+  );
+  const glassDamacanaIds = new Set(
+    damacanaProducts.filter((p) => isGlassDamacana(p)).map((p) => p.id)
   );
 
+  const sumLoaded = (ids: Set<string>) =>
+    dispatch.loadedItems
+      .filter((i) => ids.has(i.productId))
+      .reduce((sum, i) => sum + i.quantity, 0);
+
   // 1. Calculate full damacana items remaining
-  const loadedDamacana = dispatch.loadedItems
-    .filter((i) => damacanaIds.has(i.productId))
-    .reduce((sum, i) => sum + i.quantity, 0);
+  const loadedPlasticDamacana = sumLoaded(plasticDamacanaIds);
+  const loadedGlassDamacana = sumLoaded(glassDamacanaIds);
   
-  let deliveredDamacana = 0;
+  let deliveredPlasticDamacana = 0;
+  let deliveredGlassDamacana = 0;
   let collectedEmptyDamacana = 0;
   let collectedEmptyCamDamacana = 0;
   let collectedEmptyTup = 0;
@@ -46,32 +56,78 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
     collectedEmptyTup += totalTupEmpty(del.emptyContainersReceived);
 
     del.deliveredItems.forEach((item) => {
-      if (damacanaIds.has(item.productId)) {
-        deliveredDamacana += item.quantity;
+      if (plasticDamacanaIds.has(item.productId)) {
+        deliveredPlasticDamacana += item.quantity;
+      } else if (glassDamacanaIds.has(item.productId)) {
+        deliveredGlassDamacana += item.quantity;
       }
     });
   });
 
-  const remainingDamacana = Math.max(0, loadedDamacana - deliveredDamacana);
+  const remainingPlasticDamacana = Math.max(
+    0,
+    loadedPlasticDamacana - deliveredPlasticDamacana
+  );
+  const remainingGlassDamacana = Math.max(
+    0,
+    loadedGlassDamacana - deliveredGlassDamacana
+  );
+  const showGlassDamacana = loadedGlassDamacana > 0;
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
       {/* 1. Kalan Dolu Damacana */}
-      <div className="bg-white  p-4 rounded-2xl border border-slate-200  shadow-xs flex items-center justify-between">
-        <div>
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-            Arabada Kalan Dolu
-          </span>
-          <div className="flex items-baseline gap-1.5 mt-1">
-            <span className="text-2xl font-extrabold font-mono text-sky-600  tabular-nums">
-              {remainingDamacana}
+      <div
+        className={`bg-white  p-4 rounded-2xl border border-slate-200  shadow-xs ${
+          showGlassDamacana ? "" : "flex items-center justify-between"
+        }`}
+      >
+        {showGlassDamacana ? (
+          <div className="w-full min-w-0">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+              Arabada Kalan Dolu
             </span>
-            <span className="text-xs text-slate-400">/ {loadedDamacana} Damacana</span>
+            <div className="mt-1 divide-y divide-slate-100">
+              {loadedPlasticDamacana > 0 && (
+                <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0 py-1.5">
+                  <span className="font-mono font-extrabold text-sm text-sky-600  tabular-nums">
+                    {remainingPlasticDamacana} / {loadedPlasticDamacana}
+                  </span>
+                  <span className="text-[11px] font-semibold text-slate-500">
+                    Damacana
+                  </span>
+                </div>
+              )}
+              <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0 py-1.5">
+                <span className="font-mono font-extrabold text-sm text-amber-600  tabular-nums">
+                  {remainingGlassDamacana} / {loadedGlassDamacana}
+                </span>
+                <span className="text-[11px] font-semibold text-amber-600">
+                  Cam Damacana
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="w-10 h-10 rounded-xl bg-sky-50  text-sky-600 flex items-center justify-center shrink-0">
-          <Droplet className="w-5 h-5 fill-sky-600/20" />
-        </div>
+        ) : (
+          <>
+            <div>
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                Arabada Kalan Dolu
+              </span>
+              <div className="flex items-baseline gap-1.5 mt-1">
+                <span className="text-2xl font-extrabold font-mono text-sky-600  tabular-nums">
+                  {remainingPlasticDamacana}
+                </span>
+                <span className="text-xs text-slate-400">
+                  / {loadedPlasticDamacana} Damacana
+                </span>
+              </div>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-sky-50  text-sky-600 flex items-center justify-center shrink-0">
+              <Droplet className="w-5 h-5 fill-sky-600/20" />
+            </div>
+          </>
+        )}
       </div>
 
       {/* 2. Toplanan Boş Damacana (Depoya Teslim Edilecek) */}
