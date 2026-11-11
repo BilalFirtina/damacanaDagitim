@@ -1,6 +1,6 @@
 import React from 'react';
 import { Dispatch, Delivery, Product, isGlassDamacana } from '../../types';
-import { RotateCcw, Wallet, CreditCard, Flame } from 'lucide-react';
+import { RotateCcw, Wallet, Flame } from 'lucide-react';
 import { totalTupEmpty } from '../../services/depositRules';
 
 const FullDamacanaIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -22,6 +22,24 @@ const FullDamacanaIcon: React.FC<{ className?: string }> = ({ className }) => (
     />
     <path d="M7 14h10" />
     <path d="M8 18h8" />
+  </svg>
+);
+
+const PosTerminalIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    aria-hidden="true"
+  >
+    <rect x="4" y="2.5" width="16" height="19" rx="3" />
+    <rect x="7.5" y="5.5" width="9" height="4" rx="1" />
+    <path d="M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01M16 17h.01" />
   </svg>
 );
 
@@ -100,8 +118,8 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
       {/* 1. Kalan Dolu Damacana — plastik her zaman görünür, cam yalnızca yüklüyse */}
       <div className="relative overflow-hidden bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-        <FullDamacanaIcon className="pointer-events-none absolute inset-0 m-auto w-20 h-20 sm:w-24 sm:h-24 text-sky-600/20" />
-        <div className="relative w-full min-w-0">
+        <FullDamacanaIcon className="pointer-events-none absolute inset-0 m-auto w-20 h-20 sm:w-24 sm:h-24 text-sky-600/10" />
+        <div className="relative w-full min-w-0 text-center">
           <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
             Arabada Kalan Dolu
           </span>
@@ -132,13 +150,13 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
       <div className="relative overflow-hidden bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
         <RotateCcw
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 m-auto w-20 h-20 sm:w-24 sm:h-24 text-orange-600/20"
+          className="pointer-events-none absolute inset-0 m-auto w-20 h-20 sm:w-24 sm:h-24 text-orange-600/10"
         />
-        <div className="relative min-w-0">
+        <div className="relative w-full min-w-0 text-center">
           <span className="text-[11px] font-semibold text-orange-600 uppercase tracking-wider block">
             Toplanan Boş Damacana
           </span>
-          <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 mt-1">
+          <div className="flex flex-wrap items-baseline justify-center gap-x-1.5 gap-y-0.5 mt-1">
             <span className="text-2xl font-extrabold font-mono text-orange-600 tabular-nums">
               {collectedEmptyDamacana}
             </span>
@@ -151,13 +169,13 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
       <div className="relative overflow-hidden bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
         <RotateCcw
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 m-auto w-20 h-20 sm:w-24 sm:h-24 text-amber-600/20"
+          className="pointer-events-none absolute inset-0 m-auto w-20 h-20 sm:w-24 sm:h-24 text-amber-600/10"
         />
-        <div className="relative min-w-0">
+        <div className="relative w-full min-w-0 text-center">
           <span className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider block">
             Toplanan Boş Cam Damacana
           </span>
-          <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 mt-1">
+          <div className="flex flex-wrap items-baseline justify-center gap-x-1.5 gap-y-0.5 mt-1">
             <span className="text-2xl font-extrabold font-mono text-amber-600 tabular-nums">
               {collectedEmptyCamDamacana}
             </span>
@@ -170,13 +188,13 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
       <div className="relative overflow-hidden bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
         <Flame
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 m-auto w-20 h-20 sm:w-24 sm:h-24 text-amber-600/20"
+          className="pointer-events-none absolute inset-0 m-auto w-20 h-20 sm:w-24 sm:h-24 text-amber-600/10"
         />
-        <div className="relative min-w-0">
+        <div className="relative w-full min-w-0 text-center">
           <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
             Toplanan Boş Tüp
           </span>
-          <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 mt-1">
+          <div className="flex flex-wrap items-baseline justify-center gap-x-1.5 gap-y-0.5 mt-1">
             <span className="text-2xl font-extrabold font-mono text-slate-800 tabular-nums">
               {collectedEmptyTup}
             </span>
@@ -189,13 +207,13 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
       <div className="relative overflow-hidden bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
         <Wallet
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 m-auto w-20 h-20 sm:w-24 sm:h-24 text-emerald-600/20"
+          className="pointer-events-none absolute inset-0 m-auto w-20 h-20 sm:w-24 sm:h-24 text-emerald-600/10"
         />
-        <div className="relative min-w-0">
+        <div className="relative w-full min-w-0 text-center">
           <span className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider block">
             Cepteki Fiili Nakit
           </span>
-          <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0.5 mt-1">
+          <div className="flex flex-wrap items-baseline justify-center gap-x-1 gap-y-0.5 mt-1">
             <span className="text-2xl font-extrabold font-mono text-emerald-600 tabular-nums">
               {cashTotal.toLocaleString('tr-TR')}
             </span>
@@ -206,15 +224,12 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
 
       {/* 6. Çekilen POS Toplamı */}
       <div className="relative overflow-hidden bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-        <CreditCard
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 m-auto w-20 h-20 sm:w-24 sm:h-24 text-indigo-600/20"
-        />
-        <div className="relative min-w-0">
+        <PosTerminalIcon className="pointer-events-none absolute inset-0 m-auto w-20 h-20 sm:w-24 sm:h-24 text-indigo-600/10" />
+        <div className="relative w-full min-w-0 text-center">
           <span className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wider block">
             POS Kart Çekimleri
           </span>
-          <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0.5 mt-1">
+          <div className="flex flex-wrap items-baseline justify-center gap-x-1 gap-y-0.5 mt-1">
             <span className="text-2xl font-extrabold font-mono text-indigo-600 tabular-nums">
               {posTotal.toLocaleString('tr-TR')}
             </span>
