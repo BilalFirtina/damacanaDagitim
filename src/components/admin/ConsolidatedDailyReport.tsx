@@ -552,7 +552,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                           <tr className="border-b border-black bg-white">
                             <th className="p-0 border-r border-black text-center align-middle w-[3.5%] print:w-auto">No</th>
                             <th className="p-0 border-r border-black text-center align-middle w-[5%] print:w-auto">Saat</th>
-                            <th className="p-0 border-r border-black text-center align-middle w-[14%] print:w-auto">Müşteri Adı</th>
+                            <th className="p-0 border-r border-black text-center align-middle w-[14%] print:w-auto text-base">Müşteri Adı</th>
                             <th className="p-0 border-r border-black text-center align-middle w-[7.5%] print:w-auto">Dolu</th>
                             <th className="p-0 border-r border-black text-center align-middle w-[7.5%] print:w-auto">Boş</th>
                             <th className="p-0 border-r border-black text-center align-middle w-[32%] print:w-auto">Teslim Edilen Ürünler</th>
@@ -595,11 +595,8 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                       </td>
                                     </>
                                   )}
-                                  <td className="p-0 border-r border-black text-center align-middle font-bold break-words">
+                                  <td className="p-0 border-r border-black text-center align-middle font-bold break-words text-base">
                                     {row.customerName}
-                                    {isFirst && row.customerAddress && (
-                                      <div className="text-[10px] font-normal mt-0.5">{row.customerAddress}</div>
-                                    )}
                                   </td>
                                   <td className="p-0 border-r border-black text-center align-middle font-mono xl:text-base">
                                     {container.full}
@@ -675,9 +672,6 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                               <div className="font-bold text-xs break-words">
                                 {index + 1}. {row.customerName}
                               </div>
-                              {row.customerAddress && (
-                                <div className="text-[10px] break-words">{row.customerAddress}</div>
-                              )}
                             </div>
                             <span className="shrink-0 text-right font-mono text-[10px]">
                               <span className="block">{timeText(row)}</span>
