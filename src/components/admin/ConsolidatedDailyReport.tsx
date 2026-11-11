@@ -53,6 +53,30 @@ const emptyLines = (row: ConsolidatedRow): string[] => {
   return lines;
 };
 
+interface ContainerTableRow {
+  full: string;
+  empty: string;
+}
+
+// Tabloda plastik ve cam damacana ayrı satırlarda gösterilir. Boş sütununda
+// müşteriden alınan boş cam adedi C.B satırında yer alır.
+const containerTableRows = (row: ConsolidatedRow): ContainerTableRow[] => {
+  const rows: ContainerTableRow[] = [];
+  if (row.damacanaFull > 0 || row.damacanaEmpty > 0) {
+    rows.push({
+      full: row.damacanaFull > 0 ? String(row.damacanaFull) : '-',
+      empty: row.damacanaEmpty > 0 ? String(row.damacanaEmpty) : '-',
+    });
+  }
+  if (row.camDamacanaFull > 0 || row.camDamacanaEmpty > 0) {
+    rows.push({
+      full: row.camDamacanaFull > 0 ? `C.D - ${row.camDamacanaFull}` : '-',
+      empty: row.camDamacanaEmpty > 0 ? `C.B - ${row.camDamacanaEmpty}` : '-',
+    });
+  }
+  return rows.length > 0 ? rows : [{ full: '-', empty: '-' }];
+};
+
 // Teslim edilen ürünler: her kalem ayrı satırda. Damacana ve cam damacana bu sütunda yer almaz.
 const productLines = (row: ConsolidatedRow): string[] => {
   const lines = row.productLines.map(
@@ -539,50 +563,90 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                           </tr>
                         </thead>
                         <tbody>
-                          {section.rows.map((row, index) => (
-                            <tr key={row.key} className="border-b border-black align-middle">
-                              <td className="p-0 border-r border-black text-center align-middle font-mono">{index + 1}</td>
-                              <td className="p-0 border-r border-black text-center align-middle font-mono">
-                                <div className="flex flex-col items-center gap-0.5">
-                                  <span className="text-[11px]">{timeText(row)}</span>
-                                  {row.hasLateDelivery && (
-                                    <span className="inline-block w-fit max-w-full rounded bg-amber-100 px-0.5 py-0 text-[9px] font-bold leading-tight text-amber-900 break-words">
-                                      Geç Teslimat
-                                    </span>
+                          {section.rows.flatMap((row, index) => {
+                            const containers = containerTableRows(row);
+                            return containers.map((container, containerIndex) => {
+                              const isFirst = containerIndex === 0;
+                              return (
+                                <tr
+                                  key={`${row.key}-${containerIndex}`}
+                                  className="border-b border-black align-middle"
+                                >
+                                  {isFirst && (
+                                    <>
+                                      <td
+                                        rowSpan={containers.length}
+                                        className="p-0 border-r border-black text-center align-middle font-mono"
+                                      >
+                                        {index + 1}
+                                      </td>
+                                      <td
+                                        rowSpan={containers.length}
+                                        className="p-0 border-r border-black text-center align-middle font-mono"
+                                      >
+                                        <div className="flex flex-col items-center gap-0.5">
+                                          <span className="text-[11px]">{timeText(row)}</span>
+                                          {row.hasLateDelivery && (
+                                            <span className="inline-block w-fit max-w-full rounded bg-amber-100 px-0.5 py-0 text-[9px] font-bold leading-tight text-amber-900 break-words">
+                                              Geç Teslimat
+                                            </span>
+                                          )}
+                                        </div>
+                                      </td>
+                                    </>
                                   )}
-                                </div>
-                              </td>
-                              <td className="p-0 border-r border-black text-center align-middle font-bold break-words">
-                                {row.customerName}
-                                {row.customerAddress && (
-                                  <div className="text-[10px] font-normal mt-0.5">{row.customerAddress}</div>
-                                )}
-                              </td>
-                              <td className="p-0 border-r border-black text-center align-middle font-mono xl:text-base">
-                                <LinesCell items={fullLines(row)} />
-                              </td>
-                              <td className="p-0 border-r border-black text-center align-middle font-mono xl:text-base">
-                                <LinesCell items={emptyLines(row)} />
-                              </td>
-                              <td className="p-0 border-r border-black text-center align-middle font-medium xl:text-base">
-                                <div className="min-[1440px]:whitespace-nowrap">
-                                  <LinesCell items={productLines(row)} />
-                                </div>
-                              </td>
-                              <td className="p-0 border-r border-black text-center align-middle font-mono font-bold text-xs xl:text-sm tracking-tight tabular-nums">
-                                {amountText(row)}
-                              </td>
-                              <td className="p-0 border-r border-black text-center align-middle font-mono tabular-nums xl:text-sm">
-                                <CollectionCell cash={rowCash(row)} pos={rowPos(row)} align="center" />
-                              </td>
-                              <td className="p-0 border-r border-black text-center align-middle font-mono text-xs xl:text-sm leading-tight tracking-tight tabular-nums">
-                                {balanceText(row)}
-                              </td>
-                              <td className="p-0 text-center align-middle text-xs xl:text-sm break-words">
-                                {row.notes.length ? row.notes.join(' · ') : '-'}
-                              </td>
-                            </tr>
-                          ))}
+                                  <td className="p-0 border-r border-black text-center align-middle font-bold break-words">
+                                    {row.customerName}
+                                    {isFirst && row.customerAddress && (
+                                      <div className="text-[10px] font-normal mt-0.5">{row.customerAddress}</div>
+                                    )}
+                                  </td>
+                                  <td className="p-0 border-r border-black text-center align-middle font-mono xl:text-base">
+                                    {container.full}
+                                  </td>
+                                  <td className="p-0 border-r border-black text-center align-middle font-mono xl:text-base">
+                                    {container.empty}
+                                  </td>
+                                  {isFirst && (
+                                    <>
+                                      <td
+                                        rowSpan={containers.length}
+                                        className="p-0 border-r border-black text-center align-middle font-medium xl:text-base"
+                                      >
+                                        <div className="min-[1440px]:whitespace-nowrap">
+                                          <LinesCell items={productLines(row)} />
+                                        </div>
+                                      </td>
+                                      <td
+                                        rowSpan={containers.length}
+                                        className="p-0 border-r border-black text-center align-middle font-mono font-bold text-xs xl:text-sm tracking-tight tabular-nums"
+                                      >
+                                        {amountText(row)}
+                                      </td>
+                                      <td
+                                        rowSpan={containers.length}
+                                        className="p-0 border-r border-black text-center align-middle font-mono tabular-nums xl:text-sm"
+                                      >
+                                        <CollectionCell cash={rowCash(row)} pos={rowPos(row)} align="center" />
+                                      </td>
+                                      <td
+                                        rowSpan={containers.length}
+                                        className="p-0 border-r border-black text-center align-middle font-mono text-xs xl:text-sm leading-tight tracking-tight tabular-nums"
+                                      >
+                                        {balanceText(row)}
+                                      </td>
+                                      <td
+                                        rowSpan={containers.length}
+                                        className="p-0 text-center align-middle text-xs xl:text-sm break-words"
+                                      >
+                                        {row.notes.length ? row.notes.join(' · ') : '-'}
+                                      </td>
+                                    </>
+                                  )}
+                                </tr>
+                              );
+                            });
+                          })}
                         </tbody>
                         <tfoot>
                           <tr className="bg-white font-bold border-t-2 border-black">
