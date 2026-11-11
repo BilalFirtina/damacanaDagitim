@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Customer, User, Product } from '../../types';
 import { fetchDailyReport } from '../../services/api';
 import { todayUtcDateStr } from '../../services/dateWindow';
-import { formatCustomerBalance } from '../../services/customerBalanceDisplay';
 import {
   buildConsolidatedReport,
   rowCash,
@@ -91,18 +90,6 @@ const productLines = (row: ConsolidatedRow): string[] => {
   if (row.sebilGiven > 0) lines.push(`Sebil - ${row.sebilGiven} VERİLDİ`);
   if (row.sebilReceived > 0) lines.push(`Sebil - ${row.sebilReceived} ALINDI`);
   return lines;
-};
-
-const amountText = (row: ConsolidatedRow): string => {
-  if (row.deliveryCount === 0) return '-';
-  if (row.isAccount) return 'FATURALI';
-  return money(row.deliveredAmount);
-};
-
-const balanceText = (row: ConsolidatedRow): string => {
-  if (row.isAccount) return 'FATURALI';
-  if (row.balance === null) return '-';
-  return formatCustomerBalance(row.balance, money);
 };
 
 const LinesCell: React.FC<{ items: string[] }> = ({ items }) => {
@@ -237,7 +224,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
             Şoförlerin müşteri bazlı teslimat ve tahsilat dökümü, A4 baskı / PDF çıktısı
           </p>
           <p className="text-[11px] text-sky-700 mt-1">
-            Faturalı müşterilerin tutar ve cari borç alanları FATURALI olarak yazılır; fiili nakit ve POS tahsilatları görünür.
+            Tutar ve cari borç bilgileri bu raporda gösterilmez; yalnızca fiili nakit ve POS tahsilatları görünür.
           </p>
         </div>
 
@@ -559,19 +546,27 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                   <>
                     {/* Masaüstü ve yazdırma: tek tablo */}
                     <div className="hidden md:block print:block overflow-x-auto print:overflow-visible">
-                      <table className="w-full table-fixed print:table-auto text-xs border-collapse text-left">
+                      <table className="w-full table-fixed text-xs border-collapse text-left">
+                        <colgroup>
+                          <col style={{ width: '3%' }} />
+                          <col style={{ width: '5%' }} />
+                          <col style={{ width: '17%' }} />
+                          <col style={{ width: '6%' }} />
+                          <col style={{ width: '6%' }} />
+                          <col style={{ width: '40%' }} />
+                          <col style={{ width: '11%' }} />
+                          <col style={{ width: '12%' }} />
+                        </colgroup>
                         <thead>
                           <tr className="border-b border-black bg-white">
-                            <th className="p-0 border-r border-black text-center align-middle w-[3.5%] print:w-auto">No</th>
-                            <th className="p-0 border-r border-black text-center align-middle w-[5%] print:w-auto">Saat</th>
-                            <th className="p-0 border-r border-black text-center align-middle w-[14%] print:w-auto text-base">Müşteri Adı</th>
-                            <th className="p-0 border-r border-black text-center align-middle w-[7.5%] print:w-auto">Dolu</th>
-                            <th className="p-0 border-r border-black text-center align-middle w-[7.5%] print:w-auto">Boş</th>
-                            <th className="p-0 border-r border-black text-center align-middle w-[32%] print:w-auto">Teslim Edilen Ürünler</th>
-                            <th className="p-0 border-r border-black text-center align-middle w-[7%] print:w-auto xl:text-sm">Tutar</th>
-                            <th className="p-0 border-r border-black text-center align-middle w-[8%] print:w-auto xl:text-sm">Tahsilat</th>
-                            <th className="p-0 border-r border-black text-center align-middle w-[7.5%] print:w-auto xl:text-sm">Cari Borç</th>
-                            <th className="p-0 w-[8%] print:w-auto text-center align-middle xl:text-sm">Not</th>
+                            <th className="p-0 border-r border-black text-center align-middle">No</th>
+                            <th className="p-0 border-r border-black text-center align-middle">Saat</th>
+                            <th className="p-0 border-r border-black text-center align-middle text-sm">Müşteri Adı</th>
+                            <th className="p-0 border-r border-black text-center align-middle">Dolu</th>
+                            <th className="p-0 border-r border-black text-center align-middle">Boş</th>
+                            <th className="p-0 border-r border-black text-center align-middle">Teslim Edilen Ürünler</th>
+                            <th className="p-0 border-r border-black text-center align-middle xl:text-sm">Tahsilat</th>
+                            <th className="p-0 text-center align-middle xl:text-sm">Not</th>
                           </tr>
                         </thead>
                         {section.rows.map((row, index) => {
@@ -608,7 +603,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                       </td>
                                     </>
                                   )}
-                                  <td className="p-0 border-r border-black text-center align-middle font-bold break-words text-base">
+                                  <td className="p-0 border-r border-black text-center align-middle font-bold break-words text-sm">
                                     {row.customerName}
                                   </td>
                                   <td className="p-0 border-r border-black text-center align-middle font-mono xl:text-base">
@@ -629,21 +624,9 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                       </td>
                                       <td
                                         rowSpan={containers.length}
-                                        className="p-0 border-r border-black text-center align-middle font-mono font-bold text-xs xl:text-sm tracking-tight tabular-nums"
-                                      >
-                                        {amountText(row)}
-                                      </td>
-                                      <td
-                                        rowSpan={containers.length}
                                         className="p-0 border-r border-black text-center align-middle font-mono tabular-nums xl:text-sm"
                                       >
                                         <CollectionCell cash={rowCash(row)} pos={rowPos(row)} align="center" />
-                                      </td>
-                                      <td
-                                        rowSpan={containers.length}
-                                        className="p-0 border-r border-black text-center align-middle font-mono text-xs xl:text-sm leading-tight tracking-tight tabular-nums"
-                                      >
-                                        {balanceText(row)}
                                       </td>
                                       <td
                                         rowSpan={containers.length}
@@ -664,13 +647,9 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                             <td colSpan={6} className="p-0 text-center align-middle border-r border-black uppercase">
                               {section.driverName} Ara Toplamı:
                             </td>
-                            <td className="p-0 text-center align-middle font-mono border-r border-black tabular-nums xl:text-sm tracking-tight">
-                              {money(section.deliveredAmount)}
-                            </td>
                             <td className="p-0 text-center align-middle font-mono border-r border-black tabular-nums xl:text-sm">
                               <CollectionCell cash={section.cash} pos={section.pos} align="center" />
                             </td>
-                            <td className="p-0 border-r border-black" />
                             <td className="p-0" />
                           </tr>
                         </tbody>
@@ -683,7 +662,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                         <div key={row.key} className="p-3 space-y-2 min-w-0">
                           <div className="flex items-start justify-between gap-2 min-w-0">
                             <div className="min-w-0">
-                              <div className="font-bold text-xs break-words">
+                              <div className="font-bold text-[12px] break-words">
                                 {index + 1}. {row.customerName}
                               </div>
                             </div>
@@ -710,18 +689,10 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                               <dd className="break-words"><LinesCell items={productLines(row)} /></dd>
                             </div>
                             <div className="min-w-0">
-                              <dt className="font-semibold">Tutar</dt>
-                              <dd className="font-mono font-bold tabular-nums">{amountText(row)}</dd>
-                            </div>
-                            <div className="min-w-0">
                               <dt className="font-semibold">Tahsilat</dt>
                               <dd className="font-mono tabular-nums">
                                 <CollectionCell cash={rowCash(row)} pos={rowPos(row)} />
                               </dd>
-                            </div>
-                            <div className="min-w-0">
-                              <dt className="font-semibold">Cari Borç</dt>
-                              <dd className="font-mono tabular-nums break-words">{balanceText(row)}</dd>
                             </div>
                             <div className="min-w-0">
                               <dt className="font-semibold">Not</dt>
@@ -732,10 +703,6 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                       ))}
                       <div className="p-3 text-[11px] font-bold grid grid-cols-2 gap-x-3 gap-y-1">
                         <div className="col-span-2 uppercase">{section.driverName} Ara Toplamı</div>
-                        <div className="flex justify-between gap-2">
-                          <span>Tutar</span>
-                          <span className="font-mono tabular-nums">{money(section.deliveredAmount)}</span>
-                        </div>
                         <div className="flex justify-between gap-2">
                           <span>Nakit</span>
                           <span className="font-mono tabular-nums">{money(section.cash)}</span>
