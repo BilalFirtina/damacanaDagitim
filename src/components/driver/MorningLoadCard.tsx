@@ -759,14 +759,14 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
         </button>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 ">
-        <div className="flex items-center gap-2.5 min-w-0">
+      <div className="flex flex-col items-start gap-2.5 pb-3 border-b border-slate-100  sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
+        <div className="flex w-full items-start gap-2.5 min-w-0 sm:w-auto sm:items-center">
           <div className="w-8 h-8 rounded-lg bg-emerald-50  text-emerald-600 flex items-center justify-center shrink-0">
             <Check className="w-4 h-4" />
           </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-bold text-slate-900 ">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-col items-start gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+              <span className="text-xs font-bold text-slate-900  break-words leading-snug">
                 Aktif Sefer: {currentDispatch.vehiclePlate} (
                 {currentDispatch.driverName})
               </span>
@@ -774,20 +774,23 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                 Saha Dağıtımında
               </span>
             </div>
-            <div className="text-[11px] text-slate-500 truncate">
-              Yükleyen: {currentDispatch.loadedByUserName} · Teslim Alan:{" "}
-              {currentDispatch.driverName}
+            <div className="mt-1 text-[11px] text-slate-500 break-words leading-snug">
+              <span className="block sm:inline">
+                Yükleyen: {currentDispatch.loadedByUserName}
+              </span>
+              <span className="hidden sm:inline"> · </span>
+              <span className="block sm:inline">
+                Teslim Alan: {currentDispatch.driverName}
+              </span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="text-xs text-slate-500">
-            Tarih:{" "}
-            <span className="font-semibold text-slate-700 ">
-              {currentDispatch.date}
-            </span>
-          </div>
+        <div className="text-xs text-slate-500">
+          Tarih:{" "}
+          <span className="font-semibold text-slate-700 ">
+            {currentDispatch.date}
+          </span>
         </div>
       </div>
 
