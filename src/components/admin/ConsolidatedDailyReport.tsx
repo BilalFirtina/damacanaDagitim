@@ -76,10 +76,15 @@ const containerTableRows = (row: ConsolidatedRow): ContainerTableRow[] => {
   return rows.length > 0 ? rows : [{ full: '-', empty: '-' }];
 };
 
+// Raporda ürün adlarının parantez içi açıklamaları gösterilmez; ürün
+// kayıtlarına ve diğer raporlara dokunulmaz.
+const stripParentheses = (text: string): string =>
+  text.replace(/\s*\([^)]*\)/g, '').replace(/\s{2,}/g, ' ').trim();
+
 // Teslim edilen ürünler: her kalem ayrı satırda. Damacana ve cam damacana bu sütunda yer almaz.
 const productLines = (row: ConsolidatedRow): string[] => {
   const lines = row.productLines.map(
-    (line) => `${line.name} - ${line.quantity} ${line.unit || 'Adet'}`
+    (line) => `${stripParentheses(line.name)} - ${line.quantity} ${line.unit || 'Adet'}`
   );
   if (row.tupBuyukFull > 0) lines.push(`Büyük Dolu - ${row.tupBuyukFull}`);
   if (row.tupKucukFull > 0) lines.push(`Küçük Dolu - ${row.tupKucukFull}`);
@@ -550,12 +555,12 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                         <colgroup>
                           <col style={{ width: '3%' }} />
                           <col style={{ width: '5%' }} />
-                          <col style={{ width: '17%' }} />
-                          <col style={{ width: '6%' }} />
-                          <col style={{ width: '6%' }} />
-                          <col style={{ width: '40%' }} />
-                          <col style={{ width: '11%' }} />
-                          <col style={{ width: '12%' }} />
+                          <col style={{ width: '20%' }} />
+                          <col style={{ width: '7%' }} />
+                          <col style={{ width: '7%' }} />
+                          <col style={{ width: '30%' }} />
+                          <col style={{ width: '9%' }} />
+                          <col style={{ width: '19%' }} />
                         </colgroup>
                         <thead>
                           <tr className="border-b border-black bg-white">
