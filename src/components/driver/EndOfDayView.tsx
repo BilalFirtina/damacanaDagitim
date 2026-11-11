@@ -362,38 +362,52 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
       )}
 
       {/* Title & Status Banner */}
-      <div className="bg-white  rounded-2xl border border-slate-200  p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-bold text-slate-900 ">
-              Gün Sonu Çift Yönlü Mutabakat & Kasa Kapatma
-            </h2>
-            {isAlreadyClosed ? (
-              <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800  ">
-                Sefer Kapatıldı & Mutabakat Sağlandı
-              </span>
-            ) : (
-              <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800  ">
-                Açık Dağıtım Seferi
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Araç: <strong>{currentViewDispatch.vehiclePlate}</strong> · Şoför: <strong>{currentViewDispatch.driverName}</strong> · Toplam Teslimat: <strong>{dispatchDeliveries.length} Adet</strong>
-            {isAlreadyClosed && currentViewDispatch.endOfDayReconciliation?.closedByUserName
-              ? ` · Kapatan: ${currentViewDispatch.endOfDayReconciliation.closedByUserName}`
-              : ''}
-          </p>
+      <div className="bg-white  rounded-2xl border border-slate-200  p-5 shadow-xs flex flex-col gap-3">
+        {/* 1. satır: durum rozeti, tam ortada ve en üstte */}
+        <div className="flex w-full justify-center">
+          {isAlreadyClosed ? (
+            <span className="max-w-full text-center text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800  ">
+              Sefer Kapatıldı & Mutabakat Sağlandı
+            </span>
+          ) : (
+            <span className="max-w-full text-center text-xs font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800  ">
+              Açık Dağıtım Seferi
+            </span>
+          )}
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handlePrint}
-            className="px-3.5 py-2 rounded-xl border border-slate-200  bg-white  text-slate-700  font-semibold text-xs flex items-center gap-1.5 hover:bg-slate-50 shadow-xs"
-          >
-            <Printer className="w-4 h-4 text-slate-500" />
-            <span>Yazdır / PDF</span>
-          </button>
+        {/* 2. satır: başlık + yazdır butonu */}
+        <div className="flex w-full flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="w-full min-w-0 sm:flex-1">
+            <h2 className="w-full text-base font-bold text-slate-900 break-words">
+              Gün Sonu Çift Yönlü Mutabakat & Kasa Kapatma
+            </h2>
+            <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-slate-500 max-[425px]:flex-col max-[425px]:items-start max-[425px]:gap-x-0 max-[425px]:gap-y-1">
+              <span>Araç: <strong>{currentViewDispatch.vehiclePlate}</strong></span>
+              <span aria-hidden="true" className="max-[425px]:hidden">·</span>
+              <span>Şoför: <strong>{currentViewDispatch.driverName}</strong></span>
+              <span aria-hidden="true" className="max-[425px]:hidden">·</span>
+              <span>Toplam Teslimat: <strong>{dispatchDeliveries.length} Adet</strong></span>
+              {isAlreadyClosed && currentViewDispatch.endOfDayReconciliation?.closedByUserName ? (
+                <>
+                  <span aria-hidden="true" className="max-[425px]:hidden">·</span>
+                  <span>
+                    Kapatan: <strong>{currentViewDispatch.endOfDayReconciliation.closedByUserName}</strong>
+                  </span>
+                </>
+              ) : null}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              onClick={handlePrint}
+              className="px-3.5 py-2 rounded-xl border border-slate-200  bg-white  text-slate-700  font-semibold text-xs flex items-center gap-1.5 hover:bg-slate-50 shadow-xs"
+            >
+              <Printer className="w-4 h-4 text-slate-500" />
+              <span>Yazdır / PDF</span>
+            </button>
+          </div>
         </div>
       </div>
 
