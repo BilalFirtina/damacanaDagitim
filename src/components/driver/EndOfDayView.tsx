@@ -399,7 +399,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
         <div className="flex w-full flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="w-full min-w-0 sm:flex-1">
             <h2 className="w-full text-center text-base font-bold text-slate-900 break-words">
-              Gün Sonu Çift Yönlü Mutabakat & Kasa Kapatma
+              Gün Sonu Mutabakat
             </h2>
             <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-slate-500 max-[425px]:flex-col max-[425px]:items-start max-[425px]:gap-x-0 max-[425px]:gap-y-1">
               <span>Araç: <strong>{currentViewDispatch.vehiclePlate}</strong></span>
