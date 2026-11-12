@@ -1,5 +1,6 @@
 import type {
   Customer,
+  CustomerDispenserInput,
   Delivery,
   Dispatch,
   DispenserDetailInput,
@@ -296,6 +297,48 @@ export function normalizeDispenserReturnDetails(
       'İade edilen sebil sayısından fazla detay girilemez.',
       'DISPENSER_DETAIL_COUNT_MISMATCH'
     );
+  }
+  return details;
+}
+
+/**
+ * Yeni teslimatta müşteriye bırakılan sebil marka/model/açıklama satırlarını
+ * doğrular. İstemci aynı bilgileri adet bazında gruplayarak gönderir; toplam
+ * adet teslim edilen sebil sayısını aşamaz.
+ */
+export function normalizeDispenserGivenDetails(
+  value: unknown,
+  maxCount: number
+): CustomerDispenserInput[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) {
+    throw new DeliveryInputError(400, 'Verilen sebil detayları geçersiz.');
+  }
+
+  const details: CustomerDispenserInput[] = [];
+  let totalQuantity = 0;
+  for (const raw of value) {
+    try {
+      const normalized = normalizeCustomerDispenserInput(raw);
+      totalQuantity += normalized.quantity;
+      if (totalQuantity > maxCount) {
+        throw new DeliveryInputError(
+          400,
+          'Verilen sebil sayısından fazla detay girilemez.',
+          'DISPENSER_DETAIL_COUNT_MISMATCH'
+        );
+      }
+      details.push(normalized);
+    } catch (e) {
+      if (e instanceof DeliveryInputError) throw e;
+      if (e instanceof CustomerDispenserValidationError) {
+        throw new DeliveryInputError(
+          400,
+          `Verilen sebil detayı geçersiz: ${e.message}`
+        );
+      }
+      throw e;
+    }
   }
   return details;
 }

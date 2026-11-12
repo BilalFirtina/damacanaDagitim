@@ -10,6 +10,10 @@ import {
   computeDeliveredDeposits,
   computeEmptyContainersDiff,
 } from '../src/services/depositRules.ts';
+import {
+  DeliveryInputError,
+  normalizeDispenserGivenDetails,
+} from '../src/server/deliveryInput.ts';
 import { PRODUCT_CATEGORY_DEFAULTS } from '../src/types/index.ts';
 import fs from 'node:fs';
 
@@ -96,6 +100,78 @@ console.log('6) Kategori varsayılanı sebil için fiyatsız emanet');
   check('sebil kategorisi emanet', PRODUCT_CATEGORY_DEFAULTS.sebil.isDeposit, true);
   check('sebil depositType', PRODUCT_CATEGORY_DEFAULTS.sebil.depositType, 'sebil');
   check('sebil birimi adet', PRODUCT_CATEGORY_DEFAULTS.sebil.unit, 'Adet');
+}
+
+console.log('7) Verilen sebil detayları doğrulanır');
+{
+  const details = normalizeDispenserGivenDetails(
+    [
+      { brand: 'Vestel', note: 'Mutfak', quantity: 1 },
+      { brand: 'Aux', quantity: 1 },
+    ],
+    2
+  );
+  check('iki detay kabul edildi', details.length, 2);
+  check(
+    'toplam adet 2',
+    details.reduce((sum, detail) => sum + detail.quantity, 0),
+    2
+  );
+
+  const grouped = normalizeDispenserGivenDetails(
+    [{ brand: 'Vestel', quantity: 2 }],
+    2
+  );
+  check('gruplu adet korunur', grouped, [
+    { brand: 'Vestel', model: '', quantity: 2, note: null },
+  ]);
+
+  check(
+    'teslim edilenden fazla detay reddedilir',
+    (() => {
+      try {
+        normalizeDispenserGivenDetails([{ brand: 'Vestel', quantity: 2 }], 1);
+        return 'hata yok';
+      } catch (e) {
+        return e instanceof DeliveryInputError
+          ? e.code || 'DELIVERY_INPUT_ERROR'
+          : 'yanlis hata';
+      }
+    })(),
+    'DISPENSER_DETAIL_COUNT_MISMATCH'
+  );
+
+  check(
+    'geçersiz adet reddedilir',
+    (() => {
+      try {
+        normalizeDispenserGivenDetails([{ brand: 'Vestel', quantity: 0 }], 1);
+        return 'hata yok';
+      } catch (e) {
+        return e instanceof DeliveryInputError ? 'DeliveryInputError' : 'yanlis hata';
+      }
+    })(),
+    'DeliveryInputError'
+  );
+
+  check(
+    'boş detay listesi kabul edilir',
+    normalizeDispenserGivenDetails(undefined, 1),
+    []
+  );
+
+  check(
+    'dizi olmayan detay reddedilir',
+    (() => {
+      try {
+        normalizeDispenserGivenDetails({ brand: 'Vestel' }, 1);
+        return 'hata yok';
+      } catch (e) {
+        return e instanceof DeliveryInputError ? 'DeliveryInputError' : 'yanlis hata';
+      }
+    })(),
+    'DeliveryInputError'
+  );
 }
 
 console.log(`\nSonuç: ${passed} başarılı, ${failed} başarısız`);

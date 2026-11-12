@@ -378,6 +378,8 @@ export interface Delivery {
   isOfflineSync?: boolean;
   /** Yalnızca yeni teslimatta sebil iadesi için gönderilen serbest metin detayları. */
   dispenserReturns?: DispenserDetailInput[];
+  /** Yalnızca yeni teslimatta bırakılan sebil marka/model/açıklama detayları. */
+  dispenserGivenDetails?: CustomerDispenserInput[];
   /** Rapor, teslimatın yükleme gününden farklı bir güne kaldığını işaretler. */
   isLateDelivery?: boolean;
   status?: 'active' | 'cancelled';

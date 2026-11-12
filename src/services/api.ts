@@ -623,6 +623,9 @@ export function normalizeDelivery(deliveryData: any, forceOffline = false): Deli
     dispenserReturns: Array.isArray(deliveryData.dispenserReturns)
       ? deliveryData.dispenserReturns
       : undefined,
+    dispenserGivenDetails: Array.isArray(deliveryData.dispenserGivenDetails)
+      ? deliveryData.dispenserGivenDetails
+      : undefined,
     isOfflineSync: forceOffline || Boolean(deliveryData.isOfflineSync),
   };
 }

@@ -64,6 +64,7 @@ import {
   DeliveryInputError,
   normalizeDeliveryInput,
   normalizeDispenserReturnDetails,
+  normalizeDispenserGivenDetails,
   assertVehicleStockAvailable,
 } from './src/server/deliveryInput.ts';
 import {
@@ -1320,6 +1321,7 @@ app.post('/api/deliveries', async (req, res) => {
     collectedPayment,
     emptyContainersReceived,
     dispenserReturns,
+    dispenserGivenDetails,
     notes,
     isOfflineSync,
   } = req.body;
@@ -1383,6 +1385,14 @@ app.post('/api/deliveries', async (req, res) => {
     const normalizedDispenserReturns = normalizeDispenserReturnDetails(
       dispenserReturns,
       Number(newDelivery.emptyContainersReceived?.sebil) || 0
+    );
+    // Müşteriye bırakılan sebil detayları; toplam adet teslim edilen sebili aşamaz.
+    const deliveredSebilCount =
+      (Number(newDelivery.emptyContainersDiff?.sebil) || 0) +
+      (Number(newDelivery.emptyContainersReceived?.sebil) || 0);
+    const normalizedDispenserGiven = normalizeDispenserGivenDetails(
+      dispenserGivenDetails,
+      deliveredSebilCount
     );
 
     // Tekrarlanan istek (retry / çevrimdışı senkron) koruması:
@@ -1476,6 +1486,21 @@ app.post('/api/deliveries', async (req, res) => {
     }
 
     if (!result.duplicate) {
+      // Önce müşteriye bırakılan sebil detayları eklenir; ardından iade
+      // edilen sebil adedi düşülür. Sıra ters olursa detay adedi şişer.
+      for (const detail of normalizedDispenserGiven) {
+        try {
+          await createCustomerDispenser(
+            customer.id,
+            detail,
+            { id: session.userId, name: session.name }
+          );
+        } catch (dispenserErr) {
+          // Teslimat kaydı başarılı; detay yazımı başarısızsa asıl işlem bozulmaz.
+          console.error('[delivery dispenser given]', dispenserErr);
+        }
+      }
+
       const returnedSebil = Number(newDelivery.emptyContainersReceived?.sebil) || 0;
       if (normalizedDispenserReturns.length > 0) {
         await saveDeliverySebilDetails(newDelivery.id, normalizedDispenserReturns);

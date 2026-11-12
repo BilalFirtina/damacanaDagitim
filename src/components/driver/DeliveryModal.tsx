@@ -35,7 +35,6 @@ import {
   createCustomer,
   createProduct,
   replaceDelivery,
-  addCustomerDispenser,
 } from "../../services/api";
 import { CustomerDispenserInfo } from "../common/CustomerDispenserInfo";
 import {
@@ -983,6 +982,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         return;
       }
 
+      const givenDispenserDetails = groupCustomerDispenserDetails(
+        buildDispenserDetails(sebilGivenDetails, deliveredDepositSebil),
+      );
+
       const payload = {
         dispatchId: dispatch.id,
         driverId: currentUser.id,
@@ -996,23 +999,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         collectedPayment,
         emptyContainersReceived,
         dispenserReturns,
+        dispenserGivenDetails: givenDispenserDetails,
         notes: notes.trim(),
       };
 
       const result = await createDelivery(payload);
-
-      // Verilen sebil emanet detayları: aynı metinler tek kayıtta birleşir.
-      const givenDispenserDetails = groupCustomerDispenserDetails(
-        buildDispenserDetails(sebilGivenDetails, deliveredDepositSebil),
-      );
-      for (const detail of givenDispenserDetails) {
-        try {
-          await addCustomerDispenser(selectedCustomer.id, detail);
-        } catch (dispenserErr) {
-          // Teslimat kaydı başarılı; detay kaydı başarısızsa kullanıcı bilgilendirilir.
-          console.error("[delivery dispenser detail]", dispenserErr);
-        }
-      }
 
       onDeliveryCreated(result.delivery, result.updatedCustomer);
       onClose();
