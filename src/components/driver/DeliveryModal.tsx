@@ -78,6 +78,7 @@ interface EmptyContainerRowProps {
   manual: boolean;
   onToggle: (manual: boolean) => void;
   onChange: (value: number) => void;
+  autoHint?: string;
 }
 
 const EmptyContainerRow: React.FC<EmptyContainerRowProps> = ({
@@ -87,6 +88,7 @@ const EmptyContainerRow: React.FC<EmptyContainerRowProps> = ({
   manual,
   onToggle,
   onChange,
+  autoHint = "Otomatik: dolu kadar",
 }) => {
   const normalize = (quantity: number) =>
     Math.max(0, Math.floor(Number(quantity) || 0));
@@ -153,9 +155,7 @@ const EmptyContainerRow: React.FC<EmptyContainerRowProps> = ({
         </div>
       ) : (
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] text-slate-500">
-            Otomatik: dolu kadar
-          </span>
+          <span className="text-[10px] text-slate-500">{autoHint}</span>
           <span className="font-mono font-bold text-sm text-slate-800 tabular-nums">
             {value}
           </span>
@@ -509,7 +509,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
           editReceived.tupBuyuk !== (Number(editDelivered.tupBuyuk) || 0),
         tup_kucuk:
           editReceived.tupKucuk !== (Number(editDelivered.tupKucuk) || 0),
-        sebil: editReceived.sebil !== editDelivered.sebil,
+        sebil: editReceived.sebil !== 0,
       });
 
       const cash = Number(editDelivery.collectedPayment?.cashAmount) || 0;
@@ -767,9 +767,6 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     }
     if (!manualEmpty.tup_kucuk) {
       setEmptyTupKucukReturned(Number(deposits.tupKucuk) || 0);
-    }
-    if (!manualEmpty.sebil) {
-      setEmptySebilReturned(deposits.sebil);
     }
   };
 
@@ -2126,10 +2123,12 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     delivered={deliveredDepositSebil}
                     value={emptySebilReturned}
                     manual={manualEmpty.sebil}
+                    autoHint="Otomatik: 0"
                     onToggle={(manual) => {
                       setManualEmpty((prev) => ({ ...prev, sebil: manual }));
                       if (!manual) {
-                        setEmptySebilReturned(deliveredDepositSebil);
+                        setEmptySebilReturned(0);
+                        setSebilReturnDetails({});
                       }
                     }}
                     onChange={setEmptySebilReturned}
