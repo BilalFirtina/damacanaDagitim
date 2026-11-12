@@ -2366,12 +2366,12 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 <label className="text-xs font-medium text-slate-600  block mb-1">
                   Teslimat Notu (İsteğe bağlı):
                 </label>
-                <input
-                  type="text"
+                <textarea
+                  rows={3}
                   placeholder="Örn: 3. kat mutfağa bırakıldı, slip eklendi..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200  text-xs bg-slate-50 "
+                  className="w-full p-2.5 rounded-xl border border-slate-200  text-xs bg-slate-50  text-slate-900 resize-y"
                 />
               </div>
           </StepSection>

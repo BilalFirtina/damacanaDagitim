@@ -397,7 +397,7 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
                     )}
 
                     {item.notes && (
-                      <div className="text-[11px] text-slate-500 italic">
+                      <div className="text-[11px] text-slate-500 italic whitespace-pre-line break-words">
                         Not: "{item.notes}"
                       </div>
                     )}

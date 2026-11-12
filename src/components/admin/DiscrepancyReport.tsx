@@ -213,7 +213,7 @@ export const DiscrepancyReport: React.FC<DiscrepancyReportProps> = ({
               )}
 
               {row.recon.notes && (
-                <div className="text-[11px] text-slate-500 break-words">
+                <div className="text-[11px] text-slate-500 break-words whitespace-pre-line">
                   Açıklama: {row.recon.notes}
                 </div>
               )}

@@ -635,9 +635,13 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                       </td>
                                       <td
                                         rowSpan={containers.length}
-                                        className="p-0 text-center align-middle text-xs xl:text-sm break-words"
+                                        className="p-0 text-center align-middle text-xs xl:text-sm break-words whitespace-pre-line"
                                       >
-                                        {row.notes.length ? row.notes.join(' · ') : '-'}
+                                        {row.notes.length
+                                          ? row.notes.map((note, noteIndex) => (
+                                              <div key={noteIndex}>{note}</div>
+                                            ))
+                                          : '-'}
                                       </td>
                                     </>
                                   )}
@@ -701,7 +705,15 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                             </div>
                             <div className="min-w-0">
                               <dt className="font-semibold">Not</dt>
-                              <dd className="break-words">{row.notes.length ? row.notes.join(' · ') : '-'}</dd>
+                              <dd className="break-words">
+                                {row.notes.length
+                                  ? row.notes.map((note, noteIndex) => (
+                                      <div key={noteIndex} className="whitespace-pre-line">
+                                        {note}
+                                      </div>
+                                    ))
+                                  : '-'}
+                              </dd>
                             </div>
                           </dl>
                         </div>

@@ -572,12 +572,12 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
             <label className="text-xs font-medium text-slate-600  block mb-1">
               Depoya Teslim & Gün Sonu Kapatma Notu:
             </label>
-            <input
-              type="text"
+            <textarea
+              rows={3}
               placeholder="Örn: Tüm ürünler depoya eksiksiz indirildi, kasa teslim edildi..."
               value={closureNotes}
               onChange={(e) => setClosureNotes(e.target.value)}
-              className="w-full p-2.5 rounded-xl border border-slate-200  text-xs bg-slate-50  "
+              className="w-full p-2.5 rounded-xl border border-slate-200  text-xs bg-slate-50  text-slate-900 resize-y"
             />
           </div>
         )}
