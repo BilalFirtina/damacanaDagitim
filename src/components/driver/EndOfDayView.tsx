@@ -223,6 +223,25 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
     currentViewDispatch.endOfDayReconciliation?.actualPosSlipsTotal ??
     totalPosCollected + standalonePos;
 
+  // A. tablosu için tek kaynak: masaüstü tablo ve mobil kartlar aynı
+  // hesaplanmış değerleri kullanır.
+  const productReconciliationRows = currentViewDispatch.loadedItems.map(
+    (loaded) => {
+      const product = products.find((p) => p.id === loaded.productId);
+      const delivered = deliveredTotals[loaded.productId] || 0;
+      const expected = expectedRemainingFull[loaded.productId] || 0;
+      const counted = countedFull[loaded.productId] ?? expected;
+      return {
+        productId: loaded.productId,
+        name: product?.name || loaded.productId,
+        unit: product?.unit || 'Adet',
+        loaded: loaded.quantity,
+        delivered,
+        counted,
+      };
+    }
+  );
+
   const handleCloseShift = async () => {
     try {
       setIsSubmitting(true);
@@ -425,36 +444,82 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
           </div>
         </div>
 
-        <div className="overflow-x-auto print:overflow-visible">
-          <table className="w-full min-w-[460px] text-left text-xs">
+        {/* Mobil: kart düzeni, yatay kaydırma yok */}
+        <div className="md:hidden print:hidden space-y-2.5">
+          {productReconciliationRows.map((row) => (
+            <div
+              key={row.productId}
+              className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 min-w-0"
+            >
+              <div className="text-sm font-semibold text-slate-900 break-words">
+                {row.name}
+              </div>
+              <div className="mt-2 space-y-1.5 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[13px] text-slate-500">
+                    Arabaya Yüklenen
+                  </span>
+                  <span className="font-mono font-bold text-slate-900 tabular-nums">
+                    {row.loaded}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[13px] text-slate-500">
+                    Teslim Edilen
+                  </span>
+                  <span className="font-mono font-bold text-emerald-700 tabular-nums">
+                    {row.delivered}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-1.5">
+                  <span className="text-[13px] font-medium text-sky-700">
+                    Depoya İndirilecekler
+                  </span>
+                  <span className="font-mono font-bold text-sky-700 tabular-nums">
+                    {row.counted} {row.unit}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Masaüstü ve yazdırma: dört sütunlu tablo */}
+        <div className="hidden md:block print:block overflow-x-auto print:overflow-visible">
+          <table className="w-full min-w-[460px] text-left text-sm sm:text-[15px]">
             <thead>
-              <tr className="border-b border-slate-100  text-slate-400 font-semibold">
-                <th className="pb-2.5">Ürün Adı</th>
-                <th className="pb-2.5 text-center">Arabaya Yüklenen</th>
-                <th className="pb-2.5 text-center">Teslim Edilen</th>
-                <th className="pb-2.5 text-center text-sky-600">Depoya İndirilecekler</th>
+              <tr className="border-b border-slate-200 text-slate-600">
+                <th className="pb-3 pr-3 text-[12px] sm:text-[13px] font-bold">
+                  Ürün Adı
+                </th>
+                <th className="pb-3 px-2 text-center text-[12px] sm:text-[13px] font-bold">
+                  Arabaya Yüklenen
+                </th>
+                <th className="pb-3 px-2 text-center text-[12px] sm:text-[13px] font-bold">
+                  Teslim Edilen
+                </th>
+                <th className="pb-3 pl-2 text-center text-[12px] sm:text-[13px] font-bold text-sky-700">
+                  Depoya İndirilecekler
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 ">
-              {currentViewDispatch.loadedItems.map((loaded) => {
-                const p = products.find((prod) => prod.id === loaded.productId);
-                const delivered = deliveredTotals[loaded.productId] || 0;
-                const expected = expectedRemainingFull[loaded.productId] || 0;
-                const counted = countedFull[loaded.productId] ?? expected;
-
-                return (
-                  <tr key={loaded.productId} className="py-2.5">
-                    <td className="py-3 font-medium text-slate-900 ">
-                      {p?.name || loaded.productId}
-                    </td>
-                    <td className="py-3 text-center font-mono font-bold">{loaded.quantity}</td>
-                    <td className="py-3 text-center font-mono text-emerald-600 font-bold">{delivered}</td>
-                    <td className="py-3 text-center font-mono font-bold text-sky-600">
-                      {counted} {p?.unit || 'Adet'}
-                    </td>
-                  </tr>
-                );
-              })}
+            <tbody className="divide-y divide-slate-100">
+              {productReconciliationRows.map((row) => (
+                <tr key={row.productId}>
+                  <td className="py-3.5 pr-3 font-semibold text-slate-900 break-words">
+                    {row.name}
+                  </td>
+                  <td className="py-3.5 px-2 text-center font-mono font-bold tabular-nums">
+                    {row.loaded}
+                  </td>
+                  <td className="py-3.5 px-2 text-center font-mono font-bold text-emerald-700 tabular-nums">
+                    {row.delivered}
+                  </td>
+                  <td className="py-3.5 pl-2 text-center font-mono font-bold text-sky-700 tabular-nums">
+                    {row.counted} {row.unit}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
