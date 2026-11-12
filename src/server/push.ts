@@ -73,7 +73,7 @@ export async function sendPushToAllUsers(payload: PushPayload): Promise<PushSend
   const body = JSON.stringify({
     title: payload.title,
     body: payload.body,
-    url: payload.url || '/',
+    url: payload.url || '/?tab=team_feed',
     tag: payload.tag,
   });
 

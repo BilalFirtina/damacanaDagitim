@@ -1,5 +1,5 @@
 // Fırtına Gıda Service Worker
-const CACHE_NAME = 'sudagitim-cache-v10';
+const CACHE_NAME = 'sudagitim-cache-v11';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
@@ -139,22 +139,37 @@ self.addEventListener('notificationclick', (event) => {
 
   const data = event.notification.data || {};
   const targetUrl =
-    typeof data.url === 'string' && data.url.startsWith('/') ? data.url : '/';
+    typeof data.url === 'string' && data.url.startsWith('/')
+      ? data.url
+      : '/?tab=team_feed';
+
+  // URL'de tab varsa onu kullan; eski bildirimlerde yoksa canlı akışa düş.
+  let targetTab = 'team_feed';
+  try {
+    const parsed = new URL(targetUrl, self.location.origin);
+    targetTab = parsed.searchParams.get('tab') || 'team_feed';
+  } catch {
+    targetTab = 'team_feed';
+  }
+
+  const openUrl = `/?tab=${encodeURIComponent(targetTab)}`;
 
   event.waitUntil(
     self.clients
       .matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
+        // Açık pencere varsa sayfayı yeniden yüklemeden sekmeyi değiştir.
         for (const client of clientList) {
           if ('focus' in client) {
-            if ('navigate' in client) {
-              client.navigate(targetUrl).catch(() => {});
+            if ('postMessage' in client) {
+              client.postMessage({ type: 'OPEN_TAB', tab: targetTab });
             }
             return client.focus();
           }
         }
+        // Pencere yoksa derin bağlantı ile aç; App ?tab=team_feed'i işler.
         if (self.clients.openWindow) {
-          return self.clients.openWindow(targetUrl);
+          return self.clients.openWindow(openUrl);
         }
         return undefined;
       })

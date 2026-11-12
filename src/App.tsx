@@ -36,6 +36,22 @@ import { VehicleLoadManagement } from './components/admin/VehicleLoadManagement'
 const REMEMBERED_USER_KEY = 'sudagitim_remembered_user';
 const SESSION_USER_KEY = 'sudagitim_session_user';
 
+type AppTab =
+  | 'delivery'
+  | 'team_feed'
+  | 'eod'
+  | 'customers'
+  | 'products'
+  | 'reports'
+  | 'admin_loads';
+
+// Bildirim tıklamasıyla açılan derin bağlantı: /?tab=team_feed
+function getInitialActiveTab(): AppTab {
+  if (typeof window === 'undefined') return 'delivery';
+  const requested = new URLSearchParams(window.location.search).get('tab');
+  return requested === 'team_feed' ? 'team_feed' : 'delivery';
+}
+
 // Bugünün teslimatlarına ek olarak, tarihi geçmiş ve hâlâ açık seferlerin
 // teslimatları da yüklenir. Aksi hâlde dünün açık seferi kapatılırken gün sonu
 // mutabakatı eksik teslimatla hesaplanır (AGENTS.md Bölüm 9.1).
@@ -77,9 +93,7 @@ export default function App() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [dispatches, setDispatches] = useState<Dispatch[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
-  const [activeTab, setActiveTab] = useState<
-    'delivery' | 'team_feed' | 'eod' | 'customers' | 'products' | 'reports' | 'admin_loads'
-  >('delivery');
+  const [activeTab, setActiveTab] = useState<AppTab>(getInitialActiveTab);
 
   // Uyarıdan "Gün Sonunu Tamamla" seçildiğinde gün sonu ekranında açılacak sefer.
   const [eodTargetDispatchId, setEodTargetDispatchId] = useState<string | null>(null);
@@ -192,6 +206,43 @@ export default function App() {
     window.addEventListener('app:update-ready', onUpdateReady);
     return () => window.removeEventListener('app:update-ready', onUpdateReady);
   }, []);
+
+  // Bildirim derin bağlantısındaki ?tab=team_feed parametresini URL'den temizle.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('tab')) return;
+    url.searchParams.delete('tab');
+    window.history.replaceState(
+      {},
+      '',
+      `${url.pathname}${url.search}${url.hash}`
+    );
+  }, []);
+
+  // Açık uygulamada bildirime tıklanınca service worker'dan gelen mesaj:
+  // sayfa yenilenmeden Canlı Akış'a geç ve güncel verileri hemen çek.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+
+    const onServiceWorkerMessage = (event: MessageEvent) => {
+      const data = event.data;
+      if (data?.type !== 'OPEN_TAB' || data?.tab !== 'team_feed') return;
+      setActiveTab('team_feed');
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      if (getAuthToken()) {
+        void loadData();
+      }
+    };
+
+    navigator.serviceWorker.addEventListener('message', onServiceWorkerMessage);
+    return () => {
+      navigator.serviceWorker.removeEventListener(
+        'message',
+        onServiceWorkerMessage
+      );
+    };
+  }, [loadData]);
 
   const handleLoginSuccess = (user: User, rememberMe: boolean) => {
     setCurrentUser(user);
