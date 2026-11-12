@@ -50,7 +50,7 @@ for (let i = 0; i < expectedOrder.length; i++) {
 }
 check('kategori başlığı Maden Suyu / İçecek', getProductCategoryTitle('soda') === 'Maden Suyu / İçecek');
 check('kategori başlığı Tüp', getProductCategoryTitle('tup') === 'Tüp');
-check('kategori başlığı Su Sebili', getProductCategoryTitle('sebil') === 'Su Sebili');
+check('kategori başlığı Sebil & Pompa', getProductCategoryTitle('sebil') === 'Sebil & Pompa');
 
 console.log('\n[2) Ürün sıralaması]');
 const sorted = sortProductsByCategory(products);

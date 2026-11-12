@@ -40,7 +40,7 @@ export const PRODUCT_CATEGORY_TITLES: Record<ProductCategory, string> = {
   tup: 'Tüp',
   soda: 'Maden Suyu / İçecek',
   bardak: 'Bardak & Sarf Malzeme',
-  sebil: 'Su Sebili',
+  sebil: 'Sebil & Pompa',
 };
 
 // Kategoriler veritabanından yüklenemezse (çevrimdışı/hata) kullanılacak
