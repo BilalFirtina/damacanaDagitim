@@ -11,7 +11,10 @@ import {
   Package,
   FileText,
   AlertCircle,
+  Bell,
+  BellOff,
 } from 'lucide-react';
+import type { PushStatus } from '../../hooks/usePushNotifications';
 
 export function getFirstName(fullName: string, fallback: string): string {
   const trimmed = (fullName || '').trim();
@@ -26,6 +29,10 @@ interface HeaderProps {
   setActiveTab: (tab: any) => void;
   onRefreshData: () => void | Promise<boolean | void>;
   isRefreshing?: boolean;
+  pushEnabled?: boolean;
+  pushBusy?: boolean;
+  pushStatus?: PushStatus;
+  onTogglePush?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -35,6 +42,10 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   onRefreshData,
   isRefreshing,
+  pushEnabled = false,
+  pushBusy = false,
+  pushStatus = 'checking',
+  onTogglePush,
 }) => {
   const isAdmin = currentUser.role === 'admin';
   const nameFallback = currentUser.title || (currentUser.role === 'admin' ? 'Depo Yöneticisi' : 'Şoför');
@@ -53,6 +64,29 @@ export const Header: React.FC<HeaderProps> = ({
   );
 
   const isBusy = refreshState === 'loading' || !!isRefreshing;
+
+  const pushDisabled =
+    !onTogglePush ||
+    pushBusy ||
+    pushStatus === 'checking' ||
+    pushStatus === 'unsupported' ||
+    pushStatus === 'ios_not_installed' ||
+    pushStatus === 'insecure' ||
+    pushStatus === 'not_configured';
+
+  const pushTitle = pushBusy
+    ? 'Bildirimler ayarlanıyor...'
+    : pushEnabled
+    ? 'Bildirimleri Kapat'
+    : pushStatus === 'denied'
+    ? 'Bildirim izni kapalı. Tarayıcı ayarlarından izin verin.'
+    : pushStatus === 'not_configured'
+    ? 'Bildirim altyapısı henüz yapılandırılmadı.'
+    : pushStatus === 'ios_not_installed'
+    ? 'iPhone’da bildirim için uygulamayı Ana Ekrana ekleyin.'
+    : pushStatus === 'unsupported' || pushStatus === 'insecure'
+    ? 'Bu cihazda bildirim desteklenmiyor.'
+    : 'Bildirimleri Aç';
 
   const handleRefresh = async () => {
     if (isBusy) return;
@@ -108,6 +142,28 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Zone 3: Actions & Explicit Logout Button (Always visible on all screens) */}
         <div className="flex items-center gap-1 sm:gap-2 min-w-0 lg:shrink-0">
           <button
+            type="button"
+            onClick={onTogglePush}
+            disabled={pushDisabled}
+            className="flex items-center justify-center min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 p-1.5 text-slate-500 hover:text-slate-800   rounded-lg hover:bg-slate-100  transition-colors shrink-0 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            title={pushTitle}
+            aria-label={pushTitle}
+            aria-pressed={pushEnabled}
+          >
+            {pushBusy ? (
+              <RefreshCw className="w-4 h-4 animate-spin text-sky-600" />
+            ) : pushEnabled ? (
+              <Bell className="w-4 h-4 text-sky-600" />
+            ) : (
+              <BellOff
+                className={`w-4 h-4 ${
+                  pushStatus === 'denied' ? 'text-rose-500' : ''
+                }`}
+              />
+            )}
+          </button>
+
+          <button
             onClick={handleRefresh}
             disabled={isBusy}
             className="flex items-center justify-center min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 p-1.5 text-slate-500 hover:text-slate-800   rounded-lg hover:bg-slate-100  transition-colors shrink-0 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
@@ -125,14 +181,15 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Active User Badge */}
           <div
-            className="flex items-center gap-1.5 py-1 px-1.5 sm:px-2 rounded-xl border border-slate-200  bg-slate-50/80  min-w-0"
+            className="flex items-center justify-center gap-1.5 w-7 h-7 p-0 min-[360px]:w-auto min-[360px]:h-auto min-[360px]:justify-start min-[360px]:py-1 min-[360px]:px-1.5 sm:px-2 rounded-xl border border-slate-200  bg-slate-50/80  min-w-0"
             title={`${currentUser.name} (${nameFallback})`}
+            aria-label={`${currentUser.name} (${nameFallback})`}
           >
             <div className="w-6 h-6 rounded-full bg-sky-100 text-sky-800   flex items-center justify-center text-xs font-bold shrink-0">
               {currentUser.name.charAt(0)}
             </div>
             <span
-              className="text-xs font-bold text-slate-900  leading-tight truncate min-w-0 max-w-[80px] min-[360px]:max-w-[100px] min-[390px]:max-w-[130px]"
+              className="hidden min-[360px]:inline text-xs font-bold text-slate-900  leading-tight truncate min-w-0 max-w-[80px] min-[360px]:max-w-[100px] min-[390px]:max-w-[130px]"
               title={currentUser.name}
             >
               {firstName}

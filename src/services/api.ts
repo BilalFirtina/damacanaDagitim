@@ -913,3 +913,43 @@ export async function fetchAuditHistory(limit = 100): Promise<AuditHistoryEvent[
   const json = await res.json();
   return json.events || [];
 }
+
+// ---------------------------------------------------------------------
+// WEB PUSH BİLDİRİMLERİ
+// ---------------------------------------------------------------------
+export interface PushConfigResponse {
+  enabled: boolean;
+  publicKey: string | null;
+}
+
+export interface PushSubscriptionPayload {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+}
+
+export async function fetchPushConfig(): Promise<PushConfigResponse> {
+  const res = await apiFetch('/api/push/config');
+  if (!res.ok) await throwServerError(res, 'Bildirim ayarları alınamadı.');
+  return res.json();
+}
+
+export async function subscribePush(subscription: PushSubscriptionPayload): Promise<void> {
+  const res = await apiFetch('/api/push/subscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(subscription),
+  });
+  if (!res.ok) await throwServerError(res, 'Bildirim aboneliği kaydedilemedi.');
+}
+
+export async function unsubscribePush(endpoint: string): Promise<void> {
+  const res = await apiFetch('/api/push/unsubscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint }),
+  });
+  if (!res.ok) await throwServerError(res, 'Bildirim aboneliği kaldırılamadı.');
+}

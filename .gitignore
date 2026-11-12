@@ -9,4 +9,3 @@ coverage/
 .aistudio/
 supabase_config.json
 data_store.json
-AGENTS.md

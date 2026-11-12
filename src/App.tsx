@@ -24,6 +24,7 @@ import { StaleDispatchWarning } from './components/driver/StaleDispatchWarning';
 import { Header } from './components/common/Header';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
 import { UpdateAvailableBanner } from './components/common/UpdateAvailableBanner';
+import { usePushNotifications } from './hooks/usePushNotifications';
 import { DriverView } from './components/driver/DriverView';
 import { LiveTeamFeed } from './components/driver/LiveTeamFeed';
 import { EndOfDayView } from './components/driver/EndOfDayView';
@@ -69,6 +70,9 @@ export default function App() {
     } catch {}
     return null;
   });
+
+  const push = usePushNotifications(currentUser);
+  const disablePush = push.disable;
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [dispatches, setDispatches] = useState<Dispatch[]>([]);
@@ -169,6 +173,9 @@ export default function App() {
 
   useEffect(() => {
     const onAuthExpired = () => {
+      // Sunucu yeniden başladığında oturum belleği sıfırlanır; bu, kullanıcının
+      // bilinçli çıkışı değildir. Bu nedenle cihaz aboneliği korunur; kullanıcı
+      // tekrar giriş yaptığında aynı abonelik ona yeniden bağlanır.
       localStorage.removeItem(REMEMBERED_USER_KEY);
       sessionStorage.removeItem(SESSION_USER_KEY);
       // Yetki kaybında önbelleğe alınmış müşteri verisi cihazda kalmaz.
@@ -198,7 +205,7 @@ export default function App() {
     loadData();
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     // AGENTS.md Bölüm 12.3: senkronize edilmemiş kayıtlar sessizce silinemez.
     // Kuyruk varsa kullanıcıya sorulur; vazgeçerse çıkış yapılmaz.
     const pendingCount = getOfflineQueue().length;
@@ -209,6 +216,10 @@ export default function App() {
       );
       if (!confirmed) return;
     }
+
+    // Bildirim aboneliği, oturum kapanmadan önce sunucudan ve cihazdan
+    // kaldırılır; çıkış sonrası bu telefona bildirim gitmez.
+    await disablePush();
 
     localStorage.removeItem(REMEMBERED_USER_KEY);
     sessionStorage.removeItem(SESSION_USER_KEY);
@@ -320,6 +331,10 @@ export default function App() {
         setActiveTab={setActiveTab}
         onRefreshData={loadData}
         isRefreshing={isRefreshing}
+        pushEnabled={push.enabled}
+        pushBusy={push.busy}
+        pushStatus={push.status}
+        onTogglePush={push.toggle}
       />
 
       {/* Main Content Area */}
@@ -428,6 +443,17 @@ export default function App() {
 
       {/* Offline Status & Background Queue Sync Indicator */}
       <OfflineIndicator />
+
+      {/* Bildirim izin/abonelik geri bildirimi */}
+      {push.message && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[70] w-[calc(100vw-2rem)] max-w-md px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-800 shadow-lg text-sm font-semibold text-center print:hidden"
+        >
+          {push.message}
+        </div>
+      )}
     </div>
   );
 }

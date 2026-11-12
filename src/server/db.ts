@@ -329,6 +329,16 @@ interface LocalDatabaseSchema {
     dispatches: Dispatch[];
     deliveries: Delivery[];
   }>;
+  // Cihaz bazlı Web Push abonelikleri. Günlük hareket temizliğinden etkilenmez.
+  pushSubscriptions?: Array<{
+    endpoint: string;
+    userId: string;
+    p256dh: string;
+    auth: string;
+    userAgent?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+  }>;
 }
 
 // Kanonik ürün kataloğu. Yerel varsayılan veri ve Supabase referans ekimi
@@ -5195,4 +5205,194 @@ export async function getCustomerPaymentById(paymentId: string): Promise<Custome
     return res.rows[0] ? mapCustomerPayment(res.rows[0]) : null;
   }
   return null;
+}
+
+// ----------------------------------------------------------------------
+// WEB PUSH ABONELİKLERİ
+// Cihaz bazlı abonelikler. Aynı kullanıcı birden fazla cihazdan abone
+// olabilir; endpoint tekil olduğu için ortak cihazda son giriş yapan
+// kullanıcıya yeniden bağlanır. Günlük hareket temizliğinden etkilenmez.
+// ----------------------------------------------------------------------
+export interface PushSubscriptionRecord {
+  endpoint: string;
+  userId: string;
+  p256dh: string;
+  auth: string;
+  userAgent: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function mapPushSubscriptionRow(row: any): PushSubscriptionRecord {
+  return {
+    endpoint: row.endpoint,
+    userId: row.user_id,
+    p256dh: row.p256dh,
+    auth: row.auth,
+    userAgent: row.user_agent || null,
+    createdAt: row.created_at || '',
+    updatedAt: row.updated_at || '',
+  };
+}
+
+function pushSubscriptionError(e: any, fallback: string): Error {
+  const raw = `${e?.message || ''} ${e?.details || ''} ${e?.hint || ''}`.trim();
+  if (
+    String(e?.code || '') === '42P01' ||
+    String(e?.code || '') === 'PGRST205' ||
+    /push_subscriptions.*(does not exist|bulunamadı|could not find)/i.test(raw) ||
+    /could not find the table[\s\S]*push_subscriptions/i.test(raw)
+  ) {
+    return new DispatchDbError(
+      'MIGRATION_REQUIRED',
+      'Bildirim abonelik tablosu bulunamadı. Sunucu veritabanı güncellemesi eksik; sistem yöneticisine bildirin.'
+    );
+  }
+  return new DispatchDbError(
+    'PUSH_SUBSCRIPTION_FAILED',
+    toTurkishDbError(e, fallback)
+  );
+}
+
+export async function upsertPushSubscription(input: {
+  endpoint: string;
+  userId: string;
+  p256dh: string;
+  auth: string;
+  userAgent?: string | null;
+}): Promise<void> {
+  if (isSupabaseOperational() && supabase) {
+    const { error } = await supabase.from('push_subscriptions').upsert(
+      {
+        endpoint: input.endpoint,
+        user_id: input.userId,
+        p256dh: input.p256dh,
+        auth: input.auth,
+        user_agent: input.userAgent || null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'endpoint' }
+    );
+    if (error) throw pushSubscriptionError(error, 'Bildirim aboneliği kaydedilemedi.');
+    return;
+  }
+
+  if (pgPool) {
+    try {
+      await pgPool.query(
+        `INSERT INTO public.push_subscriptions
+           (endpoint, user_id, p256dh, auth, user_agent, updated_at)
+         VALUES ($1, $2, $3, $4, $5, now())
+         ON CONFLICT (endpoint) DO UPDATE SET
+           user_id = EXCLUDED.user_id,
+           p256dh = EXCLUDED.p256dh,
+           auth = EXCLUDED.auth,
+           user_agent = EXCLUDED.user_agent,
+           updated_at = now()`,
+        [input.endpoint, input.userId, input.p256dh, input.auth, input.userAgent || null]
+      );
+      return;
+    } catch (e) {
+      throw pushSubscriptionError(e, 'Bildirim aboneliği kaydedilemedi.');
+    }
+  }
+
+  const db = loadLocalDatabase();
+  if (!db.pushSubscriptions) db.pushSubscriptions = [];
+  const now = new Date().toISOString();
+  const existing = db.pushSubscriptions.find((s) => s.endpoint === input.endpoint);
+  if (existing) {
+    existing.userId = input.userId;
+    existing.p256dh = input.p256dh;
+    existing.auth = input.auth;
+    existing.userAgent = input.userAgent || null;
+    existing.updatedAt = now;
+  } else {
+    db.pushSubscriptions.push({
+      endpoint: input.endpoint,
+      userId: input.userId,
+      p256dh: input.p256dh,
+      auth: input.auth,
+      userAgent: input.userAgent || null,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+  saveLocalDatabase(db);
+}
+
+export async function deletePushSubscription(
+  endpoint: string,
+  userId?: string
+): Promise<void> {
+  if (!endpoint) return;
+
+  if (isSupabaseOperational() && supabase) {
+    const query = supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
+    const { error } = userId ? await query.eq('user_id', userId) : await query;
+    if (error) throw pushSubscriptionError(error, 'Bildirim aboneliği kaldırılamadı.');
+    return;
+  }
+
+  if (pgPool) {
+    try {
+      if (userId) {
+        await pgPool.query(
+          'DELETE FROM public.push_subscriptions WHERE endpoint = $1 AND user_id = $2',
+          [endpoint, userId]
+        );
+      } else {
+        await pgPool.query('DELETE FROM public.push_subscriptions WHERE endpoint = $1', [
+          endpoint,
+        ]);
+      }
+      return;
+    } catch (e) {
+      throw pushSubscriptionError(e, 'Bildirim aboneliği kaldırılamadı.');
+    }
+  }
+
+  const db = loadLocalDatabase();
+  db.pushSubscriptions = (db.pushSubscriptions || []).filter(
+    (s) => !(s.endpoint === endpoint && (!userId || s.userId === userId))
+  );
+  saveLocalDatabase(db);
+}
+
+export async function deletePushSubscriptionByEndpoint(endpoint: string): Promise<void> {
+  await deletePushSubscription(endpoint);
+}
+
+export async function getPushSubscriptions(): Promise<PushSubscriptionRecord[]> {
+  if (isSupabaseOperational() && supabase) {
+    const { data, error } = await supabase
+      .from('push_subscriptions')
+      .select('endpoint, user_id, p256dh, auth, user_agent, created_at, updated_at')
+      .limit(1000);
+    if (error) throw pushSubscriptionError(error, 'Bildirim abonelikleri okunamadı.');
+    return (data || []).map(mapPushSubscriptionRow);
+  }
+
+  if (pgPool) {
+    try {
+      const res = await pgPool.query(
+        `SELECT endpoint, user_id, p256dh, auth, user_agent, created_at, updated_at
+         FROM public.push_subscriptions
+         LIMIT 1000`
+      );
+      return res.rows.map(mapPushSubscriptionRow);
+    } catch (e) {
+      throw pushSubscriptionError(e, 'Bildirim abonelikleri okunamadı.');
+    }
+  }
+
+  return (loadLocalDatabase().pushSubscriptions || []).map((s) => ({
+    endpoint: s.endpoint,
+    userId: s.userId,
+    p256dh: s.p256dh,
+    auth: s.auth,
+    userAgent: s.userAgent || null,
+    createdAt: s.createdAt || '',
+    updatedAt: s.updatedAt || '',
+  }));
 }

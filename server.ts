@@ -59,7 +59,15 @@ import {
   getDatabaseStatus,
   ensureSupabaseSeeded,
   configureSupabase,
+  upsertPushSubscription,
+  deletePushSubscription,
 } from './src/server/db.ts';
+import {
+  getPushPublicKey,
+  isPushConfigured,
+  sendPushToAllUsers,
+} from './src/server/push.ts';
+import type { PushPayload } from './src/server/push.ts';
 import {
   DeliveryInputError,
   normalizeDeliveryInput,
@@ -353,6 +361,17 @@ function sendDispatchDbError(res: Response, err: any) {
   });
 }
 
+// Bildirim gönderimi teslimat/tahsilat yanıtını asla bloklamaz.
+// Hata olsa bile asıl işlem başarılı kalır; hata sunucu günlüğüne yazılır.
+function notifyPushInBackground(payload: PushPayload) {
+  if (!isPushConfigured()) return;
+  setImmediate(() => {
+    sendPushToAllUsers(payload).catch((err) => {
+      console.error('[Push] Bildirim gönderilemedi:', err);
+    });
+  });
+}
+
 function sendCustomerDispenserError(res: Response, err: any) {
   if (err instanceof CustomerDispenserValidationError) {
     return res.status(400).json({ error: err.message, code: err.code });
@@ -433,6 +452,98 @@ app.post('/api/auth/logout', (req, res) => {
 
 // Bu noktadan sonraki tüm /api uçları kimlik doğrulaması gerektirir
 app.use('/api', authenticate);
+
+// -------------------------------------------------------------
+// WEB PUSH ABONELİKLERİ
+// Bu uçlar finansal yazma yapmadığı için RPC yetki kapısından önce
+// tanımlanır; yine de geçerli oturum gerektirir.
+// -------------------------------------------------------------
+app.get('/api/push/config', (_req, res) => {
+  res.json({
+    enabled: isPushConfigured(),
+    publicKey: getPushPublicKey(),
+  });
+});
+
+app.post('/api/push/subscribe', async (req, res) => {
+  const session = getAuthUser(req)!;
+  const body = req.body && typeof req.body === 'object' ? req.body : {};
+  const endpoint = typeof body.endpoint === 'string' ? body.endpoint.trim() : '';
+  const p256dh =
+    body.keys && typeof body.keys.p256dh === 'string' ? body.keys.p256dh.trim() : '';
+  const auth =
+    body.keys && typeof body.keys.auth === 'string' ? body.keys.auth.trim() : '';
+
+  if (!endpoint || !p256dh || !auth) {
+    return res.status(400).json({ error: 'Eksik bildirim aboneliği bilgisi.' });
+  }
+  if (!/^https:\/\//i.test(endpoint) || endpoint.length > 2000) {
+    return res.status(400).json({ error: 'Geçersiz bildirim aboneliği adresi.' });
+  }
+  if (p256dh.length > 300 || auth.length > 100) {
+    return res.status(400).json({ error: 'Geçersiz bildirim aboneliği anahtarı.' });
+  }
+
+  try {
+    await upsertPushSubscription({
+      endpoint,
+      userId: session.userId,
+      p256dh,
+      auth,
+      userAgent:
+        typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : null,
+    });
+    res.status(201).json({ success: true, message: 'Bildirim aboneliği kaydedildi.' });
+  } catch (err: any) {
+    const code = err instanceof DispatchDbError ? err.code : err?.code;
+    res.status(code === 'MIGRATION_REQUIRED' ? 503 : 500).json({
+      error: err?.message || 'Bildirim aboneliği kaydedilemedi.',
+      ...(code ? { code } : {}),
+    });
+  }
+});
+
+app.post('/api/push/unsubscribe', async (req, res) => {
+  const session = getAuthUser(req)!;
+  const endpoint =
+    req.body && typeof req.body.endpoint === 'string' ? req.body.endpoint.trim() : '';
+  if (!endpoint) {
+    return res.status(400).json({ error: 'Bildirim aboneliği adresi gereklidir.' });
+  }
+
+  try {
+    await deletePushSubscription(endpoint, session.userId);
+    res.json({ success: true, message: 'Bildirim aboneliği kaldırıldı.' });
+  } catch (err: any) {
+    const code = err instanceof DispatchDbError ? err.code : err?.code;
+    res.status(code === 'MIGRATION_REQUIRED' ? 503 : 500).json({
+      error: err?.message || 'Bildirim aboneliği kaldırılamadı.',
+      ...(code ? { code } : {}),
+    });
+  }
+});
+
+app.post('/api/push/test', requireAdmin, async (_req, res) => {
+  if (!isPushConfigured()) {
+    return res.status(503).json({
+      error: 'Bildirim altyapısı yapılandırılmadı. VAPID anahtarlarını kontrol edin.',
+      code: 'PUSH_NOT_CONFIGURED',
+    });
+  }
+  try {
+    const result = await sendPushToAllUsers({
+      title: 'Test Bildirimi',
+      body: 'Bildirimler çalışıyor.',
+      tag: 'test',
+    });
+    res.json({
+      ...result,
+      message: 'Test bildirimi gönderildi.',
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Test bildirimi gönderilemedi.' });
+  }
+});
 
 // Veri yazan tüm uçlar, sunucunun ayrıcalıklı DB rolüyle ve sertleştirilmiş
 // RPC yetkileriyle çalıştığını doğrulamadan işlem yapamaz. Veritabanı
@@ -877,6 +988,15 @@ app.post('/api/customers/:id/payments', requireAdminOrDriver, async (req, res) =
 
     // Faturalı müşterinin bakiyesi şoförden gizlenir (AGENTS.md 6.1).
     const balanceHidden = session.role === 'driver' && customer.isAccountCustomer;
+
+    // Idempotent tekrar gönderimde ikinci bildirim üretilmez.
+    if (!result.alreadyApplied) {
+      notifyPushInBackground({
+        title: 'Tahsilat Yapıldı',
+        body: customer.name,
+        tag: `payment-${result.paymentId}`,
+      });
+    }
 
     res.status(201).json({
       ...result,
@@ -1486,6 +1606,21 @@ app.post('/api/deliveries', async (req, res) => {
     }
 
     if (!result.duplicate) {
+      // Aynı teslimatta nakit/POS tahsilatı varsa tek birleşik bildirim
+      // gönderilir; ayrıca "Tahsilat Yapıldı" gönderilmez.
+      // Bildirim, sebil detay yazımından önce kuyruğa alınır ki yardımcı
+      // işlemlerdeki bir hata bildirimi engellemesin.
+      const collectedCash = Number(newDelivery.collectedPayment?.cashAmount) || 0;
+      const collectedPos = Number(newDelivery.collectedPayment?.posAmount) || 0;
+      const hasDeliveryPayment = collectedCash + collectedPos > 0;
+      notifyPushInBackground({
+        title: hasDeliveryPayment
+          ? 'Teslimat & Tahsilat Yapıldı'
+          : 'Teslimat Yapıldı',
+        body: customer.name,
+        tag: `delivery-${newDelivery.id}`,
+      });
+
       // Önce müşteriye bırakılan sebil detayları eklenir; ardından iade
       // edilen sebil adedi düşülür. Sıra ters olursa detay adedi şişer.
       for (const detail of normalizedDispenserGiven) {

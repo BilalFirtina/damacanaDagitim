@@ -17,6 +17,7 @@ Supabase **SQL Editor** içinde aşağıdaki dosyaları sırasıyla çalıştır
 4. `migrations/20261020_rpc_authorization_hardening.sql`
 5. `migrations/20261021_retention_purge_and_archive.sql`
 6. `migrations/20261022_fix_retention_dry_run_archive.sql`
+7. `migrations/20261113_push_subscriptions.sql` (Web Push bildirim abonelikleri)
 
 > Migration 20, anon/authenticated erişimini kaldırır. Yalnızca sunucu tarafı gizli anahtar tanımlandıktan ve doğrulandıktan sonra uygulanmalıdır. Mevcut projede migration 19 uygulanmış, migration 20 henüz uygulanmamıştır.
 
@@ -30,6 +31,22 @@ Sunucuda aşağıdaki değişkenleri tanımlayın:
 `SUPABASE_ANON_KEY` yalnızca geriye dönük uyumluluk içindir; migration 20 sonrasında veritabanı erişimi için kullanılamaz. Gizli anahtarı istemci koduna, repoya veya `.env.example` dosyasına yazmayın.
 
 Render/Railway ortamında `SUPABASE_SECRET_KEY` değerini tanımlayıp servisi yeniden başlatın.
+
+### Web Push (VAPID)
+
+Telefonlara teslimat/tahsilat bildirimi göndermek için sunucuda şu değişkenler tanımlı olmalıdır:
+
+- `VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
+- `VAPID_SUBJECT` (ör. `https://damacanadagitim.onrender.com` veya `mailto:...`)
+
+Anahtarları bir kez üretin ve **değiştirmeyin**:
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+Özel anahtarı repoya veya istemci koduna koymayın. Anahtarlar eksikse uygulama çalışır; yalnızca bildirim zili devre dışı kalır.
 
 ## 4. Çalışma biçimi
 
