@@ -41,6 +41,7 @@ import {
   getCustomerPaymentsForReport,
   getCustomerPaymentById,
   adjustCustomerDispenserQuantity,
+  saveDeliverySebilDetails,
   getDeliveryById,
   getDeliveryCorrections,
   getDispatchCancellationAudits,
@@ -62,6 +63,7 @@ import {
 import {
   DeliveryInputError,
   normalizeDeliveryInput,
+  normalizeDispenserReturnDetails,
   assertVehicleStockAvailable,
 } from './src/server/deliveryInput.ts';
 import {
@@ -1317,6 +1319,7 @@ app.post('/api/deliveries', async (req, res) => {
     deliveredItems,
     collectedPayment,
     emptyContainersReceived,
+    dispenserReturns,
     notes,
     isOfflineSync,
   } = req.body;
@@ -1375,6 +1378,12 @@ app.post('/api/deliveries', async (req, res) => {
       notes,
       isOfflineSync,
     });
+
+    // Sebil iadesi serbest metin detayları; yalnızca yeni teslimatta kaydedilir.
+    const normalizedDispenserReturns = normalizeDispenserReturnDetails(
+      dispenserReturns,
+      Number(newDelivery.emptyContainersReceived?.sebil) || 0
+    );
 
     // Tekrarlanan istek (retry / çevrimdışı senkron) koruması:
     // Aynı kimlik daha önce kaydedildiyse hiçbir stok/bakiye işlemi YAPILMAZ.
@@ -1468,6 +1477,9 @@ app.post('/api/deliveries', async (req, res) => {
 
     if (!result.duplicate) {
       const returnedSebil = Number(newDelivery.emptyContainersReceived?.sebil) || 0;
+      if (normalizedDispenserReturns.length > 0) {
+        await saveDeliverySebilDetails(newDelivery.id, normalizedDispenserReturns);
+      }
       if (returnedSebil > 0) {
         await adjustCustomerDispenserQuantity(
           customer.id,

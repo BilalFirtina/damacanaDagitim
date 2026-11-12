@@ -182,6 +182,7 @@ CREATE TABLE IF NOT EXISTS public.delivery_container_returns (
   deposit_type TEXT NOT NULL REFERENCES public.deposit_types(code),
   received_qty INTEGER NOT NULL DEFAULT 0,
   diff_qty INTEGER NOT NULL DEFAULT 0,
+  sebil_details JSONB NULL,
   PRIMARY KEY (delivery_id, deposit_type)
 );
 

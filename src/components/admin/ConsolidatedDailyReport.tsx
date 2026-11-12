@@ -92,8 +92,14 @@ const productLines = (row: ConsolidatedRow): string[] => {
   if (row.tupBuyukEmpty > 0) lines.push(`Büyük Boş - ${row.tupBuyukEmpty}`);
   if (row.tupKucukEmpty > 0) lines.push(`Küçük Boş - ${row.tupKucukEmpty}`);
   if (row.tupEmpty > 0) lines.push(`Tüp Boş - ${row.tupEmpty}`);
-  if (row.sebilGiven > 0) lines.push(`Sebil - ${row.sebilGiven} VERİLDİ`);
-  if (row.sebilReceived > 0) lines.push(`Sebil - ${row.sebilReceived} ALINDI`);
+  if (row.sebilGiven > 0)
+    lines.push(
+      `Sebil - ${row.sebilGiven} adet (${row.customerName}) verildi`
+    );
+  if (row.sebilReceived > 0)
+    lines.push(
+      `Sebil - ${row.sebilReceived} adet (${row.customerName}) alındı`
+    );
   return lines;
 };
 

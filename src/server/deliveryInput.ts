@@ -2,9 +2,14 @@ import type {
   Customer,
   Delivery,
   Dispatch,
+  DispenserDetailInput,
   Product,
   User,
 } from '../types/index.ts';
+import {
+  CustomerDispenserValidationError,
+  normalizeCustomerDispenserInput,
+} from '../services/customerDispenserRules.ts';
 import {
   computeDeliveredDeposits,
   computeEmptyContainersDiff,
@@ -237,6 +242,62 @@ export function normalizeDeliveryInput(
   };
 
   return { delivery, priceUpdates };
+}
+
+/**
+ * Şoförün sebil iadesi sırasında serbest metin olarak girdiği marka/model/
+ * açıklama satırlarını doğrular. Marka/model sistemde kayıtlı değerlerle
+ * eşleştirilmez; yalnızca kayıt/rapor bilgisi olarak saklanır.
+ */
+export function normalizeDispenserReturnDetails(
+  value: unknown,
+  maxCount: number
+): DispenserDetailInput[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) {
+    throw new DeliveryInputError(400, 'Sebil iade detayları geçersiz.');
+  }
+
+  const details: DispenserDetailInput[] = [];
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      throw new DeliveryInputError(400, 'Sebil iade detayları geçersiz.');
+    }
+    const record = raw as Record<string, unknown>;
+    const brand = typeof record.brand === 'string' ? record.brand.trim() : '';
+    const model = typeof record.model === 'string' ? record.model.trim() : '';
+    const note = typeof record.note === 'string' ? record.note.trim() : '';
+    if (!brand && !model && !note) continue;
+
+    try {
+      const normalized = normalizeCustomerDispenserInput({
+        ...record,
+        quantity: 1,
+      });
+      details.push({
+        brand: normalized.brand,
+        model: normalized.model,
+        note: normalized.note,
+      });
+    } catch (e) {
+      if (e instanceof CustomerDispenserValidationError) {
+        throw new DeliveryInputError(
+          400,
+          `Sebil iade detayı geçersiz: ${e.message}`
+        );
+      }
+      throw e;
+    }
+  }
+
+  if (details.length > maxCount) {
+    throw new DeliveryInputError(
+      400,
+      'İade edilen sebil sayısından fazla detay girilemez.',
+      'DISPENSER_DETAIL_COUNT_MISMATCH'
+    );
+  }
+  return details;
 }
 
 /**

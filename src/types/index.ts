@@ -269,6 +269,13 @@ export interface CustomerDispenserInput {
   note?: string | null;
 }
 
+/** Sebil teslim/iade anında girilen serbest metin detayı (adet ayrı taşınır). */
+export interface DispenserDetailInput {
+  brand: string;
+  model: string;
+  note?: string | null;
+}
+
 export interface LoadedItem {
   productId: string;
   quantity: number;
@@ -369,6 +376,8 @@ export interface Delivery {
   };
   notes?: string;
   isOfflineSync?: boolean;
+  /** Yalnızca yeni teslimatta sebil iadesi için gönderilen serbest metin detayları. */
+  dispenserReturns?: DispenserDetailInput[];
   /** Rapor, teslimatın yükleme gününden farklı bir güne kaldığını işaretler. */
   isLateDelivery?: boolean;
   status?: 'active' | 'cancelled';

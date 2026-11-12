@@ -620,6 +620,9 @@ export function normalizeDelivery(deliveryData: any, forceOffline = false): Deli
       sebil: Number(emptyDiff.sebil) || 0,
     },
     notes: deliveryData.notes || '',
+    dispenserReturns: Array.isArray(deliveryData.dispenserReturns)
+      ? deliveryData.dispenserReturns
+      : undefined,
     isOfflineSync: forceOffline || Boolean(deliveryData.isOfflineSync),
   };
 }

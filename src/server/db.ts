@@ -24,6 +24,7 @@ import {
   RetentionRunResult,
   CustomerDispenser,
   CustomerDispenserInput,
+  DispenserDetailInput,
 } from '../types/index.ts';
 import {
   utcDayQueryWindow,
@@ -5135,6 +5136,39 @@ export async function adjustCustomerDispenserQuantity(
     }
   } catch (e) {
     console.error('[adjustCustomerDispenserQuantity]', e);
+  }
+}
+
+/**
+ * Yeni teslimatta şoförün sebil iadesi için girdiği serbest metin detaylarını
+ * delivery_container_returns.sebil_details alanına yazar. Marka/model
+ * eşleştirmesi yapmaz; mevcut sebil adet düşümü ayrıca yürür.
+ */
+export async function saveDeliverySebilDetails(
+  deliveryId: string,
+  details: DispenserDetailInput[]
+): Promise<void> {
+  if (!details.length) return;
+  if (!isSupabaseOperational() || !supabase) return;
+
+  try {
+    const { data, error } = await supabase
+      .from('delivery_container_returns')
+      .update({ sebil_details: details })
+      .eq('delivery_id', deliveryId)
+      .eq('deposit_type', 'sebil')
+      .select('delivery_id')
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) {
+      console.warn(
+        `[saveDeliverySebilDetails] ${deliveryId} için sebil iade satırı bulunamadı.`
+      );
+    }
+  } catch (e) {
+    // Teslimat zaten kaydedildi; detay yazımı başarısız olsa da akışı bozmayız.
+    console.error('[saveDeliverySebilDetails]', e);
   }
 }
 

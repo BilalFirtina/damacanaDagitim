@@ -6,6 +6,8 @@ import {
   Delivery,
   User,
   ProductCategory,
+  CustomerDispenserInput,
+  DispenserDetailInput,
   getProductCategoryCodes,
   getProductCategoryTitle,
   filterProductsBySearch,
@@ -165,6 +167,140 @@ const EmptyContainerRow: React.FC<EmptyContainerRowProps> = ({
 
 type DeliveryStepKey = "customer" | "products" | "empties" | "payment";
 
+interface DispenserDetailRow {
+  brand: string;
+  model: string;
+  note: string;
+}
+
+const EMPTY_DISPENSER_DETAIL_ROW: DispenserDetailRow = {
+  brand: "",
+  model: "",
+  note: "",
+};
+
+interface DispenserDetailCardsProps {
+  title: string;
+  itemLabel: string;
+  count: number;
+  rows: Record<number, DispenserDetailRow>;
+  notePlaceholder: string;
+  onChange: (
+    index: number,
+    field: keyof DispenserDetailRow,
+    value: string,
+  ) => void;
+}
+
+// Şoförün sebil marka/model/açıklamasını serbest metin olarak girdiği kartlar.
+// Her sebil ayrı karttır; alanlar dikey sırada (Marka → Model → Açıklama) durur.
+const DispenserDetailCards: React.FC<DispenserDetailCardsProps> = ({
+  title,
+  itemLabel,
+  count,
+  rows,
+  notePlaceholder,
+  onChange,
+}) => {
+  if (count <= 0) return null;
+
+  return (
+    <div className="p-3 rounded-xl border border-indigo-200 bg-indigo-50/40 space-y-3">
+      <div className="text-[11px] font-semibold text-indigo-800">{title}</div>
+      {Array.from({ length: count }, (_, index) => {
+        const row = rows[index] || EMPTY_DISPENSER_DETAIL_ROW;
+        return (
+          <div
+            key={index}
+            className="rounded-xl border border-indigo-100 bg-white p-3 space-y-2"
+          >
+            <div className="text-[11px] font-bold text-indigo-800">
+              {index + 1}. {itemLabel}
+            </div>
+            <label className="block min-w-0">
+              <span className="text-[11px] text-slate-600 block mb-1">
+                Marka
+              </span>
+              <input
+                type="text"
+                value={row.brand}
+                onChange={(e) => onChange(index, "brand", e.target.value)}
+                maxLength={60}
+                placeholder="Örn: Arçelik"
+                className="w-full p-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900"
+              />
+            </label>
+            <label className="block min-w-0">
+              <span className="text-[11px] text-slate-600 block mb-1">
+                Model
+              </span>
+              <input
+                type="text"
+                value={row.model}
+                onChange={(e) => onChange(index, "model", e.target.value)}
+                maxLength={60}
+                placeholder="Örn: 1200 A"
+                className="w-full p-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900"
+              />
+            </label>
+            <label className="block min-w-0">
+              <span className="text-[11px] text-slate-600 block mb-1">
+                Açıklama
+              </span>
+              <textarea
+                value={row.note}
+                onChange={(e) => onChange(index, "note", e.target.value)}
+                maxLength={300}
+                rows={2}
+                placeholder={notePlaceholder}
+                className="w-full p-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 resize-y"
+              />
+            </label>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const buildDispenserDetails = (
+  rows: Record<number, DispenserDetailRow>,
+  count: number,
+): DispenserDetailInput[] => {
+  const details: DispenserDetailInput[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const row = rows[index];
+    if (!row) continue;
+    const brand = row.brand.trim();
+    const model = row.model.trim();
+    const note = row.note.trim();
+    if (!brand && !model && !note) continue;
+    details.push({ brand, model, note: note || null });
+  }
+  return details;
+};
+
+const groupCustomerDispenserDetails = (
+  details: DispenserDetailInput[],
+): CustomerDispenserInput[] => {
+  const grouped = new Map<string, CustomerDispenserInput>();
+  for (const detail of details) {
+    const key = [detail.brand, detail.model, detail.note || ""].join("\u0000");
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      grouped.set(key, {
+        brand: detail.brand,
+        model: detail.model,
+        note: detail.note || null,
+        quantity: 1,
+      });
+    }
+  }
+  return Array.from(grouped.values());
+};
+
 interface StepSectionProps {
   stepKey: DeliveryStepKey;
   step: number;
@@ -316,6 +452,8 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     setCustomerSearch("");
     setProductSearch("");
     setOpenCategories({ damacana: true });
+    setSebilGivenDetails({});
+    setSebilReturnDetails({});
     setErrorPersistent(false);
     setErrorMsg(null);
     setShowNewProductForm(false);
@@ -396,9 +534,6 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       setEmptyTupBuyukReturned(0);
       setEmptyTupKucukReturned(0);
       setEmptySebilReturned(0);
-      setSebilBrand("");
-      setSebilModel("");
-      setSebilNote("");
       setManualEmpty({
         damacana: false,
         cam_damacana: false,
@@ -467,10 +602,13 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const [emptyTupBuyukReturned, setEmptyTupBuyukReturned] = useState<number>(0);
   const [emptyTupKucukReturned, setEmptyTupKucukReturned] = useState<number>(0);
   const [emptySebilReturned, setEmptySebilReturned] = useState<number>(0);
-  // Verilen sebilin marka/modeli ve bırakıldığı yer (AGENTS.md 7.1).
-  const [sebilBrand, setSebilBrand] = useState("");
-  const [sebilModel, setSebilModel] = useState("");
-  const [sebilNote, setSebilNote] = useState("");
+  // Verilen ve iade alınan sebil detayları: her adet için serbest metin.
+  const [sebilGivenDetails, setSebilGivenDetails] = useState<
+    Record<number, DispenserDetailRow>
+  >({});
+  const [sebilReturnDetails, setSebilReturnDetails] = useState<
+    Record<number, DispenserDetailRow>
+  >({});
   const [manualEmpty, setManualEmpty] = useState<Record<DepositKey, boolean>>({
     damacana: false,
     cam_damacana: false,
@@ -827,6 +965,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         tupKucuk: emptyTupKucukReturned,
         sebil: emptySebilReturned,
       };
+      const dispenserReturns = buildDispenserDetails(
+        sebilReturnDetails,
+        emptySebilReturned,
+      );
 
       if (isEdit && editDelivery) {
         const rid =
@@ -856,23 +998,19 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         deliveredItems,
         collectedPayment,
         emptyContainersReceived,
+        dispenserReturns,
         notes: notes.trim(),
       };
 
       const result = await createDelivery(payload);
 
-      // Sebil emanet detayı: marka, model veya açıklamadan en az biri girildiyse kaydet.
-      if (
-        deliveredDepositSebil > 0 &&
-        (sebilBrand.trim() || sebilModel.trim() || sebilNote.trim())
-      ) {
+      // Verilen sebil emanet detayları: aynı metinler tek kayıtta birleşir.
+      const givenDispenserDetails = groupCustomerDispenserDetails(
+        buildDispenserDetails(sebilGivenDetails, deliveredDepositSebil),
+      );
+      for (const detail of givenDispenserDetails) {
         try {
-          await addCustomerDispenser(selectedCustomer.id, {
-            brand: sebilBrand.trim(),
-            model: sebilModel.trim(),
-            quantity: deliveredDepositSebil,
-            note: sebilNote.trim() || null,
-          });
+          await addCustomerDispenser(selectedCustomer.id, detail);
         } catch (dispenserErr) {
           // Teslimat kaydı başarılı; detay kaydı başarısızsa kullanıcı bilgilendirilir.
           console.error("[delivery dispenser detail]", dispenserErr);
@@ -1703,10 +1841,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       !selectedCustomer?.isAccountCustomer &&
                       selectedCustomer?.customPrices?.[p.id] !== undefined;
                     const isGlass = isGlassDamacana(p);
+                    const isSebilProduct = p.depositType === "sebil";
 
                     return (
+                      <React.Fragment key={p.id}>
                       <div
-                        key={p.id}
                         className={`p-3 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
                           qty > 0
                             ? "border-sky-400 bg-sky-50/30   shadow-2xs"
@@ -1836,6 +1975,25 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                           </div>
                         </div>
                       </div>
+                      {isSebilProduct && qty > 0 && !isEdit && (
+                        <DispenserDetailCards
+                          title="Verilen su sebili bilgileri (isteğe bağlı)"
+                          itemLabel="Sebil"
+                          count={qty}
+                          rows={sebilGivenDetails}
+                          notePlaceholder="Örn: Müşterinin giriş katındaki mutfağında, tezgâhın yanında bırakıldı; teslim alan kişi: güvenlik görevlisi"
+                          onChange={(index, field, value) =>
+                            setSebilGivenDetails((prev) => ({
+                              ...prev,
+                              [index]: {
+                                ...(prev[index] || EMPTY_DISPENSER_DETAIL_ROW),
+                                [field]: value,
+                              },
+                            }))
+                          }
+                        />
+                      )}
+                      </React.Fragment>
                     );
                         })}
                             </div>
@@ -1977,50 +2135,24 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     onChange={setEmptySebilReturned}
                   />
 
-                  {deliveredDepositSebil > 0 && (
-                    <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl border border-indigo-200  bg-indigo-50/40 ">
-                      <div className="sm:col-span-2 text-[11px] font-semibold text-indigo-800 ">
-                        Verilen su sebili bilgileri (isteğe bağlı)
-                      </div>
-                      <label className="min-w-0">
-                        <span className="text-[11px] text-slate-600  block mb-1">
-                          Marka
-                        </span>
-                        <input
-                          type="text"
-                          value={sebilBrand}
-                          onChange={(e) => setSebilBrand(e.target.value)}
-                          maxLength={60}
-                          placeholder="Örn: Arçelik"
-                          className="w-full p-2 rounded-lg border border-slate-200  bg-white  text-xs text-slate-900 "
-                        />
-                      </label>
-                      <label className="min-w-0">
-                        <span className="text-[11px] text-slate-600  block mb-1">
-                          Model
-                        </span>
-                        <input
-                          type="text"
-                          value={sebilModel}
-                          onChange={(e) => setSebilModel(e.target.value)}
-                          maxLength={60}
-                          placeholder="Örn: 1200 A"
-                          className="w-full p-2 rounded-lg border border-slate-200  bg-white  text-xs text-slate-900 "
-                        />
-                      </label>
-                      <label className="min-w-0 sm:col-span-2">
-                        <span className="text-[11px] text-slate-600  block mb-1">
-                          Nereye bırakıldı / açıklama
-                        </span>
-                        <textarea
-                          value={sebilNote}
-                          onChange={(e) => setSebilNote(e.target.value)}
-                          maxLength={300}
-                          rows={2}
-                          placeholder="Örn: Müşterinin giriş katındaki mutfağında, tezgâhın yanında bırakıldı; teslim alan kişi: güvenlik görevlisi"
-                          className="w-full p-2 rounded-lg border border-slate-200  bg-white  text-xs text-slate-900  resize-y"
-                        />
-                      </label>
+                  {emptySebilReturned > 0 && !isEdit && (
+                    <div className="sm:col-span-2">
+                      <DispenserDetailCards
+                        title="İade alınan su sebili bilgileri (isteğe bağlı)"
+                        itemLabel="İade Edilen Sebil"
+                        count={emptySebilReturned}
+                        rows={sebilReturnDetails}
+                        notePlaceholder="Örn: Mutfaktan alındı; musluk kırık, depoya götürülecek"
+                        onChange={(index, field, value) =>
+                          setSebilReturnDetails((prev) => ({
+                            ...prev,
+                            [index]: {
+                              ...(prev[index] || EMPTY_DISPENSER_DETAIL_ROW),
+                              [field]: value,
+                            },
+                          }))
+                        }
+                      />
                     </div>
                   )}
                 </div>
