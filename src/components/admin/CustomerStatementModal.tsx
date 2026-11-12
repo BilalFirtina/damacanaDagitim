@@ -4,7 +4,7 @@ import {
   CustomerStatementResponse,
   fetchCustomerStatement,
 } from '../../services/api';
-import { formatDateTr, todayUtcDateStr } from '../../services/dateWindow';
+import { formatDateTr, todayUtcDateStr, clampDateToToday } from '../../services/dateWindow';
 import { formatCustomerBalance } from '../../services/customerBalanceDisplay';
 import {
   AlertCircle,
@@ -48,6 +48,19 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
   const [data, setData] = useState<CustomerStatementResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Başlangıç/bitiş tarihleri geleceğe taşamaz ve aralık tersine dönmez.
+  const handleFromChange = (value: string) => {
+    if (!value) return;
+    const capped = clampDateToToday(value, today);
+    setFrom(capped > to ? to : capped);
+  };
+
+  const handleToChange = (value: string) => {
+    if (!value) return;
+    const capped = clampDateToToday(value, today);
+    setTo(capped < from ? from : capped);
+  };
 
   const load = async (fromDate: string, toDate: string) => {
     setIsLoading(true);
@@ -147,7 +160,7 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
                 type="date"
                 value={from}
                 max={to}
-                onChange={(e) => setFrom(e.target.value)}
+                onChange={(e) => handleFromChange(e.target.value)}
                 className="w-full p-2.5 rounded-xl border border-slate-200  bg-slate-50  text-xs text-slate-900 "
               />
             </label>
@@ -158,7 +171,7 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
                 value={to}
                 min={from}
                 max={today}
-                onChange={(e) => setTo(e.target.value)}
+                onChange={(e) => handleToChange(e.target.value)}
                 className="w-full p-2.5 rounded-xl border border-slate-200  bg-slate-50  text-xs text-slate-900 "
               />
             </label>

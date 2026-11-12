@@ -12,6 +12,17 @@ export function todayUtcDateStr(now: Date = new Date()): string {
   return now.toISOString().split('T')[0];
 }
 
+// Tarih inputlarında gelecek tarih seçimini engeller. `max` attribute'u
+// tarayıcıya bağlı olduğu için (özellikle iOS/PWA) state'e yazmadan önce
+// bu kontrol uygulanır. Boş değer olduğu gibi bırakılır.
+export function clampDateToToday(
+  value: string,
+  today: string = todayUtcDateStr()
+): string {
+  if (!value) return value;
+  return value > today ? today : value;
+}
+
 // YYYY-MM-DD tarihini Türkçe gg.aa.yyyy biçiminde gösterir. Geçersiz veya boş
 // değer uydurulmaz; olduğu gibi döndürülür.
 export function formatDateTr(dateStr: string): string {

@@ -19,7 +19,7 @@ import {
   Truck
 } from 'lucide-react';
 import { fetchDailyReport } from '../../services/api';
-import { todayUtcDateStr } from '../../services/dateWindow';
+import { todayUtcDateStr, clampDateToToday } from '../../services/dateWindow';
 import { ConsolidatedDailyReport } from './ConsolidatedDailyReport';
 import { BalancesReportView } from './BalancesReportView';
 import { DriverActivityReport } from './DriverActivityReport';
@@ -49,6 +49,13 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
     'consolidated'
   );
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+
+  // Gelecek tarih seçimi state'e yazılmaz; native takvim `max` sınırını
+  // yok sayan mobil/PWA tarayıcılarda da bugüne çekilir.
+  const handleSelectedDateChange = (value: string) => {
+    if (!value) return;
+    setSelectedDate(clampDateToToday(value, todayStr));
+  };
   const [selectedDriverId, setSelectedDriverId] = useState<string>(
     isDriver && currentUser ? currentUser.id : 'all'
   );
@@ -289,7 +296,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                 type="date"
                 value={selectedDate}
                 max={todayStr}
-                onChange={(e) => setSelectedDate(e.target.value)}
+                onChange={(e) => handleSelectedDateChange(e.target.value)}
                 className="w-full sm:w-auto pl-8 pr-3 py-2 rounded-xl border border-slate-200  bg-slate-50  text-xs font-semibold text-slate-800  focus:outline-none"
               />
               <Calendar className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -501,7 +508,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
           products={products}
           customers={customers}
           date={selectedDate}
-          onDateChange={setSelectedDate}
+          onDateChange={handleSelectedDateChange}
           reportData={reportData}
           loading={loading}
           onReload={loadReport}
@@ -541,7 +548,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
               type="date"
               value={selectedDate}
               max={todayStr}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              onChange={(e) => handleSelectedDateChange(e.target.value)}
               className="pl-8 pr-3 py-2 rounded-xl border border-slate-200  bg-slate-50  text-xs font-semibold text-slate-800  focus:outline-none"
             />
             <Calendar className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />

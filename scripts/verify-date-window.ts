@@ -8,6 +8,7 @@
  */
 import {
   todayUtcDateStr,
+  clampDateToToday,
   utcDayQueryWindow,
   isSameUtcDate,
   formatDateTr,
@@ -114,6 +115,39 @@ check('date formats as gg.aa.yyyy', formatDateTr('2026-10-19'), '19.10.2026');
 check('empty value is returned as-is', formatDateTr(''), '');
 check('invalid value is returned as-is', formatDateTr('gecersiz'), 'gecersiz');
 check('incomplete value is returned as-is', formatDateTr('2026-10'), '2026-10');
+
+// 6. Future date guard for date inputs.
+console.log('6) Future date guard');
+check(
+  'past date is unchanged',
+  clampDateToToday('2026-10-18', '2026-10-19'),
+  '2026-10-18'
+);
+check(
+  'today is unchanged',
+  clampDateToToday('2026-10-19', '2026-10-19'),
+  '2026-10-19'
+);
+check(
+  'future date clamps to today',
+  clampDateToToday('2026-10-20', '2026-10-19'),
+  '2026-10-19'
+);
+check(
+  'far future date clamps to today',
+  clampDateToToday('2027-01-01', '2026-10-19'),
+  '2026-10-19'
+);
+check(
+  'empty value stays empty',
+  clampDateToToday('', '2026-10-19'),
+  ''
+);
+check(
+  'explicit today parameter wins',
+  clampDateToToday('2026-10-20', '2026-10-19'),
+  '2026-10-19'
+);
 
 console.log(`\nResult: ${passed} passed, ${failed} failed\n`);
 process.exit(failed === 0 ? 0 : 1);

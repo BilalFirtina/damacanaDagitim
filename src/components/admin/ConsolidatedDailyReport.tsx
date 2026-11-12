@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Customer, User, Product } from '../../types';
 import { fetchDailyReport } from '../../services/api';
-import { todayUtcDateStr } from '../../services/dateWindow';
+import { todayUtcDateStr, clampDateToToday } from '../../services/dateWindow';
 import {
   buildConsolidatedReport,
   rowCash,
@@ -157,6 +157,11 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
 
   const selectedDate = date ?? internalDate;
   const setSelectedDate = onDateChange ?? setInternalDate;
+
+  const handleDateChange = (value: string) => {
+    if (!value) return;
+    setSelectedDate(clampDateToToday(value, todayStr));
+  };
   const isLoading = controlledLoading ?? internalLoading;
   const data = controlledReportData ?? internalReportData;
 
@@ -245,7 +250,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
               type="date"
               value={selectedDate}
               max={todayStr}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              onChange={(e) => handleDateChange(e.target.value)}
               className="pl-8 pr-3 py-2 rounded-xl border border-slate-300 bg-slate-50 text-xs font-semibold text-slate-800 focus:outline-none"
             />
             <Calendar className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
