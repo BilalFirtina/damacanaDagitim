@@ -10,6 +10,8 @@ import {
   getProductCategoryTitle,
   filterProductsBySearch,
   groupProductsByCategory,
+  isGlassDamacana,
+  sortProductsForLoading,
 } from "../../types";
 import {
   Search,
@@ -24,6 +26,7 @@ import {
   X,
   ChevronDown,
   ArrowRight,
+  Gem,
 } from "lucide-react";
 import {
   createDelivery,
@@ -312,6 +315,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     setShowNewCustomerForm(false);
     setCustomerSearch("");
     setProductSearch("");
+    setOpenCategories({ damacana: true });
     setErrorPersistent(false);
     setErrorMsg(null);
     setShowNewProductForm(false);
@@ -429,6 +433,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
   // Step 2: Product search & selection
   const [productSearch, setProductSearch] = useState("");
+  // Varsayılan olarak yalnızca Damacana Su açıktır; diğer kategoriler kapalıdır.
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>(
+    { damacana: true },
+  );
   const [showNewProductForm, setShowNewProductForm] = useState(false);
   const [newProdName, setNewProdName] = useState("");
   const [newProdCategory, setNewProdCategory] =
@@ -759,6 +767,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       setShowNewProductForm(false);
       setNewProdName("");
       setProductSearch("");
+      setOpenCategories({ damacana: true });
     } catch (err: any) {
       setErrorPersistent(true);
       setErrorMsg(err.message || "Ürün oluşturulamadı");
@@ -1030,7 +1039,27 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
   // Filter products for Step 2
   const filteredProducts = filterProductsBySearch(allProducts, productSearch);
-  const groupedProducts = groupProductsByCategory(filteredProducts);
+  const groupedProducts = groupProductsByCategory(
+    filteredProducts,
+    sortProductsForLoading,
+  );
+
+  const handleProductSearchChange = (value: string) => {
+    setProductSearch(value);
+    if (!value.trim()) {
+      setOpenCategories({ damacana: true });
+      return;
+    }
+    const matches = filterProductsBySearch(allProducts, value);
+    const codes = new Set(matches.map((p) => p.category || "none"));
+    setOpenCategories(
+      Object.fromEntries(Array.from(codes).map((code) => [code, true])),
+    );
+  };
+
+  const toggleCategory = (code: string) => {
+    setOpenCategories((prev) => ({ ...prev, [code]: !prev[code] }));
+  };
 
   // Stock check helper: find loaded qty on vehicle
   const getVehicleStock = (productId: string) => {
@@ -1482,7 +1511,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   type="text"
                   placeholder="Ürün adı ile ara (Damacana, Tüp, Pet su vb.)..."
                   value={productSearch}
-                  onChange={(e) => setProductSearch(e.target.value)}
+                  onChange={(e) => handleProductSearchChange(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
                 />
               </div>
@@ -1617,12 +1646,53 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {groupedProducts.map((group) => (
-                      <div key={group.code} className="space-y-2">
-                        <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                          {group.title}
-                        </div>
-                        {group.products.map((p) => {
+                    {groupedProducts.map((group) => {
+                      const isOpen = Boolean(openCategories[group.code]);
+                      const selectedCount = group.products.filter(
+                        (p) => (quantities[p.id] || 0) > 0,
+                      ).length;
+
+                      return (
+                        <section
+                          key={group.code}
+                          className="rounded-xl border border-slate-200 bg-white overflow-hidden"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => toggleCategory(group.code)}
+                            aria-expanded={isOpen}
+                            aria-controls={`delivery-cat-${group.code}`}
+                            className={`w-full min-h-11 px-3 py-2.5 flex items-center justify-between gap-2 text-left transition-colors ${
+                              isOpen
+                                ? "bg-slate-50"
+                                : "bg-white hover:bg-slate-50"
+                            }`}
+                          >
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                              {group.title}
+                            </span>
+                            <span className="flex items-center gap-2 shrink-0">
+                              {!isOpen && selectedCount > 0 && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700">
+                                  {selectedCount} kalem
+                                </span>
+                              )}
+                              <ChevronDown
+                                className={`w-4 h-4 text-slate-400 transition-transform ${
+                                  isOpen ? "rotate-180" : ""
+                                }`}
+                              />
+                            </span>
+                          </button>
+
+                          {isOpen && (
+                            <div
+                              id={`delivery-cat-${group.code}`}
+                              role="region"
+                              aria-label={group.title}
+                              className="p-2 pt-0 space-y-2"
+                            >
+                              {group.products.map((p) => {
                     const qty = quantities[p.id] || 0;
                     const unitPrice = unitPrices[p.id] ?? p.defaultUnitPrice;
                     const lineTotal = qty * unitPrice;
@@ -1632,6 +1702,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     const isCustomerSpecific =
                       !selectedCustomer?.isAccountCustomer &&
                       selectedCustomer?.customPrices?.[p.id] !== undefined;
+                    const isGlass = isGlassDamacana(p);
 
                     return (
                       <div
@@ -1639,12 +1710,20 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         className={`p-3 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
                           qty > 0
                             ? "border-sky-400 bg-sky-50/30   shadow-2xs"
-                            : "border-slate-100  bg-slate-50/50 "
+                            : isGlass
+                              ? "border-cyan-200 bg-gradient-to-br from-cyan-50 via-sky-50 to-white ring-1 ring-cyan-100 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)]"
+                              : "border-slate-100  bg-slate-50/50 "
                         }`}
                       >
-                        <div>
-                          <div className="text-xs font-bold text-slate-900  flex items-center gap-1.5">
-                            <span>{p.name}</span>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900  flex flex-wrap items-center gap-1.5">
+                            <span className="break-words">{p.name}</span>
+                            {isGlass && (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-cyan-200 bg-white/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-cyan-700">
+                                <Gem className="w-2.5 h-2.5" />
+                                Cam
+                              </span>
+                            )}
                             {isCustomerSpecific && (
                               <span className="text-[10px] text-sky-700 font-medium bg-sky-100  px-1 py-0.2 rounded">
                                 Müşteriye Özel Fiyat
@@ -1759,8 +1838,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       </div>
                     );
                         })}
-                      </div>
-                    ))}
+                            </div>
+                          )}
+                        </section>
+                      );
+                    })}
                   </div>
                 )}
               </div>
