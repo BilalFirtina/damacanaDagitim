@@ -500,7 +500,7 @@ export default function App() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[70] w-[calc(100vw-2rem)] max-w-md px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-800 shadow-lg text-sm font-semibold text-center print:hidden"
+          className="md:hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-[70] w-[calc(100vw-2rem)] max-w-md px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-800 shadow-lg text-sm font-semibold text-center print:hidden"
         >
           {push.message}
         </div>

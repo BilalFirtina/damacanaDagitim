@@ -34,6 +34,13 @@ function isStandalone(): boolean {
   );
 }
 
+// Bildirim ayarları yalnızca mobil görünümde yönetilir. 768px ve üzerinde
+// hook hiçbir abonelik/izin işlemi yapmaz; mevcut ayarlara dokunmaz.
+function isDesktopViewport(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(min-width: 768px)').matches;
+}
+
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -62,6 +69,20 @@ export function usePushNotifications(currentUser: User | null): UsePushNotificat
   const [publicKey, setPublicKey] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const messageTimer = useRef<number | null>(null);
+  const [isDesktop, setIsDesktop] = useState<boolean>(() => isDesktopViewport());
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const media = window.matchMedia('(min-width: 768px)');
+    const onChange = () => setIsDesktop(media.matches);
+    onChange();
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', onChange);
+      return () => media.removeEventListener('change', onChange);
+    }
+    media.addListener(onChange);
+    return () => media.removeListener(onChange);
+  }, []);
 
   const showMessage = useCallback((text: string) => {
     setMessage(text);
@@ -84,6 +105,13 @@ export function usePushNotifications(currentUser: User | null): UsePushNotificat
     setPublicKey(null);
 
     if (!currentUser) {
+      setStatus('checking');
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (isDesktop) {
       setStatus('checking');
       return () => {
         cancelled = true;
@@ -172,10 +200,10 @@ export function usePushNotifications(currentUser: User | null): UsePushNotificat
     return () => {
       cancelled = true;
     };
-  }, [currentUser?.id]);
+  }, [currentUser?.id, isDesktop]);
 
   const enable = useCallback(async () => {
-    if (!currentUser) return;
+    if (!currentUser || isDesktop) return;
 
     if (
       !('serviceWorker' in navigator) ||
@@ -242,10 +270,16 @@ export function usePushNotifications(currentUser: User | null): UsePushNotificat
     } finally {
       setBusy(false);
     }
-  }, [currentUser, publicKey, showMessage]);
+  }, [currentUser, publicKey, showMessage, isDesktop]);
 
   const disable = useCallback(
     async (options?: { server?: boolean }) => {
+      if (isDesktop) {
+        setEnabled(false);
+        setBusy(false);
+        return;
+      }
+
       setBusy(true);
       try {
         const registration =
@@ -285,17 +319,17 @@ export function usePushNotifications(currentUser: User | null): UsePushNotificat
         setBusy(false);
       }
     },
-    [showMessage]
+    [showMessage, isDesktop]
   );
 
   const toggle = useCallback(async () => {
-    if (busy) return;
+    if (busy || isDesktop) return;
     if (enabled) {
       await disable();
     } else {
       await enable();
     }
-  }, [busy, enabled, disable, enable]);
+  }, [busy, enabled, disable, enable, isDesktop]);
 
   return { enabled, busy, status, message, toggle, disable };
 }
