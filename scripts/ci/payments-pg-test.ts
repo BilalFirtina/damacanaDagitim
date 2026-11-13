@@ -273,7 +273,8 @@ async function main(): Promise<void> {
           actual_pos_slips_total: 50,
           collected_empty_damacana: 0,
           collected_empty_cam_damacana: 0,
-          collected_empty_tup: 0,
+          collected_empty_tup_buyuk: 0,
+          collected_empty_tup_kucuk: 0,
           notes: 'CI kasa',
         }),
       ]

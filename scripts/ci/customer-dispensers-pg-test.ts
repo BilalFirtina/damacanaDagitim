@@ -84,7 +84,7 @@ async function seedReference(c: Client): Promise<void> {
   await c.query(`
     INSERT INTO public.customer_empty_balances (customer_id, deposit_type, quantity) VALUES
       ('c_disp', 'damacana', 3),
-      ('c_disp', 'tup', 1)
+      ('c_disp', 'tup_buyuk', 1)
     ON CONFLICT (customer_id, deposit_type) DO UPDATE SET quantity = EXCLUDED.quantity;
   `);
 }

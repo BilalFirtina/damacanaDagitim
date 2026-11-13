@@ -350,8 +350,6 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                         ? '🔥 Büyük Tüp Emanet'
                         : p.depositType === 'tup_kucuk'
                         ? '🔥 Küçük Tüp Emanet'
-                        : p.depositType === 'tup'
-                        ? '🔥 Tüp Emanet'
                         : p.depositType === 'sebil'
                         ? '💧 Su Sebili Emanet'
                         : '🔄 Boş Kap Emanet'}
@@ -505,7 +503,6 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                     <option value="cam_damacana">🔄 Boş Cam Damacana İadesi Zorunlu</option>
                     <option value="tup_buyuk">🔥 Büyük Tüp İadesi Zorunlu</option>
                     <option value="tup_kucuk">🔥 Küçük Tüp İadesi Zorunlu</option>
-                    <option value="tup">🔥 Tüp (genel / eski kayıt)</option>
                     <option value="sebil">💧 Su Sebili Emanet (fiyatsız)</option>
                   </select>
                 </div>

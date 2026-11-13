@@ -247,8 +247,8 @@ const baseDelivery: any = {
     status: 'partial',
     diffUncollected: 50,
   },
-  emptyContainersReceived: { damacana: 2, camDamacana: 0, tup: 0 },
-  emptyContainersDiff: { damacana: 0, camDamacana: 0, tup: 0 },
+  emptyContainersReceived: { damacana: 2, camDamacana: 0 },
+  emptyContainersDiff: { damacana: 0, camDamacana: 0 },
   notes: '  kapıda bırakıldı  ',
   isOfflineSync: false,
 };
@@ -281,8 +281,8 @@ check('ödeme farkı eşleşmez', !deliveryPayloadsMatch(baseDelivery, changedPa
 
 const legacyCam: any = {
   ...baseDelivery,
-  emptyContainersReceived: { damacana: 2, cam_damacana: 0, tup: 0 },
-  emptyContainersDiff: { damacana: 0, cam_damacana: 0, tup: 0 },
+  emptyContainersReceived: { damacana: 2, cam_damacana: 0 },
+  emptyContainersDiff: { damacana: 0, cam_damacana: 0 },
 };
 check('cam_damacana takma adı eşleşir', deliveryPayloadsMatch(baseDelivery, legacyCam));
 

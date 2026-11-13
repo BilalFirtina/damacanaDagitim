@@ -21,7 +21,8 @@ interface FixtureProduct {
 const PRODUCTS: FixtureProduct[] = [
   { id: 'plastic', depositType: 'damacana' },
   { id: 'glass', depositType: 'cam_damacana' },
-  { id: 'tup', depositType: 'tup' },
+  { id: 'tup_buyuk', depositType: 'tup_buyuk' },
+  { id: 'tup_kucuk', depositType: 'tup_kucuk' },
   { id: 'pet', depositType: 'none' },
 ];
 
@@ -40,64 +41,68 @@ function check(name: string, actual: unknown, expected: unknown) {
   }
 }
 
-const ZERO = { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 };
+const ZERO = { damacana: 0, camDamacana: 0, sebil: 0 };
 
 console.log('\n[cam_damacana deposit classification verification]\n');
 
 // 1 & 3. Delivery classification is preserved by canonical deposit_type (no name logic).
 console.log('1) Delivery deposit attribution');
 check(
-  'glass -> camDamacana, plastic -> damacana, tup -> tup, pet -> none',
+  'glass -> camDamacana, plastic -> damacana, tup sizes separate, pet -> none',
   computeDeliveredDeposits(
     [
       { productId: 'glass', quantity: 2 },
       { productId: 'plastic', quantity: 1 },
-      { productId: 'tup', quantity: 1 },
+      { productId: 'tup_buyuk', quantity: 1 },
+      { productId: 'tup_kucuk', quantity: 1 },
       { productId: 'pet', quantity: 5 },
     ],
     PRODUCTS
   ),
-  { damacana: 1, camDamacana: 2, tup: 1, sebil: 0 }
+  { damacana: 1, camDamacana: 2, sebil: 0, tupBuyuk: 1, tupKucuk: 1 }
 );
 
 // 2. Returning a glass damacana only reduces the glass outstanding count.
 console.log('\n2) Glass return isolation');
 check(
   'delivered glass 2, returned 1 glass -> camDamacana 1 (plastic untouched)',
-  computeEmptyContainersDiff({ damacana: 0, camDamacana: 2, tup: 0, sebil: 0 }, { camDamacana: 1 }),
-  { damacana: 0, camDamacana: 1, tup: 0, sebil: 0 }
+  computeEmptyContainersDiff({ damacana: 0, camDamacana: 2, sebil: 0 }, { camDamacana: 1 }),
+  { damacana: 0, camDamacana: 1, sebil: 0 }
 );
 
 // 3. Returning a plastic damacana only reduces the plastic outstanding count.
 console.log('\n3) Plastic return isolation');
 check(
   'delivered plastic 2, returned 1 plastic -> damacana 1 (glass untouched)',
-  computeEmptyContainersDiff({ damacana: 2, camDamacana: 0, tup: 0, sebil: 0 }, { damacana: 1 }),
-  { damacana: 1, camDamacana: 0, tup: 0, sebil: 0 }
+  computeEmptyContainersDiff({ damacana: 2, camDamacana: 0, sebil: 0 }, { damacana: 1 }),
+  { damacana: 1, camDamacana: 0, sebil: 0 }
 );
 
 // 4. Plastic returns never offset glass liabilities and vice versa.
 console.log('\n4) Cross-type isolation');
 check(
   'glass 2 + plastic 2 delivered, 2 plastic returned -> plastic 0, glass 2',
-  computeEmptyContainersDiff({ damacana: 2, camDamacana: 2, tup: 0, sebil: 0 }, { damacana: 2 }),
-  { damacana: 0, camDamacana: 2, tup: 0, sebil: 0 }
+  computeEmptyContainersDiff({ damacana: 2, camDamacana: 2, sebil: 0 }, { damacana: 2 }),
+  { damacana: 0, camDamacana: 2, sebil: 0 }
 );
 
 // 5. Other deposit types are unaffected.
 console.log('\n5) Other deposit types unaffected');
 check(
-  'tup 3 delivered, 1 returned -> tup 2, damacana/camDamacana 0',
-  computeEmptyContainersDiff({ damacana: 0, camDamacana: 0, tup: 3, sebil: 0 }, { tup: 1 }),
-  { damacana: 0, camDamacana: 0, tup: 2, sebil: 0 }
+  'big tup 3 delivered, 1 returned -> big 2, small 2, damacana/camDamacana 0',
+  computeEmptyContainersDiff(
+    { damacana: 0, camDamacana: 0, sebil: 0, tupBuyuk: 3, tupKucuk: 2 },
+    { tupBuyuk: 1 }
+  ),
+  { damacana: 0, camDamacana: 0, sebil: 0, tupBuyuk: 2, tupKucuk: 2 }
 );
 
 // 6. Legacy `cam_damacana` key in received payload is treated as camDamacana.
 console.log('\n6) Legacy key alias');
 check(
   "received { cam_damacana: 2 } is handled like { camDamacana: 2 }",
-  computeEmptyContainersDiff({ damacana: 0, camDamacana: 2, tup: 0, sebil: 0 }, { cam_damacana: 2 }),
-  { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 }
+  computeEmptyContainersDiff({ damacana: 0, camDamacana: 2, sebil: 0 }, { cam_damacana: 2 }),
+  { damacana: 0, camDamacana: 0, sebil: 0 }
 );
 
 // 7. Unknown product IDs are not silently attributed to any deposit bucket.

@@ -88,10 +88,8 @@ const productLines = (row: ConsolidatedRow): string[] => {
   );
   if (row.tupBuyukFull > 0) lines.push(`Büyük Dolu - ${row.tupBuyukFull}`);
   if (row.tupKucukFull > 0) lines.push(`Küçük Dolu - ${row.tupKucukFull}`);
-  if (row.tupLegacyFull > 0) lines.push(`Tüp - ${row.tupLegacyFull}`);
   if (row.tupBuyukEmpty > 0) lines.push(`Büyük Boş - ${row.tupBuyukEmpty}`);
   if (row.tupKucukEmpty > 0) lines.push(`Küçük Boş - ${row.tupKucukEmpty}`);
-  if (row.tupEmpty > 0) lines.push(`Tüp Boş - ${row.tupEmpty}`);
   if (row.sebilGiven > 0)
     lines.push(
       `Sebil - ${row.sebilGiven} adet (${row.customerName}) verildi`
@@ -383,7 +381,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                 <td className="p-0 pl-[2px] font-bold border-r border-black">Boş Damacana / Cam / Tüp:</td>
                 <td className="p-0 pl-[2px] font-mono font-bold tabular-nums">
                   {icmal.damacanaEmpty} / {icmal.camDamacanaEmpty} /{' '}
-                  {icmal.tupBuyukEmpty + icmal.tupKucukEmpty + icmal.tupEmpty}
+                  {icmal.tupBuyukEmpty + icmal.tupKucukEmpty}
                 </td>
                 <td className="p-0 pl-[2px] font-bold border-r border-l border-black">Su Sebili Verildi / Alındı:</td>
                 <td className="p-0 pl-[2px] font-mono font-bold tabular-nums">
@@ -400,15 +398,6 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                   {icmal.tupKucukFull} / {icmal.tupKucukEmpty}
                 </td>
               </tr>
-              {(icmal.tupLegacyFull > 0 || icmal.tupEmpty > 0) && (
-                <tr className="border-b border-black">
-                  <td className="p-0 pl-[2px] font-bold border-r border-black">Eski Tek Tüp Dolu / Boş:</td>
-                  <td className="p-0 pl-[2px] font-mono font-bold tabular-nums">
-                    {icmal.tupLegacyFull} / {icmal.tupEmpty}
-                  </td>
-                  <td className="p-0 pl-[2px] border-r border-l border-black" colSpan={2}></td>
-                </tr>
-              )}
             </tbody>
           </table>
         </section>

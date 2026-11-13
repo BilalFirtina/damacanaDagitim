@@ -73,12 +73,10 @@ export interface ConsolidatedRow {
   camDamacanaFull: number;
   tupBuyukFull: number;
   tupKucukFull: number;
-  tupLegacyFull: number;
   damacanaEmpty: number;
   camDamacanaEmpty: number;
   tupBuyukEmpty: number;
   tupKucukEmpty: number;
-  tupEmpty: number;
   sebilGiven: number;
   sebilReceived: number;
   productLines: Array<{ productId: string; name: string; unit: string; quantity: number }>;
@@ -142,13 +140,11 @@ export interface ConsolidatedReport {
     camDamacanaFull: number;
     tupBuyukFull: number;
     tupKucukFull: number;
-    tupLegacyFull: number;
     tupFull: number;
     damacanaEmpty: number;
     camDamacanaEmpty: number;
     tupBuyukEmpty: number;
     tupKucukEmpty: number;
-    tupEmpty: number;
     sebilGiven: number;
     sebilReceived: number;
   };
@@ -229,12 +225,10 @@ function newRow(
     camDamacanaFull: 0,
     tupBuyukFull: 0,
     tupKucukFull: 0,
-    tupLegacyFull: 0,
     damacanaEmpty: 0,
     camDamacanaEmpty: 0,
     tupBuyukEmpty: 0,
     tupKucukEmpty: 0,
-    tupEmpty: 0,
     sebilGiven: 0,
     sebilReceived: 0,
     productLines: [],
@@ -337,13 +331,11 @@ export function buildConsolidatedReport(input: {
     camDamacanaFull: 0,
     tupBuyukFull: 0,
     tupKucukFull: 0,
-    tupLegacyFull: 0,
     tupFull: 0,
     damacanaEmpty: 0,
     camDamacanaEmpty: 0,
     tupBuyukEmpty: 0,
     tupKucukEmpty: 0,
-    tupEmpty: 0,
     sebilGiven: 0,
     sebilReceived: 0,
   };
@@ -444,11 +436,6 @@ export function buildConsolidatedReport(input: {
         row.tupKucukFull += quantity;
         icmal.tupKucukFull += quantity;
         icmal.tupFull += quantity;
-      } else if (depositType === 'tup') {
-        // Eski tek tüp kayıtları; boyut bilinmiyor.
-        row.tupLegacyFull += quantity;
-        icmal.tupLegacyFull += quantity;
-        icmal.tupFull += quantity;
       } else if (depositType === 'sebil') {
         row.sebilGiven += quantity;
         icmal.sebilGiven += quantity;
@@ -486,19 +473,16 @@ export function buildConsolidatedReport(input: {
     );
     const tupBuyuk = toNumber(delivery.emptyContainersReceived?.tupBuyuk);
     const tupKucuk = toNumber(delivery.emptyContainersReceived?.tupKucuk);
-    const tup = toNumber(delivery.emptyContainersReceived?.tup);
     const sebil = toNumber(delivery.emptyContainersReceived?.sebil);
     row.damacanaEmpty += damacana;
     row.camDamacanaEmpty += camDamacana;
     row.tupBuyukEmpty += tupBuyuk;
     row.tupKucukEmpty += tupKucuk;
-    row.tupEmpty += tup;
     row.sebilReceived += sebil;
     icmal.damacanaEmpty += damacana;
     icmal.camDamacanaEmpty += camDamacana;
     icmal.tupBuyukEmpty += tupBuyuk;
     icmal.tupKucukEmpty += tupKucuk;
-    icmal.tupEmpty += tup;
     icmal.sebilReceived += sebil;
 
     const note = (delivery.notes || '').trim();

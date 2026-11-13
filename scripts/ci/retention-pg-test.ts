@@ -111,7 +111,7 @@ async function seedReference(c: Client): Promise<void> {
   await c.query(`
     INSERT INTO public.customer_empty_balances (customer_id, deposit_type, quantity) VALUES
       ('c1', 'damacana', 7),
-      ('c1', 'tup', 2)
+      ('c1', 'tup_buyuk', 2)
     ON CONFLICT (customer_id, deposit_type) DO UPDATE SET quantity = EXCLUDED.quantity;
   `);
   // 60 günden sonra korunması gereken müşteri ticari bilgileri.

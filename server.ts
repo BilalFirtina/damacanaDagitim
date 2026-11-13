@@ -737,7 +737,7 @@ app.post('/api/customers', async (req, res) => {
     emails: cleanEmails,
     isAccountCustomer: !!isAccountCustomer,
     currentBalanceTL: 0,
-    emptyDepositBalance: { damacana: 0, camDamacana: 0, tup: 0 },
+    emptyDepositBalance: { damacana: 0, camDamacana: 0, tupBuyuk: 0, tupKucuk: 0 },
     customPrices: customPrices || {},
     notes: notes || '',
     createdDate: getTodayDateStr(),
@@ -1025,7 +1025,7 @@ app.get('/api/reports/balances', requireAdmin, async (_req, res) => {
 
     const rows = customers
       .map((c) => {
-        const empty = c.emptyDepositBalance || { damacana: 0, camDamacana: 0, tup: 0 };
+        const empty = c.emptyDepositBalance || { damacana: 0, camDamacana: 0 };
         const camDamacana = Number((empty as any).camDamacana ?? (empty as any).cam_damacana) || 0;
         return {
           id: c.id,
@@ -1036,7 +1036,6 @@ app.get('/api/reports/balances', requireAdmin, async (_req, res) => {
           empty: {
             damacana: Number(empty.damacana) || 0,
             camDamacana,
-            tup: Number(empty.tup) || 0,
             tupBuyuk: Number((empty as any).tupBuyuk) || 0,
             tupKucuk: Number((empty as any).tupKucuk) || 0,
             sebil: Number((empty as any).sebil) || 0,
@@ -1048,7 +1047,6 @@ app.get('/api/reports/balances', requireAdmin, async (_req, res) => {
         const hasEmpty =
           row.empty.damacana !== 0 ||
           row.empty.camDamacana !== 0 ||
-          row.empty.tup !== 0 ||
           row.empty.tupBuyuk !== 0 ||
           row.empty.tupKucuk !== 0 ||
           row.empty.sebil !== 0;
@@ -1061,7 +1059,6 @@ app.get('/api/reports/balances', requireAdmin, async (_req, res) => {
       totalAdvance: rows.reduce((sum, r) => sum + (r.balance < 0 ? -r.balance : 0), 0),
       emptyDamacana: rows.reduce((sum, r) => sum + r.empty.damacana, 0),
       emptyCamDamacana: rows.reduce((sum, r) => sum + r.empty.camDamacana, 0),
-      emptyTup: rows.reduce((sum, r) => sum + r.empty.tup, 0),
       emptyTupBuyuk: rows.reduce((sum, r) => sum + r.empty.tupBuyuk, 0),
       emptyTupKucuk: rows.reduce((sum, r) => sum + r.empty.tupKucuk, 0),
       emptySebil: rows.reduce((sum, r) => sum + r.empty.sebil, 0),
@@ -1140,7 +1137,7 @@ app.get('/api/customers/:id/statement', requireAdmin, async (req, res) => {
       },
       statement,
       returnables: {
-        emptyDepositBalance: customer.emptyDepositBalance || { damacana: 0, camDamacana: 0, tup: 0 },
+        emptyDepositBalance: customer.emptyDepositBalance || { damacana: 0, camDamacana: 0, tupBuyuk: 0, tupKucuk: 0 },
       },
     });
   } catch (err: any) {
@@ -1402,7 +1399,8 @@ app.post('/api/dispatches/:id/close', async (req, res) => {
         remainingFullCounted: req.body?.remainingFullCounted,
         collectedEmptyDamacana: req.body?.collectedEmptyDamacana,
         collectedEmptyCamDamacana: req.body?.collectedEmptyCamDamacana,
-        collectedEmptyTup: req.body?.collectedEmptyTup,
+        collectedEmptyTupBuyuk: req.body?.collectedEmptyTupBuyuk,
+        collectedEmptyTupKucuk: req.body?.collectedEmptyTupKucuk,
         actualCashInPocket: req.body?.actualCashInPocket,
         actualPosSlipsTotal: req.body?.actualPosSlipsTotal,
         notes: req.body?.notes,
@@ -1564,7 +1562,7 @@ app.post('/api/deliveries', async (req, res) => {
       customer.customPrices = { ...(customer.customPrices || {}), ...priceUpdates };
     }
 
-    const currentEmpty = customer.emptyDepositBalance || { damacana: 0, camDamacana: 0, tup: 0 };
+    const currentEmpty = customer.emptyDepositBalance || { damacana: 0, camDamacana: 0 };
     const nextEmpty = {
       damacana:
         (Number(currentEmpty.damacana) || 0) +
@@ -1576,8 +1574,6 @@ app.post('/api/deliveries', async (req, res) => {
             newDelivery.emptyContainersDiff.cam_damacana ??
             0
         ),
-      // Eski tek tüp bakiyesi korunur; yeni teslimatlar boyutlu alanlara yazılır.
-      tup: Number(currentEmpty.tup) || 0,
       tupBuyuk:
         (Number(currentEmpty.tupBuyuk) || 0) +
         (Number(newDelivery.emptyContainersDiff.tupBuyuk) || 0),
@@ -2074,9 +2070,7 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
       {
         const tupBuyuk = Number(del.emptyContainersReceived.tupBuyuk) || 0;
         const tupKucuk = Number(del.emptyContainersReceived.tupKucuk) || 0;
-        const tupLegacy = Number(del.emptyContainersReceived.tup) || 0;
-        totalEmptyTupCollected +=
-          tupBuyuk || tupKucuk ? tupBuyuk + tupKucuk : tupLegacy;
+        totalEmptyTupCollected += tupBuyuk + tupKucuk;
       }
 
       del.deliveredItems.forEach((item) => {

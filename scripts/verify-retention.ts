@@ -76,7 +76,8 @@ function makeDispatch(over: Partial<Dispatch>): Dispatch {
       remainingFullCounted: {},
       remainingFullExpected: {},
       collectedEmptyDamacana: 0,
-      collectedEmptyTup: 0,
+      collectedEmptyTupBuyuk: 0,
+      collectedEmptyTupKucuk: 0,
       actualCashInPocket: 0,
       actualPosSlipsTotal: 0,
       totalDeliveredValue: 0,
@@ -110,8 +111,8 @@ function makeDelivery(over: Partial<Delivery>): Delivery {
       status: 'unpaid',
       diffUncollected: 0,
     },
-    emptyContainersReceived: { damacana: 0, tup: 0 },
-    emptyContainersDiff: { damacana: 0, tup: 0 },
+    emptyContainersReceived: { damacana: 0 },
+    emptyContainersDiff: { damacana: 0 },
     notes: '',
     isOfflineSync: false,
     ...over,
@@ -210,7 +211,7 @@ function partA() {
     'local removed deliveries are disjoint from retained',
     local.archivedDeliveries.every((a) => !local.deliveries.some((k) => k.id === a.id))
   );
-  const customers = [{ id: 'c1', currentBalanceTL: 500, emptyDepositBalance: { damacana: 3, tup: 1 } }];
+  const customers = [{ id: 'c1', currentBalanceTL: 500, emptyDepositBalance: { damacana: 3, tupBuyuk: 1, tupKucuk: 2 } }];
   const before = JSON.stringify(customers);
   applyRetentionToLocal(dispatches, deliveries, cutoff, cutoffInstant);
   check('balances/consignments untouched (byte-identical)', JSON.stringify(customers) === before);

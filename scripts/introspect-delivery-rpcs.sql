@@ -22,7 +22,8 @@ WHERE table_schema = 'public'
       'total_delivered_value', 'total_cash_collected', 'total_pos_collected',
       'total_credit_added', 'actual_cash_in_pocket', 'actual_pos_slips_total',
       'collected_empty_damacana', 'collected_empty_cam_damacana',
-      'collected_empty_tup', 'reconciliation_notes'
+      'collected_empty_tup_buyuk', 'collected_empty_tup_kucuk',
+      'reconciliation_notes'
     ))
     OR (table_name = 'deliveries' AND column_name IN (
       'id', 'dispatch_id', 'driver_id', 'driver_name', 'vehicle_plate',

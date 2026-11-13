@@ -161,7 +161,6 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
   let totalEmptyTupCollected = 0;
   let totalEmptyTupBuyukCollected = 0;
   let totalEmptyTupKucukCollected = 0;
-  let totalEmptyTupLegacyCollected = 0;
   let totalEmptySebilCollected = 0;
 
   dispatchDeliveries.forEach((del) => {
@@ -177,7 +176,6 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
       Number(del.emptyContainersReceived?.tupBuyuk) || 0;
     totalEmptyTupKucukCollected +=
       Number(del.emptyContainersReceived?.tupKucuk) || 0;
-    totalEmptyTupLegacyCollected += Number(del.emptyContainersReceived?.tup) || 0;
     totalEmptyTupCollected += totalTupEmpty(del.emptyContainersReceived);
     totalEmptySebilCollected += Number(del.emptyContainersReceived?.sebil) || 0;
 
@@ -251,7 +249,8 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
         remainingFullCounted: countedFull,
         collectedEmptyDamacana: totalEmptyDamacanaCollected,
         collectedEmptyCamDamacana: totalEmptyCamDamacanaCollected,
-        collectedEmptyTup: totalEmptyTupCollected,
+        collectedEmptyTupBuyuk: totalEmptyTupBuyukCollected,
+        collectedEmptyTupKucuk: totalEmptyTupKucukCollected,
         collectedEmptySebil: totalEmptySebilCollected,
         actualCashInPocket: Number(actualCashInPocket) || 0,
         actualPosSlipsTotal: Number(actualPosSlipsTotal) || 0,
@@ -558,9 +557,6 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
             </div>
             <span className="text-[10px] text-slate-400">
               Toplam {totalEmptyTupCollected} adet
-              {totalEmptyTupLegacyCollected > 0
-                ? ` · Eski kayıt ${totalEmptyTupLegacyCollected}`
-                : ''}
             </span>
           </div>
 
@@ -701,8 +697,6 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                         ` · ${del.emptyContainersReceived.tupBuyuk} Büyük Boş Tüp`}
                       {(del.emptyContainersReceived.tupKucuk || 0) > 0 &&
                         ` · ${del.emptyContainersReceived.tupKucuk} Küçük Boş Tüp`}
-                      {del.emptyContainersReceived.tup > 0 &&
-                        ` · ${del.emptyContainersReceived.tup} Boş Tüp (eski)`}
                     </div>
                   </div>
 

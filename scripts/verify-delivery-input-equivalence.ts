@@ -55,12 +55,12 @@ const products: any[] = [
     unit: 'Adet',
   },
   {
-    id: 'p_tup',
-    name: 'Tüp',
+    id: 'p_tup_buyuk',
+    name: 'Büyük Tüp',
     category: 'tup',
     defaultUnitPrice: 300,
     isDeposit: true,
-    depositType: 'tup',
+    depositType: 'tup_buyuk',
     unit: 'Adet',
   },
   {
@@ -87,7 +87,7 @@ const dispatch: any = {
   loadedItems: [
     { productId: 'p_water', quantity: 10 },
     { productId: 'p_cam', quantity: 6 },
-    { productId: 'p_tup', quantity: 5 },
+    { productId: 'p_tup_buyuk', quantity: 5 },
     { productId: 'p_pet', quantity: 100 },
   ],
   createdAt: '2026-10-20T06:00:00.000Z',
@@ -109,7 +109,7 @@ const customer: any = {
   address: 'Test Adres',
   isAccountCustomer: false,
   currentBalanceTL: 0,
-  emptyDepositBalance: { damacana: 0, camDamacana: 0, tup: 0 },
+  emptyDepositBalance: { damacana: 0, camDamacana: 0 },
   customPrices: {},
   createdDate: '2026-01-01',
 };
@@ -141,8 +141,8 @@ const existingWater2: any = {
     status: 'paid_full',
     diffUncollected: 0,
   },
-  emptyContainersReceived: { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 },
-  emptyContainersDiff: { damacana: 2, camDamacana: 0, tup: 0 },
+  emptyContainersReceived: { damacana: 0, camDamacana: 0, sebil: 0 },
+  emptyContainersDiff: { damacana: 2, camDamacana: 0 },
   notes: '',
   isOfflineSync: false,
 };
@@ -256,7 +256,9 @@ function legacyNormalize(input: any): NormalizedDeliveryInput {
     }
   });
 
-  const emptiesRecv = {
+  const tupBuyuk = Math.max(0, Math.floor(Number(emptyContainersReceived?.tupBuyuk) || 0));
+  const tupKucuk = Math.max(0, Math.floor(Number(emptyContainersReceived?.tupKucuk) || 0));
+  const emptiesRecv: any = {
     damacana: Math.max(0, Math.floor(Number(emptyContainersReceived?.damacana) || 0)),
     camDamacana: Math.max(
       0,
@@ -264,12 +266,18 @@ function legacyNormalize(input: any): NormalizedDeliveryInput {
         Number(emptyContainersReceived?.camDamacana ?? emptyContainersReceived?.cam_damacana) || 0
       )
     ),
-    tup: Math.max(0, Math.floor(Number(emptyContainersReceived?.tup) || 0)),
     sebil: Math.max(0, Math.floor(Number(emptyContainersReceived?.sebil) || 0)),
   };
+  if (tupBuyuk > 0 || tupKucuk > 0) {
+    emptiesRecv.tupBuyuk = tupBuyuk;
+    emptiesRecv.tupKucuk = tupKucuk;
+  }
 
   const receivedEmptyTotal =
-    emptiesRecv.damacana + emptiesRecv.camDamacana + emptiesRecv.tup;
+    emptiesRecv.damacana +
+    emptiesRecv.camDamacana +
+    (emptiesRecv.tupBuyuk || 0) +
+    (emptiesRecv.tupKucuk || 0);
   if (normalizedItems.length === 0 && receivedEmptyTotal === 0) {
     throw new OracleHttpError(
       400,
@@ -670,9 +678,9 @@ const cases: EquivalenceCase[] = [
     expect: 'ok',
   },
   {
-    name: 'tup teslimati',
+    name: 'buyuk tup teslimati',
     overrides: {
-      deliveredItems: [{ productId: 'p_tup', quantity: 2, unitPrice: 300 }],
+      deliveredItems: [{ productId: 'p_tup_buyuk', quantity: 2, unitPrice: 300 }],
       collectedPayment: { method: 'CASH', cashAmount: 600, posAmount: 0 },
     },
     expect: 'ok',
@@ -691,9 +699,9 @@ const cases: EquivalenceCase[] = [
       deliveredItems: [
         { productId: 'p_water', quantity: 1, unitPrice: 100 },
         { productId: 'p_cam', quantity: 2, unitPrice: 120 },
-        { productId: 'p_tup', quantity: 1, unitPrice: 300 },
+        { productId: 'p_tup_buyuk', quantity: 1, unitPrice: 300 },
       ],
-      emptyContainersReceived: { damacana: 1, camDamacana: 1, tup: 1 },
+      emptyContainersReceived: { damacana: 1, camDamacana: 1, tupBuyuk: 1 },
       collectedPayment: { method: 'CASH', cashAmount: 640, posAmount: 0 },
     },
     expect: 'ok',

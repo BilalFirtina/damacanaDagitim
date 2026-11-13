@@ -54,7 +54,6 @@ const input = {
   emptyContainersReceived: {
     damacana: 3,
     cam_damacana: 2,
-    tup: 0,
     tupBuyuk: 1,
     tupKucuk: 4,
     sebil: 1,
@@ -62,7 +61,6 @@ const input = {
   emptyContainersDiff: {
     damacana: 0,
     cam_damacana: 1,
-    tup: 0,
     tupBuyuk: 0,
     tupKucuk: 0,
     sebil: 2,

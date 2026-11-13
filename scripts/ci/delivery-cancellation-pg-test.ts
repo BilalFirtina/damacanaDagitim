@@ -80,7 +80,7 @@ async function seedReference(c: Client): Promise<void> {
     VALUES
       ('p_water', 'Damacana Su', 'pet', 100, true, 'damacana', 'Adet'),
       ('p_cam', 'Cam Damacana', 'damacana', 120, true, 'cam_damacana', 'Adet'),
-      ('p_tup', 'Tüp', 'tup', 300, true, 'tup', 'Adet')
+      ('p_tup', 'Tüp', 'tup', 300, true, 'tup_buyuk', 'Adet')
     ON CONFLICT (id) DO UPDATE
       SET name = EXCLUDED.name,
           category = EXCLUDED.category,
@@ -233,12 +233,12 @@ async function empty(c: Client, type = 'damacana'): Promise<number> {
   return Number(r.rows[0]?.quantity ?? 0);
 }
 
-const POOL_TYPES = ['damacana', 'cam_damacana', 'tup'] as const;
+const POOL_TYPES = ['damacana', 'cam_damacana', 'tup_buyuk'] as const;
 type PoolType = (typeof POOL_TYPES)[number];
 type PoolCounts = Record<PoolType, number>;
 
 function emptyPoolCounts(): PoolCounts {
-  return { damacana: 0, cam_damacana: 0, tup: 0 };
+  return { damacana: 0, cam_damacana: 0, tup_buyuk: 0 };
 }
 
 function countsMatch(
@@ -1284,15 +1284,15 @@ async function scenarioCancelSeparatesPools(c: Client): Promise<void> {
       { productId: 'p_cam', productName: 'Cam Damacana', quantity: 1 },
       { productId: 'p_tup', productName: 'Tüp', quantity: 1 },
     ],
-    diffs: { damacana: 2, cam_damacana: 1, tup: 1 },
+    diffs: { damacana: 2, cam_damacana: 1, tup_buyuk: 1 },
   });
-  await setEmptyBalances(c, { damacana: 7, cam_damacana: 3, tup: 2 });
+  await setEmptyBalances(c, { damacana: 7, cam_damacana: 3, tup_buyuk: 2 });
 
   const res = await callRpc(c, cancelPayload('POOL_CANCEL'));
   check('uc havuzlu iptal basarili', res.cancelled === true && res.duplicate === false);
   check(
     'iptal sonrasi havuzlar 5/2/1',
-    countsMatch(await emptyBalances(c), { damacana: 5, cam_damacana: 2, tup: 1 }),
+    countsMatch(await emptyBalances(c), { damacana: 5, cam_damacana: 2, tup_buyuk: 1 }),
     JSON.stringify(await emptyBalances(c))
   );
   const audit = await auditRow(c, 'POOL_CANCEL');
@@ -1300,7 +1300,7 @@ async function scenarioCancelSeparatesPools(c: Client): Promise<void> {
     'denetimde ters havuzlar 2/1/1',
     Number(audit.reversed_empty?.damacana) === 2 &&
       Number(audit.reversed_empty?.cam_damacana) === 1 &&
-      Number(audit.reversed_empty?.tup) === 1,
+      Number(audit.reversed_empty?.tup_buyuk) === 1,
     JSON.stringify(audit.reversed_empty)
   );
 
@@ -1309,7 +1309,7 @@ async function scenarioCancelSeparatesPools(c: Client): Promise<void> {
   check('ikinci iptal duplicate', dup.duplicate === true);
   check(
     'duplicate havuzlari degistirmedi',
-    countsMatch(await emptyBalances(c), { damacana: 5, cam_damacana: 2, tup: 1 })
+    countsMatch(await emptyBalances(c), { damacana: 5, cam_damacana: 2, tup_buyuk: 1 })
   );
   check('duplicate denetim eklemedi', (await auditCount(c, 'POOL_CANCEL')) === auditBefore);
 }
@@ -1318,28 +1318,28 @@ async function scenarioCamOnlyWithPlasticReturn(c: Client): Promise<void> {
   console.log('\n[13] Yalniz cam teslimati + plastik bos iadesi');
   await resetTransactional(c);
   await seedDispatch(c);
-  await setEmptyBalances(c, { damacana: 5, cam_damacana: 2, tup: 1 });
+  await setEmptyBalances(c, { damacana: 5, cam_damacana: 2, tup_buyuk: 1 });
 
   const applied = await callApply(
     c,
     poolApplyPayload(
       'POOL_CAM_ONLY',
       [{ productId: 'p_cam', productName: 'Cam Damacana', quantity: 1 }],
-      { damacana: -2, cam_damacana: 1, tup: 0 },
+      { damacana: -2, cam_damacana: 1, tup_buyuk: 0 },
       { damacana: 2 }
     )
   );
   check('cam-only teslimat basarili', applied.duplicate === false);
   check(
     'cam-only: plastik 3, cam 3, tup 1',
-    countsMatch(await emptyBalances(c), { damacana: 3, cam_damacana: 3, tup: 1 }),
+    countsMatch(await emptyBalances(c), { damacana: 3, cam_damacana: 3, tup_buyuk: 1 }),
     JSON.stringify(await emptyBalances(c))
   );
 
   await callRpc(c, cancelPayload('POOL_CAM_ONLY'));
   check(
     'cam-only iptal havuzlari 5/2/1 yapti',
-    countsMatch(await emptyBalances(c), { damacana: 5, cam_damacana: 2, tup: 1 })
+    countsMatch(await emptyBalances(c), { damacana: 5, cam_damacana: 2, tup_buyuk: 1 })
   );
 }
 
@@ -1347,28 +1347,28 @@ async function scenarioPlasticOnlyWithCamReturn(c: Client): Promise<void> {
   console.log('\n[14] Yalniz plastik teslimati + cam bos iadesi');
   await resetTransactional(c);
   await seedDispatch(c);
-  await setEmptyBalances(c, { damacana: 5, cam_damacana: 2, tup: 1 });
+  await setEmptyBalances(c, { damacana: 5, cam_damacana: 2, tup_buyuk: 1 });
 
   const applied = await callApply(
     c,
     poolApplyPayload(
       'POOL_PLASTIC_ONLY',
       [{ productId: 'p_water', productName: 'Damacana Su', quantity: 1 }],
-      { damacana: 1, cam_damacana: -2, tup: 0 },
+      { damacana: 1, cam_damacana: -2, tup_buyuk: 0 },
       { cam_damacana: 2 }
     )
   );
   check('plastik-only teslimat basarili', applied.duplicate === false);
   check(
     'plastik-only: plastik 6, cam 0, tup 1',
-    countsMatch(await emptyBalances(c), { damacana: 6, cam_damacana: 0, tup: 1 }),
+    countsMatch(await emptyBalances(c), { damacana: 6, cam_damacana: 0, tup_buyuk: 1 }),
     JSON.stringify(await emptyBalances(c))
   );
 
   await callRpc(c, cancelPayload('POOL_PLASTIC_ONLY'));
   check(
     'plastik-only iptal havuzlari 5/2/1 yapti',
-    countsMatch(await emptyBalances(c), { damacana: 5, cam_damacana: 2, tup: 1 })
+    countsMatch(await emptyBalances(c), { damacana: 5, cam_damacana: 2, tup_buyuk: 1 })
   );
 }
 
@@ -1376,7 +1376,7 @@ async function scenarioMixedThreePools(c: Client): Promise<void> {
   console.log('\n[15] Karma uc havuz: her havuz kendi miktariyla degisir');
   await resetTransactional(c);
   await seedDispatch(c);
-  await setEmptyBalances(c, { damacana: 5, cam_damacana: 2, tup: 1 });
+  await setEmptyBalances(c, { damacana: 5, cam_damacana: 2, tup_buyuk: 1 });
 
   const applied = await callApply(
     c,
@@ -1387,21 +1387,21 @@ async function scenarioMixedThreePools(c: Client): Promise<void> {
         { productId: 'p_cam', productName: 'Cam Damacana', quantity: 1 },
         { productId: 'p_tup', productName: 'Tüp', quantity: 1 },
       ],
-      { damacana: 2, cam_damacana: -1, tup: 1 },
+      { damacana: 2, cam_damacana: -1, tup_buyuk: 1 },
       { cam_damacana: 2 }
     )
   );
   check('karma teslimat basarili', applied.duplicate === false);
   check(
     'karma uygulama: plastik 7, cam 1, tup 2',
-    countsMatch(await emptyBalances(c), { damacana: 7, cam_damacana: 1, tup: 2 }),
+    countsMatch(await emptyBalances(c), { damacana: 7, cam_damacana: 1, tup_buyuk: 2 }),
     JSON.stringify(await emptyBalances(c))
   );
 
   await callRpc(c, cancelPayload('POOL_MIXED'));
   check(
     'karma iptal havuzlari 5/2/1 yapti',
-    countsMatch(await emptyBalances(c), { damacana: 5, cam_damacana: 2, tup: 1 })
+    countsMatch(await emptyBalances(c), { damacana: 5, cam_damacana: 2, tup_buyuk: 1 })
   );
 }
 
@@ -1416,9 +1416,9 @@ async function scenarioReplacementSeparatesPools(c: Client): Promise<void> {
       { productId: 'p_cam', productName: 'Cam Damacana', quantity: 2 },
       { productId: 'p_tup', productName: 'Tüp', quantity: 2 },
     ],
-    diffs: { damacana: 2, cam_damacana: 1, tup: 1 },
+    diffs: { damacana: 2, cam_damacana: 1, tup_buyuk: 1 },
   });
-  await setEmptyBalances(c, { damacana: 7, cam_damacana: 3, tup: 2 });
+  await setEmptyBalances(c, { damacana: 7, cam_damacana: 3, tup_buyuk: 2 });
 
   const replacement = poolApplyPayload(
     'POOL_REPLACEMENT',
@@ -1427,8 +1427,8 @@ async function scenarioReplacementSeparatesPools(c: Client): Promise<void> {
       { productId: 'p_cam', productName: 'Cam Damacana', quantity: 3 },
       { productId: 'p_tup', productName: 'Tüp', quantity: 1 },
     ],
-    { damacana: -1, cam_damacana: 2, tup: 0 },
-    { damacana: 3, cam_damacana: 1, tup: 1 }
+    { damacana: -1, cam_damacana: 2, tup_buyuk: 0 },
+    { damacana: 3, cam_damacana: 1, tup_buyuk: 1 }
   );
   const res = await callRpc(c, {
     mode: 'replace',
@@ -1446,7 +1446,7 @@ async function scenarioReplacementSeparatesPools(c: Client): Promise<void> {
   );
   check(
     'duzenleme sonrasi havuzlar 4/4/1',
-    countsMatch(await emptyBalances(c), { damacana: 4, cam_damacana: 4, tup: 1 }),
+    countsMatch(await emptyBalances(c), { damacana: 4, cam_damacana: 4, tup_buyuk: 1 }),
     JSON.stringify(await emptyBalances(c))
   );
   const audit = await auditRow(c, 'POOL_OLD');
@@ -1454,14 +1454,14 @@ async function scenarioReplacementSeparatesPools(c: Client): Promise<void> {
     'duzenleme denetiminde ters havuzlar 2/1/1',
     Number(audit.reversed_empty?.damacana) === 2 &&
       Number(audit.reversed_empty?.cam_damacana) === 1 &&
-      Number(audit.reversed_empty?.tup) === 1,
+      Number(audit.reversed_empty?.tup_buyuk) === 1,
     JSON.stringify(audit.reversed_empty)
   );
 
   await callRpc(c, cancelPayload('POOL_REPLACEMENT'));
   check(
     'yeni teslimat iptali havuzlari 5/2/1 yapti',
-    countsMatch(await emptyBalances(c), { damacana: 5, cam_damacana: 2, tup: 1 })
+    countsMatch(await emptyBalances(c), { damacana: 5, cam_damacana: 2, tup_buyuk: 1 })
   );
 }
 
@@ -1474,13 +1474,13 @@ async function scenarioPoolFailureIsolation(c: Client): Promise<void> {
     items: [{ productId: 'p_cam', productName: 'Cam Damacana', quantity: 2 }],
     diffs: { cam_damacana: 2 },
   });
-  await setEmptyBalances(c, { damacana: 5, cam_damacana: 0, tup: 1 });
+  await setEmptyBalances(c, { damacana: 5, cam_damacana: 0, tup_buyuk: 1 });
 
   const cancelRes = await callRpc(c, cancelPayload('POOL_CONFLICT'));
   check('cam ters kaydi basarili', cancelRes.cancelled === true);
   check(
     'cam havuzu -2, plastik/tup degismedi',
-    countsMatch(await emptyBalances(c), { damacana: 5, cam_damacana: -2, tup: 1 }),
+    countsMatch(await emptyBalances(c), { damacana: 5, cam_damacana: -2, tup_buyuk: 1 }),
     JSON.stringify(await emptyBalances(c))
   );
   check('iptal teslimati kapatti', (await deliveryRow(c, 'POOL_CONFLICT')).status === 'cancelled');
@@ -1488,20 +1488,20 @@ async function scenarioPoolFailureIsolation(c: Client): Promise<void> {
 
   await resetTransactional(c);
   await seedDispatch(c);
-  await setEmptyBalances(c, { damacana: 0, cam_damacana: 3, tup: 1 });
+  await setEmptyBalances(c, { damacana: 0, cam_damacana: 3, tup_buyuk: 1 });
   const applyRes = await callApply(
     c,
     poolApplyPayload(
       'POOL_NEG',
       [{ productId: 'p_cam', productName: 'Cam Damacana', quantity: 1 }],
-      { damacana: -2, cam_damacana: 1, tup: 0 },
+      { damacana: -2, cam_damacana: 1, tup_buyuk: 0 },
       { damacana: 2 }
     )
   );
   check('negatif plastik havuzu basarili', applyRes.duplicate === false);
   check(
     'apply sonrasi havuzlar -2/4/1',
-    countsMatch(await emptyBalances(c), { damacana: -2, cam_damacana: 4, tup: 1 }),
+    countsMatch(await emptyBalances(c), { damacana: -2, cam_damacana: 4, tup_buyuk: 1 }),
     JSON.stringify(await emptyBalances(c))
   );
   check('apply teslimat yazdi', (await deliveryCount(c)) === 1);
@@ -1564,7 +1564,8 @@ async function scenarioEmptiesOnlyClose(c: Client): Promise<void> {
         actual_pos_slips_total: 0,
         collected_empty_damacana: 3,
         collected_empty_cam_damacana: 0,
-        collected_empty_tup: 0,
+        collected_empty_tup_buyuk: 0,
+        collected_empty_tup_kucuk: 0,
         notes: '',
       }),
     ]

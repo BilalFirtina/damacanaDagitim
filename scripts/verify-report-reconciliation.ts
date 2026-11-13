@@ -41,7 +41,7 @@ const customer = (id: string, name: string, isAccount = false): Customer =>
     emails: [],
     isAccountCustomer: isAccount,
     currentBalanceTL: 0,
-    emptyDepositBalance: { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 },
+    emptyDepositBalance: { damacana: 0, camDamacana: 0, sebil: 0 },
     customPrices: {},
     createdDate: '2026-11-04',
   }) as Customer;
@@ -93,8 +93,8 @@ const delivery = (
     status: cash >= amount ? 'paid_full' : 'unpaid',
     diffUncollected: Math.max(0, amount - cash),
   },
-  emptyContainersReceived: { damacana: 1, camDamacana: 0, tup: 0, sebil: 0 },
-  emptyContainersDiff: { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 },
+  emptyContainersReceived: { damacana: 1, camDamacana: 0, sebil: 0 },
+  emptyContainersDiff: { damacana: 0, camDamacana: 0, sebil: 0 },
   notes: '',
   isLateDelivery,
 });

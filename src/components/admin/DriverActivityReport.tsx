@@ -118,8 +118,7 @@ export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({
         ) || 0;
       row.emptyTup +=
         Number(delivery.emptyContainersReceived?.tupBuyuk || 0) +
-          Number(delivery.emptyContainersReceived?.tupKucuk || 0) ||
-        Number(delivery.emptyContainersReceived?.tup) || 0;
+        Number(delivery.emptyContainersReceived?.tupKucuk || 0);
     }
 
     const knownDriverIds = new Set<string>();

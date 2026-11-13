@@ -259,7 +259,6 @@ export interface CustomerStatementResponse {
     emptyDepositBalance: {
       damacana: number;
       camDamacana: number;
-      tup: number;
       tupBuyuk?: number;
       tupKucuk?: number;
       sebil?: number;
@@ -290,7 +289,6 @@ export interface BalancesReportRow {
   empty: {
     damacana: number;
     camDamacana: number;
-    tup: number;
     tupBuyuk: number;
     tupKucuk: number;
     sebil: number;
@@ -304,7 +302,6 @@ export interface BalancesReportResponse {
     totalAdvance: number;
     emptyDamacana: number;
     emptyCamDamacana: number;
-    emptyTup: number;
     emptyTupBuyuk: number;
     emptyTupKucuk: number;
     emptySebil: number;
@@ -605,7 +602,6 @@ export function normalizeDelivery(deliveryData: any, forceOffline = false): Deli
       damacana: Number(emptyRecv.damacana) || 0,
       camDamacana: receivedCamDamacana,
       cam_damacana: receivedCamDamacana,
-      tup: Number(emptyRecv.tup) || 0,
       tupBuyuk: Number(emptyRecv.tupBuyuk) || 0,
       tupKucuk: Number(emptyRecv.tupKucuk) || 0,
       sebil: Number(emptyRecv.sebil) || 0,
@@ -614,7 +610,6 @@ export function normalizeDelivery(deliveryData: any, forceOffline = false): Deli
       damacana: Number(emptyDiff.damacana) || 0,
       camDamacana: diffCamDamacana,
       cam_damacana: diffCamDamacana,
-      tup: Number(emptyDiff.tup) || 0,
       tupBuyuk: Number(emptyDiff.tupBuyuk) || 0,
       tupKucuk: Number(emptyDiff.tupKucuk) || 0,
       sebil: Number(emptyDiff.sebil) || 0,

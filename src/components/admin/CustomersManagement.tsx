@@ -69,7 +69,6 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
   const [editNotes, setEditNotes] = useState("");
   const [editEmptyDamacana, setEditEmptyDamacana] = useState("0");
   const [editEmptyCamDamacana, setEditEmptyCamDamacana] = useState("0");
-  const [editEmptyTup, setEditEmptyTup] = useState("0");
   const [editEmptyTupBuyuk, setEditEmptyTupBuyuk] = useState("0");
   const [editEmptyTupKucuk, setEditEmptyTupKucuk] = useState("0");
 
@@ -161,7 +160,6 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
         ) || 0,
       ),
     );
-    setEditEmptyTup(String(Number(cust.emptyDepositBalance?.tup) || 0));
     setEditEmptyTupBuyuk(
       String(Number(cust.emptyDepositBalance?.tupBuyuk) || 0),
     );
@@ -230,7 +228,6 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
           editingCustomer.emptyDepositBalance?.camDamacana ??
             editingCustomer.emptyDepositBalance?.cam_damacana,
         ) || 0,
-      tup: Number(editingCustomer.emptyDepositBalance?.tup) || 0,
       tupBuyuk:
         Number(editingCustomer.emptyDepositBalance?.tupBuyuk) || 0,
       tupKucuk:
@@ -239,14 +236,12 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
     const nextEmpty = {
       damacana: Number(editEmptyDamacana),
       camDamacana: Number(editEmptyCamDamacana),
-      tup: Number(editEmptyTup),
       tupBuyuk: Number(editEmptyTupBuyuk),
       tupKucuk: Number(editEmptyTupKucuk),
     };
     if (
       !Number.isInteger(nextEmpty.damacana) ||
       !Number.isInteger(nextEmpty.camDamacana) ||
-      !Number.isInteger(nextEmpty.tup) ||
       !Number.isInteger(nextEmpty.tupBuyuk) ||
       !Number.isInteger(nextEmpty.tupKucuk)
     ) {
@@ -256,7 +251,6 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
     const emptyChanged =
       nextEmpty.damacana !== originalEmpty.damacana ||
       nextEmpty.camDamacana !== originalEmpty.camDamacana ||
-      nextEmpty.tup !== originalEmpty.tup ||
       nextEmpty.tupBuyuk !== originalEmpty.tupBuyuk ||
       nextEmpty.tupKucuk !== originalEmpty.tupKucuk;
 
@@ -315,7 +309,6 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
         emptyDepositBalance: {
           damacana: 0,
           camDamacana: 0,
-          tup: 0,
           tupBuyuk: 0,
           tupKucuk: 0,
           sebil: 0,
@@ -326,7 +319,6 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
             cust.emptyDepositBalance?.camDamacana ??
             cust.emptyDepositBalance?.cam_damacana ??
             0,
-          tup: cust.emptyDepositBalance?.tup || 0,
           tupBuyuk: cust.emptyDepositBalance?.tupBuyuk || 0,
           tupKucuk: cust.emptyDepositBalance?.tupKucuk || 0,
           sebil: cust.emptyDepositBalance?.sebil || 0,
@@ -375,7 +367,6 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       return (
         (c.emptyDepositBalance?.damacana || 0) > 0 ||
         (c.emptyDepositBalance?.camDamacana || 0) > 0 ||
-        (c.emptyDepositBalance?.tup || 0) > 0 ||
         (c.emptyDepositBalance?.tupBuyuk || 0) > 0 ||
         (c.emptyDepositBalance?.tupKucuk || 0) > 0
       );
@@ -461,7 +452,6 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
               (c) =>
                 (c.emptyDepositBalance?.damacana || 0) +
                   (c.emptyDepositBalance?.camDamacana || 0) +
-                  (c.emptyDepositBalance?.tup || 0) +
                   (c.emptyDepositBalance?.tupBuyuk || 0) +
                   (c.emptyDepositBalance?.tupKucuk || 0) +
                   (c.emptyDepositBalance?.sebil || 0) >
@@ -506,9 +496,6 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
               : null,
             (c.emptyDepositBalance?.tupKucuk || 0) > 0
               ? `Küçük Tüp - ${c.emptyDepositBalance.tupKucuk}`
-              : null,
-            (c.emptyDepositBalance?.tup || 0) > 0
-              ? `Tüp - ${c.emptyDepositBalance.tup}`
               : null,
             (c.emptyDepositBalance?.sebil || 0) > 0
               ? `Su Sebili - ${c.emptyDepositBalance.sebil}`
@@ -692,7 +679,9 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                 <div className="mt-4 pt-2 border-t border-slate-100  flex items-center justify-between text-[11px]">
                   {((c.emptyDepositBalance?.damacana || 0) !== 0 ||
                     (c.emptyDepositBalance?.camDamacana || 0) !== 0 ||
-                    (c.emptyDepositBalance?.tup || 0) !== 0) && (
+                    (c.emptyDepositBalance?.tupBuyuk || 0) !== 0 ||
+                    (c.emptyDepositBalance?.tupKucuk || 0) !== 0 ||
+                    (c.emptyDepositBalance?.sebil || 0) !== 0) && (
                     <button
                       onClick={() => handleClearDeposit(c)}
                       className="text-orange-600 hover:underline"

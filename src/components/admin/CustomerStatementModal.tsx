@@ -331,11 +331,6 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
                   <span className="px-2 py-1 rounded-lg bg-cyan-50  text-cyan-800  font-mono">
                     {Number(data?.returnables.emptyDepositBalance?.tupKucuk) || 0} Küçük Tüp
                   </span>
-                  {Number(data?.returnables.emptyDepositBalance?.tup) > 0 && (
-                    <span className="px-2 py-1 rounded-lg bg-cyan-50  text-cyan-800  font-mono">
-                      {Number(data?.returnables.emptyDepositBalance?.tup) || 0} Tüp (eski)
-                    </span>
-                  )}
                   <span className="px-2 py-1 rounded-lg bg-indigo-50  text-indigo-800  font-mono">
                     {Number((data?.returnables.emptyDepositBalance as any)?.sebil) || 0} Su Sebili
                   </span>

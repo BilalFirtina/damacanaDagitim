@@ -23,7 +23,8 @@ const EMPTY_LABELS: Record<string, string> = {
   damacana: 'Damacana',
   cam_damacana: 'Cam Damacana',
   camDamacana: 'Cam Damacana',
-  tup: 'Tüp',
+  tup_buyuk: 'Büyük Tüp',
+  tup_kucuk: 'Küçük Tüp',
 };
 
 function formatMoney(value: number): string {

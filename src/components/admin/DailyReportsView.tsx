@@ -782,7 +782,8 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                       <td className="py-3 px-3 text-center whitespace-nowrap">
                         {del.emptyContainersReceived.damacana > 0 ||
                         (del.emptyContainersReceived.camDamacana || 0) > 0 ||
-                        del.emptyContainersReceived.tup > 0 ? (
+                        (del.emptyContainersReceived.tupBuyuk || 0) > 0 ||
+                        (del.emptyContainersReceived.tupKucuk || 0) > 0 ? (
                           <div className="flex flex-col items-center gap-0.5">
                             {del.emptyContainersReceived.damacana > 0 && (
                               <span className="font-mono font-bold text-orange-600">
@@ -794,9 +795,14 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                                 {del.emptyContainersReceived.camDamacana} Boş Cam
                               </span>
                             )}
-                            {del.emptyContainersReceived.tup > 0 && (
+                            {(del.emptyContainersReceived.tupBuyuk || 0) > 0 && (
                               <span className="font-mono font-bold text-slate-600">
-                                {del.emptyContainersReceived.tup} Boş Tüp
+                                {del.emptyContainersReceived.tupBuyuk} Boş Büyük Tüp
+                              </span>
+                            )}
+                            {(del.emptyContainersReceived.tupKucuk || 0) > 0 && (
+                              <span className="font-mono font-bold text-slate-600">
+                                {del.emptyContainersReceived.tupKucuk} Boş Küçük Tüp
                               </span>
                             )}
                           </div>
@@ -859,7 +865,8 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
               const hasEmpties =
                 del.emptyContainersReceived.damacana > 0 ||
                 (del.emptyContainersReceived.camDamacana || 0) > 0 ||
-                del.emptyContainersReceived.tup > 0;
+                (del.emptyContainersReceived.tupBuyuk || 0) > 0 ||
+                (del.emptyContainersReceived.tupKucuk || 0) > 0;
 
               return (
                 <div
@@ -919,9 +926,14 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                           {del.emptyContainersReceived.camDamacana} Boş Cam
                         </span>
                       )}
-                      {del.emptyContainersReceived.tup > 0 && (
+                      {(del.emptyContainersReceived.tupBuyuk || 0) > 0 && (
                         <span className="text-slate-600">
-                          {del.emptyContainersReceived.tup} Boş Tüp
+                          {del.emptyContainersReceived.tupBuyuk} Boş Büyük Tüp
+                        </span>
+                      )}
+                      {(del.emptyContainersReceived.tupKucuk || 0) > 0 && (
+                        <span className="text-slate-600">
+                          {del.emptyContainersReceived.tupKucuk} Boş Küçük Tüp
                         </span>
                       )}
                     </div>

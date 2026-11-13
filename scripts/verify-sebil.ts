@@ -35,7 +35,8 @@ function check(name: string, actual: unknown, expected: unknown) {
 const PRODUCTS = [
   { id: 'p_damacana', depositType: 'damacana' },
   { id: 'p_sebil', depositType: 'sebil' },
-  { id: 'p_tup', depositType: 'tup' },
+  { id: 'p_tup_buyuk', depositType: 'tup_buyuk' },
+  { id: 'p_tup_kucuk', depositType: 'tup_kucuk' },
   { id: 'p_su', depositType: 'none' },
 ];
 
@@ -44,7 +45,7 @@ console.log('1) Sebil teslimi emanet bakiyesine yazılır');
   const result = computeDeliveredDeposits([{ productId: 'p_sebil', quantity: 2 }], PRODUCTS);
   check('2 sebil teslim edildi', result.sebil, 2);
   check('damacana etkilenmez', result.damacana, 0);
-  check('tüp etkilenmez', result.tup, 0);
+  check('tüp etkilenmez', (result.tupBuyuk || 0) + (result.tupKucuk || 0), 0);
 }
 
 console.log('2) Sebil geri alımı bakiyeyi düşürür');
@@ -68,20 +69,28 @@ console.log('4) Sebil diğer kalemlerle karışmaz');
     [
       { productId: 'p_damacana', quantity: 5 },
       { productId: 'p_sebil', quantity: 2 },
-      { productId: 'p_tup', quantity: 4 },
+      { productId: 'p_tup_buyuk', quantity: 3 },
+      { productId: 'p_tup_kucuk', quantity: 1 },
     ],
     PRODUCTS
   );
   check('damacana 5', delivered.damacana, 5);
   check('sebil 2', delivered.sebil, 2);
-  check('tüp 4', delivered.tup, 4);
+  check('büyük tüp 3', delivered.tupBuyuk, 3);
+  check('küçük tüp 1', delivered.tupKucuk, 1);
 
-  const diff = computeEmptyContainersDiff(delivered, { damacana: 5, sebil: 2, tup: 4 });
+  const diff = computeEmptyContainersDiff(delivered, {
+    damacana: 5,
+    sebil: 2,
+    tupBuyuk: 3,
+    tupKucuk: 1,
+  });
   check('tüm bakiyeler kapandı', diff, {
     damacana: 0,
     camDamacana: 0,
-    tup: 0,
     sebil: 0,
+    tupBuyuk: 0,
+    tupKucuk: 0,
   });
 }
 

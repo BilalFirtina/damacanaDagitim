@@ -52,7 +52,6 @@ const DB_FILE = path.resolve(__dirname, '../../data_store.json');
 const DEPOSIT_TYPES_REF: Array<{ code: string; label_tr: string; is_returnable: boolean; sort_order: number }> = [
   { code: 'damacana', label_tr: 'Damacana (Plastik/Polikarbon)', is_returnable: true, sort_order: 1 },
   { code: 'cam_damacana', label_tr: 'Cam Damacana', is_returnable: true, sort_order: 2 },
-  { code: 'tup', label_tr: 'Gaz Tüpü (eski/genel)', is_returnable: true, sort_order: 3 },
   { code: 'tup_buyuk', label_tr: 'Büyük Tüp (12 kg)', is_returnable: true, sort_order: 31 },
   { code: 'tup_kucuk', label_tr: 'Küçük Tüp (2 kg)', is_returnable: true, sort_order: 32 },
   { code: 'none', label_tr: 'Yok', is_returnable: false, sort_order: 99 },
@@ -69,30 +68,24 @@ const PRODUCT_CATEGORIES_REF: Array<{
   { code: 'damacana', title_tr: 'Damacana Su', sort_order: 1, default_unit: 'Adet', default_is_deposit: true, default_deposit_type: 'damacana' },
   { code: 'pet', title_tr: 'Pet Su', sort_order: 2, default_unit: 'Koli', default_is_deposit: false, default_deposit_type: 'none' },
   { code: 'soda', title_tr: 'Maden Suyu / İçecek', sort_order: 3, default_unit: 'Koli', default_is_deposit: false, default_deposit_type: 'none' },
-  { code: 'tup', title_tr: 'Tüp', sort_order: 4, default_unit: 'Adet', default_is_deposit: true, default_deposit_type: 'tup' },
+  { code: 'tup', title_tr: 'Tüp', sort_order: 4, default_unit: 'Adet', default_is_deposit: true, default_deposit_type: 'tup_buyuk' },
   { code: 'bardak', title_tr: 'Bardak & Sarf Malzeme', sort_order: 5, default_unit: 'Paket', default_is_deposit: false, default_deposit_type: 'none' },
   { code: 'sebil', title_tr: 'Sebil & Pompa', sort_order: 6, default_unit: 'Adet', default_is_deposit: true, default_deposit_type: 'sebil' },
 ];
 
 const DEPOSIT_BUCKETS: Array<{
   depositType: string;
-  key: 'damacana' | 'camDamacana' | 'tup' | 'tupBuyuk' | 'tupKucuk' | 'sebil';
+  key: 'damacana' | 'camDamacana' | 'tupBuyuk' | 'tupKucuk' | 'sebil';
 }> = [
   { depositType: 'damacana', key: 'damacana' },
   { depositType: 'cam_damacana', key: 'camDamacana' },
-  // Yeni teslimatlar iki tüp boyutunu ayrı yazar. `tup` yalnızca eski
-  // kayıtların okunması için kovalarda tutulur.
-  { depositType: 'tup', key: 'tup' },
   { depositType: 'tup_buyuk', key: 'tupBuyuk' },
   { depositType: 'tup_kucuk', key: 'tupKucuk' },
   { depositType: 'sebil', key: 'sebil' },
 ];
 
-// RPC'ye yeni teslimat yazarken eski tek `tup` kovası gönderilmez; aksi halde
-// büyük/küçük tüp deltalarına ek olarak bir de toplu delta yazılır.
-const PAYLOAD_DEPOSIT_BUCKETS = DEPOSIT_BUCKETS.filter(
-  (bucket) => bucket.depositType !== 'tup'
-);
+// RPC'ye yeni teslimat yazarken kullanılan kovalar.
+const PAYLOAD_DEPOSIT_BUCKETS = DEPOSIT_BUCKETS;
 
 // ----------------------------------------------------------------------
 // ENVIRONMENT & CREDENTIAL RESOLUTION & CONFIG MANAGEMENT
@@ -670,7 +663,7 @@ export function loadLocalDatabase(): LocalDatabaseSchema {
         emails: ['info@ornekmarket.com', 'fatura@ornekmarket.com'],
         isAccountCustomer: true,
         currentBalanceTL: 450,
-        emptyDepositBalance: { damacana: 5, camDamacana: 0, tup: 2 },
+        emptyDepositBalance: { damacana: 5, camDamacana: 0, tupBuyuk: 0, tupKucuk: 0 },
         customPrices: { 'prod_damacana_19l': 95 },
         notes: 'Düzenli müşterimiz.',
         createdDate: '2026-01-01',
@@ -753,7 +746,6 @@ function getLocalCustomerMap(): Map<string, Customer> {
 interface EmptyBucket {
   damacana: number;
   camDamacana: number;
-  tup: number;
   tupBuyuk: number;
   tupKucuk: number;
   sebil: number;
@@ -768,7 +760,6 @@ function emptyBucket(): EmptyBucket {
   return {
     damacana: 0,
     camDamacana: 0,
-    tup: 0,
     tupBuyuk: 0,
     tupKucuk: 0,
     sebil: 0,
@@ -785,7 +776,6 @@ function buildCustomerRelations(emptyRows: any[], priceRows: any[]): CustomerRel
     const qty = Number(r.quantity) || 0;
     if (r.deposit_type === 'damacana') bucket.damacana = qty;
     else if (r.deposit_type === 'cam_damacana') bucket.camDamacana = qty;
-    else if (r.deposit_type === 'tup') bucket.tup = qty;
     else if (r.deposit_type === 'tup_buyuk') bucket.tupBuyuk = qty;
     else if (r.deposit_type === 'tup_kucuk') bucket.tupKucuk = qty;
     else if (r.deposit_type === 'sebil') bucket.sebil = qty;
@@ -875,7 +865,6 @@ function mapCustomerFromDb(
     emptyDepositBalance: {
       damacana: Number(emptyDepositBalance.damacana) || 0,
       camDamacana: Number(emptyDepositBalance.camDamacana) || 0,
-      tup: Number(emptyDepositBalance.tup) || 0,
       tupBuyuk: Number(emptyDepositBalance.tupBuyuk) || 0,
       tupKucuk: Number(emptyDepositBalance.tupKucuk) || 0,
       sebil: Number((emptyDepositBalance as any).sebil) || 0,
@@ -977,7 +966,8 @@ function mapDispatchFromDb(row: any, loadedItems: any[] = [], reconRows: any[] =
         remainingFullExpected,
         collectedEmptyDamacana: Number(row.collected_empty_damacana) || 0,
         collectedEmptyCamDamacana: Number(row.collected_empty_cam_damacana) || 0,
-        collectedEmptyTup: Number(row.collected_empty_tup) || 0,
+        collectedEmptyTupBuyuk: Number(row.collected_empty_tup_buyuk) || 0,
+        collectedEmptyTupKucuk: Number(row.collected_empty_tup_kucuk) || 0,
         actualCashInPocket: Number(row.actual_cash_in_pocket) || 0,
         actualPosSlipsTotal: Number(row.actual_pos_slips_total) || 0,
         totalDeliveredValue: Number(row.total_delivered_value) || 0,
@@ -1022,13 +1012,11 @@ function mapDeliveryFromDb(row: any, itemRows: any[] = [], containerRows: any[] 
   const emptyContainersReceived: Delivery['emptyContainersReceived'] = {
     damacana: 0,
     camDamacana: 0,
-    tup: 0,
     sebil: 0,
   };
   const emptyContainersDiff: Delivery['emptyContainersDiff'] = {
     damacana: 0,
     camDamacana: 0,
-    tup: 0,
     sebil: 0,
   };
   for (const r of containerRows || []) {
@@ -1041,9 +1029,6 @@ function mapDeliveryFromDb(row: any, itemRows: any[] = [], containerRows: any[] 
     } else if (r.deposit_type === 'cam_damacana') {
       emptyContainersReceived.camDamacana = recv;
       emptyContainersDiff.camDamacana = diff;
-    } else if (r.deposit_type === 'tup') {
-      emptyContainersReceived.tup = recv;
-      emptyContainersDiff.tup = diff;
     } else if (r.deposit_type === 'tup_buyuk') {
       emptyContainersReceived.tupBuyuk = recv;
       emptyContainersDiff.tupBuyuk = diff;
@@ -1345,7 +1330,8 @@ function dispatchReconScalarPatch(recon: EndOfDayReconciliation): Record<string,
     actual_pos_slips_total: recon.actualPosSlipsTotal,
     collected_empty_damacana: recon.collectedEmptyDamacana || 0,
     collected_empty_cam_damacana: recon.collectedEmptyCamDamacana || 0,
-    collected_empty_tup: recon.collectedEmptyTup || 0,
+    collected_empty_tup_buyuk: recon.collectedEmptyTupBuyuk || 0,
+    collected_empty_tup_kucuk: recon.collectedEmptyTupKucuk || 0,
     reconciliation_notes: recon.notes || '',
   };
 }
@@ -1992,16 +1978,18 @@ export async function createCustomer(cust: Customer): Promise<Customer> {
           cust.createdDate,
         ]
       );
-      const empty: any = cust.emptyDepositBalance || { damacana: 0, camDamacana: 0, tup: 0 };
+      const empty: any = cust.emptyDepositBalance || { damacana: 0, camDamacana: 0 };
       await pgPool.query(
         `INSERT INTO public.customer_empty_balances (customer_id, deposit_type, quantity)
-         VALUES ($1, 'damacana', $2), ($1, 'cam_damacana', $3), ($1, 'tup', $4)
+         VALUES ($1, 'damacana', $2), ($1, 'cam_damacana', $3), ($1, 'tup_buyuk', $4), ($1, 'tup_kucuk', $5), ($1, 'sebil', $6)
          ON CONFLICT (customer_id, deposit_type) DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = now();`,
         [
           cust.id,
           Number(empty.damacana) || 0,
           Number(empty.camDamacana ?? empty.cam_damacana) || 0,
-          Number(empty.tup) || 0,
+          Number(empty.tupBuyuk) || 0,
+          Number(empty.tupKucuk) || 0,
+          Number(empty.sebil) || 0,
         ]
       );
       await writeCustomerPricesPg(pgPool, cust.id, cust.customPrices || {});
@@ -2104,13 +2092,15 @@ export async function updateCustomer(id: string, updates: Partial<Customer>): Pr
         const empty: any = updates.emptyDepositBalance || {};
         await pgPool.query(
           `INSERT INTO public.customer_empty_balances (customer_id, deposit_type, quantity)
-           VALUES ($1, 'damacana', $2), ($1, 'cam_damacana', $3), ($1, 'tup', $4)
+           VALUES ($1, 'damacana', $2), ($1, 'cam_damacana', $3), ($1, 'tup_buyuk', $4), ($1, 'tup_kucuk', $5), ($1, 'sebil', $6)
            ON CONFLICT (customer_id, deposit_type) DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = now();`,
           [
             id,
             Number(empty.damacana) || 0,
             Number(empty.camDamacana ?? empty.cam_damacana) || 0,
-            Number(empty.tup) || 0,
+            Number(empty.tupBuyuk) || 0,
+            Number(empty.tupKucuk) || 0,
+            Number(empty.sebil) || 0,
           ]
         );
       }
@@ -2900,7 +2890,8 @@ export interface CloseDispatchInput {
   remainingFullCounted?: Record<string, number>;
   collectedEmptyDamacana?: number;
   collectedEmptyCamDamacana?: number;
-  collectedEmptyTup?: number;
+  collectedEmptyTupBuyuk?: number;
+  collectedEmptyTupKucuk?: number;
   actualCashInPocket?: number;
   actualPosSlipsTotal?: number;
   notes?: string;
@@ -2927,7 +2918,14 @@ export async function closeDispatchAtomic(
       0,
       Math.floor(Number(input.collectedEmptyCamDamacana) || 0)
     ),
-    collected_empty_tup: Math.max(0, Math.floor(Number(input.collectedEmptyTup) || 0)),
+    collected_empty_tup_buyuk: Math.max(
+      0,
+      Math.floor(Number(input.collectedEmptyTupBuyuk) || 0)
+    ),
+    collected_empty_tup_kucuk: Math.max(
+      0,
+      Math.floor(Number(input.collectedEmptyTupKucuk) || 0)
+    ),
     actual_cash_in_pocket: sanitizeMoney(input.actualCashInPocket),
     actual_pos_slips_total: sanitizeMoney(input.actualPosSlipsTotal),
     notes: typeof input.notes === 'string' ? input.notes.slice(0, 2000) : '',
@@ -3016,7 +3014,8 @@ export async function closeDispatchAtomic(
     remainingFullExpected,
     collectedEmptyDamacana: payload.collected_empty_damacana,
     collectedEmptyCamDamacana: payload.collected_empty_cam_damacana,
-    collectedEmptyTup: payload.collected_empty_tup,
+    collectedEmptyTupBuyuk: payload.collected_empty_tup_buyuk,
+    collectedEmptyTupKucuk: payload.collected_empty_tup_kucuk,
     actualCashInPocket: payload.actual_cash_in_pocket,
     actualPosSlipsTotal: payload.actual_pos_slips_total,
     totalDeliveredValue,
@@ -3036,7 +3035,6 @@ export interface ExpectedCustomerSnapshot {
   empty?: {
     damacana: number;
     camDamacana?: number;
-    tup: number;
     tupBuyuk?: number;
     tupKucuk?: number;
   };
@@ -3080,7 +3078,6 @@ export async function adminUpdateCustomerAtomic(
       cam_damacana: Math.floor(
         Number(empty.camDamacana ?? empty.cam_damacana) || 0
       ),
-      tup: Math.floor(Number(empty.tup) || 0),
       tup_buyuk: Math.floor(Number((empty as any).tupBuyuk) || 0),
       tup_kucuk: Math.floor(Number((empty as any).tupKucuk) || 0),
       sebil: Math.floor(
@@ -3092,7 +3089,6 @@ export async function adminUpdateCustomerAtomic(
       cam_damacana: Math.floor(
         Number(expectedEmpty.camDamacana ?? expectedEmpty.cam_damacana) || 0
       ),
-      tup: Math.floor(Number(expectedEmpty.tup) || 0),
       tup_buyuk: Math.floor(Number((expectedEmpty as any).tupBuyuk) || 0),
       tup_kucuk: Math.floor(Number((expectedEmpty as any).tupKucuk) || 0),
       sebil: Math.floor(Number((expectedEmpty as any).sebil) || 0),
@@ -3173,7 +3169,7 @@ export async function adminUpdateCustomerAtomic(
         'Boş kap güncellemesi için beklenen güncel değer zorunludur.'
       );
     }
-    const currentEmpty = current.emptyDepositBalance || { damacana: 0, camDamacana: 0, tup: 0 };
+    const currentEmpty = current.emptyDepositBalance || { damacana: 0, camDamacana: 0 };
     const pairs: Array<[string, number, number]> = [
       ['damacana', Number(currentEmpty.damacana) || 0, Number(expectedEmpty.damacana) || 0],
       [
@@ -3181,7 +3177,6 @@ export async function adminUpdateCustomerAtomic(
         Number(currentEmpty.camDamacana ?? (currentEmpty as any).cam_damacana) || 0,
         Number(expectedEmpty.camDamacana ?? expectedEmpty.cam_damacana) || 0,
       ],
-      ['tup', Number(currentEmpty.tup) || 0, Number(expectedEmpty.tup) || 0],
       [
         'tupBuyuk',
         Number(currentEmpty.tupBuyuk) || 0,
@@ -3216,7 +3211,12 @@ export async function adminUpdateCustomerAtomic(
                   (updates.emptyDepositBalance as any).cam_damacana
               ) || 0
             ),
-            tup: Math.floor(Number(updates.emptyDepositBalance.tup) || 0),
+            tupBuyuk: Math.floor(
+              Number((updates.emptyDepositBalance as any).tupBuyuk) || 0
+            ),
+            tupKucuk: Math.floor(
+              Number((updates.emptyDepositBalance as any).tupKucuk) || 0
+            ),
             // Sebil ayrı bir emanet türüdür; gönderilmediyse mevcut değer korunur.
             sebil: Math.floor(
               Number(
@@ -3354,8 +3354,9 @@ export async function createDispatch(disp: Dispatch): Promise<Dispatch> {
         await client.query(
           `UPDATE public.dispatches SET closed_at=$2, total_delivered_value=$3, total_cash_collected=$4,
              total_pos_collected=$5, total_credit_added=$6, actual_cash_in_pocket=$7, actual_pos_slips_total=$8,
-             collected_empty_damacana=$9, collected_empty_cam_damacana=$10, collected_empty_tup=$11,
-             reconciliation_notes=$12 WHERE id=$1`,
+             collected_empty_damacana=$9, collected_empty_cam_damacana=$10,
+             collected_empty_tup_buyuk=$11, collected_empty_tup_kucuk=$12,
+             reconciliation_notes=$13 WHERE id=$1`,
           [
             disp.id,
             disp.endOfDayReconciliation.closedAt,
@@ -3367,7 +3368,8 @@ export async function createDispatch(disp: Dispatch): Promise<Dispatch> {
             disp.endOfDayReconciliation.actualPosSlipsTotal,
             disp.endOfDayReconciliation.collectedEmptyDamacana,
             disp.endOfDayReconciliation.collectedEmptyCamDamacana || 0,
-            disp.endOfDayReconciliation.collectedEmptyTup,
+            disp.endOfDayReconciliation.collectedEmptyTupBuyuk || 0,
+            disp.endOfDayReconciliation.collectedEmptyTupKucuk || 0,
             disp.endOfDayReconciliation.notes || '',
           ]
         );
@@ -3969,17 +3971,7 @@ function buildApplyDeliveryPayload(del: Delivery): Record<string, any> {
 
   const recv: any = del.emptyContainersReceived || {};
   const diff: any = del.emptyContainersDiff || {};
-  // Yeni istemci büyük/küçük gönderir. Yalnızca eski çevrimdışı kuyruk
-  // kayıtlarında tek `tup` alanı bulunur; onu da kaybetmemek için koşullu ekle.
   const payloadBuckets = [...PAYLOAD_DEPOSIT_BUCKETS];
-  if (
-    (Number(recv.tup) || 0) > 0 &&
-    !(Number(recv.tupBuyuk) || 0) &&
-    !(Number(recv.tupKucuk) || 0)
-  ) {
-    const legacyBucket = DEPOSIT_BUCKETS.find((b) => b.depositType === 'tup');
-    if (legacyBucket) payloadBuckets.push(legacyBucket);
-  }
   const containerReturns = payloadBuckets.map((b) => {
     let rv: any = recv[b.key];
     let dv: any = diff[b.key];

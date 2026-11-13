@@ -19,7 +19,6 @@ export type ProductCategory = 'damacana' | 'pet' | 'soda' | 'tup' | 'bardak' | '
 export type DepositType =
   | 'damacana'
   | 'cam_damacana'
-  | 'tup'
   | 'tup_buyuk'
   | 'tup_kucuk'
   | 'sebil'
@@ -51,7 +50,7 @@ export const PRODUCT_CATEGORY_DEFAULTS: Record<
 > = {
   damacana: { unit: 'Adet', isDeposit: true, depositType: 'damacana' },
   pet: { unit: 'Koli', isDeposit: false, depositType: 'none' },
-  tup: { unit: 'Adet', isDeposit: true, depositType: 'tup' },
+  tup: { unit: 'Adet', isDeposit: true, depositType: 'tup_buyuk' },
   soda: { unit: 'Koli', isDeposit: false, depositType: 'none' },
   bardak: { unit: 'Paket', isDeposit: false, depositType: 'none' },
   sebil: { unit: 'Adet', isDeposit: true, depositType: 'sebil' },
@@ -238,7 +237,6 @@ export interface Customer {
   emptyDepositBalance: {
     damacana: number; // Plastik / polikarbon damacana
     camDamacana: number; // Cam damacana
-    tup: number; // Eski tek tüp türü (geriye dönük okuma)
     tupBuyuk?: number; // Büyük tüp (12 kg) boş bakiyesi
     tupKucuk?: number; // Küçük tüp (2 kg) boş bakiyesi
     sebil?: number; // Ücretsiz emanet su sebili (adet)
@@ -291,7 +289,8 @@ export interface EndOfDayReconciliation {
   remainingFullExpected: Record<string, number>; // Product ID -> (loaded - delivered)
   collectedEmptyDamacana: number; // Empty standard carboys to drop at warehouse
   collectedEmptyCamDamacana?: number; // Empty glass jugs to drop at warehouse
-  collectedEmptyTup: number; // Empty gas cylinders to drop at warehouse
+  collectedEmptyTupBuyuk: number; // Empty large gas cylinders to drop at warehouse
+  collectedEmptyTupKucuk: number; // Empty small gas cylinders to drop at warehouse
   collectedEmptySebil?: number; // Emanet su sebilleri toplanan adet
   actualCashInPocket: number; // Actual physical cash driver turns in
   actualPosSlipsTotal: number; // Total sum of credit card slips
@@ -360,7 +359,6 @@ export interface Delivery {
     damacana: number;
     camDamacana?: number;
     cam_damacana?: number;
-    tup: number; // Eski tek tüp türü (geriye dönük okuma)
     tupBuyuk?: number;
     tupKucuk?: number;
     sebil?: number;
@@ -369,7 +367,6 @@ export interface Delivery {
     damacana: number; // delivered deposit items - received empty containers
     camDamacana?: number;
     cam_damacana?: number;
-    tup: number; // Eski tek tüp türü (geriye dönük okuma)
     tupBuyuk?: number;
     tupKucuk?: number;
     sebil?: number;

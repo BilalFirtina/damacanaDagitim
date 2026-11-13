@@ -44,7 +44,7 @@ const delivery = (
   driverId: string,
   plate: string,
   items: Array<{ productId: string; name: string; qty: number; price: number }>,
-  empties: { damacana?: number; cam?: number; tup?: number; sebil?: number }
+  empties: { damacana?: number; cam?: number; tupBuyuk?: number; tupKucuk?: number; sebil?: number }
 ): Delivery => {
   const deliveredItems = items.map((item) => ({
     productId: item.productId,
@@ -77,15 +77,13 @@ const delivery = (
     emptyContainersReceived: {
       damacana: empties.damacana || 0,
       camDamacana: empties.cam || 0,
-      tup: 0,
-      tupBuyuk: empties.tup || 0,
-      tupKucuk: 0,
+      tupBuyuk: empties.tupBuyuk || 0,
+      tupKucuk: empties.tupKucuk || 0,
       sebil: empties.sebil || 0,
     },
     emptyContainersDiff: {
       damacana: 0,
       camDamacana: 0,
-      tup: 0,
       tupBuyuk: 0,
       tupKucuk: 0,
       sebil: 0,
@@ -107,7 +105,7 @@ const deliveries = [
       { productId: 'p-sebil', name: 'Su Sebili', qty: 1, price: 0 },
       { productId: 'p-pet', name: "Hayat 1.5 lt Pet Su (6'lı Koli)", qty: 2, price: 110 },
     ],
-    { damacana: 3, cam: 1, tup: 1, sebil: 1 }
+    { damacana: 3, cam: 1, tupBuyuk: 1, sebil: 1 }
   ),
   delivery(
     'del-2',
@@ -214,9 +212,8 @@ check(
   [['p-pet', 3, 0, 3]]
 );
 
-console.log('\n[4) Sıfır ve eski tüp davranışı]');
+console.log('\n[4) Sıfır tüp davranışı]');
 check('sıfır adetli ürün yok', first.remainingProducts.every((p) => p.remaining > 0), true);
-check('eski tip tüp alanı üretilmez', (first as any).emptyTupLegacy, undefined);
 
 console.log(`\nResult: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

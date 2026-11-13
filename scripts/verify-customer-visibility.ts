@@ -32,7 +32,7 @@ function customer(isAccountCustomer: boolean): Customer {
     emails: [],
     isAccountCustomer,
     currentBalanceTL: 500,
-    emptyDepositBalance: { damacana: 2, camDamacana: 1, tup: 3, sebil: 1 },
+    emptyDepositBalance: { damacana: 2, camDamacana: 1, tupBuyuk: 3, tupKucuk: 2, sebil: 1 },
     customPrices: {},
     notes: '',
     createdDate: '2026-11-01',
@@ -53,7 +53,7 @@ check(
 check(
   'şoför emanet kalemlerini görür',
   maskCustomerFinancialsForDriver(customer(true), { role: 'driver' }).emptyDepositBalance,
-  { damacana: 2, camDamacana: 1, tup: 3, sebil: 1 }
+  { damacana: 2, camDamacana: 1, tupBuyuk: 3, tupKucuk: 2, sebil: 1 }
 );
 
 console.log('2) Peşin müşteri');

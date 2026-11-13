@@ -132,8 +132,8 @@ function refMapDelivery(row: any, itemRows: any[] = [], containerRows: any[] = [
       unitPrice: Number(r.unit_price) || 0,
       lineTotal: Number(r.line_total) || 0,
     }));
-  const emptyContainersReceived = { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 };
-  const emptyContainersDiff = { damacana: 0, camDamacana: 0, tup: 0, sebil: 0 };
+  const emptyContainersReceived: any = { damacana: 0, camDamacana: 0, sebil: 0 };
+  const emptyContainersDiff: any = { damacana: 0, camDamacana: 0, sebil: 0 };
   for (const r of containerRows || []) {
     if (!r) continue;
     const recv = Number(r.received_qty) || 0;
@@ -144,9 +144,12 @@ function refMapDelivery(row: any, itemRows: any[] = [], containerRows: any[] = [
     } else if (r.deposit_type === 'cam_damacana') {
       emptyContainersReceived.camDamacana = recv;
       emptyContainersDiff.camDamacana = diff;
-    } else if (r.deposit_type === 'tup') {
-      emptyContainersReceived.tup = recv;
-      emptyContainersDiff.tup = diff;
+    } else if (r.deposit_type === 'tup_buyuk') {
+      emptyContainersReceived.tupBuyuk = recv;
+      emptyContainersDiff.tupBuyuk = diff;
+    } else if (r.deposit_type === 'tup_kucuk') {
+      emptyContainersReceived.tupKucuk = recv;
+      emptyContainersDiff.tupKucuk = diff;
     } else if (r.deposit_type === 'sebil') {
       emptyContainersReceived.sebil = recv;
       emptyContainersDiff.sebil = diff;
@@ -203,7 +206,8 @@ function refMapDispatch(row: any, loadedItems: any[] = [], reconRows: any[] = []
         remainingFullExpected,
         collectedEmptyDamacana: Number(row.collected_empty_damacana) || 0,
         collectedEmptyCamDamacana: Number(row.collected_empty_cam_damacana) || 0,
-        collectedEmptyTup: Number(row.collected_empty_tup) || 0,
+        collectedEmptyTupBuyuk: Number(row.collected_empty_tup_buyuk) || 0,
+        collectedEmptyTupKucuk: Number(row.collected_empty_tup_kucuk) || 0,
         actualCashInPocket: Number(row.actual_cash_in_pocket) || 0,
         actualPosSlipsTotal: Number(row.actual_pos_slips_total) || 0,
         totalDeliveredValue: Number(row.total_delivered_value) || 0,

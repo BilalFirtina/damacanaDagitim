@@ -28,7 +28,6 @@ function check(name: string, actual: unknown, expected: unknown) {
 const products = [
   { id: 'big', name: 'Büyük Tüp', depositType: 'tup_buyuk' },
   { id: 'small', name: 'Küçük Tüp', depositType: 'tup_kucuk' },
-  { id: 'legacy', name: 'Eski Tüp', depositType: 'tup' },
   { id: 'dam', name: 'Damacana', depositType: 'damacana' },
 ] as unknown as Product[];
 
@@ -37,14 +36,12 @@ const delivered = computeDeliveredDeposits(
   [
     { productId: 'big', quantity: 2 },
     { productId: 'small', quantity: 3 },
-    { productId: 'legacy', quantity: 1 },
     { productId: 'dam', quantity: 4 },
   ],
   products
 );
 check('büyük tüp', delivered.tupBuyuk, 2);
 check('küçük tüp', delivered.tupKucuk, 3);
-check('eski tek tüp ayrı kalır', delivered.tup, 1);
 check('damacana etkilenmez', delivered.damacana, 4);
 
 console.log('\n[2) Boş tüp iadeleri boyuta göre ayrılır]');
@@ -54,12 +51,11 @@ const diff = computeEmptyContainersDiff(delivered, {
 });
 check('büyük tüp kalan', diff.tupBuyuk, 1);
 check('küçük tüp kalan', diff.tupKucuk, 2);
-check('eski tüp kovası karışmaz', diff.tup, 1);
 check('damacana kovası karışmaz', diff.damacana, 4);
 
 console.log('\n[3) Boyutlar birbirini götürmez]');
 const cross = computeEmptyContainersDiff(
-  { damacana: 0, camDamacana: 0, tup: 0, sebil: 0, tupBuyuk: 2, tupKucuk: 0 },
+  { damacana: 0, camDamacana: 0, sebil: 0, tupBuyuk: 2, tupKucuk: 0 },
   { tupKucuk: 3 }
 );
 check('büyük tüp 2 kalır', cross.tupBuyuk, 2);
@@ -67,11 +63,11 @@ check('küçük tüp -3 olur', cross.tupKucuk, -3);
 
 console.log('\n[4) Toplu boş tüp sayısı]');
 check(
-  'yeni kayıt: büyük + küçük',
-  totalTupEmpty({ tup: 9, tupBuyuk: 2, tupKucuk: 3 }),
+  'büyük + küçük',
+  totalTupEmpty({ tupBuyuk: 2, tupKucuk: 3 }),
   5
 );
-check('eski kayıt: tek tup', totalTupEmpty({ tup: 4 }), 4);
+check('sadece büyük', totalTupEmpty({ tupBuyuk: 4 }), 4);
 check('boş kayıt', totalTupEmpty({}), 0);
 
 console.log(`\nSONUC: ${passed} basarili, ${failed} basarisiz`);

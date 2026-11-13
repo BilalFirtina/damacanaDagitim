@@ -479,12 +479,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         Number(editDelivery.emptyContainersReceived?.tupBuyuk) || 0;
       const editTupKucuk =
         Number(editDelivery.emptyContainersReceived?.tupKucuk) || 0;
-      const editTupLegacy =
-        Number(editDelivery.emptyContainersReceived?.tup) || 0;
-      // Eski kayıtta boyut yoksa sayıyı büyük tüp kovasına koyarız; yeni
-      // kayıtlarda iki boyut ayrı gelir.
-      const resolvedTupBuyuk =
-        editTupBuyuk || (editTupKucuk === 0 ? editTupLegacy : 0);
+      const resolvedTupBuyuk = editTupBuyuk;
       const editReceived = {
         damacana: Number(editDelivery.emptyContainersReceived?.damacana) || 0,
         camDamacana:
@@ -582,7 +577,6 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     | "none"
     | "damacana"
     | "cam_damacana"
-    | "tup"
     | "tup_buyuk"
     | "tup_kucuk"
   >("damacana");
@@ -956,7 +950,6 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       const emptyContainersReceived = {
         damacana: emptyDamacanaReturned,
         camDamacana: emptyCamDamacanaReturned,
-        tup: emptyTupBuyukReturned + emptyTupKucukReturned,
         tupBuyuk: emptyTupBuyukReturned,
         tupKucuk: emptyTupKucukReturned,
         sebil: emptySebilReturned,
@@ -1531,7 +1524,6 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
 
                     {(selectedCustomer.emptyDepositBalance?.damacana > 0 ||
                       selectedCustomer.emptyDepositBalance?.camDamacana > 0 ||
-                      selectedCustomer.emptyDepositBalance?.tup > 0 ||
                       (selectedCustomer.emptyDepositBalance?.tupBuyuk || 0) > 0 ||
                       (selectedCustomer.emptyDepositBalance?.tupKucuk || 0) > 0) && (
                       <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-orange-100 text-orange-800  ">
@@ -1546,9 +1538,6 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                           : ""}
                         {(selectedCustomer.emptyDepositBalance?.tupKucuk || 0) > 0
                           ? `, ${selectedCustomer.emptyDepositBalance.tupKucuk} Küçük Tüp`
-                          : ""}
-                        {selectedCustomer.emptyDepositBalance?.tup > 0
-                          ? `, ${selectedCustomer.emptyDepositBalance.tup} Tüp`
                           : ""}
                         {(selectedCustomer.emptyDepositBalance?.sebil || 0) > 0
                           ? `, ${selectedCustomer.emptyDepositBalance?.sebil} Sebil`
@@ -1720,7 +1709,6 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                               | "none"
                               | "damacana"
                               | "cam_damacana"
-                              | "tup"
                               | "tup_buyuk"
                               | "tup_kucuk",
                           )
@@ -1738,9 +1726,6 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                         </option>
                         <option value="tup_kucuk">
                           🔥 Küçük Tüp İadesi Zorunlu
-                        </option>
-                        <option value="tup">
-                          🔥 Tüp (genel / eski kayıt)
                         </option>
                       </select>
                     )}

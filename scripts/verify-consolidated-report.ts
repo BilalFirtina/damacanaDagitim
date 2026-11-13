@@ -66,7 +66,7 @@ const deliveries = [
     ],
     deliveredGrandTotal: 340,
     collectedPayment: { method: 'CASH', cashAmount: 300, posAmount: 0, totalCollected: 300, diffUncollected: 40 },
-    emptyContainersReceived: { damacana: 2, camDamacana: 1, tup: 0, sebil: 0 },
+    emptyContainersReceived: { damacana: 2, camDamacana: 1, sebil: 0 },
     notes: '3. kat',
   },
   {
@@ -80,7 +80,7 @@ const deliveries = [
     deliveredItems: [{ productId: 'p-dam', productName: 'Hayat Damacana', quantity: 1, unitPrice: 70, lineTotal: 70 }],
     deliveredGrandTotal: 70,
     collectedPayment: { method: 'POS', cashAmount: 0, posAmount: 70, totalCollected: 70, diffUncollected: 0 },
-    emptyContainersReceived: { damacana: 1, camDamacana: 0, tup: 0, sebil: 0 },
+    emptyContainersReceived: { damacana: 1, camDamacana: 0, sebil: 0 },
     notes: '3. kat',
   },
   {
@@ -95,7 +95,7 @@ const deliveries = [
     deliveredItems: [{ productId: 'p-dam', productName: 'Hayat Damacana', quantity: 3, unitPrice: 70, lineTotal: 210 }],
     deliveredGrandTotal: 210,
     collectedPayment: { method: 'UNPAID', cashAmount: 0, posAmount: 0, totalCollected: 0, diffUncollected: 210 },
-    emptyContainersReceived: { damacana: 3, camDamacana: 0, tup: 0, sebil: 0 },
+    emptyContainersReceived: { damacana: 3, camDamacana: 0, sebil: 0 },
     notes: '',
   },
   {
@@ -116,7 +116,6 @@ const deliveries = [
     emptyContainersReceived: {
       damacana: 0,
       camDamacana: 0,
-      tup: 2,
       tupBuyuk: 1,
       tupKucuk: 1,
       sebil: 1,
