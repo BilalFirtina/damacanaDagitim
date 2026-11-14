@@ -474,7 +474,7 @@ export default function App() {
           <PurchasesView currentUser={currentUser} products={products} />
         )}
 
-        {activeTab === 'reports' && (
+        {activeTab === 'reports' && currentUser.role === 'admin' && (
           <DailyReportsView
             users={users}
             products={products}
