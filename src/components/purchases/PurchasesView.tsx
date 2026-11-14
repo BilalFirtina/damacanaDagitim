@@ -108,7 +108,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
             <button
               type="button"
               onClick={() => setSupplierManagerOpen(true)}
-              className="flex-1 min-h-11 px-3.5 py-2 rounded-xl border border-purple-200 bg-purple-50 text-purple-800 font-semibold text-xs hover:bg-purple-100 active:scale-95 transition-all"
+              className="flex-1 min-h-11 px-3.5 py-2 rounded-xl border border-rose-200 bg-[linear-gradient(90deg,#fb7185_0%,#fbcfe8_35%,#ffffff_55%,#e9d5ff_78%,#c084fc_100%)] text-purple-950 font-semibold text-xs hover:brightness-105 active:scale-95 transition-all"
             >
               Toptancıları Yönet
             </button>
