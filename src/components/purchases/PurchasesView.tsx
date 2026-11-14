@@ -144,14 +144,6 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
           <p className="text-xs text-slate-500">
             Toptancıdan alınan ürünleri ekleyerek başlayın.
           </p>
-          <button
-            type="button"
-            onClick={openNewForm}
-            className="min-h-11 px-4 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs inline-flex items-center gap-1.5"
-          >
-            <PackagePlus className="w-4 h-4" />
-            Yeni Alım
-          </button>
         </div>
       ) : (
         <div className="space-y-3">
