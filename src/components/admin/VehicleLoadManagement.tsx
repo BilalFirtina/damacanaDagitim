@@ -275,9 +275,9 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
   return (
     <div className="space-y-6 w-full max-w-full min-w-0">
       {/* Header */}
-      <div className="bg-white  rounded-2xl border border-slate-200  p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 w-full max-w-full">
-        <div>
-          <h2 className="text-base font-bold text-slate-900  flex items-center gap-2">
+      <div className="bg-white  rounded-2xl border border-slate-200  p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-center md:items-center justify-between gap-4 w-full max-w-full text-center md:text-left">
+        <div className="w-full md:w-auto">
+          <h2 className="text-base font-bold text-slate-900  flex items-center justify-center md:justify-start gap-2">
             <Truck className="w-5 h-5 text-indigo-600" />
             <span>Depo Araç Yükleme Yönetimi & Şoför Yetkilendirme</span>
           </h2>
@@ -390,71 +390,73 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
 
         <div className="divide-y divide-slate-100  text-xs">
           {dispatches.map((disp) => (
-            <div key={disp.id} className="py-4 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-              <div className="min-w-0 flex-1 space-y-2">
-                {/* Plaka ve şoför */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-900">
-                    {disp.vehiclePlate}
-                  </span>
-                  <span className="font-bold text-slate-800">{disp.driverName}</span>
-                </div>
-
-                {/* Rapor durumu */}
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {disp.status === 'in_transit' ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                      Şoför Onayladı (Sahada / Dağıtımda)
+            <div key={disp.id} className="py-4 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] gap-4 md:gap-6">
+                {/* Sol: plaka, şoför, durum ve tarih bilgileri */}
+                <div className="min-w-0 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono font-bold text-xs md:text-[13px] px-2 py-0.5 rounded bg-slate-100 text-slate-900">
+                      {disp.vehiclePlate}
                     </span>
-                  ) : disp.status === 'pending_confirmation' ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">
-                      Şoför Sayım Onayı Bekliyor (Dağıtımda)
+                    <span className="font-bold text-sm md:text-[15px] text-slate-800">
+                      {disp.driverName}
                     </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                      <Check className="w-3 h-3" />
-                      Bitiş Raporu Tamamlandı (Kapatıldı / Müsait)
-                    </span>
-                  )}
-                  {isStaleDispatch(disp, todayStr) && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-800">
-                      Önceki gün sonlandırılmadı
-                    </span>
-                  )}
-                </div>
-
-                {/* Tarih / Yükleyen / Onay zamanı alt alta */}
-                <div className="space-y-0.5 text-[11px] leading-4 text-slate-500">
-                  <div>
-                    <span className="text-slate-400">Tarih: </span>
-                    <strong className="font-semibold text-slate-700">
-                      {formatDateTr(disp.date)}
-                    </strong>
                   </div>
-                  <div>
-                    <span className="text-slate-400">Yükleyen: </span>
-                    <strong className="font-semibold text-slate-700">
-                      {disp.loadedByUserName}
-                    </strong>
+
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {disp.status === 'in_transit' ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] md:text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                        Şoför Onayladı (Sahada / Dağıtımda)
+                      </span>
+                    ) : disp.status === 'pending_confirmation' ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] md:text-[11px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">
+                        Şoför Sayım Onayı Bekliyor (Dağıtımda)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] md:text-[11px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                        <Check className="w-3 h-3" />
+                        Bitiş Raporu Tamamlandı (Kapatıldı / Müsait)
+                      </span>
+                    )}
+                    {isStaleDispatch(disp, todayStr) && (
+                      <span className="text-[10px] md:text-[11px] font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-800">
+                        Önceki gün sonlandırılmadı
+                      </span>
+                    )}
                   </div>
-                  {disp.driverConfirmedAt && (
+
+                  <div className="space-y-0.5 text-[11px] md:text-xs leading-4 md:leading-5 text-slate-500">
                     <div>
-                      <span className="text-slate-400">Onay Zamanı: </span>
+                      <span className="text-slate-400">Tarih: </span>
                       <strong className="font-semibold text-slate-700">
-                        {new Date(disp.driverConfirmedAt).toLocaleTimeString('tr-TR')}
+                        {formatDateTr(disp.date)}
                       </strong>
                     </div>
-                  )}
+                    <div>
+                      <span className="text-slate-400">Yükleyen: </span>
+                      <strong className="font-semibold text-slate-700">
+                        {disp.loadedByUserName}
+                      </strong>
+                    </div>
+                    {disp.driverConfirmedAt && (
+                      <div>
+                        <span className="text-slate-400">Onay Zamanı: </span>
+                        <strong className="font-semibold text-slate-700">
+                          {new Date(disp.driverConfirmedAt).toLocaleTimeString('tr-TR')}
+                        </strong>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Yüklenen ürünler */}
-                <div className="pt-1 space-y-1">
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                {/* Sağ: yüklenen ürünler */}
+                <div className="min-w-0 w-full space-y-1">
+                  <div className="text-[10px] md:text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                     Yüklenen Ürünler
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-100">
                     {disp.loadedItems.length === 0 ? (
-                      <div className="px-3 py-2 text-[11px] text-slate-400">
+                      <div className="px-3 py-2 text-[11px] md:text-[13px] text-slate-400">
                         Ürün kaydı yok
                       </div>
                     ) : (
@@ -463,12 +465,12 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                         return (
                           <div
                             key={item.productId}
-                            className="flex items-start justify-between gap-3 px-3 py-2 min-w-0"
+                            className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-3 py-2 min-w-0"
                           >
-                            <span className="text-[11px] font-medium text-slate-700 break-words min-w-0">
+                            <span className="text-[11px] md:text-[13px] font-medium text-slate-700 break-words min-w-0">
                               {p?.name || item.productId}
                             </span>
-                            <span className="shrink-0 font-mono text-[11px] font-bold text-sky-700 tabular-nums">
+                            <span className="shrink-0 font-mono text-[11px] md:text-[13px] font-bold text-sky-700 tabular-nums">
                               {item.quantity} {p?.unit || 'Adet'}
                             </span>
                           </div>
@@ -480,13 +482,13 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
               </div>
 
               {disp.status !== 'completed' && (
-                <div className="flex flex-wrap items-center gap-2 shrink-0 self-start w-full sm:w-auto">
+                <div className="flex flex-wrap items-center gap-2 w-full md:justify-end">
                   {canCorrectDispatch(disp) ? (
                     <>
                       <button
                         type="button"
                         onClick={() => handleOpenEdit(disp)}
-                        className="min-h-11 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs flex items-center justify-center gap-1.5 flex-1 sm:flex-none"
+                        className="min-h-11 px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-semibold text-xs flex items-center justify-center gap-1.5 flex-1 md:flex-none shadow-2xs"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                         <span>Düzenle</span>
@@ -494,14 +496,14 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                       <button
                         type="button"
                         onClick={() => handleOpenCancel(disp)}
-                        className="min-h-11 px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 font-semibold text-xs flex items-center justify-center gap-1.5 flex-1 sm:flex-none"
+                        className="min-h-11 px-3 py-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 font-semibold text-xs flex items-center justify-center gap-1.5 flex-1 md:flex-none shadow-2xs"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                         <span>İptal</span>
                       </button>
                     </>
                   ) : (
-                    <span className="text-[10px] font-semibold text-slate-400 w-full sm:w-auto">
+                    <span className="text-[10px] md:text-[11px] font-semibold text-slate-400 w-full md:w-auto text-center md:text-right">
                       Teslimat veya tahsilat başladı; yükleme düzeltilemez.
                     </span>
                   )}
