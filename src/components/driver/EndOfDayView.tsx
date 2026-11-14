@@ -347,7 +347,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
 
       {/* Completion & Readiness Success Banner */}
       {(isAlreadyClosed || successMsg) && (
-        <div className="bg-emerald-50  border-2 border-emerald-300  rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="bg-emerald-50  border-2 border-emerald-300  rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col gap-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-md">
               <CheckCircle2 className="w-6 h-6" />
@@ -368,13 +368,15 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
           </div>
 
           {onNavigateTab && (
-            <button
-              onClick={() => onNavigateTab('delivery')}
-              className="px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center gap-2 shadow-md shrink-0 active:scale-95 transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Yeni Sefer Yükleme Ekranına Git</span>
-            </button>
+            <div className="w-full flex justify-center">
+              <button
+                onClick={() => onNavigateTab('delivery')}
+                className="px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center gap-2 shadow-md shrink-0 active:scale-95 transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Yeni Sefer Yükleme Ekranına Git</span>
+              </button>
+            </div>
           )}
         </div>
       )}

@@ -183,9 +183,9 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
   return (
     <div className="space-y-4 w-full max-w-full min-w-0">
       {/* Top Banner & Control Bar */}
-      <div className="bg-white  rounded-2xl border border-slate-200  p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
+      <div className="bg-white  rounded-2xl border border-slate-200  p-4 sm:p-5 shadow-xs flex flex-col items-center gap-4">
+        <div className="w-full text-center">
+          <div className="flex items-center justify-center gap-2">
             <h2 className="text-base font-bold text-slate-900 ">
               Ortak Saha & Ekip Canlı Teslimat Akışı
             </h2>

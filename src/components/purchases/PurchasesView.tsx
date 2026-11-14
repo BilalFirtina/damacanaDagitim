@@ -92,9 +92,9 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
 
   return (
     <div className="space-y-4 w-full max-w-full min-w-0">
-      <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-base font-bold text-slate-900 flex items-center gap-2">
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs flex flex-col items-center text-center gap-3">
+        <div className="w-full min-w-0 text-center">
+          <h1 className="text-base font-bold text-slate-900 flex items-center justify-center gap-2">
             <ShoppingCart className="w-5 h-5 text-purple-600 shrink-0" />
             <span>Satın Alınanlar</span>
           </h1>
@@ -103,12 +103,12 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
             kendi kaydınızla sınırlıdır.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
+        <div className="flex w-full items-center justify-center gap-2">
           {currentUser.role === 'admin' && (
             <button
               type="button"
               onClick={() => setSupplierManagerOpen(true)}
-              className="min-h-11 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold text-xs hover:bg-slate-50"
+              className="flex-1 min-h-11 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold text-xs hover:bg-slate-50"
             >
               Toptancıları Yönet
             </button>
@@ -116,7 +116,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
           <button
             type="button"
             onClick={openNewForm}
-            className="min-h-11 px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs flex items-center justify-center gap-1.5"
+            className="flex-1 min-h-11 px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs flex items-center justify-center gap-1.5"
           >
             <PackagePlus className="w-4 h-4" />
             Yeni Alım
