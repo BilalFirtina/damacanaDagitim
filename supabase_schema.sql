@@ -186,6 +186,59 @@ CREATE TABLE IF NOT EXISTS public.delivery_container_returns (
   PRIMARY KEY (delivery_id, deposit_type)
 );
 
+-- 9d. TOPTANCI SATIN ALIMLARI
+CREATE TABLE IF NOT EXISTS public.suppliers (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  note TEXT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_suppliers_name_lower
+  ON public.suppliers (lower(name));
+
+CREATE TABLE IF NOT EXISTS public.purchases (
+  id TEXT PRIMARY KEY,
+  purchased_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  supplier_id TEXT NOT NULL REFERENCES public.suppliers(id) ON DELETE RESTRICT,
+  description TEXT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'cancelled')),
+  total_amount NUMERIC(12, 2) NULL CHECK (total_amount IS NULL OR total_amount >= 0),
+  created_by_user_id TEXT NOT NULL,
+  created_by_user_name TEXT NOT NULL,
+  dispatch_id TEXT NULL REFERENCES public.dispatches(id) ON DELETE SET NULL,
+  cancelled_at TIMESTAMPTZ NULL,
+  cancelled_by_user_id TEXT NULL,
+  cancelled_by_user_name TEXT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.purchase_items (
+  purchase_id TEXT NOT NULL REFERENCES public.purchases(id) ON DELETE CASCADE,
+  line_no INTEGER NOT NULL,
+  product_id TEXT NOT NULL REFERENCES public.products(id) ON DELETE RESTRICT,
+  product_name TEXT NOT NULL,
+  quantity INTEGER NOT NULL CHECK (quantity > 0),
+  unit TEXT NOT NULL,
+  unit_price NUMERIC(12, 2) NULL CHECK (unit_price IS NULL OR unit_price >= 0),
+  line_total NUMERIC(12, 2) NULL CHECK (line_total IS NULL OR line_total >= 0),
+  PRIMARY KEY (purchase_id, line_no)
+);
+
+CREATE TABLE IF NOT EXISTS public.purchase_audit (
+  id TEXT PRIMARY KEY,
+  purchase_id TEXT NOT NULL REFERENCES public.purchases(id) ON DELETE CASCADE,
+  action TEXT NOT NULL CHECK (action IN ('create', 'update', 'cancel')),
+  actor_user_id TEXT NOT NULL,
+  actor_user_name TEXT NOT NULL,
+  previous_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+  new_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Performans İndeksleri
 CREATE INDEX IF NOT EXISTS idx_users_username ON public.users(username);
 CREATE INDEX IF NOT EXISTS idx_products_category ON public.products(category);

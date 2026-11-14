@@ -274,6 +274,50 @@ export interface DispenserDetailInput {
   note?: string | null;
 }
 
+export interface Supplier {
+  id: string;
+  name: string;
+  isActive: boolean;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PurchaseItem {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number | null;
+  lineTotal: number | null;
+}
+
+export interface Purchase {
+  id: string;
+  purchasedAt: string;
+  supplierId: string;
+  supplierName: string;
+  description: string | null;
+  status: 'active' | 'cancelled';
+  totalAmount: number | null;
+  createdByUserId: string;
+  createdByUserName: string;
+  dispatchId: string | null;
+  dispatchPlate: string | null;
+  cancelledAt: string | null;
+  cancelledByUserId: string | null;
+  cancelledByUserName: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: PurchaseItem[];
+}
+
+export interface PurchaseInputItem {
+  productId: string;
+  quantity: number;
+  unitPrice?: number | null;
+}
+
 export interface LoadedItem {
   productId: string;
   quantity: number;
@@ -414,6 +458,9 @@ export interface RetentionCounts {
   dispatch_loading_audit?: number;
   customer_operations?: number;
   retention_archive?: number;
+  purchases?: number;
+  purchase_items?: number;
+  purchase_audit?: number;
   archived_rows: number;
 }
 

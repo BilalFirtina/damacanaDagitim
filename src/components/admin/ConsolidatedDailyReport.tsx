@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Customer, User, Product } from '../../types';
+import { Customer, User, Product, Purchase } from '../../types';
 import { fetchDailyReport } from '../../services/api';
 import { todayUtcDateStr, clampDateToToday } from '../../services/dateWindow';
 import {
@@ -162,6 +162,17 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
   };
   const isLoading = controlledLoading ?? internalLoading;
   const data = controlledReportData ?? internalReportData;
+  const purchases: Purchase[] = Array.isArray(data?.purchases) ? data.purchases : [];
+  const dispatchDriverById = new Map<string, string>(
+    (Array.isArray(data?.dispatches) ? data.dispatches : []).map((dispatch: any) => [
+      String(dispatch.id),
+      String(dispatch.driverId || ''),
+    ])
+  );
+  const purchasesForDispatch = (dispatchId: string) =>
+    purchases.filter(
+      (purchase) => purchase.status === 'active' && purchase.dispatchId === dispatchId
+    );
 
   const loadReport = async () => {
     if (onReload) {
@@ -518,10 +529,81 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
           </table>
         </section>
 
-        {/* IV. Şoför bazında müşteri dökümü */}
+        {/* IV. Satın alınan ürünler */}
+        <section className="mb-6 print-avoid-break">
+          <div className="print-keep-with-next text-xs font-black uppercase tracking-wider mb-2 border-b border-black pb-1">
+            IV. Satın Alınan Ürünler
+          </div>
+          <table className="w-full text-[11px] border border-black border-collapse text-left">
+            <thead>
+              <tr className="border-b border-black bg-white">
+                <th className="p-1 border-r border-black text-center align-middle w-8">No</th>
+                <th className="p-1 border-r border-black text-center align-middle w-12">Saat</th>
+                <th className="p-1 border-r border-black text-center align-middle w-28">Toptancı</th>
+                <th className="p-1 border-r border-black text-center align-middle">Ürünler</th>
+                <th className="p-1 border-r border-black text-center align-middle w-16">Fiyat</th>
+                <th className="p-1 border-r border-black text-center align-middle w-20">Toplam Fiyat</th>
+                <th className="p-1 border-r border-black text-center align-middle w-24">Açıklama</th>
+                <th className="p-1 text-center align-middle w-24">Teslim Alan</th>
+              </tr>
+            </thead>
+            <tbody>
+              {purchases.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="p-3 text-center italic border-b border-black">
+                    Bu tarihte satın alım kaydı bulunmuyor.
+                  </td>
+                </tr>
+              ) : (
+                purchases.map((purchase, index) => (
+                  <tr key={purchase.id} className="border-b border-black align-top">
+                    <td className="p-1 border-r border-black text-center font-mono">
+                      {index + 1}
+                    </td>
+                    <td className="p-1 border-r border-black text-center font-mono">
+                      {timeFmt(new Date(purchase.purchasedAt).getTime())}
+                    </td>
+                    <td className="p-1 border-r border-black text-center font-bold break-words">
+                      {purchase.supplierName}
+                    </td>
+                    <td className="p-1 border-r border-black text-left align-top">
+                      {purchase.items.map((item, itemIndex) => (
+                        <div key={`${purchase.id}-${item.productId}-${itemIndex}`} className="break-words">
+                          {item.productName} - {item.quantity} {item.unit}
+                        </div>
+                      ))}
+                    </td>
+                    <td className="p-1 border-r border-black text-center font-mono tabular-nums align-top">
+                      {purchase.items.map((item, itemIndex) => (
+                        <div key={`${purchase.id}-price-${itemIndex}`}>
+                          {item.unitPrice === null ? '-' : money(item.unitPrice)}
+                        </div>
+                      ))}
+                    </td>
+                    <td className="p-1 border-r border-black text-center font-mono font-bold tabular-nums align-top">
+                      {purchase.items.map((item, itemIndex) => (
+                        <div key={`${purchase.id}-total-${itemIndex}`}>
+                          {item.lineTotal === null ? '-' : money(item.lineTotal)}
+                        </div>
+                      ))}
+                    </td>
+                    <td className="p-1 border-r border-black text-left align-top break-words">
+                      {purchase.description || '-'}
+                    </td>
+                    <td className="p-1 text-center align-top break-words font-bold">
+                      {purchase.createdByUserName || '-'}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </section>
+
+        {/* V. Şoför bazında müşteri dökümü */}
         <section className="space-y-6">
           <div className="print-keep-with-next text-xs font-black uppercase tracking-wider mb-2 border-b border-black pb-1">
-            IV. Şoför Bazında Müşteri Dökümü
+            V. Şoför Bazında Müşteri Dökümü
           </div>
 
           {report.drivers.length === 0 ? (
@@ -859,11 +941,114 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                               </div>
                             </div>
                           )}
+
+                          {(() => {
+                            const linkedPurchases = purchasesForDispatch(ret.dispatchId);
+                            if (linkedPurchases.length === 0) return null;
+                            return (
+                              <div className="space-y-1">
+                                <div className="text-[11px] font-bold uppercase tracking-wide">
+                                  Satın Alınan ve Depoya Getirilecek Ürünler
+                                </div>
+                                <div className="overflow-x-auto print:overflow-visible">
+                                  <table className="w-full text-xs border border-black border-collapse text-left">
+                                    <thead>
+                                      <tr className="border-b border-black bg-white">
+                                        <th className="p-0 border-r border-black text-left align-middle">Ürün</th>
+                                        <th className="p-0 border-r border-black text-center align-middle w-20">Miktar</th>
+                                        <th className="p-0 border-r border-black text-center align-middle w-20">Birim</th>
+                                        <th className="p-0 text-center align-middle w-32">Teslim Alan</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {linkedPurchases.flatMap((purchase) =>
+                                        purchase.items.map((item, itemIndex) => (
+                                          <tr
+                                            key={`${purchase.id}-${item.productId}-${itemIndex}`}
+                                            className="border-b border-black last:border-b-0 align-middle"
+                                          >
+                                            <td className="p-0 border-r border-black text-left align-middle font-bold break-words">
+                                              {item.productName}
+                                            </td>
+                                            <td className="p-0 border-r border-black text-center align-middle font-mono tabular-nums">
+                                              {item.quantity}
+                                            </td>
+                                            <td className="p-0 border-r border-black text-center align-middle">
+                                              {item.unit}
+                                            </td>
+                                            <td className="p-0 text-center align-middle break-words">
+                                              {purchase.createdByUserName || '-'}
+                                            </td>
+                                          </tr>
+                                        ))
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       );
                     })}
                   </div>
                 )}
+
+                {(() => {
+                  const shownDispatchIds = new Set(
+                    section.returns.map((ret) => ret.dispatchId)
+                  );
+                  const linked = purchases.filter(
+                    (purchase) =>
+                      purchase.status === 'active' &&
+                      purchase.dispatchId &&
+                      !shownDispatchIds.has(purchase.dispatchId) &&
+                      dispatchDriverById.get(purchase.dispatchId) === section.driverId
+                  );
+                  if (linked.length === 0) return null;
+                  return (
+                    <div className="border-t-2 border-black p-3 space-y-1">
+                      <div className="text-[11px] font-bold uppercase tracking-wide">
+                        Satın Alınan ve Depoya Getirilecek Ürünler
+                      </div>
+                      <div className="overflow-x-auto print:overflow-visible">
+                        <table className="w-full text-xs border border-black border-collapse text-left">
+                          <thead>
+                            <tr className="border-b border-black bg-white">
+                              <th className="p-0 border-r border-black text-left align-middle">Ürün</th>
+                              <th className="p-0 border-r border-black text-center align-middle w-20">Miktar</th>
+                              <th className="p-0 border-r border-black text-center align-middle w-20">Birim</th>
+                              <th className="p-0 text-center align-middle w-32">Teslim Alan</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {linked.flatMap((purchase) =>
+                              purchase.items.map((item, itemIndex) => (
+                                <tr
+                                  key={`fallback-${purchase.id}-${item.productId}-${itemIndex}`}
+                                  className="border-b border-black last:border-b-0 align-middle"
+                                >
+                                  <td className="p-0 border-r border-black text-left align-middle font-bold break-words">
+                                    {item.productName}
+                                  </td>
+                                  <td className="p-0 border-r border-black text-center align-middle font-mono tabular-nums">
+                                    {item.quantity}
+                                  </td>
+                                  <td className="p-0 border-r border-black text-center align-middle">
+                                    {item.unit}
+                                  </td>
+                                  <td className="p-0 text-center align-middle break-words">
+                                    {purchase.createdByUserName || '-'}
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             ))
           )}

@@ -31,6 +31,7 @@ import { EndOfDayView } from './components/driver/EndOfDayView';
 import { DailyReportsView } from './components/admin/DailyReportsView';
 import { CustomersManagement } from './components/admin/CustomersManagement';
 import { ProductManagement } from './components/admin/ProductManagement';
+import { PurchasesView } from './components/purchases/PurchasesView';
 import { VehicleLoadManagement } from './components/admin/VehicleLoadManagement';
 
 const REMEMBERED_USER_KEY = 'sudagitim_remembered_user';
@@ -42,6 +43,7 @@ type AppTab =
   | 'eod'
   | 'customers'
   | 'products'
+  | 'purchases'
   | 'reports'
   | 'admin_loads';
 
@@ -466,6 +468,10 @@ export default function App() {
             onProductsUpdated={setProducts}
             currentUser={currentUser}
           />
+        )}
+
+        {activeTab === 'purchases' && (
+          <PurchasesView currentUser={currentUser} products={products} />
         )}
 
         {activeTab === 'reports' && (

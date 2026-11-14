@@ -42,6 +42,14 @@ import {
   getCustomerPaymentById,
   adjustCustomerDispenserQuantity,
   saveDeliverySebilDetails,
+  listSuppliers,
+  createSupplierRecord,
+  updateSupplierRecord,
+  listPurchases,
+  getPurchaseById,
+  createPurchaseRecord,
+  updatePurchaseRecord,
+  cancelPurchaseRecord,
   getDeliveryById,
   getDeliveryCorrections,
   getDispatchCancellationAudits,
@@ -379,6 +387,67 @@ function sendCustomerDispenserError(res: Response, err: any) {
   return sendDispatchDbError(res, err);
 }
 
+function sendPurchaseError(res: Response, err: any) {
+  const code = err instanceof DispatchDbError ? err.code : err?.code;
+  const status =
+    code === 'NOT_AUTHORIZED'
+      ? 403
+      : code === 'SUPPLIER_NOT_FOUND' || code === 'PURCHASE_NOT_FOUND'
+        ? 404
+        : code === 'PURCHASE_CANCELLED'
+          ? 409
+          : code === 'VALIDATION_ERROR' ||
+              code === 'PRODUCT_NOT_FOUND' ||
+              code === 'INVALID_DISPATCH_LINK'
+            ? 400
+            : code === 'MIGRATION_REQUIRED' || code === 'REMOTE_REQUIRED'
+              ? 503
+              : 500;
+  return res.status(status).json({
+    error: err?.message || 'Satın alım işlemi tamamlanamadı.',
+    ...(code ? { code } : {}),
+  });
+}
+
+function normalizePurchasePayload(body: any): {
+  supplierId: string;
+  description: string | null;
+  items: Array<{ productId: string; quantity: number; unitPrice: number | null }>;
+} | null {
+  const supplierId = typeof body?.supplierId === 'string' ? body.supplierId.trim() : '';
+  if (!supplierId) return null;
+
+  const descriptionRaw =
+    typeof body?.description === 'string' ? body.description.trim() : '';
+  if (descriptionRaw.length > 500) return null;
+
+  if (!Array.isArray(body?.items) || body.items.length === 0 || body.items.length > 100) {
+    return null;
+  }
+
+  const items: Array<{ productId: string; quantity: number; unitPrice: number | null }> = [];
+  for (const raw of body.items) {
+    const productId = typeof raw?.productId === 'string' ? raw.productId.trim() : '';
+    const quantity = Number(raw?.quantity);
+    if (!productId || !Number.isInteger(quantity) || quantity <= 0) return null;
+
+    let unitPrice: number | null = null;
+    if (raw?.unitPrice !== undefined && raw?.unitPrice !== null && raw?.unitPrice !== '') {
+      unitPrice = Number(raw.unitPrice);
+      if (!Number.isFinite(unitPrice) || unitPrice < 0) return null;
+      unitPrice = Math.round(unitPrice * 100) / 100;
+    }
+
+    items.push({ productId, quantity, unitPrice });
+  }
+
+  return {
+    supplierId,
+    description: descriptionRaw || null,
+    items,
+  };
+}
+
 function sendDeliveryCorrectionError(res: Response, err: any) {
   if (err instanceof DeliveryInputError) {
     return res.status(err.status).json({
@@ -708,7 +777,176 @@ app.delete('/api/products/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// 3. Customers
+// 3a. Toptancı tanımları ve satın alımlar
+app.get('/api/suppliers', async (req, res) => {
+  try {
+    const session = getAuthUser(req)!;
+    const includeInactive =
+      session.role === 'admin' && String(req.query.includeInactive || '') === '1';
+    const suppliers = await listSuppliers(includeInactive);
+    res.json({ suppliers });
+  } catch (err: any) {
+    sendPurchaseError(res, err);
+  }
+});
+
+app.post('/api/suppliers', requireAdmin, async (req, res) => {
+  try {
+    const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+    const note = typeof req.body?.note === 'string' ? req.body.note.trim() : '';
+    if (!name || name.length > 80 || note.length > 300) {
+      return res.status(400).json({ error: 'Toptancı adı zorunludur.' });
+    }
+    const supplier = await createSupplierRecord({
+      name,
+      note: note || null,
+      isActive: req.body?.isActive !== false,
+    });
+    res.status(201).json({ supplier });
+  } catch (err: any) {
+    sendPurchaseError(res, err);
+  }
+});
+
+app.put('/api/suppliers/:id', requireAdmin, async (req, res) => {
+  try {
+    const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+    const note = typeof req.body?.note === 'string' ? req.body.note.trim() : '';
+    if (!name || name.length > 80 || note.length > 300) {
+      return res.status(400).json({ error: 'Toptancı adı zorunludur.' });
+    }
+    const supplier = await updateSupplierRecord(req.params.id, {
+      name,
+      note: note || null,
+      isActive: req.body?.isActive !== false,
+    });
+    res.json({ supplier });
+  } catch (err: any) {
+    sendPurchaseError(res, err);
+  }
+});
+
+app.get('/api/purchases', async (req, res) => {
+  try {
+    const date = typeof req.query.date === 'string' ? req.query.date : undefined;
+    const supplierId =
+      typeof req.query.supplierId === 'string' ? req.query.supplierId : undefined;
+    const statusRaw = typeof req.query.status === 'string' ? req.query.status : undefined;
+    const status =
+      statusRaw === 'active' || statusRaw === 'cancelled' ? statusRaw : undefined;
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ error: 'Geçersiz tarih.' });
+    }
+    const purchases = await listPurchases({ date, supplierId, status });
+    res.json({ purchases });
+  } catch (err: any) {
+    sendPurchaseError(res, err);
+  }
+});
+
+app.post('/api/purchases', async (req, res) => {
+  try {
+    const session = getAuthUser(req)!;
+    if (session.role !== 'admin' && session.role !== 'driver') {
+      return res.status(403).json({ error: 'Satın alım kaydı için yetkiniz yok.' });
+    }
+    const normalized = normalizePurchasePayload(req.body);
+    if (!normalized) {
+      return res.status(400).json({ error: 'Satın alım bilgileri geçersiz.' });
+    }
+
+    let dispatchId: string | null = null;
+    if (session.role === 'driver') {
+      const dispatches = await getDispatches();
+      const active = dispatches.find(
+        (d) => d.driverId === session.userId && d.status === 'in_transit'
+      );
+      dispatchId = active?.id || null;
+    }
+
+    const requestedId =
+      typeof req.body?.id === 'string' ? req.body.id.trim() : '';
+    const id = /^pur_[A-Za-z0-9_-]+$/.test(requestedId)
+      ? requestedId
+      : `pur_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+    const { purchase, duplicate } = await createPurchaseRecord(
+      {
+        id,
+        supplierId: normalized.supplierId,
+        description: normalized.description,
+        dispatchId,
+        items: normalized.items,
+      },
+      { id: session.userId, name: session.name }
+    );
+
+    if (!duplicate) {
+      notifyPushInBackground({
+        title: purchase.supplierName,
+        body: 'Ürün Teslim Alındı',
+        tag: `purchase-${purchase.id}`,
+      });
+    }
+
+    res.status(duplicate ? 200 : 201).json({ purchase, duplicate });
+  } catch (err: any) {
+    sendPurchaseError(res, err);
+  }
+});
+
+app.put('/api/purchases/:id', async (req, res) => {
+  try {
+    const session = getAuthUser(req)!;
+    const existing = await getPurchaseById(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Satın alım kaydı bulunamadı.' });
+    if (session.role !== 'admin' && existing.createdByUserId !== session.userId) {
+      return res.status(403).json({ error: 'Yalnızca kendi alımınızı düzeltebilirsiniz.' });
+    }
+    if (existing.status === 'cancelled') {
+      return res.status(409).json({ error: 'İptal edilmiş alım düzeltilemez.' });
+    }
+    const normalized = normalizePurchasePayload(req.body);
+    if (!normalized) {
+      return res.status(400).json({ error: 'Satın alım bilgileri geçersiz.' });
+    }
+    const purchase = await updatePurchaseRecord(
+      {
+        id: existing.id,
+        supplierId: normalized.supplierId,
+        description: normalized.description,
+        dispatchId: existing.dispatchId,
+        items: normalized.items,
+      },
+      { id: session.userId, name: session.name },
+      session.role === 'admin'
+    );
+    res.json({ purchase });
+  } catch (err: any) {
+    sendPurchaseError(res, err);
+  }
+});
+
+app.post('/api/purchases/:id/cancel', async (req, res) => {
+  try {
+    const session = getAuthUser(req)!;
+    const existing = await getPurchaseById(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Satın alım kaydı bulunamadı.' });
+    if (session.role !== 'admin' && existing.createdByUserId !== session.userId) {
+      return res.status(403).json({ error: 'Yalnızca kendi alımınızı iptal edebilirsiniz.' });
+    }
+    const purchase = await cancelPurchaseRecord(
+      existing.id,
+      { id: session.userId, name: session.name },
+      session.role === 'admin'
+    );
+    res.json({ purchase });
+  } catch (err: any) {
+    sendPurchaseError(res, err);
+  }
+});
+
+// 3b. Customers
 app.get('/api/customers', async (req, res) => {
   try {
     const session = getAuthUser(req);
@@ -2035,6 +2273,7 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
       ...p,
       customerName: customerNames.get(p.customerId) || p.customerId,
     }));
+    const purchases = await listPurchases({ date, status: 'active' });
     const totalStandaloneCash = customerPayments
       .filter((p) => p.method === 'CASH')
       .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
@@ -2104,6 +2343,7 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
         hasAccountCustomerDeliveries: deliveries.some((del) => del.isAccountCustomer),
       },
       customerPayments,
+      purchases,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

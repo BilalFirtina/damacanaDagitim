@@ -25,6 +25,9 @@ import {
   CustomerDispenser,
   CustomerDispenserInput,
   DispenserDetailInput,
+  Supplier,
+  Purchase,
+  PurchaseItem,
 } from '../types/index.ts';
 import {
   utcDayQueryWindow,
@@ -5387,4 +5390,321 @@ export async function getPushSubscriptions(): Promise<PushSubscriptionRecord[]> 
     createdAt: s.createdAt || '',
     updatedAt: s.updatedAt || '',
   }));
+}
+
+// =============================================================================
+// TOPTANCI SATIN ALIMLARI
+// =============================================================================
+
+function parsePurchaseDbError(e: any, fallback: string): Error {
+  const raw = `${e?.message || ''} ${e?.details || ''} ${e?.hint || ''} ${e?.code || ''}`;
+  if (/SUPPLIER_NOT_FOUND/.test(raw)) {
+    return new DispatchDbError('SUPPLIER_NOT_FOUND', 'Toptancı bulunamadı.');
+  }
+  if (/PRODUCT_NOT_FOUND/.test(raw)) {
+    return new DispatchDbError('PRODUCT_NOT_FOUND', 'Ürün bulunamadı.');
+  }
+  if (/PURCHASE_NOT_FOUND/.test(raw)) {
+    return new DispatchDbError('PURCHASE_NOT_FOUND', 'Satın alım kaydı bulunamadı.');
+  }
+  if (/PURCHASE_CANCELLED/.test(raw)) {
+    return new DispatchDbError('PURCHASE_CANCELLED', 'İptal edilmiş alım düzeltilemez.');
+  }
+  if (/NOT_AUTHORIZED/.test(raw)) {
+    return new DispatchDbError('NOT_AUTHORIZED', 'Bu alım üzerinde işlem yapma yetkiniz yok.');
+  }
+  if (/INVALID_DISPATCH_LINK/.test(raw)) {
+    return new DispatchDbError('INVALID_DISPATCH_LINK', 'Alım aktif sefere bağlanamadı.');
+  }
+  if (/VALIDATION_ERROR/.test(raw)) {
+    return new DispatchDbError('VALIDATION_ERROR', 'Satın alım bilgileri geçersiz.');
+  }
+  if (String(e?.code || '') === '23505') {
+    return new DispatchDbError('VALIDATION_ERROR', 'Bu isimde bir toptancı zaten var.');
+  }
+  if (
+    String(e?.code || '') === '42P01' ||
+    String(e?.code || '') === 'PGRST205' ||
+    /purchases|purchase_items|purchase_audit|suppliers.*(does not exist|bulunamadı|could not find)/i.test(raw) ||
+    /could not find the function[\s\S]*(create_purchase|update_purchase|cancel_purchase)/i.test(raw)
+  ) {
+    return new DispatchDbError(
+      'MIGRATION_REQUIRED',
+      'Satın alım veritabanı yapısı eksik. Sunucu güncellemesi gerekiyor.'
+    );
+  }
+  return new DispatchDbError('PURCHASE_FAILED', fallback);
+}
+
+function mapSupplierFromDb(row: any): Supplier {
+  return {
+    id: String(row.id),
+    name: String(row.name || ''),
+    isActive: row.is_active !== false,
+    note: row.note ?? null,
+    createdAt: String(row.created_at || ''),
+    updatedAt: String(row.updated_at || ''),
+  };
+}
+
+function mapPurchaseItemFromDb(row: any): PurchaseItem {
+  return {
+    productId: String(row.product_id),
+    productName: String(row.product_name || ''),
+    quantity: Number(row.quantity) || 0,
+    unit: String(row.unit || 'Adet'),
+    unitPrice: row.unit_price === null || row.unit_price === undefined ? null : Number(row.unit_price),
+    lineTotal: row.line_total === null || row.line_total === undefined ? null : Number(row.line_total),
+  };
+}
+
+export async function listSuppliers(includeInactive = false): Promise<Supplier[]> {
+  if (isSupabaseOperational() && supabase) {
+    let query = supabase.from('suppliers').select('*').order('name');
+    if (!includeInactive) query = query.eq('is_active', true);
+    const { data, error } = await query;
+    if (error) throw parsePurchaseDbError(error, 'Toptancılar alınamadı.');
+    return (data || []).map(mapSupplierFromDb);
+  }
+  throw new DispatchDbError(
+    'REMOTE_REQUIRED',
+    'Toptancı özelliği merkezi veritabanı gerektirir.'
+  );
+}
+
+export async function createSupplierRecord(input: {
+  name: string;
+  note?: string | null;
+  isActive?: boolean;
+}): Promise<Supplier> {
+  if (!isSupabaseOperational() || !supabase) {
+    throw new DispatchDbError('REMOTE_REQUIRED', 'Toptancı özelliği merkezi veritabanı gerektirir.');
+  }
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('suppliers')
+    .insert({
+      id: `sup_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      name: input.name,
+      note: input.note ?? null,
+      is_active: input.isActive !== false,
+      created_at: now,
+      updated_at: now,
+    })
+    .select('*')
+    .maybeSingle();
+  if (error) throw parsePurchaseDbError(error, 'Toptancı kaydedilemedi.');
+  if (!data) throw new DispatchDbError('SUPPLIER_FAILED', 'Toptancı kaydedilemedi.');
+  return mapSupplierFromDb(data);
+}
+
+export async function updateSupplierRecord(
+  id: string,
+  input: { name: string; note?: string | null; isActive?: boolean }
+): Promise<Supplier> {
+  if (!isSupabaseOperational() || !supabase) {
+    throw new DispatchDbError('REMOTE_REQUIRED', 'Toptancı özelliği merkezi veritabanı gerektirir.');
+  }
+  const { data, error } = await supabase
+    .from('suppliers')
+    .update({
+      name: input.name,
+      note: input.note ?? null,
+      is_active: input.isActive !== false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select('*')
+    .maybeSingle();
+  if (error) throw parsePurchaseDbError(error, 'Toptancı güncellenemedi.');
+  if (!data) throw new DispatchDbError('SUPPLIER_NOT_FOUND', 'Toptancı bulunamadı.');
+  return mapSupplierFromDb(data);
+}
+
+export async function listPurchases(params?: {
+  id?: string;
+  date?: string;
+  supplierId?: string;
+  status?: 'active' | 'cancelled';
+}): Promise<Purchase[]> {
+  if (!isSupabaseOperational() || !supabase) {
+    throw new DispatchDbError('REMOTE_REQUIRED', 'Satın alım özelliği merkezi veritabanı gerektirir.');
+  }
+
+  let query = supabase
+    .from('purchases')
+    .select('*')
+    .order('purchased_at', { ascending: false });
+
+  if (params?.id) query = query.eq('id', params.id);
+  if (params?.supplierId) query = query.eq('supplier_id', params.supplierId);
+  if (params?.status) query = query.eq('status', params.status);
+  if (params?.date) {
+    const start = `${params.date}T00:00:00.000Z`;
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 1);
+    query = query.gte('purchased_at', start).lt('purchased_at', end.toISOString());
+  }
+
+  const { data: rows, error } = await query;
+  if (error) throw parsePurchaseDbError(error, 'Satın alımlar alınamadı.');
+  if (!rows || rows.length === 0) return [];
+
+  const ids = rows.map((r: any) => String(r.id));
+  const supplierIds = Array.from(new Set(rows.map((r: any) => String(r.supplier_id))));
+  const dispatchIds = Array.from(
+    new Set(rows.map((r: any) => r.dispatch_id).filter(Boolean) as string[])
+  );
+
+  const [{ data: itemRows }, { data: supplierRows }, { data: dispatchRows }] =
+    await Promise.all([
+      supabase
+        .from('purchase_items')
+        .select('*')
+        .in('purchase_id', ids)
+        .order('line_no', { ascending: true }),
+      supabase.from('suppliers').select('id, name').in('id', supplierIds),
+      dispatchIds.length > 0
+        ? supabase.from('dispatches').select('id, vehicle_plate').in('id', dispatchIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+
+  const supplierNameById = new Map<string, string>(
+    (supplierRows || []).map((s: any) => [String(s.id), String(s.name || '')])
+  );
+  const dispatchPlateById = new Map<string, string>(
+    (dispatchRows || []).map((d: any) => [String(d.id), String(d.vehicle_plate || '')])
+  );
+  const itemsByPurchase = new Map<string, PurchaseItem[]>();
+  for (const item of itemRows || []) {
+    const key = String(item.purchase_id);
+    const list = itemsByPurchase.get(key) || [];
+    list.push(mapPurchaseItemFromDb(item));
+    itemsByPurchase.set(key, list);
+  }
+
+  return rows.map((row: any) => ({
+    id: String(row.id),
+    purchasedAt: String(row.purchased_at || ''),
+    supplierId: String(row.supplier_id),
+    supplierName: supplierNameById.get(String(row.supplier_id)) || String(row.supplier_id),
+    description: row.description ?? null,
+    status: row.status === 'cancelled' ? 'cancelled' : 'active',
+    totalAmount:
+      row.total_amount === null || row.total_amount === undefined
+        ? null
+        : Number(row.total_amount),
+    createdByUserId: String(row.created_by_user_id || ''),
+    createdByUserName: String(row.created_by_user_name || ''),
+    dispatchId: row.dispatch_id ? String(row.dispatch_id) : null,
+    dispatchPlate: row.dispatch_id
+      ? dispatchPlateById.get(String(row.dispatch_id)) || null
+      : null,
+    cancelledAt: row.cancelled_at ? String(row.cancelled_at) : null,
+    cancelledByUserId: row.cancelled_by_user_id
+      ? String(row.cancelled_by_user_id)
+      : null,
+    cancelledByUserName: row.cancelled_by_user_name
+      ? String(row.cancelled_by_user_name)
+      : null,
+    createdAt: String(row.created_at || ''),
+    updatedAt: String(row.updated_at || ''),
+    items: itemsByPurchase.get(String(row.id)) || [],
+  }));
+}
+
+export async function getPurchaseById(id: string): Promise<Purchase | null> {
+  const rows = await listPurchases({ id });
+  return rows[0] || null;
+}
+
+export interface PurchaseWriteInput {
+  id: string;
+  supplierId: string;
+  description: string | null;
+  dispatchId: string | null;
+  items: Array<{ productId: string; quantity: number; unitPrice: number | null }>;
+}
+
+function purchaseRpcPayload(input: PurchaseWriteInput, actor: { id: string; name: string }) {
+  return {
+    id: input.id,
+    supplier_id: input.supplierId,
+    description: input.description,
+    dispatch_id: input.dispatchId,
+    actor_user_id: actor.id,
+    actor_user_name: actor.name,
+    items: input.items.map((item) => ({
+      product_id: item.productId,
+      quantity: item.quantity,
+      unit_price: item.unitPrice,
+    })),
+  };
+}
+
+export async function createPurchaseRecord(
+  input: PurchaseWriteInput,
+  actor: { id: string; name: string }
+): Promise<{ purchase: Purchase; duplicate: boolean }> {
+  if (!isSupabaseOperational() || !supabase) {
+    throw new DispatchDbError('REMOTE_REQUIRED', 'Satın alım özelliği merkezi veritabanı gerektirir.');
+  }
+  const { data, error } = await supabase.rpc('create_purchase', {
+    p: purchaseRpcPayload(input, actor),
+  });
+  if (error) throw parsePurchaseDbError(error, 'Satın alım kaydedilemedi.');
+  const purchaseId = String(data?.purchase?.id || input.id);
+  const purchase = await getPurchaseById(purchaseId);
+  if (!purchase) {
+    throw new DispatchDbError('PURCHASE_FAILED', 'Satın alım kaydedildi ancak okunamadı.');
+  }
+  return { purchase, duplicate: Boolean(data?.duplicate) };
+}
+
+export async function updatePurchaseRecord(
+  input: PurchaseWriteInput,
+  actor: { id: string; name: string },
+  isAdmin: boolean
+): Promise<Purchase> {
+  if (!isSupabaseOperational() || !supabase) {
+    throw new DispatchDbError('REMOTE_REQUIRED', 'Satın alım özelliği merkezi veritabanı gerektirir.');
+  }
+  const { data, error } = await supabase.rpc('update_purchase', {
+    p: {
+      ...purchaseRpcPayload(input, actor),
+      is_admin: isAdmin,
+    },
+  });
+  if (error) throw parsePurchaseDbError(error, 'Satın alım düzeltilemedi.');
+  const purchaseId = String(data?.purchase?.id || input.id);
+  const purchase = await getPurchaseById(purchaseId);
+  if (!purchase) {
+    throw new DispatchDbError('PURCHASE_FAILED', 'Satın alım düzeltildi ancak okunamadı.');
+  }
+  return purchase;
+}
+
+export async function cancelPurchaseRecord(
+  id: string,
+  actor: { id: string; name: string },
+  isAdmin: boolean
+): Promise<Purchase> {
+  if (!isSupabaseOperational() || !supabase) {
+    throw new DispatchDbError('REMOTE_REQUIRED', 'Satın alım özelliği merkezi veritabanı gerektirir.');
+  }
+  const { data, error } = await supabase.rpc('cancel_purchase', {
+    p: {
+      id,
+      actor_user_id: actor.id,
+      actor_user_name: actor.name,
+      is_admin: isAdmin,
+    },
+  });
+  if (error) throw parsePurchaseDbError(error, 'Satın alım iptal edilemedi.');
+  const purchaseId = String(data?.purchase?.id || id);
+  const purchase = await getPurchaseById(purchaseId);
+  if (!purchase) {
+    throw new DispatchDbError('PURCHASE_FAILED', 'Satın alım iptal edildi ancak okunamadı.');
+  }
+  return purchase;
 }

@@ -1,6 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { Customer, Delivery, Product, User } from '../../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Customer, Delivery, Product, Purchase, User } from '../../types';
 import { isAccountCustomerDelivery } from '../../services/customerVisibility';
+import { todayUtcDateStr } from '../../services/dateWindow';
+import { fetchPurchases, getAuthToken } from '../../services/api';
+import { sortPurchasesNewestFirst } from '../../services/purchaseRules';
+import { PurchaseFeedCard } from '../purchases/PurchaseFeedCard';
 import {
   Clock,
   Truck,
@@ -10,7 +14,8 @@ import {
   Building2,
   Search,
   Filter,
-  Users
+  Users,
+  Package,
 } from 'lucide-react';
 
 interface LiveTeamFeedProps {
@@ -116,6 +121,28 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
   const [filterPlate, setFilterPlate] = useState<string>('all');
   const [filterDriverId, setFilterDriverId] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (document.visibilityState === 'hidden') return;
+      if (!navigator.onLine) return;
+      if (!getAuthToken()) return;
+      try {
+        const list = await fetchPurchases({ date: todayUtcDateStr() });
+        if (!cancelled) setPurchases(sortPurchasesNewestFirst(list));
+      } catch {
+        // Canlı akış teslimatlarını etkilememek için sessizce yok sayılır.
+      }
+    };
+    void load();
+    const interval = window.setInterval(load, 8000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
 
   // Extract unique vehicle plates for filtering
   const plates = useMemo(() => {
@@ -198,6 +225,25 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
           </div>
         </div>
       </div>
+
+      {purchases.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <Package className="w-4 h-4 text-purple-600" />
+              <span>Toptancı Alımları</span>
+            </h3>
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
+              {purchases.length}
+            </span>
+          </div>
+          <div className="space-y-3">
+            {purchases.map((purchase) => (
+              <PurchaseFeedCard key={purchase.id} purchase={purchase} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Driver Color Legend (Şoför Renk Kodları Lejantı) */}
       {activeDrivers.length > 0 && (

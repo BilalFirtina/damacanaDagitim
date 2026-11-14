@@ -9,6 +9,9 @@ import {
   PaymentStatus,
   CustomerDispenser,
   CustomerDispenserInput,
+  Supplier,
+  Purchase,
+  PurchaseInputItem,
 } from '../types';
 import {
   classifyDeliverySyncResponse,
@@ -220,6 +223,103 @@ export async function createProduct(product: Partial<Product>): Promise<Product>
   if (!res.ok) throw new Error('Ürün oluşturulamadı');
   const json = await res.json();
   return json.product;
+}
+
+export async function fetchSuppliers(includeInactive = false): Promise<Supplier[]> {
+  const query = includeInactive ? '?includeInactive=1' : '';
+  const res = await apiFetch(`/api/suppliers${query}`);
+  if (!res.ok) await throwServerError(res, 'Toptancılar alınamadı.');
+  const json = await res.json();
+  return Array.isArray(json.suppliers) ? json.suppliers : [];
+}
+
+export async function createSupplier(input: {
+  name: string;
+  note?: string | null;
+  isActive?: boolean;
+}): Promise<Supplier> {
+  const res = await apiFetch('/api/suppliers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) await throwServerError(res, 'Toptancı kaydedilemedi.');
+  const json = await res.json();
+  return json.supplier;
+}
+
+export async function updateSupplier(
+  id: string,
+  input: { name: string; note?: string | null; isActive?: boolean }
+): Promise<Supplier> {
+  const res = await apiFetch(`/api/suppliers/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) await throwServerError(res, 'Toptancı güncellenemedi.');
+  const json = await res.json();
+  return json.supplier;
+}
+
+export async function fetchPurchases(params?: {
+  date?: string;
+  supplierId?: string;
+  status?: 'active' | 'cancelled';
+}): Promise<Purchase[]> {
+  const query = new URLSearchParams();
+  if (params?.date) query.set('date', params.date);
+  if (params?.supplierId) query.set('supplierId', params.supplierId);
+  if (params?.status) query.set('status', params.status);
+  const suffix = query.toString() ? `?${query.toString()}` : '';
+  const res = await apiFetch(`/api/purchases${suffix}`);
+  if (!res.ok) await throwServerError(res, 'Satın alımlar alınamadı.');
+  const json = await res.json();
+  return Array.isArray(json.purchases) ? json.purchases : [];
+}
+
+export async function createPurchase(input: {
+  id: string;
+  supplierId: string;
+  description?: string | null;
+  items: PurchaseInputItem[];
+}): Promise<{ purchase: Purchase; duplicate: boolean }> {
+  const res = await apiFetch('/api/purchases', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) await throwServerError(res, 'Satın alım kaydedilemedi.');
+  return res.json();
+}
+
+export async function updatePurchase(
+  id: string,
+  input: {
+    supplierId: string;
+    description?: string | null;
+    items: PurchaseInputItem[];
+  }
+): Promise<Purchase> {
+  const res = await apiFetch(`/api/purchases/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) await throwServerError(res, 'Satın alım düzeltilemedi.');
+  const json = await res.json();
+  return json.purchase;
+}
+
+export async function cancelPurchase(id: string): Promise<Purchase> {
+  const res = await apiFetch(`/api/purchases/${encodeURIComponent(id)}/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  if (!res.ok) await throwServerError(res, 'Satın alım iptal edilemedi.');
+  const json = await res.json();
+  return json.purchase;
 }
 
 export async function deleteProduct(id: string): Promise<boolean> {
