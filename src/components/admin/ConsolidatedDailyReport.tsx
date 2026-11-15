@@ -529,33 +529,27 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
           </table>
         </section>
 
-        {/* IV. Satın alınan ürünler */}
-        <section className="mb-6 print-avoid-break">
-          <div className="print-keep-with-next text-xs font-black uppercase tracking-wider mb-2 border-b border-black pb-1">
-            IV. Satın Alınan Ürünler
-          </div>
-          <table className="w-full text-xs border border-black border-collapse text-center">
-            <thead>
-              <tr className="border-b border-black bg-white">
-                <th className="p-0 border-r border-black text-center align-middle w-8">No</th>
-                <th className="p-0 border-r border-black text-center align-middle w-12">Saat</th>
-                <th className="p-0 border-r border-black text-center align-middle w-28">Toptancı</th>
-                <th className="p-0 border-r border-black text-center align-middle">Ürünler</th>
-                <th className="p-0 border-r border-black text-center align-middle w-16">Fiyat</th>
-                <th className="p-0 border-r border-black text-center align-middle w-20">Toplam Fiyat</th>
-                <th className="p-0 border-r border-black text-center align-middle w-24">Açıklama</th>
-                <th className="p-0 text-center align-middle w-24">Teslim Alan</th>
-              </tr>
-            </thead>
-            <tbody>
-              {purchases.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="p-0 text-center italic border-b border-black">
-                    Bu tarihte satın alım kaydı bulunmuyor.
-                  </td>
+        {/* IV. Satın alınan ürünler — kayıt yoksa bölüm hiç basılmaz */}
+        {purchases.length > 0 && (
+          <section className="mb-6 print-avoid-break">
+            <div className="print-keep-with-next text-xs font-black uppercase tracking-wider mb-2 border-b border-black pb-1">
+              IV. Satın Alınan Ürünler
+            </div>
+            <table className="w-full text-xs border border-black border-collapse text-center">
+              <thead>
+                <tr className="border-b border-black bg-white">
+                  <th className="p-0 border-r border-black text-center align-middle w-8">No</th>
+                  <th className="p-0 border-r border-black text-center align-middle w-12">Saat</th>
+                  <th className="p-0 border-r border-black text-center align-middle w-28 print:text-sm">Toptancı</th>
+                  <th className="p-0 border-r border-black text-center align-middle print:text-sm">Ürünler</th>
+                  <th className="p-0 border-r border-black text-center align-middle w-16">Fiyat</th>
+                  <th className="p-0 border-r border-black text-center align-middle w-20">Toplam Fiyat</th>
+                  <th className="p-0 border-r border-black text-center align-middle w-24">Açıklama</th>
+                  <th className="p-0 text-center align-middle w-24">Teslim Alan</th>
                 </tr>
-              ) : (
-                purchases.map((purchase, index) => (
+              </thead>
+              <tbody>
+                {purchases.map((purchase, index) => (
                   <tr key={purchase.id} className="border-b border-black align-middle">
                     <td className="p-0 border-r border-black text-center align-middle font-mono">
                       {index + 1}
@@ -563,10 +557,10 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                     <td className="p-0 border-r border-black text-center align-middle font-mono">
                       {timeFmt(new Date(purchase.purchasedAt).getTime())}
                     </td>
-                    <td className="p-0 border-r border-black text-center align-middle font-bold break-words">
+                    <td className="p-0 border-r border-black text-center align-middle font-bold break-words print:text-sm">
                       {purchase.supplierName}
                     </td>
-                    <td className="p-0 border-r border-black text-center align-middle">
+                    <td className="p-0 border-r border-black text-center align-middle print:text-sm">
                       {purchase.items.map((item, itemIndex) => (
                         <div key={`${purchase.id}-${item.productId}-${itemIndex}`} className="break-words">
                           {stripParentheses(item.productName)} - {item.quantity} {item.unit}
@@ -594,16 +588,16 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                       {purchase.createdByUserName || '-'}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </section>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
 
         {/* V. Şoför bazında müşteri dökümü */}
         <section className="space-y-6">
           <div className="print-keep-with-next text-xs font-black uppercase tracking-wider mb-2 border-b border-black pb-1">
-            V. Şoför Bazında Müşteri Dökümü
+            {purchases.length > 0 ? 'V' : 'IV'}. Şoför Bazında Müşteri Dökümü
           </div>
 
           {report.drivers.length === 0 ? (
