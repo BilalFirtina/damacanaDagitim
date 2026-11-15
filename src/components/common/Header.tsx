@@ -116,7 +116,7 @@ export const Header: React.FC<HeaderProps> = ({
     { tab: 'eod', label: 'Gün Sonu', ariaLabel: 'Gün Sonu Kapatma', icon: CheckCircle2, iconClass: 'text-amber-500', activeClass: 'bg-sky-600' },
     { tab: 'customers', label: 'Müşteriler', ariaLabel: 'Müşteriler & Borçlar', icon: Users, iconClass: 'text-indigo-500', activeClass: 'bg-sky-600' },
     { tab: 'products', label: 'Ürünler', ariaLabel: 'Ürünler & Fiyatlar', icon: Package, iconClass: 'text-violet-500', activeClass: 'bg-sky-600' },
-    { tab: 'purchases', label: 'Satın Alınanlar', ariaLabel: 'Toptancı Satın Alımları', icon: ShoppingCart, iconClass: 'text-purple-600', activeClass: 'bg-purple-700' },
+    { tab: 'purchases', label: 'Satın Alınanlar', ariaLabel: 'Toptancı Satın Alımları', icon: ShoppingCart, iconClass: 'text-rose-600', activeClass: 'bg-gradient-to-r from-pink-600 via-rose-600 to-red-600' },
     { tab: 'reports', label: 'Raporlar', ariaLabel: 'Raporlar & Gün Sonu Dökümü', icon: FileText, iconClass: 'text-blue-500', activeClass: 'bg-sky-600', adminOnly: true },
     { tab: 'admin_loads', label: 'Araç Yükleme Yetkisi', ariaLabel: 'Araç Yüklemeleri & Yetki', icon: ShieldCheck, iconClass: 'text-indigo-600', activeClass: 'bg-indigo-600', adminOnly: true },
   ];

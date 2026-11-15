@@ -281,7 +281,7 @@ export const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
               <button
                 type="button"
                 onClick={addRow}
-                className="min-h-11 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-purple-200 bg-purple-50 text-purple-800 text-xs font-bold"
+                className="min-h-11 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-rose-200 bg-gradient-to-r from-pink-50 via-rose-50 to-red-50 text-rose-800 text-xs font-bold"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Ürün Satırı Ekle
@@ -392,9 +392,9 @@ export const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
           </div>
 
           {total !== null && (
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-purple-200 bg-purple-50 p-3">
-              <span className="text-xs font-bold text-purple-900">Toplam Fiyat</span>
-              <span className="font-mono font-extrabold text-sm text-purple-900">
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-gradient-to-r from-pink-50 via-rose-50 to-red-50 p-3">
+              <span className="text-xs font-bold text-rose-900">Toplam Fiyat</span>
+              <span className="font-mono font-extrabold text-sm text-rose-900">
                 {moneyFmt.format(total)} ₺
               </span>
             </div>
@@ -420,7 +420,7 @@ export const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
             type="button"
             onClick={handleSubmit}
             disabled={isSaving || availableSuppliers.length === 0}
-            className="flex-1 min-h-11 px-4 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 disabled:opacity-60"
+            className="flex-1 min-h-11 px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-600 via-rose-600 to-red-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 hover:brightness-105 active:scale-95 transition-all disabled:opacity-60"
           >
             <Save className="w-4 h-4" />
             {isSaving ? 'Kaydediliyor...' : editingPurchase ? 'Düzelt' : 'Kaydet'}

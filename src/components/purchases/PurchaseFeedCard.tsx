@@ -34,24 +34,34 @@ export const PurchaseFeedCard: React.FC<PurchaseFeedCardProps> = ({
 
   return (
     <div
-      className={`bg-white rounded-2xl border p-4 sm:p-5 shadow-xs transition-all hover:shadow-md border-l-4 ${
+      className={`relative overflow-hidden rounded-2xl border p-4 sm:p-5 shadow-xs transition-all hover:shadow-md ${
         cancelled
-          ? 'border-l-slate-400 border-slate-200 opacity-80'
-          : 'border-l-purple-500 border-purple-200 bg-purple-50/20'
+          ? 'border-slate-200 bg-white opacity-80'
+          : 'border-rose-200 bg-gradient-to-br from-pink-50/40 via-white to-red-50/30'
       }`}
     >
+      <span
+        aria-hidden="true"
+        className={`absolute inset-y-0 left-0 w-1 ${
+          cancelled
+            ? 'bg-slate-400'
+            : 'bg-gradient-to-b from-pink-400 via-rose-500 to-red-600'
+        }`}
+      />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
           <div
             className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-xs ${
-              cancelled ? 'bg-slate-500 text-white' : 'bg-purple-600 text-white'
+              cancelled
+                ? 'bg-slate-500 text-white'
+                : 'bg-gradient-to-br from-pink-500 via-rose-500 to-red-600 text-white'
             }`}
           >
             <Package className="w-4 h-4" />
           </div>
           <div className="flex items-center gap-2 flex-wrap min-w-0">
-            <span className="font-bold text-xs px-2.5 py-0.5 rounded-lg flex items-center gap-1.5 bg-purple-100 text-purple-900 border border-purple-300 max-w-full break-words">
-              <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0" />
+            <span className="font-bold text-xs px-2.5 py-0.5 rounded-lg flex items-center gap-1.5 bg-gradient-to-r from-pink-100 via-rose-100 to-red-100 text-rose-900 border border-rose-300 max-w-full break-words">
+              <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
               <span className="break-words">{purchase.supplierName}</span>
             </span>
             {purchase.dispatchPlate && (
@@ -82,7 +92,7 @@ export const PurchaseFeedCard: React.FC<PurchaseFeedCardProps> = ({
                 className="px-2.5 py-1 rounded-lg bg-white/90 text-slate-800 text-xs font-medium border border-slate-200 shadow-2xs max-w-full break-words"
               >
                 {item.productName} -{' '}
-                <strong className="font-mono tabular-nums text-purple-700">
+                <strong className="font-mono tabular-nums text-rose-600">
                   {item.quantity}
                 </strong>{' '}
                 {item.unit}
@@ -117,7 +127,7 @@ export const PurchaseFeedCard: React.FC<PurchaseFeedCardProps> = ({
                 <button
                   type="button"
                   onClick={() => onEdit(purchase)}
-                  className="min-h-11 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-semibold hover:bg-slate-50"
+                  className="min-h-11 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                   Düzelt

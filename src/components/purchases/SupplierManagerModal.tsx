@@ -165,7 +165,7 @@ export const SupplierManagerModal: React.FC<SupplierManagerModalProps> = ({
               type="button"
               onClick={handleSave}
               disabled={isSaving}
-              className="w-full min-h-11 px-4 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 disabled:opacity-60"
+              className="w-full min-h-11 px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-600 via-rose-600 to-red-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 hover:brightness-105 active:scale-95 transition-all disabled:opacity-60"
             >
               <Save className="w-4 h-4" />
               {isSaving ? 'Kaydediliyor...' : editingId ? 'Güncelle' : 'Ekle'}

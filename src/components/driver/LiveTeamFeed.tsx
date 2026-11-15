@@ -230,10 +230,10 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <Package className="w-4 h-4 text-purple-600" />
+              <Package className="w-4 h-4 text-rose-600" />
               <span>Toptancı Alımları</span>
             </h3>
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-pink-100 via-rose-100 to-red-100 text-rose-800 border border-rose-200">
               {purchases.length}
             </span>
           </div>

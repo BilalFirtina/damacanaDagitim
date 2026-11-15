@@ -95,7 +95,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
       <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs flex flex-col items-center text-center gap-3">
         <div className="w-full min-w-0 text-center">
           <h1 className="text-base font-bold text-slate-900 flex items-center justify-center gap-2">
-            <ShoppingCart className="w-5 h-5 text-purple-600 shrink-0" />
+            <ShoppingCart className="w-5 h-5 text-rose-600 shrink-0" />
             <span>Satın Alınanlar</span>
           </h1>
           <p className="text-xs text-slate-500 mt-1">
@@ -108,7 +108,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
             <button
               type="button"
               onClick={() => setSupplierManagerOpen(true)}
-              className="flex-1 min-h-11 px-3.5 py-2 rounded-xl border border-rose-200 bg-[linear-gradient(90deg,#fb7185_0%,#fbcfe8_35%,#ffffff_55%,#e9d5ff_78%,#c084fc_100%)] text-purple-950 font-semibold text-xs hover:brightness-105 active:scale-95 transition-all"
+              className="flex-1 min-h-11 px-3.5 py-2 rounded-xl border border-rose-300 bg-[linear-gradient(90deg,#fbcfe8_0%,#fecdd3_40%,#ffffff_60%,#fda4af_100%)] text-rose-950 font-semibold text-xs hover:brightness-105 active:scale-95 transition-all"
             >
               Toptancıları Yönet
             </button>
@@ -116,7 +116,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
           <button
             type="button"
             onClick={openNewForm}
-            className="flex-1 min-h-11 px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs flex items-center justify-center gap-1.5"
+            className="flex-1 min-h-11 px-4 py-2 rounded-xl bg-gradient-to-r from-pink-600 via-rose-600 to-red-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 hover:brightness-105 active:scale-95 transition-all"
           >
             <PackagePlus className="w-4 h-4" />
             Yeni Alım
@@ -137,7 +137,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
         </div>
       ) : purchases.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-3">
-          <PackagePlus className="w-8 h-8 text-purple-300 mx-auto" />
+          <PackagePlus className="w-8 h-8 text-rose-300 mx-auto" />
           <div className="text-sm font-semibold text-slate-700">
             Henüz satın alım kaydı yok.
           </div>
