@@ -45,7 +45,7 @@ export const PurchaseFeedCard: React.FC<PurchaseFeedCardProps> = ({
         className={`absolute inset-y-0 left-0 w-1 ${
           cancelled
             ? 'bg-slate-400'
-            : 'bg-gradient-to-b from-pink-400 via-rose-500 to-red-600'
+            : 'bg-gradient-to-b from-pink-400 via-rose-400 to-red-400'
         }`}
       />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
@@ -54,7 +54,7 @@ export const PurchaseFeedCard: React.FC<PurchaseFeedCardProps> = ({
             className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-xs ${
               cancelled
                 ? 'bg-slate-500 text-white'
-                : 'bg-gradient-to-br from-pink-500 via-rose-500 to-red-600 text-white'
+                : 'bg-gradient-to-br from-pink-400 via-rose-400 to-red-400 text-rose-950'
             }`}
           >
             <Package className="w-4 h-4" />

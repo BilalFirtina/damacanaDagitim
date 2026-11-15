@@ -116,7 +116,7 @@ export const Header: React.FC<HeaderProps> = ({
     { tab: 'eod', label: 'Gün Sonu', ariaLabel: 'Gün Sonu Kapatma', icon: CheckCircle2, iconClass: 'text-amber-500', activeClass: 'bg-sky-600' },
     { tab: 'customers', label: 'Müşteriler', ariaLabel: 'Müşteriler & Borçlar', icon: Users, iconClass: 'text-indigo-500', activeClass: 'bg-sky-600' },
     { tab: 'products', label: 'Ürünler', ariaLabel: 'Ürünler & Fiyatlar', icon: Package, iconClass: 'text-violet-500', activeClass: 'bg-sky-600' },
-    { tab: 'purchases', label: 'Satın Alınanlar', ariaLabel: 'Toptancı Satın Alımları', icon: ShoppingCart, iconClass: 'text-rose-600', activeClass: 'bg-gradient-to-r from-pink-600 via-rose-600 to-red-600' },
+    { tab: 'purchases', label: 'Satın Alınanlar', ariaLabel: 'Toptancı Satın Alımları', icon: ShoppingCart, iconClass: 'text-rose-600', activeClass: 'bg-gradient-to-r from-rose-400 via-pink-400 to-red-400' },
     { tab: 'reports', label: 'Raporlar', ariaLabel: 'Raporlar & Gün Sonu Dökümü', icon: FileText, iconClass: 'text-blue-500', activeClass: 'bg-sky-600', adminOnly: true },
     { tab: 'admin_loads', label: 'Araç Yükleme Yetkisi', ariaLabel: 'Araç Yüklemeleri & Yetki', icon: ShieldCheck, iconClass: 'text-indigo-600', activeClass: 'bg-indigo-600', adminOnly: true },
   ];
@@ -230,12 +230,12 @@ export const Header: React.FC<HeaderProps> = ({
                     item.tab === 'purchases' ? 'whitespace-normal text-left' : 'whitespace-nowrap'
                   } ${
                     active
-                      ? `${item.activeClass} text-white border-transparent shadow-md`
+                      ? `${item.activeClass} ${item.tab === 'purchases' ? 'text-rose-950' : 'text-white'} border-transparent shadow-md`
                       : 'bg-white  text-slate-700  border-slate-200  hover:border-slate-300  hover:bg-slate-50 '
                   }`}
                 >
                   <Icon
-                    className={`w-4 h-4 shrink-0 ${active ? 'text-white' : item.iconClass}`}
+                    className={`w-4 h-4 shrink-0 ${active ? (item.tab === 'purchases' ? 'text-rose-950' : 'text-white') : item.iconClass}`}
                   />
                   <span>{item.label}</span>
                 </button>
@@ -262,11 +262,11 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'whitespace-nowrap'
               } ${
                 active
-                  ? `${item.activeClass} text-white shadow-sm ring-1 ring-white/20 font-bold`
+                  ? `${item.activeClass} ${item.tab === 'purchases' ? 'text-rose-950' : 'text-white'} shadow-sm ring-1 ring-white/20 font-bold`
                   : 'bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-100'
               }`}
             >
-              <Icon className={`w-5 h-5 shrink-0 ${active ? 'text-white' : item.iconClass}`} />
+              <Icon className={`w-5 h-5 shrink-0 ${active ? (item.tab === 'purchases' ? 'text-rose-950' : 'text-white') : item.iconClass}`} />
               <span
                 className={`leading-tight ${
                   item.tab === 'admin_loads' || item.tab === 'purchases'

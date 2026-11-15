@@ -420,7 +420,7 @@ export const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
             type="button"
             onClick={handleSubmit}
             disabled={isSaving || availableSuppliers.length === 0}
-            className="flex-1 min-h-11 px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-600 via-rose-600 to-red-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 hover:brightness-105 active:scale-95 transition-all disabled:opacity-60"
+            className="flex-1 min-h-11 px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-400 via-pink-400 to-red-400 text-rose-950 font-bold text-xs flex items-center justify-center gap-1.5 hover:brightness-105 active:scale-95 transition-all disabled:opacity-60"
           >
             <Save className="w-4 h-4" />
             {isSaving ? 'Kaydediliyor...' : editingPurchase ? 'Düzelt' : 'Kaydet'}
