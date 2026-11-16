@@ -777,7 +777,9 @@ export function normalizeDelivery(deliveryData: any, forceOffline = false): Deli
       ? deliveryData.dispenserGivenDetails
       : undefined,
     isOfflineSync: forceOffline || Boolean(deliveryData.isOfflineSync),
-    stockOverride: Boolean(deliveryData.stockOverride || deliveryData.allowStockOverride),
+    ...(deliveryData.stockOverride || deliveryData.allowStockOverride
+      ? { stockOverride: true }
+      : {}),
   };
 }
 

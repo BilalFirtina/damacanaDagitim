@@ -234,7 +234,7 @@ export function normalizeDeliveryInput(
     emptyContainersDiff,
     notes: (notes as string) || '',
     isOfflineSync: !!isOfflineSync,
-    stockOverride: !!allowStockOverride,
+    ...(allowStockOverride ? { stockOverride: true } : {}),
   };
 
   return { delivery, priceUpdates };

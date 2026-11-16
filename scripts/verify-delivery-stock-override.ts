@@ -80,7 +80,9 @@ check(
 );
 check(
   'deliveryInput stockOverride alanını taşıyor',
-  /stockOverride:\s*!!allowStockOverride/.test(deliveryInput)
+  /\.\.\.\(allowStockOverride \? \{ stockOverride: true \} : \{\}\)/.test(
+    deliveryInput
+  )
 );
 check(
   'şoför onay penceresi var',

@@ -1069,10 +1069,11 @@ function mapDeliveryFromDb(row: any, itemRows: any[] = [], containerRows: any[] 
     emptyContainersDiff,
     notes: row.notes || '',
     isOfflineSync: Boolean(row.is_offline_sync),
-    stockOverride: Boolean(row.stock_override),
-    stockOverrideDetails: Array.isArray(row.stock_override_details)
-      ? row.stock_override_details
-      : [],
+    ...(row.stock_override ? { stockOverride: true } : {}),
+    ...(Array.isArray(row.stock_override_details) &&
+    row.stock_override_details.length > 0
+      ? { stockOverrideDetails: row.stock_override_details }
+      : {}),
     status: row.status === 'cancelled' ? 'cancelled' : 'active',
     cancelledAt: row.cancelled_at || null,
     cancelledByUserId: row.cancelled_by_user_id || null,
