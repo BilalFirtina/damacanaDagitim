@@ -369,7 +369,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
             <h3 className="text-sm font-bold text-slate-900  flex items-center gap-2">
               <Building2 className="w-4 h-4 text-sky-600 shrink-0" />
               <span className="break-words">
-                Seferin Yapılan Teslimatları &amp; Tahsilatları ({combinedRows.length})
+                Seferde Yapılan Teslimatlar &amp; Tahsilatlar ({combinedRows.length})
               </span>
             </h3>
             <p className="text-xs text-slate-500 mt-0.5 break-words">
