@@ -181,6 +181,18 @@ export const isPostgresDirectConfigured = Boolean(
   !rawDatabaseUrl.includes('dummy')
 );
 
+// Yerel PostgreSQL servisleri genellikle SSL sunmaz. URL'de localhost yerine
+// 127.0.0.1 kullanılması da yerel kabul edilmelidir; aksi halde pg istemcisi
+// SSL zorunlu bağlanmaya çalışır ve CI'daki yerel veritabanına erişemez.
+function isLocalPostgresUrl(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.replace(/^\[|\]$/g, '');
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+  } catch {
+    return url.includes('localhost') || url.includes('127.0.0.1');
+  }
+}
+
 export let supabase: SupabaseClient | null = isSupabaseApiConfigured
   ? createClient(rawSupabaseUrl, rawSupabaseKey, {
       auth: { persistSession: false },
@@ -260,7 +272,7 @@ if (isPostgresDirectConfigured) {
   try {
     pgPool = new Pool({
       connectionString: rawDatabaseUrl,
-      ssl: rawDatabaseUrl.includes('localhost') ? false : { rejectUnauthorized: false },
+      ssl: isLocalPostgresUrl(rawDatabaseUrl) ? false : { rejectUnauthorized: false },
       max: 10,
       idleTimeoutMillis: 30000,
     });
