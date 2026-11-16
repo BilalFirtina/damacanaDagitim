@@ -23,6 +23,7 @@ import {
 } from "../../services/searchText";
 import { CustomerStatementModal } from "./CustomerStatementModal";
 import { CustomerPaymentModal } from "./CustomerPaymentModal";
+import { BalanceAdjustModal } from "./BalanceAdjustModal";
 
 interface CustomersManagementProps {
   customers: Customer[];
@@ -48,6 +49,8 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
     null,
   );
   const [paymentCustomer, setPaymentCustomer] = useState<Customer | null>(null);
+  const [balanceAdjustCustomer, setBalanceAdjustCustomer] =
+    useState<Customer | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // New customer form state
@@ -662,7 +665,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
 
               {/* Quick Actions (bakiye/boş kap sıfırlama yalnızca yöneticiye) */}
               {isAdmin && (
-                <div className="mt-4 pt-2 border-t border-slate-100  flex items-center justify-between text-[11px]">
+                <div className="mt-4 pt-2 border-t border-slate-100  flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
                   {((c.emptyDepositBalance?.damacana || 0) !== 0 ||
                     (c.emptyDepositBalance?.camDamacana || 0) !== 0 ||
                     (c.emptyDepositBalance?.tupBuyuk || 0) !== 0 ||
@@ -675,10 +678,18 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                       Boşları Sıfırla
                     </button>
                   )}
+                  {!c.isAccountCustomer && (
+                    <button
+                      onClick={() => setBalanceAdjustCustomer(c)}
+                      className="text-sky-700 hover:underline font-semibold ml-auto"
+                    >
+                      Bakiye Düzelt
+                    </button>
+                  )}
                   {!c.isAccountCustomer && (c.currentBalanceTL || 0) > 0 && (
                     <button
                       onClick={() => handleClearBalanceTL(c)}
-                      className="text-red-600 hover:underline ml-auto"
+                      className="text-red-600 hover:underline"
                     >
                       Borcu Kapat
                     </button>
@@ -1146,6 +1157,18 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                   ? { ...c, currentBalanceTL: newBalance }
                   : c,
               ),
+            );
+          }}
+        />
+      )}
+
+      {balanceAdjustCustomer && (
+        <BalanceAdjustModal
+          customer={balanceAdjustCustomer}
+          onClose={() => setBalanceAdjustCustomer(null)}
+          onSaved={(updated) => {
+            onCustomersUpdated(
+              customers.map((c) => (c.id === updated.id ? updated : c)),
             );
           }}
         />
