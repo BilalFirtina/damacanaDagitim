@@ -74,6 +74,8 @@ async function main() {
       ['purchases', 'status'],
       ['purchase_items', 'quantity'],
       ['purchase_items', 'unit_price'],
+      ['customer_dispensers', 'source_delivery_id'],
+      ['dispatches', 'collected_empty_sebil'],
     ];
     const columnRows = await client.query(
       `select table_name, column_name from information_schema.columns
@@ -98,17 +100,13 @@ async function main() {
       'public.cancel_purchase(jsonb)',
     ];
     const functionRows = await client.query(
-      `select n.nspname as schema_name, p.proname,
-              pg_get_function_identity_arguments(p.oid) as args
+      `select n.nspname as schema_name, p.oid::regprocedure::text as signature
        from pg_proc p
        join pg_namespace n on n.oid = p.pronamespace
        where n.nspname = 'public'`
     );
     const existingFunctions = new Set(
-      functionRows.rows.map(
-        (row: any) =>
-          `${row.schema_name}.${row.proname}(${String(row.args || '').replace(/\s+/g, '')})`
-      )
+      functionRows.rows.map((row: any) => `${row.schema_name}.${row.signature}`)
     );
     for (const fn of functions) {
       check(`fonksiyon: ${fn}`, existingFunctions.has(fn));
