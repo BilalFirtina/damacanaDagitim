@@ -86,10 +86,14 @@ const productLines = (row: ConsolidatedRow): string[] => {
   const lines = row.productLines.map(
     (line) => `${stripParentheses(line.name)} - ${line.quantity} ${line.unit || 'Adet'}`
   );
-  if (row.tupBuyukFull > 0) lines.push(`Büyük Dolu - ${row.tupBuyukFull}`);
-  if (row.tupKucukFull > 0) lines.push(`Küçük Dolu - ${row.tupKucukFull}`);
-  if (row.tupBuyukEmpty > 0) lines.push(`Büyük Boş - ${row.tupBuyukEmpty}`);
-  if (row.tupKucukEmpty > 0) lines.push(`Küçük Boş - ${row.tupKucukEmpty}`);
+  if (row.tupBuyukFull > 0)
+    lines.push(`Büyük Dolu - ${row.tupBuyukFull} adet verildi`);
+  if (row.tupKucukFull > 0)
+    lines.push(`Küçük Dolu - ${row.tupKucukFull} adet verildi`);
+  if (row.tupBuyukEmpty > 0)
+    lines.push(`Büyük Boş - ${row.tupBuyukEmpty} adet alındı`);
+  if (row.tupKucukEmpty > 0)
+    lines.push(`Küçük Boş - ${row.tupKucukEmpty} adet alındı`);
   if (row.sebilGiven > 0)
     lines.push(
       `Sebil - ${row.sebilGiven} adet (${row.customerName}) verildi`
