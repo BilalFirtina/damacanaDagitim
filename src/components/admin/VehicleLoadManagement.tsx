@@ -300,7 +300,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
         <div className="flex items-center justify-between pb-2 border-b border-slate-100 ">
           <div>
             <h3 className="text-xs font-bold text-slate-900  uppercase tracking-wider">
-              Şoför Depo Yükleme Yetkileri (canLoadVehicle)
+              Şoför Depo Yükleme Yetkileri
             </h3>
             <p className="text-[11px] text-slate-500">
               Yetkisi olmayan şoförler sabah sadece yüklenen adetleri kontrol edip teslim alma onayı verebilir.
