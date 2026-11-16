@@ -384,6 +384,8 @@ async function main() {
 }
 
 main().catch((error) => {
+  const message = String(error?.message || error || 'bilinmeyen hata');
   console.error('API entegrasyon hatası:', error);
+  console.log(`::error title=API entegrasyon::${message.slice(0, 900)}`);
   process.exit(1);
 });
