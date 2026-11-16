@@ -24,6 +24,7 @@ const DRIVER2 = { username: 'api_driver2', pin: '3333' };
 
 let passed = 0;
 let failed = 0;
+const failedChecks: string[] = [];
 
 function check(name: string, ok: boolean, detail = '') {
   if (ok) {
@@ -31,6 +32,7 @@ function check(name: string, ok: boolean, detail = '') {
     console.log(`  PASS  ${name}`);
   } else {
     failed++;
+    failedChecks.push(name);
     console.error(`  FAIL  ${name}${detail ? ` -- ${detail}` : ''}`);
   }
 }
@@ -375,7 +377,10 @@ async function main() {
   }
 
   console.log(`\nAPI entegrasyon: ${passed} başarılı, ${failed} başarısız`);
-  if (failed > 0) process.exit(1);
+  if (failed > 0) {
+    console.log(`::error title=API entegrasyon::${failedChecks.join(', ')}`);
+    process.exit(1);
+  }
 }
 
 main().catch((error) => {

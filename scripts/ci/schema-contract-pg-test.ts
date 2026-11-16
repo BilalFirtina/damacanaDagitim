@@ -168,7 +168,14 @@ async function main() {
 
   console.log(`\nŞema sözleşmesi: ${passed} başarılı, ${failed} başarısız`);
   writeReport();
-  if (failed > 0) process.exit(1);
+  if (failed > 0) {
+    const failedNames = report
+      .filter((item) => !item.ok)
+      .map((item) => item.name)
+      .join(', ');
+    console.log(`::error title=Şema sözleşmesi::${failedNames}`);
+    process.exit(1);
+  }
 }
 
 main().catch((error) => {
