@@ -84,8 +84,6 @@ async function main() {
       ['purchases', 'status'],
       ['purchase_items', 'quantity'],
       ['purchase_items', 'unit_price'],
-      ['customer_dispensers', 'source_delivery_id'],
-      ['dispatches', 'collected_empty_sebil'],
     ];
     const columnRows = await client.query(
       `select table_name, column_name from information_schema.columns
