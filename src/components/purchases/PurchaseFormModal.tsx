@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
+  ChevronDown,
   Plus,
   Save,
   Trash2,
@@ -8,14 +9,11 @@ import {
 } from 'lucide-react';
 import type { Product, Purchase, Supplier, User } from '../../types';
 import {
-  groupProductsByCategory,
-  sortProductsForLoading,
-} from '../../types';
-import {
   computePurchaseLineTotal,
   computePurchaseTotal,
 } from '../../services/purchaseRules';
 import { createPurchase, updatePurchase } from '../../services/api';
+import { ProductPickerSheet } from './ProductPickerSheet';
 
 interface PurchaseFormModalProps {
   open: boolean;
@@ -64,6 +62,7 @@ export const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
   const [rows, setRows] = useState<PurchaseRow[]>([newRow()]);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [productPickerRowKey, setProductPickerRowKey] = useState<string | null>(null);
 
   const activeSuppliers = useMemo(
     () => suppliers.filter((supplier) => supplier.isActive),
@@ -82,15 +81,12 @@ export const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
     }
     return list;
   }, [activeSuppliers, suppliers, editingPurchase]);
-  const productGroups = useMemo(
-    () => groupProductsByCategory(products, sortProductsForLoading),
-    [products]
-  );
 
   useEffect(() => {
     if (!open) return;
     setError(null);
     setIsSaving(false);
+    setProductPickerRowKey(null);
     if (editingPurchase) {
       setSupplierId(editingPurchase.supplierId);
       setDescription(editingPurchase.description || '');
@@ -127,6 +123,7 @@ export const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
   const addRow = () => setRows((prev) => [...prev, newRow()]);
   const removeRow = (key: string) => {
     setRows((prev) => (prev.length <= 1 ? prev : prev.filter((row) => row.key !== key)));
+    if (productPickerRowKey === key) setProductPickerRowKey(null);
   };
 
   const total = computePurchaseTotal(
@@ -293,6 +290,7 @@ export const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
                 Number(row.quantity) || 0,
                 row.unitPrice.trim() === '' ? null : Number(row.unitPrice)
               );
+              const selectedProduct = products.find((product) => product.id === row.productId);
               return (
                 <div
                   key={row.key}
@@ -315,22 +313,22 @@ export const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
 
                   <label className="block min-w-0">
                     <span className="text-[11px] text-slate-600 block mb-1">Ürün</span>
-                    <select
-                      value={row.productId}
-                      onChange={(e) => handleProductChange(row.key, e.target.value)}
-                      className="w-full min-h-11 p-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-900"
+                    <button
+                      type="button"
+                      onClick={() => setProductPickerRowKey(row.key)}
+                      className="w-full min-h-11 p-2.5 rounded-xl border border-slate-200 bg-white text-left flex items-center justify-between gap-2 hover:border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-300"
                     >
-                      <option value="">Ürün seçin</option>
-                      {productGroups.map((group) => (
-                        <optgroup key={group.code} label={group.title}>
-                          {group.products.map((product) => (
-                            <option key={product.id} value={product.id}>
-                              {product.name}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
+                      <span
+                        className={`min-w-0 text-xs break-words ${
+                          selectedProduct
+                            ? 'font-semibold text-slate-900'
+                            : 'text-slate-400'
+                        }`}
+                      >
+                        {selectedProduct?.name || 'Ürün seçin'}
+                      </span>
+                      <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                    </button>
                   </label>
 
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
@@ -427,6 +425,21 @@ export const PurchaseFormModal: React.FC<PurchaseFormModalProps> = ({
           </button>
         </div>
       </div>
+
+      <ProductPickerSheet
+        open={!!productPickerRowKey}
+        products={products}
+        selectedProductId={
+          rows.find((row) => row.key === productPickerRowKey)?.productId || undefined
+        }
+        onClose={() => setProductPickerRowKey(null)}
+        onSelect={(product) => {
+          if (productPickerRowKey) {
+            handleProductChange(productPickerRowKey, product.id);
+          }
+          setProductPickerRowKey(null);
+        }}
+      />
     </div>
   );
 };
