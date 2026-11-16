@@ -61,6 +61,8 @@ interface DeliveryModalProps {
   onCustomerCreated?: (customer: Customer) => void;
   editDelivery?: Delivery | null;
   onDeliveryUpdated?: () => void;
+  /** Aynı seferdeki aktif teslimatlar; kalan stok uyarısı için kullanılır. */
+  activeDeliveries?: Delivery[];
 }
 
 type DepositKey =
@@ -413,6 +415,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   onCustomerCreated,
   editDelivery,
   onDeliveryUpdated,
+  activeDeliveries = [],
 }) => {
   const isEdit = !!editDelivery;
   const initializedKeyRef = useRef<string | null>(null);
@@ -631,6 +634,8 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   >(null);
   const [warningExpiresAt, setWarningExpiresAt] = useState<number | null>(null);
   const [warningClock, setWarningClock] = useState(() => Date.now());
+  const [showStockOverrideConfirm, setShowStockOverrideConfirm] = useState(false);
+  const stockOverrideConfirmedRef = useRef(false);
 
   const showTransientError = (message: string) => {
     setErrorPersistent(false);
@@ -722,6 +727,19 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     emptySebilReturned;
   const hasDeliveryContent =
     deliveredItems.length > 0 || receivedEmptyTotal > 0;
+  const stockWarnings = computeStockWarnings(
+    deliveredItems,
+    dispatch.loadedItems,
+    activeDeliveries,
+    editDelivery?.id,
+  );
+  const stockWarningSignature = getStockWarningSignature(stockWarnings);
+  useEffect(() => {
+    if (!isOpen) {
+      setShowStockOverrideConfirm(false);
+      stockOverrideConfirmedRef.current = false;
+    }
+  }, [isOpen]);
   const selectedNegativeEmptyMessages = selectedCustomer
     ? negativeEmptyMessages(selectedCustomer.emptyDepositBalance)
     : [];
@@ -929,6 +947,13 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       return;
     }
 
+    if (stockWarnings.length > 0 && !stockOverrideConfirmedRef.current) {
+      setShowStockOverrideConfirm(true);
+      return;
+    }
+    const allowStockOverride = stockWarnings.length > 0;
+    stockOverrideConfirmedRef.current = false;
+
     try {
       setIsSubmitting(true);
       setErrorPersistent(false);
@@ -969,6 +994,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
           collectedPayment,
           emptyContainersReceived,
           notes: notes.trim(),
+          allowStockOverride,
         });
         onDeliveryUpdated?.();
         onClose();
@@ -994,6 +1020,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         dispenserReturns,
         dispenserGivenDetails: givenDispenserDetails,
         notes: notes.trim(),
+        allowStockOverride,
       };
 
       const result = await createDelivery(payload);
@@ -1010,12 +1037,6 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       setIsSubmitting(false);
     }
   };
-
-  const stockWarnings = computeStockWarnings(
-    deliveredItems,
-    dispatch.loadedItems,
-  );
-  const stockWarningSignature = getStockWarningSignature(stockWarnings);
 
   useEffect(() => {
     if (!stockWarningSignature) {
@@ -2534,10 +2555,11 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                 </div>
                 {stockWarnings.map((warning) => (
                   <p key={warning.productId} className="break-words">
-                    ⚠️ <strong>{warning.productName}</strong> için girilen
-                    miktar ({warning.qty}), araçtaki yüklü stoğu (
-                    {warning.vehicleQty}) aşıyor. Teslimat kaydedilebilir ancak
-                    gün sonu sayımında dikkate alınacaktır.
+                    ⚠️ <strong>{warning.productName}</strong>: kalan{" "}
+                    {warning.vehicleQty}, girilen {warning.qty} —{" "}
+                    <strong>{warning.oversellQty} adet stok aşımı</strong>.
+                    Teslimat onayınızla kaydedilebilir; gün sonunda stok aşımı
+                    olarak ayrıca gösterilecektir.
                   </p>
                 ))}
               </div>
@@ -2586,6 +2608,70 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
             </span>
           </button>
         </div>
+
+        {showStockOverrideConfirm && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="stock-override-title"
+              className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md p-4 sm:p-5 space-y-3"
+            >
+              <div className="flex items-start gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3
+                    id="stock-override-title"
+                    className="text-sm font-bold text-slate-900"
+                  >
+                    Stok Aşımını Onayla
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Araçta kalan stoktan fazla teslimat yapıyorsunuz.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 space-y-1">
+                {stockWarnings.map((warning) => (
+                  <div key={warning.productId} className="break-words">
+                    <strong>{warning.productName}</strong>: kalan{" "}
+                    {warning.vehicleQty}, girilen {warning.qty} —{" "}
+                    {warning.oversellQty} adet aşım
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-[11px] text-slate-500">
+                Devam ederseniz teslimat stok aşımı olarak kaydedilecek, denetim
+                kaydına işlenecek ve gün sonunda ayrıca gösterilecektir.
+              </p>
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowStockOverrideConfirm(false)}
+                  className="w-1/2 min-h-11 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold text-xs"
+                >
+                  Vazgeç
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowStockOverrideConfirm(false);
+                    stockOverrideConfirmedRef.current = true;
+                    void handleSubmitDelivery();
+                  }}
+                  className="w-1/2 min-h-11 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs"
+                >
+                  Onayla ve Kaydet
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

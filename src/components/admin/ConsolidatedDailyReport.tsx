@@ -936,6 +936,47 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                             </div>
                           )}
 
+                          {ret.oversoldProducts.length > 0 && (
+                            <div className="space-y-1">
+                              <div className="text-[11px] font-bold uppercase tracking-wide text-rose-700">
+                                Stok Aşımı (Yüklenenden Fazla Teslim)
+                              </div>
+                              <div className="overflow-x-auto print:overflow-visible">
+                                <table className="w-full text-xs border border-rose-400 border-collapse text-left">
+                                  <thead>
+                                    <tr className="border-b border-rose-400 bg-white">
+                                      <th className="p-0 border-r border-rose-400 text-left align-middle">Ürün</th>
+                                      <th className="p-0 border-r border-rose-400 text-center align-middle w-20">Arabaya Yüklenen</th>
+                                      <th className="p-0 border-r border-rose-400 text-center align-middle w-24">Teslim Edilen</th>
+                                      <th className="p-0 text-center align-middle w-24 text-rose-700">Aşım</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {ret.oversoldProducts.map((product) => (
+                                      <tr
+                                        key={product.productId}
+                                        className="border-b border-rose-400 last:border-b-0 align-middle"
+                                      >
+                                        <td className="p-0 border-r border-rose-400 text-left align-middle font-bold break-words">
+                                          {product.name}
+                                        </td>
+                                        <td className="p-0 border-r border-rose-400 text-center align-middle font-mono tabular-nums">
+                                          {product.loaded}
+                                        </td>
+                                        <td className="p-0 border-r border-rose-400 text-center align-middle font-mono tabular-nums">
+                                          {product.delivered}
+                                        </td>
+                                        <td className="p-0 text-center align-middle font-mono font-bold tabular-nums text-rose-700">
+                                          {product.oversold} {product.unit}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+
                           {(() => {
                             const linkedPurchases = purchasesForDispatch(ret.dispatchId);
                             if (linkedPurchases.length === 0) return null;

@@ -52,6 +52,58 @@ check('unknown product is treated as zero loaded stock', () => {
   assert.equal(warnings[0].vehicleQty, 0);
 });
 
+check('previous active deliveries reduce remaining stock', () => {
+  const warnings = computeStockWarnings(
+    [{ productId: 'damacana', productName: 'Damacana', quantity: 5 }],
+    loadedItems,
+    [
+      {
+        id: 'd1',
+        deliveredItems: [
+          { productId: 'damacana', productName: 'Damacana', quantity: 8 },
+        ],
+      },
+    ]
+  );
+  assert.equal(warnings.length, 1);
+  assert.equal(warnings[0].vehicleQty, 2);
+  assert.equal(warnings[0].oversellQty, 3);
+});
+
+check('cancelled deliveries do not reduce stock', () => {
+  const warnings = computeStockWarnings(
+    [{ productId: 'damacana', productName: 'Damacana', quantity: 5 }],
+    loadedItems,
+    [
+      {
+        id: 'd1',
+        status: 'cancelled',
+        deliveredItems: [
+          { productId: 'damacana', productName: 'Damacana', quantity: 8 },
+        ],
+      },
+    ]
+  );
+  assert.deepEqual(warnings, []);
+});
+
+check('edited delivery is excluded from previous deliveries', () => {
+  const warnings = computeStockWarnings(
+    [{ productId: 'damacana', productName: 'Damacana', quantity: 5 }],
+    loadedItems,
+    [
+      {
+        id: 'd-edit',
+        deliveredItems: [
+          { productId: 'damacana', productName: 'Damacana', quantity: 8 },
+        ],
+      },
+    ],
+    'd-edit'
+  );
+  assert.deepEqual(warnings, []);
+});
+
 check('signature changes when the quantity changes', () => {
   const first = getStockWarningSignature(
     computeStockWarnings(

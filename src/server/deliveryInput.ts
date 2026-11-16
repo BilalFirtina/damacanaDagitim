@@ -39,6 +39,8 @@ export interface NormalizeDeliveryInput {
   emptyContainersReceived: any;
   notes: unknown;
   isOfflineSync?: boolean;
+  /** Şoför stok aşımı uyarısını açıkça onayladıysa true. */
+  allowStockOverride?: boolean;
 }
 
 export interface NormalizedDeliveryInput {
@@ -65,6 +67,7 @@ export function normalizeDeliveryInput(
     emptyContainersReceived,
     notes,
     isOfflineSync,
+    allowStockOverride,
   } = input;
 
   if (deliveredItems !== undefined && !Array.isArray(deliveredItems)) {
@@ -231,6 +234,7 @@ export function normalizeDeliveryInput(
     emptyContainersDiff,
     notes: (notes as string) || '',
     isOfflineSync: !!isOfflineSync,
+    stockOverride: !!allowStockOverride,
   };
 
   return { delivery, priceUpdates };
@@ -343,11 +347,13 @@ export function assertVehicleStockAvailable(
   delivery: Delivery,
   dispatch: Dispatch,
   activeDeliveries: Delivery[],
-  excludeDeliveryId?: string
+  excludeDeliveryId?: string,
+  allowStockOverride = false
 ): void {
   const alreadyDelivered: Record<string, number> = {};
   for (const existing of activeDeliveries) {
     if (excludeDeliveryId && existing.id === excludeDeliveryId) continue;
+    if (existing.status === 'cancelled' || existing.cancelledAt) continue;
     for (const item of existing.deliveredItems || []) {
       alreadyDelivered[item.productId] =
         (alreadyDelivered[item.productId] || 0) + (Number(item.quantity) || 0);
@@ -358,7 +364,7 @@ export function assertVehicleStockAvailable(
     const loaded = dispatch.loadedItems.find((li) => li.productId === item.productId);
     const available =
       (Number(loaded?.quantity) || 0) - (alreadyDelivered[item.productId] || 0);
-    if (item.quantity > available) {
+    if (item.quantity > available && !allowStockOverride) {
       throw new DeliveryInputError(
         409,
         'Araçta bu üründen yeterli stok yok. Teslimat miktarı yüklenen miktarı aşamaz.',

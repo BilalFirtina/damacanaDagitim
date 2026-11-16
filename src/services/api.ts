@@ -777,6 +777,7 @@ export function normalizeDelivery(deliveryData: any, forceOffline = false): Deli
       ? deliveryData.dispenserGivenDetails
       : undefined,
     isOfflineSync: forceOffline || Boolean(deliveryData.isOfflineSync),
+    stockOverride: Boolean(deliveryData.stockOverride || deliveryData.allowStockOverride),
   };
 }
 
@@ -796,6 +797,7 @@ export async function createDelivery(deliveryData: any): Promise<{ delivery: Del
     const offlineDelivery = normalizeDelivery(payload, true);
     queue.push({
       ...offlineDelivery,
+      allowStockOverride: Boolean(payload.allowStockOverride),
       syncStatus: 'pending',
       queuedAt: new Date().toISOString(),
     });
@@ -831,6 +833,7 @@ export async function createDelivery(deliveryData: any): Promise<{ delivery: Del
     const offlineDelivery = normalizeDelivery(payload, true);
     queue.push({
       ...offlineDelivery,
+      allowStockOverride: Boolean(payload.allowStockOverride),
       syncStatus: 'pending',
       queuedAt: new Date().toISOString(),
     });
@@ -879,6 +882,7 @@ export async function replaceDelivery(
     collectedPayment: any;
     emptyContainersReceived: any;
     notes?: string;
+    allowStockOverride?: boolean;
   }
 ): Promise<DeliveryCorrectionResponse> {
   if (!navigator.onLine) {

@@ -516,7 +516,11 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
       ) : subTab === 'balances' ? (
         <BalancesReportView />
       ) : subTab === 'discrepancies' ? (
-        <DiscrepancyReport dispatches={reportData?.dispatches || []} products={products} />
+        <DiscrepancyReport
+          dispatches={reportData?.dispatches || []}
+          products={products}
+          deliveries={reportData?.deliveries || []}
+        />
       ) : subTab === 'drivers' ? (
         <DriverActivityReport
           dispatches={reportData?.dispatches || []}

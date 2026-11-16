@@ -1908,7 +1908,9 @@ app.post('/api/deliveries', async (req, res) => {
     dispenserGivenDetails,
     notes,
     isOfflineSync,
+    allowStockOverride: allowStockOverrideRaw,
   } = req.body;
+  const allowStockOverride = allowStockOverrideRaw === true;
 
   // İstemcinin gönderdiği kimlik yalnızca beklenen biçimdeyse kabul edilir.
   let clientDeliveryId: string | null = null;
@@ -1963,6 +1965,7 @@ app.post('/api/deliveries', async (req, res) => {
       emptyContainersReceived,
       notes,
       isOfflineSync,
+      allowStockOverride,
     });
 
     // Sebil iadesi serbest metin detayları; yalnızca yeni teslimatta kaydedilir.
@@ -2017,7 +2020,13 @@ app.post('/api/deliveries', async (req, res) => {
     // Araç stoğu: yüklenen miktardan, bu seferde daha önce teslim edilenler
     // düşülür. Kesin kontrol DB RPC'sinde kilit altında tekrarlanır.
     const existingDispatchDeliveries = await getDeliveries({ dispatchId: dispatch.id });
-    assertVehicleStockAvailable(newDelivery, dispatch, existingDispatchDeliveries);
+    assertVehicleStockAvailable(
+      newDelivery,
+      dispatch,
+      existingDispatchDeliveries,
+      undefined,
+      allowStockOverride
+    );
 
     // Aşağıdaki mutasyonlar yalnızca yerel (fallback) yansıma içindir; merkezi
     // bakiyeyi DB'de apply_delivery delta olarak günceller. Tekrar kontrolünden
@@ -2319,6 +2328,7 @@ app.post('/api/deliveries/:id/replace', async (req, res) => {
       emptyContainersReceived: req.body?.emptyContainersReceived,
       notes: req.body?.notes,
       isOfflineSync: false,
+      allowStockOverride: req.body?.allowStockOverride === true,
     });
 
     if (existing.status !== 'cancelled') {
@@ -2327,7 +2337,8 @@ app.post('/api/deliveries/:id/replace', async (req, res) => {
         replacement,
         dispatch,
         activeDeliveries,
-        existing.id
+        existing.id,
+        replacement.stockOverride === true
       );
     }
 

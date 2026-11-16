@@ -2,7 +2,10 @@ export interface StockWarningItem {
   productId: string;
   productName: string;
   qty: number;
+  /** Önceki aktif teslimatlar düşüldükten sonra kalan araç stoğu. */
   vehicleQty: number;
+  /** Bu teslimatın kalan stoğu aşan miktarı. */
+  oversellQty: number;
 }
 
 interface DeliveredItemLike {
@@ -16,22 +19,46 @@ interface LoadedItemLike {
   quantity: number;
 }
 
+interface ActiveDeliveryLike {
+  id: string;
+  status?: 'active' | 'cancelled';
+  cancelledAt?: string | null;
+  deliveredItems?: DeliveredItemLike[];
+}
+
 export const STOCK_WARNING_DURATION_MS = 4000;
 
 export function computeStockWarnings(
   deliveredItems: DeliveredItemLike[],
-  loadedItems: LoadedItemLike[]
+  loadedItems: LoadedItemLike[],
+  activeDeliveries: ActiveDeliveryLike[] = [],
+  excludeDeliveryId?: string
 ): StockWarningItem[] {
+  const previouslyDelivered: Record<string, number> = {};
+  for (const delivery of activeDeliveries) {
+    if (excludeDeliveryId && delivery.id === excludeDeliveryId) continue;
+    if (delivery.status === 'cancelled' || delivery.cancelledAt) continue;
+    for (const item of delivery.deliveredItems || []) {
+      previouslyDelivered[item.productId] =
+        (previouslyDelivered[item.productId] || 0) + (Number(item.quantity) || 0);
+    }
+  }
+
   return deliveredItems
     .map((item) => {
       const loaded = loadedItems.find((loadedItem) => loadedItem.productId === item.productId);
-      const vehicleQty = loaded ? loaded.quantity : 0;
-      if (item.quantity > vehicleQty) {
+      const loadedQty = Number(loaded?.quantity) || 0;
+      const remainingQty = Math.max(
+        0,
+        loadedQty - (previouslyDelivered[item.productId] || 0)
+      );
+      if (item.quantity > remainingQty) {
         return {
           productId: item.productId,
           productName: item.productName,
           qty: item.quantity,
-          vehicleQty,
+          vehicleQty: remainingQty,
+          oversellQty: item.quantity - remainingQty,
         };
       }
       return null;

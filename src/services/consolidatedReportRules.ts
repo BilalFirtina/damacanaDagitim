@@ -34,6 +34,7 @@ export interface DispatchReturnProduct {
   loaded: number;
   delivered: number;
   remaining: number;
+  oversold: number;
   isDeposit: boolean;
 }
 
@@ -48,6 +49,7 @@ export interface DispatchReturnSummary {
   emptyTupKucuk: number;
   sebilReceived: number;
   remainingProducts: DispatchReturnProduct[];
+  oversoldProducts: DispatchReturnProduct[];
 }
 
 export interface ReportDriver {
@@ -547,22 +549,36 @@ export function buildConsolidatedReport(input: {
     };
     const deliveredMap = deliveredByDispatch.get(dispatch.id);
     const remainingProducts: DispatchReturnProduct[] = [];
+    const oversoldProducts: DispatchReturnProduct[] = [];
 
     for (const loaded of dispatch.loadedItems || []) {
       const loadedQuantity = toNumber(loaded.quantity);
       const deliveredQuantity = deliveredMap?.get(loaded.productId) || 0;
       const remaining = loadedQuantity - deliveredQuantity;
-      if (remaining <= 0) continue;
       const product = productById.get(loaded.productId);
-      remainingProducts.push({
-        productId: loaded.productId,
-        name: product?.name || loaded.productId,
-        unit: product?.unit || 'Adet',
-        loaded: loadedQuantity,
-        delivered: deliveredQuantity,
-        remaining,
-        isDeposit: Boolean(product?.isDeposit),
-      });
+      if (remaining > 0) {
+        remainingProducts.push({
+          productId: loaded.productId,
+          name: product?.name || loaded.productId,
+          unit: product?.unit || 'Adet',
+          loaded: loadedQuantity,
+          delivered: deliveredQuantity,
+          remaining,
+          oversold: 0,
+          isDeposit: Boolean(product?.isDeposit),
+        });
+      } else if (remaining < 0) {
+        oversoldProducts.push({
+          productId: loaded.productId,
+          name: product?.name || loaded.productId,
+          unit: product?.unit || 'Adet',
+          loaded: loadedQuantity,
+          delivered: deliveredQuantity,
+          remaining: 0,
+          oversold: Math.abs(remaining),
+          isDeposit: Boolean(product?.isDeposit),
+        });
+      }
     }
 
     const hasEmpty =
@@ -571,7 +587,13 @@ export function buildConsolidatedReport(input: {
       empty.tupBuyuk > 0 ||
       empty.tupKucuk > 0 ||
       empty.sebil > 0;
-    if (!hasEmpty && remainingProducts.length === 0) continue;
+    if (
+      !hasEmpty &&
+      remainingProducts.length === 0 &&
+      oversoldProducts.length === 0
+    ) {
+      continue;
+    }
 
     const driverReturns = returnsByDriver.get(dispatch.driverId) || [];
     driverReturns.push({
@@ -585,6 +607,7 @@ export function buildConsolidatedReport(input: {
       emptyTupKucuk: empty.tupKucuk,
       sebilReceived: empty.sebil,
       remainingProducts,
+      oversoldProducts,
     });
     returnsByDriver.set(dispatch.driverId, driverReturns);
   }

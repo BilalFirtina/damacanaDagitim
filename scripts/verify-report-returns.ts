@@ -215,5 +215,48 @@ check(
 console.log('\n[4) Sıfır tüp davranışı]');
 check('sıfır adetli ürün yok', first.remainingProducts.every((p) => p.remaining > 0), true);
 
+console.log('\n[5) Stok aşımı ayrı raporlanır]');
+const oversellReport = buildConsolidatedReport({
+  deliveries: [
+    delivery(
+      'del-ov',
+      'disp-ov',
+      'd1',
+      '01 A',
+      [{ productId: 'p-pet', name: "Hayat 1.5 lt Pet Su (6'lı Koli)", qty: 3, price: 110 }],
+      {}
+    ),
+  ],
+  payments: [],
+  dispatches: [
+    {
+      id: 'disp-ov',
+      driverId: 'd1',
+      driverName: 'Ali',
+      vehiclePlate: '01 A',
+      loadedItems: [{ productId: 'p-pet', quantity: 1 }],
+    },
+  ],
+  products,
+  customers,
+  drivers: [{ id: 'd1', name: 'Ali' }],
+});
+const oversellReturn = oversellReport.drivers[0]?.returns[0];
+check(
+  'aşım miktarı ve yüklenen/teslim edilen',
+  oversellReturn?.oversoldProducts.map((p) => [
+    p.productId,
+    p.loaded,
+    p.delivered,
+    p.oversold,
+  ]),
+  [['p-pet', 1, 3, 2]]
+);
+check(
+  'aşım varsa kalan ürün listesine girmez',
+  oversellReturn?.remainingProducts.length,
+  0
+);
+
 console.log(`\nResult: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

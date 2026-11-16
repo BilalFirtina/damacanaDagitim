@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Dispatch, Product } from '../../types';
+import { Delivery, Dispatch, Product } from '../../types';
 import { AlertTriangle, CheckCircle2, Search, Truck } from 'lucide-react';
 
 const moneyFmt = new Intl.NumberFormat('tr-TR', {
@@ -14,6 +14,7 @@ function money(value: number): string {
 interface DiscrepancyReportProps {
   dispatches: Dispatch[];
   products: Product[];
+  deliveries?: Delivery[];
 }
 
 // AGENTS.md Bölüm 9 ve 10.2 — Araçta kalan ürün, nakit ve POS uyuşmazlıkları.
@@ -21,6 +22,7 @@ interface DiscrepancyReportProps {
 export const DiscrepancyReport: React.FC<DiscrepancyReportProps> = ({
   dispatches,
   products,
+  deliveries = [],
 }) => {
   const [onlyProblems, setOnlyProblems] = useState(true);
   const [search, setSearch] = useState('');
@@ -28,10 +30,33 @@ export const DiscrepancyReport: React.FC<DiscrepancyReportProps> = ({
   const productName = (id: string) => products.find((p) => p.id === id)?.name || id;
 
   const rows = useMemo(() => {
+    const deliveredByDispatch = new Map<string, Record<string, number>>();
+    for (const delivery of deliveries) {
+      const bucket = deliveredByDispatch.get(delivery.dispatchId) || {};
+      for (const item of delivery.deliveredItems || []) {
+        bucket[item.productId] =
+          (bucket[item.productId] || 0) + (Number(item.quantity) || 0);
+      }
+      deliveredByDispatch.set(delivery.dispatchId, bucket);
+    }
+
     return dispatches
       .filter((d) => d.status === 'completed' && d.endOfDayReconciliation)
       .map((dispatch) => {
         const recon = dispatch.endOfDayReconciliation!;
+        const deliveredMap = deliveredByDispatch.get(dispatch.id) || {};
+        const oversells = (dispatch.loadedItems || [])
+          .map((loaded) => {
+            const delivered = deliveredMap[loaded.productId] || 0;
+            return {
+              productId: loaded.productId,
+              loaded: Number(loaded.quantity) || 0,
+              delivered,
+              oversell: Math.max(0, delivered - (Number(loaded.quantity) || 0)),
+            };
+          })
+          .filter((row) => row.oversell > 0);
+
         const stockDiffs = Object.keys(recon.remainingFullCounted || {})
           .map((productId) => {
             const counted = Number(recon.remainingFullCounted[productId]) || 0;
@@ -49,9 +74,14 @@ export const DiscrepancyReport: React.FC<DiscrepancyReportProps> = ({
           dispatch,
           recon,
           stockDiffs,
+          oversells,
           cashDiff,
           posDiff,
-          hasProblem: stockDiffs.length > 0 || Math.abs(cashDiff) > 0.005 || Math.abs(posDiff) > 0.005,
+          hasProblem:
+            stockDiffs.length > 0 ||
+            oversells.length > 0 ||
+            Math.abs(cashDiff) > 0.005 ||
+            Math.abs(posDiff) > 0.005,
         };
       })
       .filter((row) => {
@@ -65,7 +95,7 @@ export const DiscrepancyReport: React.FC<DiscrepancyReportProps> = ({
         );
       })
       .sort((a, b) => (a.dispatch.date < b.dispatch.date ? 1 : -1));
-  }, [dispatches, onlyProblems, search]);
+  }, [dispatches, deliveries, onlyProblems, search]);
 
   return (
     <div className="space-y-4 w-full max-w-full min-w-0">
@@ -183,6 +213,25 @@ export const DiscrepancyReport: React.FC<DiscrepancyReportProps> = ({
                         {productName(d.productId)} - beklenen {d.expected}, sayılan {d.counted} (
                         {d.diff > 0 ? '+' : ''}
                         {d.diff})
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {row.oversells.length > 0 && (
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-rose-600">
+                    Stok Aşımı (Yüklenenden Fazla Teslim)
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {row.oversells.map((d) => (
+                      <span
+                        key={d.productId}
+                        className="px-2 py-1 rounded-lg bg-rose-50 text-rose-800 text-[11px] font-mono break-words"
+                      >
+                        {productName(d.productId)} - yüklenen {d.loaded}, teslim edilen{' '}
+                        {d.delivered} (+{d.oversell})
                       </span>
                     ))}
                   </div>

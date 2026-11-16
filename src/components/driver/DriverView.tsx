@@ -500,6 +500,11 @@ export const DriverView: React.FC<DriverViewProps> = ({
                       <span className="font-bold text-xs text-slate-900  break-words">
                         {del.customerName}
                       </span>
+                      {del.stockOverride && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 border border-rose-200">
+                          Stok aşımı
+                        </span>
+                      )}
                       <span className="text-[10px] text-slate-400 font-mono">
                         {timeStr}
                       </span>
@@ -653,6 +658,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
             currentUser={currentUser}
             customers={customers}
             products={products}
+            activeDeliveries={myDeliveries}
             onDeliveryCreated={onDeliveryCreated}
             onCustomerCreated={onCustomerCreated}
           />
@@ -664,6 +670,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
             customers={customers}
             products={products}
             editDelivery={editTarget}
+            activeDeliveries={myDeliveries}
             onDeliveryCreated={onDeliveryCreated}
             onDeliveryUpdated={() => {
               setEditTarget(null);

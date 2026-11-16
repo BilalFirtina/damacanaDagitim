@@ -112,6 +112,14 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
     0,
     loadedGlassDamacana - deliveredGlassDamacana
   );
+  const oversellPlasticDamacana = Math.max(
+    0,
+    deliveredPlasticDamacana - loadedPlasticDamacana
+  );
+  const oversellGlassDamacana = Math.max(
+    0,
+    deliveredGlassDamacana - loadedGlassDamacana
+  );
   const showGlassDamacana = loadedGlassDamacana > 0;
 
   return (
@@ -131,6 +139,11 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
               <span className="block text-[11px] font-semibold text-slate-500">
                 Damacana
               </span>
+              {oversellPlasticDamacana > 0 && (
+                <span className="block text-[10px] font-bold text-rose-600">
+                  Stok aşımı: {oversellPlasticDamacana}
+                </span>
+              )}
             </div>
             {showGlassDamacana && (
               <div className="py-1.5">
@@ -140,6 +153,11 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
                 <span className="block text-[11px] font-semibold text-amber-600">
                   Cam Damacana
                 </span>
+                {oversellGlassDamacana > 0 && (
+                  <span className="block text-[10px] font-bold text-rose-600">
+                    Stok aşımı: {oversellGlassDamacana}
+                  </span>
+                )}
               </div>
             )}
           </div>

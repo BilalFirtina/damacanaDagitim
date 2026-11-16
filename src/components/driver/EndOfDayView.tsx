@@ -206,12 +206,15 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
 
   // Calculate expected remaining full items
   const expectedRemainingFull: Record<string, number> = {};
+  const oversoldFull: Record<string, number> = {};
   currentViewDispatch.loadedItems.forEach((loaded) => {
     const deliveredCount = deliveredTotals[loaded.productId] || 0;
     expectedRemainingFull[loaded.productId] = Math.max(
       0,
       loaded.quantity - deliveredCount
     );
+    const oversell = Math.max(0, deliveredCount - loaded.quantity);
+    if (oversell > 0) oversoldFull[loaded.productId] = oversell;
   });
 
   // Counted full items state
@@ -244,6 +247,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
         loaded: loaded.quantity,
         delivered,
         counted,
+        oversold: oversoldFull[loaded.productId] || 0,
       };
     }
   );
@@ -480,6 +484,16 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                     {row.delivered}
                   </span>
                 </div>
+                {row.oversold > 0 && (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[13px] font-bold text-rose-600">
+                      Stok Aşımı
+                    </span>
+                    <span className="font-mono font-bold text-rose-600 tabular-nums">
+                      {row.oversold} {row.unit}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-1.5">
                   <span className="text-[13px] font-medium text-sky-700">
                     Depoya İndirilecekler
@@ -523,6 +537,11 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                   </td>
                   <td className="py-3.5 px-2 text-center font-mono font-bold text-emerald-700 tabular-nums">
                     {row.delivered}
+                    {row.oversold > 0 && (
+                      <span className="block text-[10px] font-bold text-rose-600">
+                        Aşım: {row.oversold}
+                      </span>
+                    )}
                   </td>
                   <td className="py-3.5 pl-2 text-center font-mono font-bold text-sky-700 tabular-nums">
                     {row.counted} {row.unit}

@@ -442,6 +442,18 @@ export interface Delivery {
   };
   notes?: string;
   isOfflineSync?: boolean;
+  /** Yüklenen/kalan stoktan fazla teslimat şoför tarafından onaylandı. */
+  stockOverride?: boolean;
+  /** Onaylı stok aşımının ürün bazında anlık görüntüsü. */
+  stockOverrideDetails?: Array<{
+    productId: string;
+    productName?: string;
+    loaded: number;
+    deliveredBefore: number;
+    remaining: number;
+    requested: number;
+    oversell: number;
+  }>;
   /** Yalnızca yeni teslimatta sebil iadesi için gönderilen serbest metin detayları. */
   dispenserReturns?: DispenserDetailInput[];
   /** Yalnızca yeni teslimatta bırakılan sebil marka/model/açıklama detayları. */

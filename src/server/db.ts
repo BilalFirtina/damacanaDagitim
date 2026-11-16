@@ -1069,6 +1069,10 @@ function mapDeliveryFromDb(row: any, itemRows: any[] = [], containerRows: any[] 
     emptyContainersDiff,
     notes: row.notes || '',
     isOfflineSync: Boolean(row.is_offline_sync),
+    stockOverride: Boolean(row.stock_override),
+    stockOverrideDetails: Array.isArray(row.stock_override_details)
+      ? row.stock_override_details
+      : [],
     status: row.status === 'cancelled' ? 'cancelled' : 'active',
     cancelledAt: row.cancelled_at || null,
     cancelledByUserId: row.cancelled_by_user_id || null,
@@ -4014,6 +4018,7 @@ function buildApplyDeliveryPayload(del: Delivery): Record<string, any> {
     payment_status: del.collectedPayment?.status || 'unpaid',
     notes: del.notes || '',
     is_offline_sync: !!del.isOfflineSync,
+    stock_override: !!del.stockOverride,
     items,
     container_returns: containerReturns,
     empty_deltas: emptyDeltas,

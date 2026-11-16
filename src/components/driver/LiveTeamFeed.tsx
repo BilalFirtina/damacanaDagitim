@@ -474,6 +474,11 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
                       <span className="text-sm font-bold text-slate-900  break-words">
                         {item.customerName}
                       </span>
+                      {item.stockOverride && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 border border-rose-200">
+                          Stok aşımı
+                        </span>
+                      )}
                       {item.customerAddress && (
                         <span className="text-xs text-slate-400 break-words">· {item.customerAddress}</span>
                       )}
