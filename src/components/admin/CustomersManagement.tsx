@@ -278,19 +278,6 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
     }
   };
 
-  const handleToggleAccountCustomer = async (cust: Customer) => {
-    try {
-      const updated = await updateCustomer(cust.id, {
-        isAccountCustomer: !cust.isAccountCustomer,
-      });
-      onCustomersUpdated(
-        customers.map((c) => (c.id === cust.id ? updated : c)),
-      );
-    } catch (err: any) {
-      alert(err.message || "Güncellenemedi");
-    }
-  };
-
   const handleClearDeposit = async (cust: Customer) => {
     if (!isAdmin) {
       alert(
@@ -544,9 +531,8 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
 
-                    <button
-                      onClick={() => handleToggleAccountCustomer(c)}
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition-colors shrink-0 ${
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-md shrink-0 cursor-default select-none ${
                         c.isAccountCustomer
                           ? "bg-sky-100 text-sky-800  "
                           : "bg-red-100 text-red-800  "
@@ -554,7 +540,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                       title="Cari Hesap Durumu"
                     >
                       {c.isAccountCustomer ? "Faturalı" : "Peşin"}
-                    </button>
+                    </span>
                   </div>
                 </div>
 
