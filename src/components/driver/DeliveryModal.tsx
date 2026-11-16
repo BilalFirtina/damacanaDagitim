@@ -743,6 +743,25 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const selectedNegativeEmptyMessages = selectedCustomer
     ? negativeEmptyMessages(selectedCustomer.emptyDepositBalance)
     : [];
+  const selectedCustomerEmptyParts = selectedCustomer
+    ? [
+        (selectedCustomer.emptyDepositBalance?.damacana || 0) > 0
+          ? `${selectedCustomer.emptyDepositBalance.damacana} Damacana`
+          : null,
+        (selectedCustomer.emptyDepositBalance?.camDamacana || 0) > 0
+          ? `${selectedCustomer.emptyDepositBalance.camDamacana} Cam Damacana`
+          : null,
+        (selectedCustomer.emptyDepositBalance?.tupBuyuk || 0) > 0
+          ? `${selectedCustomer.emptyDepositBalance.tupBuyuk} Büyük Tüp`
+          : null,
+        (selectedCustomer.emptyDepositBalance?.tupKucuk || 0) > 0
+          ? `${selectedCustomer.emptyDepositBalance.tupKucuk} Küçük Tüp`
+          : null,
+        (selectedCustomer.emptyDepositBalance?.sebil || 0) > 0
+          ? `${selectedCustomer.emptyDepositBalance.sebil} Sebil`
+          : null,
+      ].filter((part): part is string => part !== null)
+    : [];
 
   // Calculate delivered deposit items
   const deliveredDeposits = computeDeliveredDeposits(
@@ -1543,26 +1562,10 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       </span>
                     ))}
 
-                    {(selectedCustomer.emptyDepositBalance?.damacana > 0 ||
-                      selectedCustomer.emptyDepositBalance?.camDamacana > 0 ||
-                      (selectedCustomer.emptyDepositBalance?.tupBuyuk || 0) > 0 ||
-                      (selectedCustomer.emptyDepositBalance?.tupKucuk || 0) > 0) && (
+                    {selectedCustomerEmptyParts.length > 0 && (
                       <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-orange-100 text-orange-800  ">
                         Müşteride Kalan Boş:{" "}
-                        {selectedCustomer.emptyDepositBalance?.damacana || 0}{" "}
-                        Damacana
-                        {selectedCustomer.emptyDepositBalance?.camDamacana > 0
-                          ? `, ${selectedCustomer.emptyDepositBalance.camDamacana} Cam Damacana`
-                          : ""}
-                        {(selectedCustomer.emptyDepositBalance?.tupBuyuk || 0) > 0
-                          ? `, ${selectedCustomer.emptyDepositBalance.tupBuyuk} Büyük Tüp`
-                          : ""}
-                        {(selectedCustomer.emptyDepositBalance?.tupKucuk || 0) > 0
-                          ? `, ${selectedCustomer.emptyDepositBalance.tupKucuk} Küçük Tüp`
-                          : ""}
-                        {(selectedCustomer.emptyDepositBalance?.sebil || 0) > 0
-                          ? `, ${selectedCustomer.emptyDepositBalance?.sebil} Sebil`
-                          : ""}
+                        {selectedCustomerEmptyParts.join(", ")}
                       </span>
                     )}
 

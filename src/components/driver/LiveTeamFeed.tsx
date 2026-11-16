@@ -421,6 +421,20 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
             const isMe = item.driverId === currentUser.id;
             const pal = getDriverPalette(item.driverId, item.driverName);
             const isAccount = isAccountCustomerDelivery(item, customers);
+            const emptyParts = [
+              (item.emptyContainersReceived?.damacana || 0) > 0
+                ? `${item.emptyContainersReceived.damacana} Boş Damacana`
+                : null,
+              (item.emptyContainersReceived?.camDamacana || 0) > 0
+                ? `${item.emptyContainersReceived.camDamacana} Boş Cam Damacana`
+                : null,
+              (item.emptyContainersReceived?.tupBuyuk || 0) > 0
+                ? `${item.emptyContainersReceived.tupBuyuk} Büyük Boş Tüp`
+                : null,
+              (item.emptyContainersReceived?.tupKucuk || 0) > 0
+                ? `${item.emptyContainersReceived.tupKucuk} Küçük Boş Tüp`
+                : null,
+            ].filter((part): part is string => part !== null);
 
             return (
               <div
@@ -510,33 +524,11 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
                     </div>
 
                     {/* Deposit empty containers */}
-                    {(item.emptyContainersReceived?.damacana > 0 ||
-                      (item.emptyContainersReceived?.camDamacana || 0) > 0 ||
-                      (item.emptyContainersReceived?.tupBuyuk || 0) > 0 ||
-                      (item.emptyContainersReceived?.tupKucuk || 0) > 0) && (
+                    {emptyParts.length > 0 && (
                       <div className="flex items-center gap-1 text-[11px] font-medium text-orange-600 ">
                         <RotateCcw className="w-3.5 h-3.5" />
                         <span>Alınan Boş Kap:</span>
-                        {item.emptyContainersReceived.damacana > 0 && (
-                          <strong className="font-mono">
-                            {item.emptyContainersReceived.damacana} Boş Damacana
-                          </strong>
-                        )}
-                        {(item.emptyContainersReceived.camDamacana || 0) > 0 && (
-                          <strong className="font-mono">
-                            , {item.emptyContainersReceived.camDamacana} Boş Cam Damacana
-                          </strong>
-                        )}
-                        {(item.emptyContainersReceived.tupBuyuk || 0) > 0 && (
-                          <strong className="font-mono">
-                            , {item.emptyContainersReceived.tupBuyuk} Büyük Boş Tüp
-                          </strong>
-                        )}
-                        {(item.emptyContainersReceived.tupKucuk || 0) > 0 && (
-                          <strong className="font-mono">
-                            , {item.emptyContainersReceived.tupKucuk} Küçük Boş Tüp
-                          </strong>
-                        )}
+                        <strong className="font-mono">{emptyParts.join(", ")}</strong>
                       </div>
                     )}
 

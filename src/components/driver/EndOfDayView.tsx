@@ -704,6 +704,25 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
           ) : (
             dispatchDeliveries.map((del, index) => {
               const isAccount = isAccountCustomerDelivery(del, customers);
+              const deliveredParts = del.deliveredItems.map((i) => {
+                const unit = products.find((p) => p.id === i.productId)?.unit;
+                return `${i.productName} - ${i.quantity}${unit ? ` ${unit}` : ''}`;
+              });
+              const emptyReturnParts = [
+                del.emptyContainersReceived.damacana > 0
+                  ? `${del.emptyContainersReceived.damacana} Boş`
+                  : null,
+                (del.emptyContainersReceived.camDamacana || 0) > 0
+                  ? `${del.emptyContainersReceived.camDamacana} Boş Cam`
+                  : null,
+                (del.emptyContainersReceived.tupBuyuk || 0) > 0
+                  ? `${del.emptyContainersReceived.tupBuyuk} Büyük Boş Tüp`
+                  : null,
+                (del.emptyContainersReceived.tupKucuk || 0) > 0
+                  ? `${del.emptyContainersReceived.tupKucuk} Küçük Boş Tüp`
+                  : null,
+              ].filter((part): part is string => part !== null);
+              const deliverySummary = [...deliveredParts, ...emptyReturnParts].join(' · ');
               return (
                 <div key={del.id} className="py-2.5 flex items-center justify-between">
                   <div className="space-y-0.5">
@@ -714,18 +733,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                       </span>
                     </div>
                     <div className="text-[11px] text-slate-500">
-                      {del.deliveredItems
-                        .map((i) => {
-                          const unit = products.find((p) => p.id === i.productId)?.unit;
-                          return `${i.productName} - ${i.quantity}${unit ? ` ${unit}` : ''}`;
-                        })
-                        .join(' · ')}
-                      {del.emptyContainersReceived.damacana > 0 && ` · ${del.emptyContainersReceived.damacana} Boş`}
-                      {(del.emptyContainersReceived.camDamacana || 0) > 0 && ` · ${del.emptyContainersReceived.camDamacana} Boş Cam`}
-                      {(del.emptyContainersReceived.tupBuyuk || 0) > 0 &&
-                        ` · ${del.emptyContainersReceived.tupBuyuk} Büyük Boş Tüp`}
-                      {(del.emptyContainersReceived.tupKucuk || 0) > 0 &&
-                        ` · ${del.emptyContainersReceived.tupKucuk} Küçük Boş Tüp`}
+                      {deliverySummary}
                     </div>
                   </div>
 
