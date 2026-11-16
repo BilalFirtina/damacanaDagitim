@@ -62,6 +62,14 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
     return d.driverId === currentUser.id;
   });
 
+  // Sefer numarası kronolojiktir: ilk oluşturulan sefer #1 olur.
+  // Liste bu sırayla gösterilir (mobilde en üstte, masaüstünde en solda #1).
+  const orderedDispatches = [...candidateDispatches].sort((a, b) =>
+    a.date === b.date
+      ? (a.createdAt || '').localeCompare(b.createdAt || '')
+      : a.date.localeCompare(b.date)
+  );
+
   // Selected dispatch ID state
   const [selectedDispatchId, setSelectedDispatchId] = useState<string>(() => {
     if (selectedDispatchIdProp) return selectedDispatchIdProp;
@@ -280,14 +288,14 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
   return (
     <div className="space-y-6 w-full max-w-full min-w-0">
       {/* Trip Switcher if Multiple Dispatches exist today */}
-      {candidateDispatches.length > 1 && (
+      {orderedDispatches.length > 1 && (
         <div className="bg-slate-100  p-2.5 rounded-2xl flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-700 ">
             <Truck className="w-4 h-4 text-sky-600" />
-            <span>Seferler ({candidateDispatches.length}):</span>
+            <span>Seferler ({orderedDispatches.length}):</span>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {candidateDispatches.map((disp, idx) => (
+            {orderedDispatches.map((disp, idx) => (
               <button
                 key={disp.id}
                 onClick={() => {
