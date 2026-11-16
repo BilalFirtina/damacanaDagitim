@@ -99,8 +99,11 @@ async function seedReference(c: Client): Promise<void> {
 async function resetTransactional(c: Client): Promise<void> {
   // dispatches CASCADE, FK nedeniyle customer_payments'i de truncate eder;
   // denetim trigger'ı yalnızca test kurulumunda geçici olarak kapatılır.
+  const paymentTrigger = 'trg_customer_payments_no_truncate';
+  const paymentAuditTrigger = 'trg_customer_payment_audit_no_truncate';
+  await c.query(`ALTER TABLE public.customer_payments DISABLE TRIGGER ${paymentTrigger}`);
   await c.query(
-    'ALTER TABLE public.customer_payments DISABLE TRIGGER trg_customer_payments_no_truncate'
+    `ALTER TABLE public.customer_payment_audit DISABLE TRIGGER ${paymentAuditTrigger}`
   );
   try {
     await c.query(`
@@ -114,8 +117,9 @@ async function resetTransactional(c: Client): Promise<void> {
       RESTART IDENTITY CASCADE;
     `);
   } finally {
+    await c.query(`ALTER TABLE public.customer_payments ENABLE TRIGGER ${paymentTrigger}`);
     await c.query(
-      'ALTER TABLE public.customer_payments ENABLE TRIGGER trg_customer_payments_no_truncate'
+      `ALTER TABLE public.customer_payment_audit ENABLE TRIGGER ${paymentAuditTrigger}`
     );
   }
   // Denetim tablosu normalde TRUNCATE edilemez. Test izolasyonu icin trigger
