@@ -21,6 +21,8 @@ export interface ReportPayment {
 
 export interface ReportDispatch {
   id?: string;
+  date?: string;
+  createdAt?: string;
   driverId: string;
   driverName: string;
   vehiclePlate: string;
@@ -263,6 +265,15 @@ export function buildConsolidatedReport(input: {
   const customerById = new Map(input.customers.map((c) => [c.id, c]));
   const driverNameById = new Map(input.drivers.map((d) => [d.id, d.name]));
 
+  // Aynı şoförün gün içindeki seferleri sisteme giriş sırasına göre
+  // numaralanır. Global sefer numarası başka ekranlarda ayrıca hesaplanır;
+  // burada yalnızca raporun kendi iade blokları kronolojik olur.
+  const orderedDispatches = [...input.dispatches].sort((a, b) => {
+    const dateCompare = (a.date || '').localeCompare(b.date || '');
+    if (dateCompare !== 0) return dateCompare;
+    return (a.createdAt || '').localeCompare(b.createdAt || '');
+  });
+
   const rows = new Map<string, ConsolidatedRow>();
   const platesByDriver = new Map<string, Set<string>>();
   const driverSeen = new Map<string, string>();
@@ -308,7 +319,7 @@ export function buildConsolidatedReport(input: {
     if (!driverSeen.has(driverId)) driverSeen.set(driverId, driverName);
   };
 
-  for (const dispatch of input.dispatches) {
+  for (const dispatch of orderedDispatches) {
     noteDriver(dispatch.driverId, dispatch.driverName);
     if (dispatch.vehiclePlate) {
       const set = platesByDriver.get(dispatch.driverId) || new Set<string>();
@@ -537,7 +548,7 @@ export function buildConsolidatedReport(input: {
   // Sefer bazında depoya iade özeti. Sadece adedi sıfırdan büyük kalemler
   // tutulur; tamamen boş seferler rapora hiç girmez.
   const returnsByDriver = new Map<string, DispatchReturnSummary[]>();
-  for (const dispatch of input.dispatches) {
+  for (const dispatch of orderedDispatches) {
     if (!dispatch.id) continue;
 
     const empty = emptyByDispatch.get(dispatch.id) || {

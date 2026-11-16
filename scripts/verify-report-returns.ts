@@ -122,7 +122,27 @@ const report = buildConsolidatedReport({
   payments: [],
   dispatches: [
     {
+      id: 'disp-2',
+      date: '2026-11-09',
+      createdAt: '2026-11-09T09:00:00.000Z',
+      driverId: 'd1',
+      driverName: 'Ali',
+      vehiclePlate: '02 B',
+      loadedItems: [{ productId: 'p-pet', quantity: 3 }],
+    },
+    {
+      id: 'disp-3',
+      date: '2026-11-09',
+      createdAt: '2026-11-09T10:00:00.000Z',
+      driverId: 'd2',
+      driverName: 'Veli',
+      vehiclePlate: '03 V',
+      loadedItems: [{ productId: 'p-pet', quantity: 1 }],
+    },
+    {
       id: 'disp-1',
+      date: '2026-11-09',
+      createdAt: '2026-11-09T08:00:00.000Z',
       driverId: 'd1',
       driverName: 'Ali',
       vehiclePlate: '01 A',
@@ -133,20 +153,6 @@ const report = buildConsolidatedReport({
         { productId: 'p-sebil', quantity: 1 },
         { productId: 'p-pet', quantity: 5 },
       ],
-    },
-    {
-      id: 'disp-2',
-      driverId: 'd1',
-      driverName: 'Ali',
-      vehiclePlate: '02 B',
-      loadedItems: [{ productId: 'p-pet', quantity: 3 }],
-    },
-    {
-      id: 'disp-3',
-      driverId: 'd2',
-      driverName: 'Veli',
-      vehiclePlate: '03 V',
-      loadedItems: [{ productId: 'p-pet', quantity: 1 }],
     },
   ],
   products,
@@ -164,6 +170,7 @@ const second = ali.returns.find((r) => r.dispatchId === 'disp-2')!;
 
 console.log('\n[1) Sefer bazında ayrı iade blokları]');
 check('Ali iki ayrı blok', ali.returns.length, 2);
+check('Ali seferleri sisteme giriş sırasına göre', ali.returns.map((r) => r.dispatchId), ['disp-1', 'disp-2']);
 check('blok plakaları', ali.returns.map((r) => r.vehiclePlate), ['01 A', '02 B']);
 check('Veli için iade yok', veli.returns.length, 0);
 
