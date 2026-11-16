@@ -9,6 +9,7 @@ import {
   PaymentStatus,
   CustomerDispenser,
   CustomerDispenserInput,
+  DispenserDetailInput,
   Supplier,
   Purchase,
   PurchaseInputItem,
@@ -552,6 +553,7 @@ export async function createCustomer(customer: Partial<Customer>): Promise<Custo
 export type CustomerUpdate = Partial<Customer> & {
   expectedBalanceTL?: number;
   expectedEmptyDepositBalance?: Customer['emptyDepositBalance'];
+  clearDispensers?: boolean;
 };
 
 export async function updateCustomer(id: string, updates: CustomerUpdate): Promise<Customer> {
@@ -601,6 +603,39 @@ export async function addCustomerDispenser(
   }
   const json = await res.json();
   return json.dispenser as CustomerDispenser;
+}
+
+export async function updateCustomerDispenser(
+  customerId: string,
+  dispenserId: string,
+  input: CustomerDispenserInput
+): Promise<CustomerDispenser> {
+  const res = await apiFetch(
+    `/api/customers/${encodeURIComponent(customerId)}/dispensers/${encodeURIComponent(dispenserId)}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    }
+  );
+  if (!res.ok) {
+    await throwServerError(res, 'Sebil detayı güncellenemedi.');
+  }
+  const json = await res.json();
+  return json.dispenser as CustomerDispenser;
+}
+
+export async function deleteCustomerDispenser(
+  customerId: string,
+  dispenserId: string
+): Promise<void> {
+  const res = await apiFetch(
+    `/api/customers/${encodeURIComponent(customerId)}/dispensers/${encodeURIComponent(dispenserId)}`,
+    { method: 'DELETE' }
+  );
+  if (!res.ok) {
+    await throwServerError(res, 'Sebil detayı silinemedi.');
+  }
 }
 
 export async function fetchDispatches(date?: string): Promise<Dispatch[]> {
@@ -778,6 +813,10 @@ export function normalizeDelivery(deliveryData: any, forceOffline = false): Deli
     dispenserGivenDetails: Array.isArray(deliveryData.dispenserGivenDetails)
       ? deliveryData.dispenserGivenDetails
       : undefined,
+    dispenserReturnNote:
+      typeof deliveryData.dispenserReturnNote === 'string'
+        ? deliveryData.dispenserReturnNote
+        : undefined,
     isOfflineSync: forceOffline || Boolean(deliveryData.isOfflineSync),
     ...(deliveryData.stockOverride || deliveryData.allowStockOverride
       ? { stockOverride: true }
@@ -885,6 +924,9 @@ export async function replaceDelivery(
     deliveredItems: any[];
     collectedPayment: any;
     emptyContainersReceived: any;
+    dispenserReturns?: DispenserDetailInput[];
+    dispenserGivenDetails?: CustomerDispenserInput[];
+    dispenserReturnNote?: string;
     notes?: string;
     allowStockOverride?: boolean;
   }

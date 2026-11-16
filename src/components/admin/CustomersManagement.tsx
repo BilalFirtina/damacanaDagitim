@@ -24,6 +24,7 @@ import {
 import { CustomerStatementModal } from "./CustomerStatementModal";
 import { CustomerPaymentModal } from "./CustomerPaymentModal";
 import { BalanceAdjustModal } from "./BalanceAdjustModal";
+import { CustomerDispenserEditor } from "./CustomerDispenserEditor";
 
 interface CustomersManagementProps {
   customers: Customer[];
@@ -74,6 +75,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
   const [editEmptyCamDamacana, setEditEmptyCamDamacana] = useState("0");
   const [editEmptyTupBuyuk, setEditEmptyTupBuyuk] = useState("0");
   const [editEmptyTupKucuk, setEditEmptyTupKucuk] = useState("0");
+  const [editEmptySebil, setEditEmptySebil] = useState("0");
 
   // Helper to add emails from input (supports comma/semicolon/space separation)
   const addEmailsToNewList = () => {
@@ -169,6 +171,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
     setEditEmptyTupKucuk(
       String(Number(cust.emptyDepositBalance?.tupKucuk) || 0),
     );
+    setEditEmptySebil(String(Number(cust.emptyDepositBalance?.sebil) || 0));
   };
 
   const handleCreateCustomer = async (e: React.FormEvent) => {
@@ -235,18 +238,21 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
         Number(editingCustomer.emptyDepositBalance?.tupBuyuk) || 0,
       tupKucuk:
         Number(editingCustomer.emptyDepositBalance?.tupKucuk) || 0,
+      sebil: Number(editingCustomer.emptyDepositBalance?.sebil) || 0,
     };
     const nextEmpty = {
       damacana: Number(editEmptyDamacana),
       camDamacana: Number(editEmptyCamDamacana),
       tupBuyuk: Number(editEmptyTupBuyuk),
       tupKucuk: Number(editEmptyTupKucuk),
+      sebil: Number(editEmptySebil),
     };
     if (
       !Number.isInteger(nextEmpty.damacana) ||
       !Number.isInteger(nextEmpty.camDamacana) ||
       !Number.isInteger(nextEmpty.tupBuyuk) ||
-      !Number.isInteger(nextEmpty.tupKucuk)
+      !Number.isInteger(nextEmpty.tupKucuk) ||
+      !Number.isInteger(nextEmpty.sebil)
     ) {
       alert("Boş kap bakiyeleri tam sayı olmalıdır.");
       return;
@@ -255,7 +261,8 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
       nextEmpty.damacana !== originalEmpty.damacana ||
       nextEmpty.camDamacana !== originalEmpty.camDamacana ||
       nextEmpty.tupBuyuk !== originalEmpty.tupBuyuk ||
-      nextEmpty.tupKucuk !== originalEmpty.tupKucuk;
+      nextEmpty.tupKucuk !== originalEmpty.tupKucuk ||
+      nextEmpty.sebil !== originalEmpty.sebil;
 
     const updates: CustomerUpdate = {
       name: editName.trim(),
@@ -290,7 +297,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
     }
     if (
       !confirm(
-        `${cust.name} için boş kap bakiyesini sıfırlamak istediğinize emin misiniz?`,
+        `${cust.name} için boş kap bakiyesini ve sebil detaylarını sıfırlamak istediğinize emin misiniz?`,
       )
     )
       return;
@@ -313,6 +320,7 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
           tupKucuk: cust.emptyDepositBalance?.tupKucuk || 0,
           sebil: cust.emptyDepositBalance?.sebil || 0,
         },
+        clearDispensers: true,
       });
       onCustomersUpdated(
         customers.map((c) => (c.id === cust.id ? updated : c)),
@@ -1097,8 +1105,29 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                       className="w-full p-2.5 rounded-xl border border-orange-200  bg-white  text-xs text-slate-900  focus:outline-none focus:ring-2 focus:ring-orange-500"
                     />
                   </div>
+                  <div>
+                    <label className="font-semibold text-slate-700  block mb-1">
+                      Su Sebili <span className="text-red-600">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      required
+                      value={editEmptySebil}
+                      onChange={(e) => setEditEmptySebil(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-orange-200  bg-white  text-xs text-slate-900  focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
                 </div>
               </div>
+
+              {editingCustomer && (
+                <CustomerDispenserEditor
+                  key={editingCustomer.id}
+                  customerId={editingCustomer.id}
+                  disabled={!isAdmin}
+                />
+              )}
 
               <div className="pt-1">
                 <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-700 ">

@@ -1015,6 +1015,10 @@ function mapDispatchFromDb(row: any, loadedItems: any[] = [], reconRows: any[] =
         collectedEmptyCamDamacana: Number(row.collected_empty_cam_damacana) || 0,
         collectedEmptyTupBuyuk: Number(row.collected_empty_tup_buyuk) || 0,
         collectedEmptyTupKucuk: Number(row.collected_empty_tup_kucuk) || 0,
+        ...(row.collected_empty_sebil !== null &&
+        row.collected_empty_sebil !== undefined
+          ? { collectedEmptySebil: Number(row.collected_empty_sebil) || 0 }
+          : {}),
         actualCashInPocket: Number(row.actual_cash_in_pocket) || 0,
         actualPosSlipsTotal: Number(row.actual_pos_slips_total) || 0,
         totalDeliveredValue: Number(row.total_delivered_value) || 0,
@@ -1088,6 +1092,25 @@ function mapDeliveryFromDb(row: any, itemRows: any[] = [], containerRows: any[] 
     }
   }
 
+  const sebilRow = (containerRows || []).find(
+    (r) => r && r.deposit_type === 'sebil'
+  );
+  const dispenserReturns = Array.isArray(sebilRow?.sebil_details)
+    ? (sebilRow.sebil_details as any[]).map((detail) => ({
+        brand: String(detail?.brand || ''),
+        model: String(detail?.model || ''),
+        note:
+          detail?.note === null || detail?.note === undefined
+            ? null
+            : String(detail.note),
+        customerDispenserId:
+          typeof detail?.customerDispenserId === 'string' &&
+          detail.customerDispenserId.trim()
+            ? detail.customerDispenserId.trim()
+            : null,
+      }))
+    : undefined;
+
   return {
     id: row.id,
     dispatchId: row.dispatch_id,
@@ -1113,6 +1136,7 @@ function mapDeliveryFromDb(row: any, itemRows: any[] = [], containerRows: any[] 
     emptyContainersDiff,
     notes: row.notes || '',
     isOfflineSync: Boolean(row.is_offline_sync),
+    ...(dispenserReturns ? { dispenserReturns } : {}),
     ...(row.stock_override ? { stockOverride: true } : {}),
     ...(Array.isArray(row.stock_override_details) &&
     row.stock_override_details.length > 0
@@ -2255,6 +2279,9 @@ function mapCustomerDispenserFromDb(row: any): CustomerDispenser {
     model: String(row.model),
     quantity: Number(row.quantity),
     note: row.note === null || row.note === undefined ? null : String(row.note),
+    sourceDeliveryId: row.source_delivery_id
+      ? String(row.source_delivery_id)
+      : null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
     updatedByUserId: String(row.updated_by_user_id),
@@ -2305,7 +2332,8 @@ export async function listCustomerDispensers(
 export async function createCustomerDispenser(
   customerId: string,
   input: CustomerDispenserInput,
-  actor: { id: string; name: string }
+  actor: { id: string; name: string },
+  sourceDeliveryId?: string | null
 ): Promise<CustomerDispenser> {
   const client = getCustomerDispenserSupabase();
 
@@ -2322,6 +2350,7 @@ export async function createCustomerDispenser(
         model: input.model,
         quantity: input.quantity,
         note: input.note ?? null,
+        source_delivery_id: sourceDeliveryId || null,
         created_at: now,
         updated_at: now,
         updated_by_user_id: actor.id,
@@ -3125,7 +3154,7 @@ export interface ExpectedCustomerSnapshot {
 // sessizce ezilmez.
 export async function adminUpdateCustomerAtomic(
   id: string,
-  updates: Partial<Customer>,
+  updates: Partial<Customer> & { clearDispensers?: boolean },
   expected: ExpectedCustomerSnapshot,
   actor: { id: string; name: string },
   reason?: string
@@ -3144,6 +3173,7 @@ export async function adminUpdateCustomerAtomic(
     payload.is_account_customer = updates.isAccountCustomer;
   }
   if (updates.notes !== undefined) payload.notes = updates.notes;
+  if (updates.clearDispensers) payload.clear_dispensers = true;
 
   if (updates.currentBalanceTL !== undefined) {
     payload.new_balance = Number(updates.currentBalanceTL) || 0;
@@ -3642,7 +3672,7 @@ export async function getDeliveries(params?: {
       }
 
       const ids = data.map((d: any) => d.id);
-      const [items, containers] = await Promise.all([
+      const [items, containers, givenDispensers] = await Promise.all([
         fetchInChunksPaged(
           ids,
           (batch, from, to) =>
@@ -3660,23 +3690,50 @@ export async function getDeliveries(params?: {
           (batch, from, to) =>
             supabase!
               .from('delivery_container_returns')
-              .select('delivery_id, deposit_type, received_qty, diff_qty')
+              .select('delivery_id, deposit_type, received_qty, diff_qty, sebil_details')
               .in('delivery_id', batch)
               .order('delivery_id', { ascending: true })
               .order('deposit_type', { ascending: true })
               .range(from, to),
           '[Supabase getDeliveries containers]'
         ),
+        fetchInChunksPaged(
+          ids,
+          (batch, from, to) =>
+            supabase!
+              .from('customer_dispensers')
+              .select('source_delivery_id, brand, model, note, quantity')
+              .in('source_delivery_id', batch)
+              .order('source_delivery_id', { ascending: true })
+              .order('id', { ascending: true })
+              .range(from, to),
+          '[Supabase getDeliveries dispenser details]'
+        ),
       ]);
       const itemsByDelivery = groupRows(items, (i: any) => i.delivery_id);
       const containersByDelivery = groupRows(containers, (c: any) => c.delivery_id);
-      let list = data.map((row: any) =>
-        mapDeliveryFromDb(
+      const givenByDelivery = groupRows(
+        givenDispensers,
+        (g: any) => g.source_delivery_id
+      );
+      let list = data.map((row: any) => {
+        const delivery = mapDeliveryFromDb(
           row,
           itemsByDelivery.get(row.id) || [],
           containersByDelivery.get(row.id) || []
-        )
-      );
+        );
+        const given = givenByDelivery.get(row.id) || [];
+        if (given.length > 0) {
+          delivery.dispenserGivenDetails = given.map((g: any) => ({
+            brand: String(g.brand || ''),
+            model: String(g.model || ''),
+            quantity: Number(g.quantity) || 1,
+            note:
+              g.note === null || g.note === undefined ? null : String(g.note),
+          }));
+        }
+        return delivery;
+      });
       if (params?.date) {
         list = list.filter((d) => isSameUtcDate(d.timestamp, params.date!));
       }
@@ -5290,6 +5347,164 @@ export async function getDispatchLoadingAudits(limit = 100): Promise<DispatchAud
 // en eski kayıtlardan başlanarak düşülür. Adet bakiyesinin (customer_empty_balances)
 // yanında yalnızca marka/model/açıklama bilgisini taşır.
 // =============================================================================
+
+const normalizeDispenserText = (value: string | null | undefined): string =>
+  String(value || '').trim().toLocaleLowerCase('tr-TR');
+
+const dispenserMatchKey = (row: {
+  brand?: string | null;
+  model?: string | null;
+}): string =>
+  `${normalizeDispenserText(row.brand)}\u0000${normalizeDispenserText(row.model)}`;
+
+/**
+ * İade alınan sebil detaylarını müşterideki kayıtlarla eşleştirir.
+ * Önce seçilen kayıt ID'si, yoksa marka + model eşleşmesi kullanılır.
+ * Eşleşmeyen iadeler detay listesini değiştirmez; yalnızca iade geçmişinde kalır.
+ */
+export async function applyCustomerDispenserReturns(
+  customerId: string,
+  returns: DispenserDetailInput[],
+  actor: { id: string; name: string }
+): Promise<{ matched: number; unmatched: number }> {
+  if (!returns.length) return { matched: 0, unmatched: 0 };
+
+  let rows = await listCustomerDispensers(customerId);
+  let matched = 0;
+  let unmatched = 0;
+
+  for (const item of returns) {
+    const byId = item.customerDispenserId
+      ? rows.find((row) => row.id === item.customerDispenserId)
+      : null;
+    const row =
+      byId ||
+      rows.find((candidate) => dispenserMatchKey(candidate) === dispenserMatchKey(item));
+
+    if (!row) {
+      unmatched++;
+      continue;
+    }
+
+    if (row.quantity <= 1) {
+      await deleteCustomerDispenser(customerId, row.id);
+      rows = rows.filter((candidate) => candidate.id !== row.id);
+    } else {
+      const updated = await updateCustomerDispenser(
+        customerId,
+        row.id,
+        {
+          brand: row.brand,
+          model: row.model,
+          quantity: row.quantity - 1,
+          note: row.note,
+        },
+        actor
+      );
+      row.quantity = updated.quantity;
+    }
+    matched++;
+  }
+
+  return { matched, unmatched };
+}
+
+/** Bir teslimatın verdiği sebil detaylarını kaynak bağlantısından siler. */
+export async function removeCustomerDispensersForDelivery(
+  customerId: string,
+  deliveryId: string
+): Promise<void> {
+  const rows = await listCustomerDispensers(customerId);
+  for (const row of rows) {
+    if (row.sourceDeliveryId === deliveryId) {
+      await deleteCustomerDispenser(customerId, row.id);
+    }
+  }
+}
+
+/** İptal/düzeltmede iade alınan sebil detaylarını müşteriye geri ekler. */
+export async function restoreCustomerDispenserReturns(
+  customerId: string,
+  details: DispenserDetailInput[],
+  actor: { id: string; name: string }
+): Promise<void> {
+  if (!details.length) return;
+
+  const groups = new Map<
+    string,
+    { brand: string; model: string; note: string | null; quantity: number }
+  >();
+  for (const detail of details) {
+    const brand = String(detail.brand || '').trim();
+    const model = String(detail.model || '').trim();
+    const note = detail.note ? String(detail.note).trim() : null;
+    const key = `${brand}\u0000${model}\u0000${note || ''}`;
+    const existing = groups.get(key);
+    if (existing) existing.quantity += 1;
+    else groups.set(key, { brand, model, note, quantity: 1 });
+  }
+
+  const rows = await listCustomerDispensers(customerId);
+  for (const group of groups.values()) {
+    const matching = rows.find(
+      (row) =>
+        dispenserMatchKey(row) === dispenserMatchKey(group) &&
+        (row.note || '') === (group.note || '')
+    );
+    if (matching) {
+      await updateCustomerDispenser(
+        customerId,
+        matching.id,
+        {
+          brand: matching.brand,
+          model: matching.model,
+          quantity: matching.quantity + group.quantity,
+          note: matching.note,
+        },
+        actor
+      );
+    } else {
+      await createCustomerDispenser(
+        customerId,
+        {
+          brand: group.brand,
+          model: group.model,
+          quantity: group.quantity,
+          note: group.note,
+        },
+        actor
+      );
+    }
+  }
+}
+
+/** Bir teslimatın sebil iadesi detaylarını okur (iptal/düzeltme geri alma için). */
+export async function getDeliverySebilDetails(
+  deliveryId: string
+): Promise<DispenserDetailInput[]> {
+  if (isSupabaseOperational() && supabase) {
+    const { data, error } = await supabase
+      .from('delivery_container_returns')
+      .select('sebil_details')
+      .eq('delivery_id', deliveryId)
+      .eq('deposit_type', 'sebil')
+      .maybeSingle();
+    if (error) throw parseCustomerDispenserDbError(error);
+    return Array.isArray(data?.sebil_details) ? data.sebil_details : [];
+  }
+  if (pgPool) {
+    const res = await pgPool.query(
+      `SELECT sebil_details
+       FROM public.delivery_container_returns
+       WHERE delivery_id = $1 AND deposit_type = 'sebil'`,
+      [deliveryId]
+    );
+    const value = res.rows[0]?.sebil_details;
+    return Array.isArray(value) ? value : [];
+  }
+  return [];
+}
+
 
 export async function adjustCustomerDispenserQuantity(
   customerId: string,

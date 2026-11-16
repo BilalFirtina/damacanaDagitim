@@ -65,6 +65,23 @@ const input = {
     tupKucuk: 0,
     sebil: 2,
   },
+  dispenserReturns: [
+    {
+      brand: 'Arçelik',
+      model: '1200 A',
+      note: 'Mutfak',
+      customerDispenserId: 'cdsp_1',
+    },
+  ],
+  dispenserGivenDetails: [
+    {
+      brand: 'Vestel',
+      model: 'Mini',
+      note: null,
+      quantity: 1,
+    },
+  ],
+  dispenserReturnNote: 'İade sebili farklı model',
 };
 
 const normalized = normalizeDelivery(input, true);
@@ -93,6 +110,20 @@ console.log('\n[3) Eski davranış korunuyor]');
 check('teslimat kalemleri korundu', normalized.deliveredItems.length === 1);
 check('sevk kimliği korundu', normalized.dispatchId === 'disp_test');
 check('offline işareti korundu', normalized.isOfflineSync === true);
+check(
+  'sebil iade detayları korundu',
+  normalized.dispenserReturns?.length === 1 &&
+    normalized.dispenserReturns[0].customerDispenserId === 'cdsp_1'
+);
+check(
+  'sebil verilen detayları korundu',
+  normalized.dispenserGivenDetails?.length === 1 &&
+    normalized.dispenserGivenDetails[0].brand === 'Vestel'
+);
+check(
+  'sebil iade açıklaması korundu',
+  normalized.dispenserReturnNote === 'İade sebili farklı model'
+);
 
 console.log(`\nResult: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

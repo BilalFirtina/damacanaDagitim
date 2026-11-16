@@ -113,7 +113,7 @@ equals(
   }
 );
 
-console.log('\n2) En az bir alan zorunlu (marka / model / aciklama)');
+console.log('\n2) Bos detay alanlari kabul edilir (adet zorunlu)');
 equals(
   'sadece marka kabul edilir',
   normalizeCustomerDispenserInput({ brand: 'Sırma', quantity: 1 }),
@@ -134,10 +134,10 @@ equals(
   }),
   { brand: '', model: '', quantity: 1, note: 'Giris katinda birakildi' }
 );
-rejects(
-  'uc alan da bossa reddedilir',
-  () => normalizeCustomerDispenserInput({ brand: '  ', model: '  ', quantity: 1, note: '  ' }),
-  'En az marka, model veya açıklama'
+equals(
+  'uc alan da bos olabilir',
+  normalizeCustomerDispenserInput({ brand: '  ', model: '  ', quantity: 2, note: '  ' }),
+  { brand: '', model: '', quantity: 2, note: null }
 );
 rejects(
   'nesne olmayan girdi reddedilir',

@@ -254,6 +254,7 @@ export interface CustomerDispenser {
   model: string;
   quantity: number;
   note: string | null;
+  sourceDeliveryId?: string | null;
   createdAt: string;
   updatedAt: string;
   updatedByUserId: string;
@@ -272,6 +273,8 @@ export interface DispenserDetailInput {
   brand: string;
   model: string;
   note?: string | null;
+  /** İade, müşteride kayıtlı belirli bir sebil detayından seçildiyse. */
+  customerDispenserId?: string | null;
 }
 
 export interface Supplier {
@@ -458,6 +461,8 @@ export interface Delivery {
   dispenserReturns?: DispenserDetailInput[];
   /** Yalnızca yeni teslimatta bırakılan sebil marka/model/açıklama detayları. */
   dispenserGivenDetails?: CustomerDispenserInput[];
+  /** Sebil iadesi kayıtlı detaylarla eşleşmediğinde girilen açıklama. */
+  dispenserReturnNote?: string;
   /** Rapor, teslimatın yükleme gününden farklı bir güne kaldığını işaretler. */
   isLateDelivery?: boolean;
   status?: 'active' | 'cancelled';

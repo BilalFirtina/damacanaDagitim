@@ -52,7 +52,7 @@ equals(
     ],
     2
   ),
-  [{ brand: 'Arçelik', model: '', note: null }]
+  [{ brand: 'Arçelik', model: '', note: null, customerDispenserId: null }]
 );
 rejects(
   'dizi olmayan girdi reddedilir',
@@ -72,12 +72,12 @@ equals(
     [{ brand: '  Arçelik ', model: ' 1200 A ', note: '  Mutfaktan alındı  ' }],
     1
   ),
-  [{ brand: 'Arçelik', model: '1200 A', note: 'Mutfaktan alındı' }]
+  [{ brand: 'Arçelik', model: '1200 A', note: 'Mutfaktan alındı', customerDispenserId: null }]
 );
 equals(
   'sadece aciklama kabul edilir',
   normalizeDispenserReturnDetails([{ note: 'Musluk kırık' }], 1),
-  [{ brand: '', model: '', note: 'Musluk kırık' }]
+  [{ brand: '', model: '', note: 'Musluk kırık', customerDispenserId: null }]
 );
 equals(
   'istemciden gelen adet yok sayilir',
@@ -85,7 +85,22 @@ equals(
     [{ brand: 'Vestel', model: 'Mini', quantity: 5 }],
     1
   ),
-  [{ brand: 'Vestel', model: 'Mini', note: null }]
+  [{ brand: 'Vestel', model: 'Mini', note: null, customerDispenserId: null }]
+);
+equals(
+  'secilen musteri sebil kimligi korunur',
+  normalizeDispenserReturnDetails(
+    [{ customerDispenserId: 'cdsp_1', brand: '', model: '', note: '' }],
+    1
+  ),
+  [
+    {
+      brand: '',
+      model: '',
+      note: null,
+      customerDispenserId: 'cdsp_1',
+    },
+  ]
 );
 
 console.log('\n3) Adet ve uzunluk sinirlari');

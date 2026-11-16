@@ -205,6 +205,22 @@ async function seedScenario(c: Client): Promise<void> {
       ('PAY61', 'c1', 250, 'CASH', 'CI eski tahsilat', 'u_admin', 'Yönetici', 'D61', now() - interval '61 day'),
       ('PAY59', 'c1', 40, 'CASH', 'CI yeni tahsilat', 'u_admin', 'Yönetici', 'D59', now() - interval '59 day');
   `);
+  // deliveries TRUNCATE CASCADE, source_delivery_id FK'si nedeniyle
+  // customer_dispensers tablosunu da temizler; senaryo öncesi yeniden eklenir.
+  await c.query(`
+    INSERT INTO public.customer_dispensers
+      (id, customer_id, brand, model, quantity, note, updated_by_user_id, updated_by_user_name)
+    VALUES ('DISP1', 'c1', 'Marka X', 'Model Y', 1, 'Mutfakta', 'u_admin', 'Yönetici')
+    ON CONFLICT (id) DO UPDATE SET
+      brand = EXCLUDED.brand,
+      model = EXCLUDED.model,
+      quantity = EXCLUDED.quantity,
+      note = EXCLUDED.note;
+  `);
+  // Kaynak teslimat 60 gün temizliğinde silinince detay korunur; FK null'a çeker.
+  await c.query(
+    `UPDATE public.customer_dispensers SET source_delivery_id = 'DEL61OLD' WHERE id = 'DISP1'`
+  );
 }
 
 async function eligibleDispatchIds(c: Client): Promise<string[]> {
@@ -349,7 +365,7 @@ async function scenarioRealRun(c: Client): Promise<void> {
   );
   check('son satis fiyati korundu', price.rowCount === 1 && Number(price.rows[0]?.unit_price) === 95);
   const dispenser = await c.query(
-    `SELECT brand, model, quantity, note FROM public.customer_dispensers WHERE id = 'DISP1'`
+    `SELECT brand, model, quantity, note, source_delivery_id FROM public.customer_dispensers WHERE id = 'DISP1'`
   );
   check(
     'sebil marka/model/aciklama korundu',
@@ -358,6 +374,10 @@ async function scenarioRealRun(c: Client): Promise<void> {
       dispenser.rows[0]?.model === 'Model Y' &&
       Number(dispenser.rows[0]?.quantity) === 1 &&
       dispenser.rows[0]?.note === 'Mutfakta'
+  );
+  check(
+    'silinen teslimat sebil kaynagini null yapti, detay korundu',
+    dispenser.rowCount === 1 && dispenser.rows[0]?.source_delivery_id === null
   );
 
   const seqs = (await c.query('SELECT tbl FROM ci_del_log ORDER BY seq')).rows.map((x: any) => x.tbl);

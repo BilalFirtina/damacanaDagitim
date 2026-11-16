@@ -218,6 +218,12 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
 
   // Counted full items state
   const isAlreadyClosed = currentViewDispatch.status === 'completed';
+  const storedEmptySebilCollected =
+    currentViewDispatch.endOfDayReconciliation?.collectedEmptySebil;
+  const displayEmptySebilCollected =
+    isAlreadyClosed && typeof storedEmptySebilCollected === 'number'
+      ? storedEmptySebilCollected
+      : totalEmptySebilCollected;
 
   const countedFull =
     currentViewDispatch.endOfDayReconciliation?.remainingFullCounted ||
@@ -591,7 +597,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
           <div className="p-3.5 rounded-xl bg-indigo-50/50  border border-indigo-200 ">
             <span className="text-[11px] font-semibold text-indigo-700  uppercase">Toplanan Su Sebili</span>
             <div className="text-xl font-bold font-mono text-indigo-700  mt-1">
-              {totalEmptySebilCollected} Adet
+              {displayEmptySebilCollected} Adet
             </div>
             <span className="text-[10px] text-indigo-600/80">Emanet sebiller (fiyatsız)</span>
           </div>

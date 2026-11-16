@@ -658,6 +658,7 @@ Peşin müşteride son satış fiyatı gösterilir; kısmi/veresiye kalan tutar 
 Aktif sefer tekilliği `ux_dispatches_active_driver` ve `ux_dispatches_active_plate` kısmi tekil indeksleriyle korunur.
 60 günlük temizlik `20261108_retention_purge_all_movements.sql` ile uygulanır; tüm müşteri borcu `20261106_cash_customer_debt.sql`, sefere bağlı tahsilat `20261107_customer_payment_dispatch.sql`, tahsilat iptalinde fiziksel silme `20261116_customer_payment_hard_delete.sql`, kapanmış seferde tahsilat değişikliği engeli `20261116_customer_payment_closed_dispatch_guard.sql` ile yönetilir.
 Temizlik 23:00 Türkiye saatinde otomatik çalışır; arşiv yoktur, tüm sefer durumları ve günlük hareket/denetim kayıtları kapsanır. Müşteri kaydı, nihai bakiye, nihai emanet adetleri, son fiyat ve sebil detayları korunur. İptal edilen tahsilatlar bu temizliği beklemeden iptal anında silinir.
+Sebil iade takibi `20261117_sebil_return_tracking.sql` ile yönetilir; `customer_dispensers.source_delivery_id` verilen sebili teslimata bağlar (`ON DELETE SET NULL`), `dispatches.collected_empty_sebil` kapanışta teslimatlardan hesaplanır. İade detayı müşterideki kayıtlarla eşleşmezse açıklama `delivery.notes` alanına `Sebil iade açıklaması: ...` olarak yazılır; `admin_update_customer` içindeki `clear_dispensers` sebil detaylarını da aynı işlemde siler.
 
 <!-- trail:start -->
 Trail — depo bağlam grafiği

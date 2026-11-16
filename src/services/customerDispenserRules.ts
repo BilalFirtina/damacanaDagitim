@@ -63,13 +63,6 @@ export function normalizeCustomerDispenserInput(
     note = normalizedNote || null;
   }
 
-  // AGENTS.md 7.1: marka, model veya açıklamadan en az biri girilmelidir.
-  if (!brand && !model && !note) {
-    throw new CustomerDispenserValidationError(
-      'En az marka, model veya açıklama girilmelidir.'
-    );
-  }
-
   return {
     brand,
     model,

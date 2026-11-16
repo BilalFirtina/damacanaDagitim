@@ -263,7 +263,12 @@ export function normalizeDispenserReturnDetails(
     const brand = typeof record.brand === 'string' ? record.brand.trim() : '';
     const model = typeof record.model === 'string' ? record.model.trim() : '';
     const note = typeof record.note === 'string' ? record.note.trim() : '';
-    if (!brand && !model && !note) continue;
+    const customerDispenserId =
+      typeof record.customerDispenserId === 'string' &&
+      record.customerDispenserId.trim()
+        ? record.customerDispenserId.trim()
+        : null;
+    if (!brand && !model && !note && !customerDispenserId) continue;
 
     try {
       const normalized = normalizeCustomerDispenserInput({
@@ -274,6 +279,7 @@ export function normalizeDispenserReturnDetails(
         brand: normalized.brand,
         model: normalized.model,
         note: normalized.note,
+        customerDispenserId,
       });
     } catch (e) {
       if (e instanceof CustomerDispenserValidationError) {

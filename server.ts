@@ -9,7 +9,6 @@ import {
   User,
   Product,
   Customer,
-  Delivery,
   Dispatch,
   LoadedItem,
 } from './src/types/index.ts';
@@ -27,6 +26,8 @@ import {
   updateCustomer,
   listCustomerDispensers,
   createCustomerDispenser,
+  updateCustomerDispenser,
+  deleteCustomerDispenser,
   getDispatches,
   createDispatch,
   updateDispatchLoading,
@@ -43,7 +44,10 @@ import {
   getCustomerPaymentsByDispatch,
   getCustomerPaymentsForReport,
   getCustomerPaymentById,
-  adjustCustomerDispenserQuantity,
+  applyCustomerDispenserReturns,
+  removeCustomerDispensersForDelivery,
+  restoreCustomerDispenserReturns,
+  getDeliverySebilDetails,
   saveDeliverySebilDetails,
   listSuppliers,
   createSupplierRecord,
@@ -114,18 +118,6 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 app.use(express.json());
 
 const getTodayDateStr = () => todayUtcDateStr();
-
-// Bir teslimatın sebil net etkisi: teslim edilen − geri alınan.
-function sebilNet(delivery: Delivery, products: Product[]): number {
-  const sebilIds = new Set(
-    products.filter((p) => p.depositType === 'sebil').map((p) => p.id)
-  );
-  const delivered = (delivery.deliveredItems || [])
-    .filter((i) => sebilIds.has(i.productId))
-    .reduce((sum, i) => sum + (Number(i.quantity) || 0), 0);
-  const returned = Number(delivery.emptyContainersReceived?.sebil) || 0;
-  return delivered - returned;
-}
 
 // PWA Manifest and Service Worker static serving with proper headers
 app.get(['/manifest.json', '/manifest.webmanifest'], (_req, res) => {
@@ -1008,6 +1000,7 @@ app.put('/api/customers/:id', requireAdmin, async (req, res) => {
     'customPrices',
     'currentBalanceTL',
     'emptyDepositBalance',
+    'clearDispensers',
     'expectedBalanceTL',
     'expectedEmptyDepositBalance',
     'correctionReason',
@@ -1022,6 +1015,7 @@ app.put('/api/customers/:id', requireAdmin, async (req, res) => {
 
   const hasBalance = body.currentBalanceTL !== undefined;
   const hasEmpty = body.emptyDepositBalance !== undefined;
+  const hasClearDispensers = body.clearDispensers === true;
 
   if (hasBalance) {
     const expected = Number(body.expectedBalanceTL);
@@ -1064,10 +1058,11 @@ app.put('/api/customers/:id', requireAdmin, async (req, res) => {
   if (body.customPrices !== undefined) updates.customPrices = body.customPrices;
   if (hasBalance) updates.currentBalanceTL = Number(body.currentBalanceTL) || 0;
   if (hasEmpty) updates.emptyDepositBalance = body.emptyDepositBalance;
+  if (hasClearDispensers) (updates as any).clearDispensers = true;
 
   try {
     const updated =
-      hasBalance || hasEmpty
+      hasBalance || hasEmpty || hasClearDispensers
         ? await adminUpdateCustomerAtomic(
             req.params.id,
             updates,
@@ -1665,7 +1660,7 @@ app.get('/api/customers/:id/dispensers', requireAdminOrDriver, async (req, res) 
   }
 });
 
-app.post('/api/customers/:id/dispensers', requireAdminOrDriver, async (req, res) => {
+app.post('/api/customers/:id/dispensers', requireAdmin, async (req, res) => {
   try {
     const input = normalizeCustomerDispenserInput(req.body);
     const actor = getAuthUser(req)!;
@@ -1675,6 +1670,31 @@ app.post('/api/customers/:id/dispensers', requireAdminOrDriver, async (req, res)
       { id: actor.userId, name: actor.name }
     );
     res.status(201).json({ dispenser, message: 'Sebil eklendi.' });
+  } catch (err: any) {
+    sendCustomerDispenserError(res, err);
+  }
+});
+
+app.put('/api/customers/:id/dispensers/:dispenserId', requireAdmin, async (req, res) => {
+  try {
+    const input = normalizeCustomerDispenserInput(req.body);
+    const actor = getAuthUser(req)!;
+    const dispenser = await updateCustomerDispenser(
+      req.params.id,
+      req.params.dispenserId,
+      input,
+      { id: actor.userId, name: actor.name }
+    );
+    res.json({ dispenser, message: 'Sebil detayı güncellendi.' });
+  } catch (err: any) {
+    sendCustomerDispenserError(res, err);
+  }
+});
+
+app.delete('/api/customers/:id/dispensers/:dispenserId', requireAdmin, async (req, res) => {
+  try {
+    await deleteCustomerDispenser(req.params.id, req.params.dispenserId);
+    res.json({ success: true, message: 'Sebil detayı silindi.' });
   } catch (err: any) {
     sendCustomerDispenserError(res, err);
   }
@@ -1951,6 +1971,7 @@ app.post('/api/deliveries', async (req, res) => {
     emptyContainersReceived,
     dispenserReturns,
     dispenserGivenDetails,
+    dispenserReturnNote,
     notes,
     isOfflineSync,
     allowStockOverride: allowStockOverrideRaw,
@@ -1997,6 +2018,15 @@ app.post('/api/deliveries', async (req, res) => {
       });
     }
 
+    const sebilReturnNote =
+      typeof dispenserReturnNote === 'string' ? dispenserReturnNote.trim() : '';
+    const combinedNotes = [
+      typeof notes === 'string' ? notes.trim() : '',
+      sebilReturnNote ? `Sebil iade açıklaması: ${sebilReturnNote}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+
     const { delivery: newDelivery, priceUpdates } = normalizeDeliveryInput({
       id:
         clientDeliveryId ||
@@ -2008,7 +2038,7 @@ app.post('/api/deliveries', async (req, res) => {
       deliveredItems,
       collectedPayment,
       emptyContainersReceived,
-      notes,
+      notes: combinedNotes,
       isOfflineSync,
       allowStockOverride,
     });
@@ -2100,6 +2130,9 @@ app.post('/api/deliveries', async (req, res) => {
       tupKucuk:
         (Number(currentEmpty.tupKucuk) || 0) +
         (Number(newDelivery.emptyContainersDiff.tupKucuk) || 0),
+      sebil:
+        (Number((currentEmpty as any).sebil) || 0) +
+        (Number(newDelivery.emptyContainersDiff.sebil) || 0),
     };
     customer.emptyDepositBalance = nextEmpty;
 
@@ -2138,13 +2171,14 @@ app.post('/api/deliveries', async (req, res) => {
       });
 
       // Önce müşteriye bırakılan sebil detayları eklenir; ardından iade
-      // edilen sebil adedi düşülür. Sıra ters olursa detay adedi şişer.
+      // edilen sebil detayları müşterideki kayıtlarla eşleştirilir.
       for (const detail of normalizedDispenserGiven) {
         try {
           await createCustomerDispenser(
             customer.id,
             detail,
-            { id: session.userId, name: session.name }
+            { id: session.userId, name: session.name },
+            newDelivery.id
           );
         } catch (dispenserErr) {
           // Teslimat kaydı başarılı; detay yazımı başarısızsa asıl işlem bozulmaz.
@@ -2152,25 +2186,36 @@ app.post('/api/deliveries', async (req, res) => {
         }
       }
 
-      const returnedSebil = Number(newDelivery.emptyContainersReceived?.sebil) || 0;
       if (normalizedDispenserReturns.length > 0) {
         await saveDeliverySebilDetails(newDelivery.id, normalizedDispenserReturns);
-      }
-      if (returnedSebil > 0) {
-        await adjustCustomerDispenserQuantity(
-          customer.id,
-          -returnedSebil,
-          { id: session.userId, name: session.name },
-          'Sebil iadesi'
-        );
+        try {
+          await applyCustomerDispenserReturns(
+            customer.id,
+            normalizedDispenserReturns,
+            { id: session.userId, name: session.name }
+          );
+        } catch (dispenserErr) {
+          console.error('[delivery dispenser returns]', dispenserErr);
+        }
       }
     }
 
+    const responseDelivery = result.delivery
+      ? {
+          ...result.delivery,
+          isAccountCustomer: customer.isAccountCustomer,
+          ...(!result.duplicate && normalizedDispenserGiven.length > 0
+            ? { dispenserGivenDetails: normalizedDispenserGiven }
+            : {}),
+          ...(!result.duplicate && normalizedDispenserReturns.length > 0
+            ? { dispenserReturns: normalizedDispenserReturns }
+            : {}),
+        }
+      : result.delivery;
+
     res.status(result.duplicate ? 200 : 201).json({
       ...result,
-      delivery: result.delivery
-        ? { ...result.delivery, isAccountCustomer: customer.isAccountCustomer }
-        : result.delivery,
+      delivery: responseDelivery,
       updatedCustomer: result.updatedCustomer
         ? maskCustomerFinancialsForDriver(result.updatedCustomer, session)
         : null,
@@ -2223,10 +2268,9 @@ app.post('/api/deliveries/:id/cancel', async (req, res) => {
       });
     }
 
-    const [existing, allDispatches, allProducts] = await Promise.all([
+    const [existing, allDispatches] = await Promise.all([
       getDeliveryById(deliveryId),
       getDispatches(),
-      getProducts(),
     ]);
     if (!existing) {
       return res.status(404).json({
@@ -2261,14 +2305,20 @@ app.post('/api/deliveries/:id/cancel', async (req, res) => {
     const result = await cancelDeliveryAtomic(deliveryId, session.userId, reason);
 
     if (!result.duplicate) {
-      const net = sebilNet(existing, allProducts);
-      if (net !== 0) {
-        await adjustCustomerDispenserQuantity(
+      const actor = { id: session.userId, name: session.name };
+      try {
+        const oldReturns = await getDeliverySebilDetails(existing.id);
+        await removeCustomerDispensersForDelivery(
           existing.customerId,
-          -net,
-          { id: session.userId, name: session.name },
-          'Teslimat iptali'
+          existing.id
         );
+        await restoreCustomerDispenserReturns(
+          existing.customerId,
+          oldReturns,
+          actor
+        );
+      } catch (dispenserErr) {
+        console.error('[delivery cancel dispenser details]', dispenserErr);
       }
     }
 
@@ -2362,6 +2412,19 @@ app.post('/api/deliveries/:id/replace', async (req, res) => {
       });
     }
 
+    const replacementReturnNote =
+      typeof req.body?.dispenserReturnNote === 'string'
+        ? req.body.dispenserReturnNote.trim()
+        : '';
+    const replacementNotes = [
+      typeof req.body?.notes === 'string' ? req.body.notes.trim() : '',
+      replacementReturnNote
+        ? `Sebil iade açıklaması: ${replacementReturnNote}`
+        : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+
     const { delivery: replacement } = normalizeDeliveryInput({
       id: replacementId,
       dispatch,
@@ -2371,10 +2434,24 @@ app.post('/api/deliveries/:id/replace', async (req, res) => {
       deliveredItems: req.body?.deliveredItems,
       collectedPayment: req.body?.collectedPayment,
       emptyContainersReceived: req.body?.emptyContainersReceived,
-      notes: req.body?.notes,
+      notes: replacementNotes,
       isOfflineSync: false,
       allowStockOverride: req.body?.allowStockOverride === true,
     });
+
+    const replacementReturnedSebil =
+      Number(replacement.emptyContainersReceived?.sebil) || 0;
+    const replacementGivenSebil =
+      (Number(replacement.emptyContainersDiff?.sebil) || 0) +
+      replacementReturnedSebil;
+    const replacementReturns = normalizeDispenserReturnDetails(
+      req.body?.dispenserReturns,
+      replacementReturnedSebil
+    );
+    const replacementGivens = normalizeDispenserGivenDetails(
+      req.body?.dispenserGivenDetails,
+      replacementGivenSebil
+    );
 
     if (existing.status !== 'cancelled') {
       const activeDeliveries = await getDeliveries({ dispatchId: dispatch.id });
@@ -2395,15 +2472,46 @@ app.post('/api/deliveries/:id/replace', async (req, res) => {
     );
 
     if (!result.duplicate) {
-      const delta =
-        sebilNet(replacement, allProducts) - sebilNet(existing, allProducts);
-      if (delta !== 0) {
-        await adjustCustomerDispenserQuantity(
+      const actor = { id: session.userId, name: session.name };
+      try {
+        const oldReturns = await getDeliverySebilDetails(existing.id);
+        await removeCustomerDispensersForDelivery(
           existing.customerId,
-          delta,
-          { id: session.userId, name: session.name },
-          'Teslimat düzeltmesi'
+          existing.id
         );
+        await restoreCustomerDispenserReturns(
+          existing.customerId,
+          oldReturns,
+          actor
+        );
+      } catch (dispenserErr) {
+        console.error('[delivery replace old dispenser details]', dispenserErr);
+      }
+
+      const replacementDeliveryId = result.replacement?.id || replacement.id;
+      for (const detail of replacementGivens) {
+        try {
+          await createCustomerDispenser(
+            existing.customerId,
+            detail,
+            actor,
+            replacementDeliveryId
+          );
+        } catch (dispenserErr) {
+          console.error('[delivery replace given dispenser details]', dispenserErr);
+        }
+      }
+      if (replacementReturns.length > 0) {
+        try {
+          await saveDeliverySebilDetails(replacementDeliveryId, replacementReturns);
+          await applyCustomerDispenserReturns(
+            existing.customerId,
+            replacementReturns,
+            actor
+          );
+        } catch (dispenserErr) {
+          console.error('[delivery replace return dispenser details]', dispenserErr);
+        }
       }
     }
     res.json({

@@ -109,6 +109,7 @@ async function scenarioSchema(c: Client): Promise<void> {
     ['updated_at', 'timestamp with time zone', 'NO'],
     ['updated_by_user_id', 'text', 'NO'],
     ['updated_by_user_name', 'text', 'NO'],
+    ['source_delivery_id', 'text', 'YES'],
   ];
   const actual = cols.rows.map((row: any) => [
     row.column_name,
@@ -125,9 +126,21 @@ async function scenarioSchema(c: Client): Promise<void> {
   `);
   const types = constraints.rows.map((row: any) => row.contype);
   check('primary key var', types.filter((x: string) => x === 'p').length === 1);
-  check('foreign key yok', types.filter((x: string) => x === 'f').length === 0);
+  check('foreign key kaynak teslimat icin var', types.filter((x: string) => x === 'f').length === 1);
   check('unique kisit yok', types.filter((x: string) => x === 'u').length === 0);
   check('tek CHECK kisiti var', types.filter((x: string) => x === 'c').length === 1);
+  const sourceDeliveryFk = constraints.rows.find(
+    (row: any) =>
+      row.contype === 'f' &&
+      /source_delivery_id/.test(String(row.definition)) &&
+      /deliveries/.test(String(row.definition)) &&
+      /ON DELETE SET NULL/i.test(String(row.definition))
+  );
+  check(
+    'source_delivery_id FK deliveries ON DELETE SET NULL',
+    Boolean(sourceDeliveryFk),
+    JSON.stringify(constraints.rows)
+  );
   const quantityCheck = constraints.rows.find((row: any) =>
     /quantity\s*>=\s*1/i.test(String(row.definition))
   );
@@ -144,6 +157,20 @@ async function scenarioSchema(c: Client): Promise<void> {
     'customer_id indeksi var',
     index.rows.length === 1 && /\(customer_id\)/.test(String(index.rows[0].indexdef)),
     JSON.stringify(index.rows)
+  );
+
+  const sourceIndex = await c.query(`
+    SELECT indexdef
+    FROM pg_indexes
+    WHERE schemaname = 'public'
+      AND tablename = 'customer_dispensers'
+      AND indexname = 'idx_customer_dispensers_source_delivery'
+  `);
+  check(
+    'source_delivery_id indeksi var',
+    sourceIndex.rows.length === 1 &&
+      /\(source_delivery_id\)/.test(String(sourceIndex.rows[0].indexdef)),
+    JSON.stringify(sourceIndex.rows)
   );
 }
 
@@ -329,16 +356,18 @@ async function scenarioRetention(c: Client): Promise<void> {
     `ALTER TABLE public.customer_payment_audit DISABLE TRIGGER ${paymentAuditTrigger}`
   );
   try {
+    // TRUNCATE ... CASCADE, yeni source_delivery_id FK'si nedeniyle
+    // customer_dispensers tablosunu da boşaltırdı. Bu yüzden operasyonel
+    // tablolar bağımlılık sırasıyla DELETE ile temizlenir; müşteri sebil
+    // kayıtları korunur (FK ON DELETE SET NULL).
     await c.query(`
-      TRUNCATE
-        public.delivery_container_returns,
-        public.delivery_items,
-        public.deliveries,
-        public.dispatch_reconciliation_items,
-        public.dispatch_items,
-        public.dispatches,
-        public.retention_archive
-      RESTART IDENTITY CASCADE
+      DELETE FROM public.delivery_container_returns;
+      DELETE FROM public.delivery_items;
+      DELETE FROM public.deliveries;
+      DELETE FROM public.dispatch_reconciliation_items;
+      DELETE FROM public.dispatch_items;
+      DELETE FROM public.dispatches;
+      DELETE FROM public.retention_archive;
     `);
   } finally {
     await c.query(`ALTER TABLE public.customer_payments ENABLE TRIGGER ${paymentTrigger}`);

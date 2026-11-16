@@ -6,6 +6,7 @@ import {
   Delivery,
   User,
   ProductCategory,
+  CustomerDispenser,
   CustomerDispenserInput,
   DispenserDetailInput,
   getProductCategoryCodes,
@@ -34,6 +35,7 @@ import {
   createDelivery,
   createCustomer,
   createProduct,
+  fetchCustomerDispensers,
   replaceDelivery,
 } from "../../services/api";
 import { CustomerDispenserInfo } from "../common/CustomerDispenserInfo";
@@ -172,12 +174,15 @@ interface DispenserDetailRow {
   brand: string;
   model: string;
   note: string;
+  /** İade satırı müşteride kayıtlı bir sebilden seçildiyse o kaydın kimliği. */
+  customerDispenserId?: string;
 }
 
 const EMPTY_DISPENSER_DETAIL_ROW: DispenserDetailRow = {
   brand: "",
   model: "",
   note: "",
+  customerDispenserId: "",
 };
 
 interface DispenserDetailCardsProps {
@@ -191,7 +196,19 @@ interface DispenserDetailCardsProps {
     field: keyof DispenserDetailRow,
     value: string,
   ) => void;
+  /** Yalnızca iade kartlarında: müşteride kayıtlı sebil detayları. */
+  existingDispensers?: CustomerDispenser[];
+  onSelectExisting?: (index: number, dispenserId: string) => void;
 }
+
+const dispenserOptionLabel = (dispenser: CustomerDispenser): string => {
+  const detail = [dispenser.brand, dispenser.model].filter(Boolean).join(" • ");
+  const note = (dispenser.note || "").trim();
+  const parts = [detail || "Detaysız sebil"];
+  if (note) parts.push(note);
+  parts.push(`${dispenser.quantity} adet`);
+  return parts.join(" • ");
+};
 
 // Şoförün sebil marka/model/açıklamasını serbest metin olarak girdiği kartlar.
 // Her sebil ayrı karttır; alanlar dikey sırada (Marka → Model → Açıklama) durur.
@@ -202,6 +219,8 @@ const DispenserDetailCards: React.FC<DispenserDetailCardsProps> = ({
   rows,
   notePlaceholder,
   onChange,
+  existingDispensers,
+  onSelectExisting,
 }) => {
   if (count <= 0) return null;
 
@@ -218,6 +237,25 @@ const DispenserDetailCards: React.FC<DispenserDetailCardsProps> = ({
             <div className="text-[11px] font-bold text-indigo-800">
               {index + 1}. {itemLabel}
             </div>
+            {existingDispensers && onSelectExisting && (
+              <label className="block min-w-0">
+                <span className="text-[11px] text-slate-600 block mb-1">
+                  Müşteride kayıtlı sebil
+                </span>
+                <select
+                  value={row.customerDispenserId || ""}
+                  onChange={(e) => onSelectExisting(index, e.target.value)}
+                  className="w-full p-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900"
+                >
+                  <option value="">Farklı / yeni detay</option>
+                  {existingDispensers.map((dispenser) => (
+                    <option key={dispenser.id} value={dispenser.id}>
+                      {dispenserOptionLabel(dispenser)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label className="block min-w-0">
               <span className="text-[11px] text-slate-600 block mb-1">
                 Marka
@@ -275,10 +313,131 @@ const buildDispenserDetails = (
     const brand = row.brand.trim();
     const model = row.model.trim();
     const note = row.note.trim();
-    if (!brand && !model && !note) continue;
-    details.push({ brand, model, note: note || null });
+    const customerDispenserId = (row.customerDispenserId || "").trim();
+    if (!brand && !model && !note && !customerDispenserId) continue;
+    details.push({
+      brand,
+      model,
+      note: note || null,
+      customerDispenserId: customerDispenserId || null,
+    });
   }
   return details;
+};
+
+const normalizeDispenserKeyText = (value: string): string =>
+  value.trim().toLocaleLowerCase("tr-TR");
+
+const dispenserMatchKey = (value: {
+  brand?: string;
+  model?: string;
+}): string =>
+  `${normalizeDispenserKeyText(value.brand || "")}\u0000${normalizeDispenserKeyText(
+    value.model || "",
+  )}`;
+
+type DispenserMatchCandidate = {
+  id: string;
+  brand: string;
+  model: string;
+  quantity: number;
+};
+
+/**
+ * İade eşleşme kontrolü için aday listesi. Düzenlemede eski teslimatın iade
+ * detayları, değiştirme işlemi başlamadan önce müşteriye geri ekleneceği için
+ * adaylara dahil edilir; böylece değiştirilmeyen iade gereksiz açıklama istemez.
+ */
+const buildReturnValidationCandidates = (
+  current: CustomerDispenser[],
+  previousReturns?: DispenserDetailInput[],
+): DispenserMatchCandidate[] => {
+  const candidates: DispenserMatchCandidate[] = current.map((row) => ({
+    id: row.id,
+    brand: row.brand,
+    model: row.model,
+    quantity: row.quantity,
+  }));
+  if (!previousReturns?.length) return candidates;
+
+  const grouped = new Map<
+    string,
+    { brand: string; model: string; quantity: number }
+  >();
+  for (const detail of previousReturns) {
+    const brand = (detail.brand || "").trim();
+    const model = (detail.model || "").trim();
+    if (!brand && !model) continue;
+    const key = dispenserMatchKey({ brand, model });
+    const existing = grouped.get(key);
+    if (existing) existing.quantity += 1;
+    else grouped.set(key, { brand, model, quantity: 1 });
+  }
+
+  for (const group of grouped.values()) {
+    const existing = candidates.find(
+      (row) => dispenserMatchKey(row) === dispenserMatchKey(group),
+    );
+    if (existing) {
+      existing.quantity += group.quantity;
+    } else {
+      candidates.push({
+        id: `previous_return_${candidates.length}`,
+        brand: group.brand,
+        model: group.model,
+        quantity: group.quantity,
+      });
+    }
+  }
+
+  return candidates;
+};
+
+/**
+ * İade detayları müşterideki kayıtlarla eşleşiyor mu?
+ * Önce seçilen kayıt kimliği, sonra marka + model eşleşmesi kullanılır.
+ * Kayıt adedi kadar eşleşme kabul edilir; kalanlar "detaysız iade" sayılır
+ * ve açıklama gerektirir.
+ */
+const hasUnmatchedDispenserReturns = (
+  details: DispenserDetailInput[],
+  dispensers: DispenserMatchCandidate[],
+): boolean => {
+  const remaining = new Map(
+    dispensers.map((dispenser) => [dispenser.id, dispenser.quantity]),
+  );
+  const byKey = new Map<string, DispenserMatchCandidate[]>();
+  for (const dispenser of dispensers) {
+    const key = dispenserMatchKey(dispenser);
+    const list = byKey.get(key) || [];
+    list.push(dispenser);
+    byKey.set(key, list);
+  }
+
+  for (const detail of details) {
+    const brand = detail.brand.trim();
+    const model = detail.model.trim();
+    if (!brand && !model && !detail.customerDispenserId) continue;
+
+    let match: DispenserMatchCandidate | undefined;
+    if (detail.customerDispenserId) {
+      match = dispensers.find(
+        (dispenser) => dispenser.id === detail.customerDispenserId,
+      );
+    }
+    if (!match && (brand || model)) {
+      match = (byKey.get(dispenserMatchKey(detail)) || []).find(
+        (dispenser) => (remaining.get(dispenser.id) || 0) > 0,
+      );
+    }
+    if (!match) return true;
+
+    const available = remaining.get(match.id) || 0;
+    if (available <= 0) return true;
+    remaining.set(match.id, available - 1);
+  }
+
+  return false;
 };
 
 const groupCustomerDispenserDetails = (
@@ -456,6 +615,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
     setOpenCategories({ damacana: true });
     setSebilGivenDetails({});
     setSebilReturnDetails({});
+    setSebilReturnNote("");
     setErrorPersistent(false);
     setErrorMsg(null);
     setShowNewProductForm(false);
@@ -508,6 +668,34 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
           editReceived.tupKucuk !== (Number(editDelivered.tupKucuk) || 0),
         sebil: editReceived.sebil !== 0,
       });
+
+      // Önceki kayıttaki sebil detayları düzenleme ekranına taşınır.
+      const editGivenRows: Record<number, DispenserDetailRow> = {};
+      let editGivenIndex = 0;
+      (editDelivery.dispenserGivenDetails || []).forEach((detail) => {
+        const quantity = Math.max(1, Math.floor(Number(detail.quantity) || 0));
+        for (let i = 0; i < quantity; i += 1) {
+          editGivenRows[editGivenIndex] = {
+            brand: detail.brand || "",
+            model: detail.model || "",
+            note: detail.note || "",
+            customerDispenserId: "",
+          };
+          editGivenIndex += 1;
+        }
+      });
+      setSebilGivenDetails(editGivenRows);
+
+      const editReturnRows: Record<number, DispenserDetailRow> = {};
+      (editDelivery.dispenserReturns || []).forEach((detail, index) => {
+        editReturnRows[index] = {
+          brand: detail.brand || "",
+          model: detail.model || "",
+          note: detail.note || "",
+          customerDispenserId: "",
+        };
+      });
+      setSebilReturnDetails(editReturnRows);
 
       const cash = Number(editDelivery.collectedPayment?.cashAmount) || 0;
       const pos = Number(editDelivery.collectedPayment?.posAmount) || 0;
@@ -605,6 +793,12 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const [sebilReturnDetails, setSebilReturnDetails] = useState<
     Record<number, DispenserDetailRow>
   >({});
+  const [sebilReturnNote, setSebilReturnNote] = useState("");
+  // İade sırasında müşteride kayıtlı sebil detaylarından seçim yapılabilir.
+  const [customerDispensers, setCustomerDispensers] = useState<
+    CustomerDispenser[]
+  >([]);
+  const [dispensersLoading, setDispensersLoading] = useState(false);
   const [manualEmpty, setManualEmpty] = useState<Record<DepositKey, boolean>>({
     damacana: false,
     cam_damacana: false,
@@ -689,6 +883,35 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       setUnitPrices(initialPrices);
     }
   }, [selectedCustomer, allProducts, isEdit]);
+
+  // Seçilen müşterinin kayıtlı sebil detayları; iade kartlarında seçim için.
+  useEffect(() => {
+    if (!isOpen) return;
+    const customerId = selectedCustomer?.id;
+    if (!customerId) {
+      setCustomerDispensers([]);
+      setDispensersLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setDispensersLoading(true);
+    fetchCustomerDispensers(customerId)
+      .then((rows) => {
+        if (!cancelled) setCustomerDispensers(rows);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error("[customer dispensers]", err);
+          setCustomerDispensers([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setDispensersLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCustomer?.id, isOpen]);
 
   // Faturalı müşteride tutar bilgisi yazılmadığı için "tam tahsilat" varsayılanı
   // kullanılmaz; şoför tahsilat aldıysa tutarı kendisi girer.
@@ -845,10 +1068,50 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   };
 
   const handleSelectCustomer = (customer: Customer) => {
+    if (selectedCustomer?.id !== customer.id) {
+      setSebilGivenDetails({});
+      setSebilReturnDetails({});
+      setSebilReturnNote("");
+    }
     setSelectedCustomer(customer);
     setErrorPersistent(false);
     setErrorMsg(null);
     openStepAndScroll("products");
+  };
+
+  const handleReturnDetailChange = (
+    index: number,
+    field: keyof DispenserDetailRow,
+    value: string,
+  ) => {
+    setSebilReturnDetails((prev) => ({
+      ...prev,
+      [index]: {
+        ...(prev[index] || EMPTY_DISPENSER_DETAIL_ROW),
+        [field]: value,
+        // Serbest metin değişince seçili kayıt bağlantısı düşer; eşleşme
+        // marka + model üzerinden yeniden yapılır.
+        customerDispenserId: "",
+      },
+    }));
+  };
+
+  const handleSelectExistingDispenser = (
+    index: number,
+    dispenserId: string,
+  ) => {
+    const dispenser = customerDispensers.find((row) => row.id === dispenserId);
+    setSebilReturnDetails((prev) => ({
+      ...prev,
+      [index]: dispenser
+        ? {
+            brand: dispenser.brand || "",
+            model: dispenser.model || "",
+            note: dispenser.note || "",
+            customerDispenserId: dispenser.id,
+          }
+        : { ...EMPTY_DISPENSER_DETAIL_ROW },
+    }));
   };
 
   // New Customer submit
@@ -1003,6 +1266,43 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         emptySebilReturned,
       );
 
+      if (emptySebilReturned > 0) {
+        if (dispensersLoading) {
+          setErrorPersistent(true);
+          setErrorMsg(
+            "Müşterinin kayıtlı sebil bilgileri yükleniyor. Lütfen kısa bir süre sonra tekrar deneyin.",
+          );
+          return;
+        }
+        if (
+          hasUnmatchedDispenserReturns(
+            dispenserReturns,
+            buildReturnValidationCandidates(
+              customerDispensers,
+              isEdit ? editDelivery?.dispenserReturns : undefined,
+            ),
+          ) &&
+          sebilReturnNote.trim().length < 3
+        ) {
+          setErrorPersistent(true);
+          setErrorMsg(
+            "İade edilen sebil müşteride kayıtlı bilgilerle eşleşmiyor. Farkı açıklayan en az 3 karakterlik bir açıklama girin.",
+          );
+          window.requestAnimationFrame(() => {
+            const noteEl = document.getElementById(
+              "delivery-sebil-return-note",
+            );
+            noteEl?.scrollIntoView({ block: "center", behavior: "smooth" });
+            noteEl?.focus();
+          });
+          return;
+        }
+      }
+
+      const givenDispenserDetails = groupCustomerDispenserDetails(
+        buildDispenserDetails(sebilGivenDetails, deliveredDepositSebil),
+      );
+
       if (isEdit && editDelivery) {
         const rid =
           replacementId ||
@@ -1012,6 +1312,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
           deliveredItems,
           collectedPayment,
           emptyContainersReceived,
+          dispenserReturns,
+          dispenserGivenDetails: givenDispenserDetails,
+          dispenserReturnNote: sebilReturnNote.trim(),
           notes: notes.trim(),
           allowStockOverride,
         });
@@ -1019,10 +1322,6 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         onClose();
         return;
       }
-
-      const givenDispenserDetails = groupCustomerDispenserDetails(
-        buildDispenserDetails(sebilGivenDetails, deliveredDepositSebil),
-      );
 
       const payload = {
         dispatchId: dispatch.id,
@@ -1038,6 +1337,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
         emptyContainersReceived,
         dispenserReturns,
         dispenserGivenDetails: givenDispenserDetails,
+        dispenserReturnNote: sebilReturnNote.trim(),
         notes: notes.trim(),
         allowStockOverride,
       };
@@ -1591,6 +1891,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     type="button"
                     onClick={() => {
                       setSelectedCustomer(null);
+                      setSebilGivenDetails({});
+                      setSebilReturnDetails({});
+                      setSebilReturnNote("");
                       openStepAndScroll("customer");
                     }}
                     className="min-h-11 px-3 py-2 rounded-lg border border-sky-300 text-sky-700 hover:bg-sky-100 text-xs font-semibold shrink-0"
@@ -1972,7 +2275,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                           </div>
                         </div>
                       </div>
-                      {isSebilProduct && qty > 0 && !isEdit && (
+                      {isSebilProduct && qty > 0 && (
                         <DispenserDetailCards
                           title="Verilen su sebili bilgileri (isteğe bağlı)"
                           itemLabel="Sebil"
@@ -2129,29 +2432,46 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                       if (!manual) {
                         setEmptySebilReturned(0);
                         setSebilReturnDetails({});
+                        setSebilReturnNote("");
                       }
                     }}
                     onChange={setEmptySebilReturned}
                   />
 
-                  {emptySebilReturned > 0 && !isEdit && (
-                    <div className="sm:col-span-2">
+                  {emptySebilReturned > 0 && (
+                    <div className="sm:col-span-2 space-y-3">
                       <DispenserDetailCards
                         title="İade alınan su sebili bilgileri (isteğe bağlı)"
                         itemLabel="İade Edilen Sebil"
                         count={emptySebilReturned}
                         rows={sebilReturnDetails}
                         notePlaceholder="Örn: Mutfaktan alındı; musluk kırık, depoya götürülecek"
-                        onChange={(index, field, value) =>
-                          setSebilReturnDetails((prev) => ({
-                            ...prev,
-                            [index]: {
-                              ...(prev[index] || EMPTY_DISPENSER_DETAIL_ROW),
-                              [field]: value,
-                            },
-                          }))
-                        }
+                        existingDispensers={customerDispensers}
+                        onSelectExisting={handleSelectExistingDispenser}
+                        onChange={handleReturnDetailChange}
                       />
+                      <div className="p-3 rounded-xl border border-amber-200 bg-amber-50/50 space-y-1.5">
+                        <label
+                          htmlFor="delivery-sebil-return-note"
+                          className="block text-[11px] font-semibold text-amber-900"
+                        >
+                          Sebil iade açıklaması
+                        </label>
+                        <textarea
+                          id="delivery-sebil-return-note"
+                          value={sebilReturnNote}
+                          onChange={(e) => setSebilReturnNote(e.target.value)}
+                          maxLength={300}
+                          rows={2}
+                          placeholder="İade detayı müşteride kayıtlı sebilden farklıysa kısa bir açıklama yazın"
+                          className="w-full p-2 rounded-lg border border-amber-200 bg-white text-xs text-slate-900 resize-y"
+                        />
+                        <p className="text-[10px] text-amber-800">
+                          İade detayı müşteride kayıtlı sebil bilgileriyle
+                          eşleşmiyorsa açıklama zorunludur. Açıklama gün sonu
+                          raporunda müşteri satırında görünür.
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
