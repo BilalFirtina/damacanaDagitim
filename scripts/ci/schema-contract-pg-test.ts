@@ -5,6 +5,7 @@
  * CI'de `retention-pg-test.ts --apply-only` sonrasında çalışır.
  */
 import { Client } from 'pg';
+import fs from 'node:fs';
 
 const DATABASE_URL =
   process.env.DATABASE_URL || 'postgres://postgres:postgres@127.0.0.1:5432/postgres';
@@ -18,8 +19,10 @@ function assertLocalDatabase(url: string) {
 
 let passed = 0;
 let failed = 0;
+const report: Array<{ name: string; ok: boolean }> = [];
 
 function check(name: string, ok: boolean) {
+  report.push({ name, ok });
   if (ok) {
     passed++;
     console.log(`  PASS  ${name}`);
@@ -27,6 +30,13 @@ function check(name: string, ok: boolean) {
     failed++;
     console.error(`  FAIL  ${name}`);
   }
+}
+
+function writeReport() {
+  fs.writeFileSync(
+    'schema-contract-report.json',
+    JSON.stringify({ passed, failed, checks: report }, null, 2)
+  );
 }
 
 async function main() {
@@ -157,10 +167,12 @@ async function main() {
   }
 
   console.log(`\nŞema sözleşmesi: ${passed} başarılı, ${failed} başarısız`);
+  writeReport();
   if (failed > 0) process.exit(1);
 }
 
 main().catch((error) => {
   console.error('Şema sözleşmesi hatası:', error);
+  writeReport();
   process.exit(1);
 });

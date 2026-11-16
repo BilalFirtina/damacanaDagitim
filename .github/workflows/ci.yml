@@ -85,6 +85,14 @@ jobs:
       - name: Şema sözleşmesi (kritik tablo/kolon/fonksiyonlar)
         run: npx tsx scripts/ci/schema-contract-pg-test.ts
 
+      - name: Şema sözleşmesi raporunu yükle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: schema-contract-report
+          path: schema-contract-report.json
+          if-no-files-found: warn
+
       - name: Retention semantiğini doğrula
         run: npx tsx scripts/ci/retention-pg-test.ts
 
