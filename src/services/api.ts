@@ -12,6 +12,7 @@ import {
   Supplier,
   Purchase,
   PurchaseInputItem,
+  CustomerPayment,
 } from '../types';
 import {
   classifyDeliverySyncResponse,
@@ -476,6 +477,60 @@ export async function fetchCustomerPayments(customerId: string): Promise<
   if (!res.ok) await throwServerError(res, 'Tahsilat kayıtları alınamadı');
   const json = await res.json();
   return json.payments || [];
+}
+
+export async function fetchPayments(params?: {
+  date?: string;
+  driverId?: string;
+}): Promise<CustomerPayment[]> {
+  const query = new URLSearchParams();
+  if (params?.date) query.set('date', params.date);
+  if (params?.driverId) query.set('driverId', params.driverId);
+  const suffix = query.toString() ? `?${query.toString()}` : '';
+  const res = await apiFetch(`/api/payments${suffix}`);
+  if (!res.ok) await throwServerError(res, 'Tahsilat kayıtları alınamadı');
+  const json = await res.json();
+  return json.payments || [];
+}
+
+export interface PaymentCorrectionInput {
+  amount: number;
+  method: 'CASH' | 'POS';
+  note?: string;
+  requestId?: string;
+}
+
+export interface PaymentCorrectionResult {
+  payment: CustomerPayment | null;
+  balance: number | null;
+  balanceHidden?: boolean;
+  message: string;
+}
+
+export async function updateCustomerPayment(
+  paymentId: string,
+  input: PaymentCorrectionInput
+): Promise<PaymentCorrectionResult> {
+  const res = await apiFetch(`/api/payments/${encodeURIComponent(paymentId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) await throwServerError(res, 'Tahsilat düzeltilemedi');
+  return res.json();
+}
+
+export async function cancelCustomerPayment(
+  paymentId: string,
+  requestId?: string
+): Promise<PaymentCorrectionResult> {
+  const res = await apiFetch(`/api/payments/${encodeURIComponent(paymentId)}/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestId ? { requestId } : {}),
+  });
+  if (!res.ok) await throwServerError(res, 'Tahsilat iptal edilemedi');
+  return res.json();
 }
 
 export async function createCustomer(customer: Partial<Customer>): Promise<Customer> {

@@ -318,6 +318,31 @@ export interface PurchaseInputItem {
   unitPrice?: number | null;
 }
 
+export type CustomerPaymentStatus = 'active' | 'cancelled';
+
+export interface CustomerPayment {
+  id: string;
+  customerId: string;
+  customerName?: string;
+  /** Faturalı müşteri etiketi; tutar tahsilat tutarıdır, cari borç değildir. */
+  isAccountCustomer?: boolean;
+  amount: number;
+  method: 'CASH' | 'POS' | 'TRANSFER';
+  note: string;
+  dispatchId?: string | null;
+  dispatchPlate?: string | null;
+  dispatchStatus?: string | null;
+  collectedByUserId: string;
+  collectedByUserName: string;
+  collectedAt: string;
+  status: CustomerPaymentStatus;
+  correctedAt?: string | null;
+  correctedByUserName?: string | null;
+  correctionCount?: number;
+  /** Sunucu tarafından hesaplanır: aktif seferde kendi tahsilatı veya admin. */
+  canCorrect?: boolean;
+}
+
 export interface LoadedItem {
   productId: string;
   quantity: number;

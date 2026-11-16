@@ -1,12 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { Dispatch, Delivery, Customer, Product, User } from '../../types';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Dispatch, Delivery, Customer, Product, User, CustomerPayment } from '../../types';
 import { todayUtcDateStr } from '../../services/dateWindow';
-import { cancelDelivery } from '../../services/api';
+import {
+  cancelCustomerPayment,
+  cancelDelivery,
+  fetchPayments,
+  getAuthToken,
+} from '../../services/api';
 import { isAccountCustomerDelivery } from '../../services/customerVisibility';
 import { MorningLoadCard } from './MorningLoadCard';
 import { DriverStatsStrip } from './DriverStatsStrip';
 import { DeliveryModal } from './DeliveryModal';
 import { DriverPaymentModal } from './DriverPaymentModal';
+import { PaymentCorrectionModal } from './PaymentCorrectionModal';
 import {
   Plus,
   Truck,
@@ -60,6 +66,10 @@ export const DriverView: React.FC<DriverViewProps> = ({
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [payments, setPayments] = useState<CustomerPayment[]>([]);
+  const [paymentEditTarget, setPaymentEditTarget] = useState<CustomerPayment | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentActionId, setPaymentActionId] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
@@ -149,6 +159,74 @@ export const DriverView: React.FC<DriverViewProps> = ({
   const myDeliveries = activeDispatch
     ? deliveries.filter((d) => d.dispatchId === activeDispatch.id)
     : [];
+
+  const loadPayments = useCallback(async () => {
+    if (document.visibilityState === 'hidden') return;
+    if (!navigator.onLine) return;
+    if (!getAuthToken()) return;
+    try {
+      const list = await fetchPayments({
+        date: todayStr,
+        driverId: inspectedDriverId,
+      });
+      setPayments(list);
+    } catch {
+      // Canlı ekranı kesmemek için okuma hatası sessizce yok sayılır.
+    }
+  }, [todayStr, inspectedDriverId]);
+
+  useEffect(() => {
+    void loadPayments();
+    const interval = window.setInterval(loadPayments, 8000);
+    return () => window.clearInterval(interval);
+  }, [loadPayments]);
+
+  const combinedRows = useMemo(() => {
+    const rows = [
+      ...myDeliveries.map((delivery) => ({
+        kind: 'delivery' as const,
+        id: `delivery_${delivery.id}`,
+        at: new Date(delivery.timestamp).getTime(),
+        delivery,
+      })),
+      ...payments.map((payment) => ({
+        kind: 'payment' as const,
+        id: `payment_${payment.id}`,
+        at: new Date(payment.collectedAt).getTime(),
+        payment,
+      })),
+    ];
+    return rows.sort((a, b) => b.at - a.at);
+  }, [myDeliveries, payments]);
+
+  const handleCancelPayment = async (payment: CustomerPayment) => {
+    if (paymentActionId) return;
+    const customerLabel = payment.customerName || payment.customerId;
+    const confirmed = window.confirm(
+      `${customerLabel} için ${payment.amount.toLocaleString('tr-TR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })} ₺ tahsilat iptal edilecek. Müşteri bakiyesine geri eklenecek. Devam edilsin mi?`
+    );
+    if (!confirmed) return;
+
+    try {
+      setPaymentActionId(payment.id);
+      setPaymentError(null);
+      await cancelCustomerPayment(payment.id);
+      await loadPayments();
+      onDeliveryCorrected();
+    } catch (err: any) {
+      setPaymentError(err?.message || 'Tahsilat iptal edilemedi.');
+    } finally {
+      setPaymentActionId(null);
+    }
+  };
+
+  const inspectedDriverName =
+    users.find((u) => u.id === inspectedDriverId)?.name || 'Şoför';
+  const inspectedPlate =
+    activeDispatch?.vehiclePlate || payments[0]?.dispatchPlate || 'Seçili araç';
 
   const isShiftReady = activeDispatch && activeDispatch.status === 'in_transit';
 
@@ -272,18 +350,20 @@ export const DriverView: React.FC<DriverViewProps> = ({
 
       {/* Today's Deliveries List for this Vehicle */}
       <div className="bg-white  rounded-2xl border border-slate-200  p-5 shadow-xs space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100 ">
-          <div>
+        <div className="flex flex-col min-[425px]:flex-row min-[425px]:items-start justify-between gap-2 min-[425px]:gap-3 pb-3 border-b border-slate-100 ">
+          <div className="min-w-0">
             <h3 className="text-sm font-bold text-slate-900  flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-sky-600" />
-              <span>Günün Yapılan Teslimatları ({myDeliveries.length})</span>
+              <Building2 className="w-4 h-4 text-sky-600 shrink-0" />
+              <span className="break-words">
+                Günün Yapılan Teslimatları &amp; Tahsilatları ({combinedRows.length})
+              </span>
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {activeDispatch?.vehiclePlate || 'Seçili araç'} ({activeDispatch?.driverName || 'Şoför'}) tarafından bugün tamamlanan teslimatlar
+            <p className="text-xs text-slate-500 mt-0.5 break-words">
+              {inspectedPlate} ({inspectedDriverName}) tarafından bugün tamamlanan teslimatlar ve tahsilatlar
             </p>
             {!isOnline && (
               <p className="text-[11px] font-semibold text-amber-700  mt-1">
-                Çevrimdışıyken teslimat iptali ve düzenlemesi devre dışıdır.
+                Çevrimdışıyken teslimat/tahsilat iptali ve düzenlemesi devre dışıdır.
               </p>
             )}
           </div>
@@ -291,7 +371,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
           {activeDispatch && activeDispatch.status === 'in_transit' && (
             <button
               onClick={() => onNavigateTab('eod')}
-              className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1"
+              className="self-start min-[425px]:self-auto shrink-0 text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1"
             >
               <span>Gün Sonu Mutabakatı</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -299,10 +379,17 @@ export const DriverView: React.FC<DriverViewProps> = ({
           )}
         </div>
 
-        {myDeliveries.length === 0 ? (
+        {paymentError && (
+          <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-2.5 text-[11px] text-rose-800">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="break-words">{paymentError}</span>
+          </div>
+        )}
+
+        {combinedRows.length === 0 ? (
           <div className="py-12 text-center text-slate-400 text-xs space-y-2">
             <Truck className="w-8 h-8 text-slate-300 mx-auto" />
-            <p>Bugün henüz bu araçla teslimat kaydı yapılmadı.</p>
+            <p>Bugün henüz bu araçla teslimat veya tahsilat kaydı yapılmadı.</p>
             {isShiftReady && currentUser.role !== 'admin' && (
               <button
                 onClick={() => setShowDeliveryModal(true)}
@@ -314,7 +401,92 @@ export const DriverView: React.FC<DriverViewProps> = ({
           </div>
         ) : (
           <div className="divide-y divide-slate-100 ">
-            {myDeliveries.map((del) => {
+            {combinedRows.map((row) => {
+              if (row.kind === 'payment') {
+                const payment = row.payment;
+                const timeStr = new Date(payment.collectedAt).toLocaleTimeString('tr-TR', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                });
+                const amountStr = payment.amount.toLocaleString('tr-TR', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                });
+
+                return (
+                  <div
+                    key={row.id}
+                    className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full min-w-0"
+                  >
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Wallet className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                        <span className="font-bold text-xs text-slate-900 break-words">
+                          {payment.customerName || payment.customerId}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {timeStr}
+                        </span>
+                        {payment.status === 'cancelled' && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 border border-rose-200">
+                            İptal Edildi
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                        <span className="px-2 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200 font-semibold">
+                          {payment.method === 'CASH'
+                            ? 'Nakit'
+                            : payment.method === 'POS'
+                              ? 'POS'
+                              : 'Havale'}
+                        </span>
+                        <span className="font-mono font-bold text-slate-800 tabular-nums">
+                          {amountStr} ₺
+                        </span>
+                        {payment.note && (
+                          <span className="text-slate-500 break-words">
+                            Not: {payment.note}
+                          </span>
+                        )}
+                        <span className="text-slate-400 break-words">
+                          Tahsil Eden: {payment.collectedByUserName}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-left sm:text-right shrink-0 space-y-2">
+                      {payment.status === 'active' && payment.canCorrect && (
+                        <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setPaymentEditTarget(payment)}
+                            disabled={paymentActionId === payment.id}
+                            title="Tahsilatı düzelt"
+                            className="min-h-10 px-3 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white border border-sky-600 shadow-xs text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                            Düzelt
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleCancelPayment(payment)}
+                            disabled={paymentActionId === payment.id}
+                            title="Tahsilatı iptal et"
+                            className="min-h-10 px-3 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white border border-rose-600 shadow-xs text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <Ban className="w-3.5 h-3.5" />
+                            İptal
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+
+              const del = row.delivery;
               const timeStr = new Date(del.timestamp).toLocaleTimeString('tr-TR', {
                 hour: '2-digit',
                 minute: '2-digit',
@@ -408,7 +580,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
 
                     {activeDispatch?.status === 'in_transit' &&
                       currentUser.role !== 'admin' && (
-                        <div className="flex items-center sm:justify-end gap-1.5 mt-2">
+                        <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:justify-end mt-2">
                           <button
                             type="button"
                             onClick={() => setEditTarget(del)}
@@ -418,9 +590,9 @@ export const DriverView: React.FC<DriverViewProps> = ({
                                 ? 'Teslimatı düzenle'
                                 : 'Çevrimdışıyken düzenleme yapılamaz'
                             }
-                            className="px-2.5 py-1.5 rounded-lg border border-sky-200  text-sky-700  text-[11px] font-bold hover:bg-sky-50  disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+                            className="min-h-10 px-3 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white border border-sky-600 shadow-xs text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
                           >
-                            <Edit2 className="w-3 h-3" />
+                            <Edit2 className="w-3.5 h-3.5" />
                             Düzenle
                           </button>
                           <button
@@ -432,9 +604,9 @@ export const DriverView: React.FC<DriverViewProps> = ({
                                 ? 'Teslimatı iptal et'
                                 : 'Çevrimdışıyken iptal yapılamaz'
                             }
-                            className="px-2.5 py-1.5 rounded-lg border border-rose-200  text-rose-700  text-[11px] font-bold hover:bg-rose-50  disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+                            className="min-h-10 px-3 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white border border-rose-600 shadow-xs text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
                           >
-                            <Ban className="w-3 h-3" />
+                            <Ban className="w-3.5 h-3.5" />
                             İptal
                           </button>
                         </div>
@@ -453,9 +625,21 @@ export const DriverView: React.FC<DriverViewProps> = ({
           customers={customers}
           dispatchId={activeDispatch.id}
           onClose={() => setShowPaymentModal(false)}
-          onSaved={(customerId, newBalance) =>
-            onCustomerBalanceUpdated(customerId, newBalance)
-          }
+          onSaved={(customerId, newBalance) => {
+            onCustomerBalanceUpdated(customerId, newBalance);
+            void loadPayments();
+          }}
+        />
+      )}
+
+      {paymentEditTarget && (
+        <PaymentCorrectionModal
+          payment={paymentEditTarget}
+          onClose={() => setPaymentEditTarget(null)}
+          onSaved={() => {
+            void loadPayments();
+            onDeliveryCorrected();
+          }}
         />
       )}
 

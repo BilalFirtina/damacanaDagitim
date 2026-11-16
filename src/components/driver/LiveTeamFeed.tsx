@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Customer, Delivery, Product, Purchase, User } from '../../types';
+import { Customer, CustomerPayment, Delivery, Product, Purchase, User } from '../../types';
 import { isAccountCustomerDelivery } from '../../services/customerVisibility';
 import { todayUtcDateStr } from '../../services/dateWindow';
-import { fetchPurchases, getAuthToken } from '../../services/api';
-import { sortPurchasesNewestFirst } from '../../services/purchaseRules';
+import { fetchPayments, fetchPurchases, getAuthToken } from '../../services/api';
 import { PurchaseFeedCard } from '../purchases/PurchaseFeedCard';
+import { PaymentFeedCard } from './PaymentFeedCard';
 import {
   Clock,
   Truck,
@@ -15,7 +15,6 @@ import {
   Search,
   Filter,
   Users,
-  Package,
 } from 'lucide-react';
 
 interface LiveTeamFeedProps {
@@ -24,6 +23,35 @@ interface LiveTeamFeedProps {
   customers?: Customer[];
   products?: Product[];
 }
+
+type LiveFeedItem =
+  | {
+      kind: 'delivery';
+      id: string;
+      at: number;
+      driverId: string;
+      plate: string;
+      searchText: string;
+      delivery: Delivery;
+    }
+  | {
+      kind: 'purchase';
+      id: string;
+      at: number;
+      driverId: string;
+      plate: string;
+      searchText: string;
+      purchase: Purchase;
+    }
+  | {
+      kind: 'payment';
+      id: string;
+      at: number;
+      driverId: string;
+      plate: string;
+      searchText: string;
+      payment: CustomerPayment;
+    };
 
 // Ayırt edici şoför renk paletleri (Her şoför alt alta listelendiğinde belirgin şekilde ayrışır)
 export interface DriverPalette {
@@ -122,6 +150,7 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
   const [filterDriverId, setFilterDriverId] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [payments, setPayments] = useState<CustomerPayment[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -129,11 +158,18 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
       if (document.visibilityState === 'hidden') return;
       if (!navigator.onLine) return;
       if (!getAuthToken()) return;
+      const date = todayUtcDateStr();
       try {
-        const list = await fetchPurchases({ date: todayUtcDateStr() });
-        if (!cancelled) setPurchases(sortPurchasesNewestFirst(list));
+        const list = await fetchPurchases({ date });
+        if (!cancelled) setPurchases(list);
       } catch {
         // Canlı akış teslimatlarını etkilememek için sessizce yok sayılır.
+      }
+      try {
+        const list = await fetchPayments({ date });
+        if (!cancelled) setPayments(list);
+      } catch {
+        // Tahsilat servisi erişilemezse mevcut akış korunur.
       }
     };
     void load();
@@ -144,10 +180,18 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
     };
   }, []);
 
-  // Extract unique vehicle plates for filtering
+  // Extract unique vehicle plates for filtering across all feed types
   const plates = useMemo(() => {
-    return Array.from(new Set(deliveries.map((d) => d.vehiclePlate).filter(Boolean)));
-  }, [deliveries]);
+    return Array.from(
+      new Set(
+        [
+          ...deliveries.map((d) => d.vehiclePlate),
+          ...purchases.map((p) => p.dispatchPlate || ''),
+          ...payments.map((p) => p.dispatchPlate || ''),
+        ].filter(Boolean)
+      )
+    );
+  }, [deliveries, purchases, payments]);
 
   // Extract unique drivers present in the delivery feed with stats
   const activeDrivers = useMemo(() => {
@@ -169,14 +213,75 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
     return Array.from(driverMap.values());
   }, [deliveries]);
 
-  const filtered = deliveries.filter((d) => {
-    const matchesPlate = filterPlate === 'all' || d.vehiclePlate === filterPlate;
-    const matchesDriver = filterDriverId === 'all' || d.driverId === filterDriverId;
+  const feedItems = useMemo<LiveFeedItem[]>(() => {
+    const items: LiveFeedItem[] = [];
+
+    for (const delivery of deliveries) {
+      items.push({
+        kind: 'delivery',
+        id: `delivery_${delivery.id}`,
+        at: new Date(delivery.timestamp).getTime(),
+        driverId: delivery.driverId,
+        plate: delivery.vehiclePlate || '',
+        searchText: [
+          delivery.customerName,
+          delivery.driverName,
+          delivery.customerAddress,
+          delivery.vehiclePlate,
+        ]
+          .join(' ')
+          .toLowerCase(),
+        delivery,
+      });
+    }
+
+    for (const purchase of purchases) {
+      items.push({
+        kind: 'purchase',
+        id: `purchase_${purchase.id}`,
+        at: new Date(purchase.purchasedAt).getTime(),
+        driverId: purchase.createdByUserId,
+        plate: purchase.dispatchPlate || '',
+        searchText: [
+          purchase.supplierName,
+          purchase.createdByUserName,
+          purchase.description || '',
+          purchase.dispatchPlate || '',
+          ...purchase.items.map((item) => item.productName),
+        ]
+          .join(' ')
+          .toLowerCase(),
+        purchase,
+      });
+    }
+
+    for (const payment of payments) {
+      items.push({
+        kind: 'payment',
+        id: `payment_${payment.id}`,
+        at: new Date(payment.collectedAt).getTime(),
+        driverId: payment.collectedByUserId,
+        plate: payment.dispatchPlate || '',
+        searchText: [
+          payment.customerName || payment.customerId,
+          payment.collectedByUserName,
+          payment.dispatchPlate || '',
+          payment.note,
+        ]
+          .join(' ')
+          .toLowerCase(),
+        payment,
+      });
+    }
+
+    return items.sort((a, b) => b.at - a.at);
+  }, [deliveries, purchases, payments]);
+
+  const filteredFeed = feedItems.filter((item) => {
+    const matchesPlate = filterPlate === 'all' || item.plate === filterPlate;
+    const matchesDriver = filterDriverId === 'all' || item.driverId === filterDriverId;
     const matchesSearch =
-      d.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      d.driverName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      d.customerAddress.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      d.vehiclePlate.toLowerCase().includes(searchTerm.toLowerCase());
+      !searchTerm || item.searchText.includes(searchTerm.toLowerCase());
     return matchesPlate && matchesDriver && matchesSearch;
   });
 
@@ -187,11 +292,11 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
         <div className="w-full text-center">
           <div className="flex items-center justify-center gap-2">
             <h2 className="text-base font-bold text-slate-900 ">
-              Ortak Saha & Ekip Canlı Teslimat Akışı
+              Ortak Saha &amp; Ekip Canlı Akışı
             </h2>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Tüm araçların ve şoförlerin teslimatları anlık olarak bu ekrana düşer. Her şoförün teslimatı kendi özel rengiyle ayırt edilir.
+            Teslimatlar, satın alımlar ve teslimat dışı tahsilatlar en yeni üstte olacak şekilde tek akışta gösterilir. Her şoförün teslimatı kendi özel rengiyle ayırt edilir.
           </p>
         </div>
 
@@ -225,25 +330,6 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
           </div>
         </div>
       </div>
-
-      {purchases.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <Package className="w-4 h-4 text-rose-600" />
-              <span>Toptancı Alımları</span>
-            </h3>
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-pink-100 via-rose-100 to-red-100 text-rose-800 border border-rose-200">
-              {purchases.length}
-            </span>
-          </div>
-          <div className="space-y-3">
-            {purchases.map((purchase) => (
-              <PurchaseFeedCard key={purchase.id} purchase={purchase} />
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* Driver Color Legend (Şoför Renk Kodları Lejantı) */}
       {activeDrivers.length > 0 && (
@@ -309,12 +395,24 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
 
       {/* Feed List */}
       <div className="space-y-3">
-        {filtered.length === 0 ? (
+        {filteredFeed.length === 0 ? (
           <div className="p-12 text-center bg-white  rounded-2xl border border-slate-200  text-slate-400 text-xs">
-            Henüz bu kritere uyan bir teslimat kaydı bulunmuyor.
+            Henüz bu kritere uyan bir teslimat, satın alım veya tahsilat kaydı bulunmuyor.
           </div>
         ) : (
-          filtered.map((item) => {
+          filteredFeed.map((feedItem) => {
+            if (feedItem.kind === 'purchase') {
+              return (
+                <PurchaseFeedCard key={feedItem.id} purchase={feedItem.purchase} />
+              );
+            }
+            if (feedItem.kind === 'payment') {
+              return (
+                <PaymentFeedCard key={feedItem.id} payment={feedItem.payment} />
+              );
+            }
+
+            const item = feedItem.delivery;
             const timeStr = new Date(item.timestamp).toLocaleTimeString('tr-TR', {
               hour: '2-digit',
               minute: '2-digit',

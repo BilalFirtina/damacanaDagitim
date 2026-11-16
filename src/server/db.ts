@@ -4730,6 +4730,10 @@ export interface CustomerPaymentRow {
   collectedByUserId: string;
   collectedByUserName: string;
   collectedAt: string;
+  status: 'active' | 'cancelled';
+  correctedAt?: string | null;
+  correctedByUserName?: string | null;
+  correctionCount: number;
 }
 
 function paymentError(e: any, fallback: string): Error {
@@ -4745,6 +4749,21 @@ function paymentError(e: any, fallback: string): Error {
   }
   if (/PAYMENT_METHOD_INVALID/i.test(raw)) {
     return new DispatchDbError('PAYMENT_METHOD_INVALID', 'Geçersiz ödeme yöntemi.');
+  }
+  if (/PAYMENT_NOT_FOUND/i.test(raw)) {
+    return new DispatchDbError('PAYMENT_NOT_FOUND', 'Tahsilat kaydı bulunamadı.');
+  }
+  if (/PAYMENT_ALREADY_CANCELLED/i.test(raw)) {
+    return new DispatchDbError('PAYMENT_ALREADY_CANCELLED', 'İptal edilmiş tahsilat düzeltilemez.');
+  }
+  if (/PAYMENT_MODE_INVALID/i.test(raw)) {
+    return new DispatchDbError('PAYMENT_MODE_INVALID', 'Geçersiz tahsilat işlemi.');
+  }
+  if (/REQUEST_ID_REQUIRED/i.test(raw)) {
+    return new DispatchDbError('REQUEST_ID_REQUIRED', 'İşlem kimliği gerekli.');
+  }
+  if (/ACTOR_REQUIRED/i.test(raw)) {
+    return new DispatchDbError('ACTOR_REQUIRED', 'İşlemi yapan kullanıcı bilgisi eksik.');
   }
   if (/CUSTOMER_NOT_FOUND/i.test(raw)) {
     return new DispatchDbError('CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
@@ -4819,6 +4838,38 @@ export async function createCustomerPayment(input: {
   };
 }
 
+export async function amendCustomerPayment(input: {
+  requestId: string;
+  paymentId: string;
+  mode: 'update' | 'cancel';
+  amount?: number;
+  method?: 'CASH' | 'POS' | 'TRANSFER';
+  note?: string;
+  actor: { id: string; name: string };
+}): Promise<{
+  paymentId: string;
+  balance: number;
+  alreadyApplied: boolean;
+  status: 'active' | 'cancelled';
+}> {
+  const result = await callJsonbRpc('amend_customer_payment', {
+    request_id: input.requestId,
+    payment_id: input.paymentId,
+    mode: input.mode,
+    amount: input.amount ?? null,
+    method: input.method ?? null,
+    note: input.note ?? '',
+    actor_id: input.actor.id,
+    actor_name: input.actor.name,
+  });
+  return {
+    paymentId: result?.payment_id || input.paymentId,
+    balance: Number(result?.balance) || 0,
+    alreadyApplied: Boolean(result?.already_applied),
+    status: result?.status === 'cancelled' ? 'cancelled' : 'active',
+  };
+}
+
 export async function getCustomerPayments(
   customerId: string,
   limit = 100
@@ -4844,17 +4895,25 @@ export async function getCustomerPayments(
   return [];
 }
 
-// Günlük rapor için: bir güne ait teslimat dışı tahsilatlar.
-export async function getCustomerPaymentsByDate(date: string): Promise<CustomerPaymentRow[]> {
+// Canlı akış ve dağıtım ekranı için bir güne ait tahsilatlar. İptal edilen
+// kayıtlar canlı akışta görünür; rapor toplamlarına ise
+// getCustomerPaymentsForReport() üzerinden dahil edilmez. Görünürlük filtresi
+// (şoför/admin) sunucu rotasında uygulanır.
+export async function getCustomerPaymentsByDate(
+  date: string,
+  includeCancelled = false
+): Promise<CustomerPaymentRow[]> {
   const window = utcDayQueryWindow(date);
   if (!window) return [];
   if (isSupabaseOperational() && supabase) {
-    const { data, error } = await supabase
+    let query = supabase
       .from('customer_payments')
       .select('*')
       .gte('collected_at', window.lower)
       .lt('collected_at', window.upper)
       .order('collected_at', { ascending: false });
+    if (!includeCancelled) query = query.eq('status', 'active');
+    const { data, error } = await query;
     if (error) throw paymentError(error, 'Tahsilat kayıtları okunamadı.');
     return (data || [])
       .filter((row: any) => isSameUtcDate(row.collected_at, date))
@@ -4862,7 +4921,10 @@ export async function getCustomerPaymentsByDate(date: string): Promise<CustomerP
   }
   if (pgPool) {
     const res = await pgPool.query(
-      'SELECT * FROM public.customer_payments WHERE collected_at >= $1 AND collected_at < $2 ORDER BY collected_at DESC',
+      `SELECT * FROM public.customer_payments
+       WHERE collected_at >= $1 AND collected_at < $2
+         ${includeCancelled ? '' : "AND status = 'active'"}
+       ORDER BY collected_at DESC`,
       [window.lower, window.upper]
     );
     return res.rows.filter((row: any) => isSameUtcDate(row.collected_at, date)).map(mapCustomerPayment);
@@ -4872,21 +4934,27 @@ export async function getCustomerPaymentsByDate(date: string): Promise<CustomerP
 
 // Bir sefere bağlı teslimat dışı tahsilatlar (gün sonu kasa mutabakatı).
 export async function getCustomerPaymentsByDispatch(
-  dispatchId: string
+  dispatchId: string,
+  includeCancelled = false
 ): Promise<CustomerPaymentRow[]> {
   if (!dispatchId) return [];
   if (isSupabaseOperational() && supabase) {
-    const { data, error } = await supabase
+    let query = supabase
       .from('customer_payments')
       .select('*')
       .eq('dispatch_id', dispatchId)
       .order('collected_at', { ascending: true });
+    if (!includeCancelled) query = query.eq('status', 'active');
+    const { data, error } = await query;
     if (error) throw paymentError(error, 'Sefer tahsilatları okunamadı.');
     return (data || []).map(mapCustomerPayment);
   }
   if (pgPool) {
     const res = await pgPool.query(
-      'SELECT * FROM public.customer_payments WHERE dispatch_id = $1 ORDER BY collected_at ASC',
+      `SELECT * FROM public.customer_payments
+       WHERE dispatch_id = $1
+         ${includeCancelled ? '' : "AND status = 'active'"}
+       ORDER BY collected_at ASC`,
       [dispatchId]
     );
     return res.rows.map(mapCustomerPayment);
@@ -4907,6 +4975,7 @@ export async function getCustomerPaymentsByDispatchIds(
           .from('customer_payments')
           .select('*')
           .in('dispatch_id', batch)
+          .eq('status', 'active')
           .order('collected_at', { ascending: true }),
       '[Supabase getCustomerPaymentsByDispatchIds]'
     );
@@ -4914,7 +4983,9 @@ export async function getCustomerPaymentsByDispatchIds(
   }
   if (pgPool) {
     const res = await pgPool.query(
-      'SELECT * FROM public.customer_payments WHERE dispatch_id = ANY($1::text[]) ORDER BY collected_at ASC',
+      `SELECT * FROM public.customer_payments
+       WHERE dispatch_id = ANY($1::text[]) AND status = 'active'
+       ORDER BY collected_at ASC`,
       [dispatchIds]
     );
     return res.rows.map(mapCustomerPayment);
@@ -4953,6 +5024,10 @@ function mapCustomerPayment(row: any): CustomerPaymentRow {
     collectedByUserId: row.collected_by_user_id,
     collectedByUserName: row.collected_by_user_name,
     collectedAt: row.collected_at,
+    status: row.status === 'cancelled' ? 'cancelled' : 'active',
+    correctedAt: row.corrected_at || null,
+    correctedByUserName: row.corrected_by_user_name || null,
+    correctionCount: Number(row.correction_count) || 0,
   };
 }
 

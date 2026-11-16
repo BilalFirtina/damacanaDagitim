@@ -202,5 +202,47 @@ console.log('9) Teslimat dışı tahsilat, düzeltme değil tahsilat olarak sın
   check('kapanış 300', r.closingBalance, 300);
 }
 
+console.log('10) Tahsilat düzeltmesi ve iptali toplam tahsilattan düşülür');
+{
+  const r = buildCustomerStatement({
+    currentBalance: 500,
+    deliveries: [delivery('d1', '2026-10-05', 500, 0)],
+    audits: [
+      {
+        id: 10,
+        changedAt: '2026-10-10T10:00:00.000Z',
+        changedByUserName: 'Şoför',
+        reason: 'Tahsilat (CASH): Geçen haftaki borç',
+        previousBalance: 500,
+        newBalance: 300,
+      },
+      {
+        id: 11,
+        changedAt: '2026-10-11T10:00:00.000Z',
+        changedByUserName: 'Depo Yöneticisi',
+        reason: 'Tahsilat düzeltmesi (CASH 200.00 TL -> CASH 100.00 TL)',
+        previousBalance: 300,
+        newBalance: 400,
+      },
+      {
+        id: 12,
+        changedAt: '2026-10-12T10:00:00.000Z',
+        changedByUserName: 'Depo Yöneticisi',
+        reason: 'Tahsilat iptali (CASH 100.00 TL)',
+        previousBalance: 400,
+        newBalance: 500,
+      },
+    ],
+    from: '2026-10-01',
+    to: '2026-10-31',
+  });
+  check('kapanış 500', r.closingBalance, 500);
+  check('net tahsilat 0', r.totalPayments, 0);
+  check('düzeltme toplamı 0', r.totalAdjustments, 0);
+  check('4 hareket', r.entries.length, 4);
+  check('düzeltme tahsilat türünde', r.entries[2].type, 'payment');
+  check('iptal tahsilat türünde', r.entries[3].type, 'payment');
+}
+
 console.log(`\nSonuç: ${passed} başarılı, ${failed} başarısız`);
 if (failed > 0) process.exit(1);

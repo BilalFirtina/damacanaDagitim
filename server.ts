@@ -36,7 +36,9 @@ import {
   getDeliveries,
   getCustomerFinancialAudit,
   createCustomerPayment,
+  amendCustomerPayment,
   getCustomerPayments,
+  getCustomerPaymentsByDate,
   getCustomerPaymentsByDispatch,
   getCustomerPaymentsForReport,
   getCustomerPaymentById,
@@ -1093,6 +1095,232 @@ app.get('/api/customers/:id/payments', requireAdmin, async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Teslimat dışı tahsilatlar — canlı akış, dağıtım ekranı ve düzeltme/iptal
+// ---------------------------------------------------------------------------
+
+function paymentCorrectionRequestId(raw: unknown): string | null {
+  if (raw === undefined || raw === null || raw === '') {
+    return `payfix_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+  if (typeof raw !== 'string') return null;
+  const value = raw.trim();
+  return /^payfix_[A-Za-z0-9_-]{1,80}$/.test(value) ? value : null;
+}
+
+async function canCorrectPaymentRecord(
+  payment: { status: string; collectedByUserId: string; dispatchId?: string | null },
+  session: { role: string; userId: string }
+): Promise<boolean> {
+  if (payment.status !== 'active') return false;
+  if (session.role === 'admin') return true;
+  if (payment.collectedByUserId !== session.userId || !payment.dispatchId) return false;
+  const dispatches = await getDispatches();
+  const dispatch = dispatches.find((d) => d.id === payment.dispatchId);
+  return dispatch?.status === 'in_transit';
+}
+
+function sendPaymentCorrectionError(res: Response, err: any, fallback: string) {
+  const code = err?.code;
+  const status =
+    code === 'PAYMENT_NOT_FOUND'
+      ? 404
+      : code === 'NOT_AUTHORIZED'
+        ? 403
+        : code === 'PAYMENT_ALREADY_CANCELLED'
+          ? 409
+          : 400;
+  res.status(status).json({
+    error: err?.message || fallback,
+    ...(code ? { code } : {}),
+  });
+}
+
+app.get('/api/payments', requireAdminOrDriver, async (req, res) => {
+  try {
+    const session = getAuthUser(req)!;
+    const rawDate = typeof req.query.date === 'string' ? req.query.date : '';
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : getTodayDateStr();
+    const driverId =
+      typeof req.query.driverId === 'string' ? req.query.driverId.trim() : '';
+
+    if (session.role === 'driver' && driverId && driverId !== session.userId) {
+      return res.status(403).json({ error: 'Yalnızca kendi tahsilatlarınızı görüntüleyebilirsiniz.' });
+    }
+
+    const [payments, customers, dispatches] = await Promise.all([
+      getCustomerPaymentsByDate(date, true),
+      getCustomers(),
+      getDispatches(),
+    ]);
+
+    const customerById = new Map(customers.map((c) => [c.id, c]));
+    const dispatchById = new Map(dispatches.map((d) => [d.id, d]));
+
+    const filtered = driverId
+      ? payments.filter((p) => p.collectedByUserId === driverId)
+      : payments;
+
+    res.json({
+      payments: filtered.map((payment) => {
+        const customer = customerById.get(payment.customerId);
+        const dispatch = payment.dispatchId
+          ? dispatchById.get(payment.dispatchId)
+          : null;
+        const canCorrect =
+          payment.status === 'active' &&
+          (session.role === 'admin' ||
+            (payment.collectedByUserId === session.userId &&
+              Boolean(dispatch) &&
+              dispatch?.status === 'in_transit'));
+
+        return {
+          ...payment,
+          customerName: customer?.name || payment.customerId,
+          isAccountCustomer: Boolean(customer?.isAccountCustomer),
+          dispatchPlate: dispatch?.vehiclePlate || null,
+          dispatchStatus: dispatch?.status || null,
+          canCorrect,
+        };
+      }),
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Tahsilat kayıtları okunamadı.' });
+  }
+});
+
+app.put('/api/payments/:id', requireAdminOrDriver, async (req, res) => {
+  try {
+    const session = getAuthUser(req)!;
+    const existing = await getCustomerPaymentById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Tahsilat kaydı bulunamadı.' });
+    }
+    if (existing.status === 'cancelled') {
+      return res.status(409).json({
+        error: 'İptal edilmiş tahsilat düzeltilemez.',
+        code: 'PAYMENT_ALREADY_CANCELLED',
+      });
+    }
+    if (!(await canCorrectPaymentRecord(existing, session))) {
+      return res.status(403).json({ error: 'Bu tahsilatı düzeltme yetkiniz yok.' });
+    }
+
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const amount = Number(body.amount);
+    const method = body.method;
+    const note = typeof body.note === 'string' ? body.note.slice(0, 500) : '';
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'Tahsilat tutarı sıfırdan büyük olmalıdır.' });
+    }
+    if (!['CASH', 'POS'].includes(method)) {
+      return res.status(400).json({ error: 'Geçersiz ödeme yöntemi. Yalnızca nakit veya POS kabul edilir.' });
+    }
+
+    const requestId = paymentCorrectionRequestId(body.requestId);
+    if (!requestId) {
+      return res.status(400).json({ error: 'Geçersiz işlem kimliği.' });
+    }
+
+    const result = await amendCustomerPayment({
+      requestId,
+      paymentId: existing.id,
+      mode: 'update',
+      amount,
+      method,
+      note,
+      actor: { id: session.userId, name: session.name },
+    });
+
+    const customer = (await getCustomers()).find((c) => c.id === existing.customerId);
+    const payment = await getCustomerPaymentById(existing.id);
+    const balanceHidden = session.role === 'driver' && Boolean(customer?.isAccountCustomer);
+
+    res.json({
+      payment: payment
+        ? {
+            ...payment,
+            customerName: customer?.name || payment.customerId,
+            isAccountCustomer: Boolean(customer?.isAccountCustomer),
+          }
+        : null,
+      balance: balanceHidden ? null : result.balance,
+      balanceHidden,
+      message: 'Tahsilat düzeltildi.',
+    });
+  } catch (err: any) {
+    sendPaymentCorrectionError(res, err, 'Tahsilat düzeltilemedi.');
+  }
+});
+
+app.post('/api/payments/:id/cancel', requireAdminOrDriver, async (req, res) => {
+  try {
+    const session = getAuthUser(req)!;
+    const existing = await getCustomerPaymentById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Tahsilat kaydı bulunamadı.' });
+    }
+
+    // Ağ hatasında aynı istek tekrar gelebilir. Zaten iptal edilmiş kayıt için
+    // bakiye ikinci kez değiştirilmez; yetkili kullanıcıya başarı dönülür.
+    if (existing.status === 'cancelled') {
+      const isOwner = existing.collectedByUserId === session.userId;
+      if (session.role !== 'admin' && !isOwner) {
+        return res.status(403).json({ error: 'Bu tahsilatı iptal etme yetkiniz yok.' });
+      }
+      const customer = (await getCustomers()).find((c) => c.id === existing.customerId);
+      const balanceHidden = session.role === 'driver' && Boolean(customer?.isAccountCustomer);
+      return res.json({
+        payment: {
+          ...existing,
+          customerName: customer?.name || existing.customerId,
+          isAccountCustomer: Boolean(customer?.isAccountCustomer),
+        },
+        balance: balanceHidden ? null : Number(customer?.currentBalanceTL) || 0,
+        balanceHidden,
+        message: 'Tahsilat zaten iptal edilmiş.',
+      });
+    }
+
+    if (!(await canCorrectPaymentRecord(existing, session))) {
+      return res.status(403).json({ error: 'Bu tahsilatı iptal etme yetkiniz yok.' });
+    }
+
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const requestId = paymentCorrectionRequestId(body.requestId);
+    if (!requestId) {
+      return res.status(400).json({ error: 'Geçersiz işlem kimliği.' });
+    }
+
+    const result = await amendCustomerPayment({
+      requestId,
+      paymentId: existing.id,
+      mode: 'cancel',
+      actor: { id: session.userId, name: session.name },
+    });
+
+    const customer = (await getCustomers()).find((c) => c.id === existing.customerId);
+    const payment = await getCustomerPaymentById(existing.id);
+    const balanceHidden = session.role === 'driver' && Boolean(customer?.isAccountCustomer);
+
+    res.json({
+      payment: payment
+        ? {
+            ...payment,
+            customerName: customer?.name || payment.customerId,
+            isAccountCustomer: Boolean(customer?.isAccountCustomer),
+          }
+        : null,
+      balance: balanceHidden ? null : result.balance,
+      balanceHidden,
+      message: 'Tahsilat iptal edildi.',
+    });
+  } catch (err: any) {
+    sendPaymentCorrectionError(res, err, 'Tahsilat iptal edilemedi.');
+  }
+});
+
 // Bir seferde ürün verilmeden alınan tahsilatlar (gün sonu kasa mutabakatı).
 app.get('/api/dispatches/:id/payments', requireAdminOrDriver, async (req, res) => {
   try {
@@ -1537,7 +1765,7 @@ app.put('/api/dispatches/:id', requireAdmin, async (req, res) => {
       (await getDeliveries({ dispatchId: existing.id, includeCancelled: false })).length > 0;
     const hasLinkedPayments =
       existing.hasLinkedPayments ??
-      (await getCustomerPaymentsByDispatch(existing.id)).length > 0;
+      (await getCustomerPaymentsByDispatch(existing.id, true)).length > 0;
 
     const validation = validateDispatchUpdate(req.body, {
       role: session.role,
@@ -1572,7 +1800,7 @@ app.post('/api/dispatches/:id/cancel', requireAdmin, async (req, res) => {
       (await getDeliveries({ dispatchId: existing.id, includeCancelled: false })).length > 0;
     const hasLinkedPayments =
       existing.hasLinkedPayments ??
-      (await getCustomerPaymentsByDispatch(existing.id)).length > 0;
+      (await getCustomerPaymentsByDispatch(existing.id, true)).length > 0;
 
     const validation = validateDispatchCancel({
       role: session.role,

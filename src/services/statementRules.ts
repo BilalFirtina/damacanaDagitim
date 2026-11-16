@@ -183,7 +183,10 @@ export function buildCustomerStatement(params: {
     running = money(running + entry.balanceDelta);
     entries.push({ ...entry, balanceAfter: running });
     if (entry.type === 'sale') totalSales += entry.debit;
-    else if (entry.type === 'payment') totalPayments += entry.credit;
+    // Tahsilat düzeltmesi/iptali denetim kaydı olarak gelebilir. Borç artıran
+    // (debit) düzeltmeler toplam tahsilattan düşülür; aksi hâlde iptal edilen
+    // tahsilat hâlâ tahsil edilmiş gibi görünür.
+    else if (entry.type === 'payment') totalPayments += entry.credit - entry.debit;
     else totalAdjustments += entry.balanceDelta;
   }
 
