@@ -371,13 +371,10 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                 <td className="p-0 pl-[2px] font-mono font-bold tabular-nums">{money(icmal.creditAdded)}</td>
               </tr>
               <tr className="border-b border-black">
-                <td className="p-0 pl-[2px] font-bold border-r border-black">Teslimat Tahsilatı (Nakit / POS):</td>
-                <td className="p-0 pl-[2px] font-mono font-bold tabular-nums">
-                  {money(icmal.deliveryCash)} / {money(icmal.deliveryPos)}
-                </td>
-                <td className="p-0 pl-[2px] font-bold border-r border-l border-black">Teslimat Dışı Tahsilat (Nakit / POS):</td>
-                <td className="p-0 pl-[2px] font-mono font-bold tabular-nums">
-                  {money(icmal.standaloneCash)} / {money(icmal.standalonePos)}
+                <td className="p-0 pl-[2px] font-bold border-r border-black">Tahsilat Toplamı (Nakit / POS):</td>
+                <td colSpan={3} className="p-0 pl-[2px] font-mono font-bold tabular-nums">
+                  {money(icmal.deliveryCash + icmal.standaloneCash)} /{' '}
+                  {money(icmal.deliveryPos + icmal.standalonePos)}
                 </td>
               </tr>
               <tr className="border-b border-black">

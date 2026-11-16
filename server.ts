@@ -1109,16 +1109,25 @@ function paymentCorrectionRequestId(raw: unknown): string | null {
   return /^payfix_[A-Za-z0-9_-]{1,80}$/.test(value) ? value : null;
 }
 
-async function canCorrectPaymentRecord(
+type PaymentCorrectionDenial = 'NOT_AUTHORIZED' | 'DISPATCH_CLOSED';
+
+async function getPaymentCorrectionDenial(
   payment: { status: string; collectedByUserId: string; dispatchId?: string | null },
   session: { role: string; userId: string }
-): Promise<boolean> {
-  if (payment.status !== 'active') return false;
-  if (session.role === 'admin') return true;
-  if (payment.collectedByUserId !== session.userId || !payment.dispatchId) return false;
+): Promise<PaymentCorrectionDenial | null> {
+  if (payment.status !== 'active') return 'NOT_AUTHORIZED';
+
+  // Sefere bağlı olmayan tahsilatlarda yalnızca yönetici düzeltme yapabilir.
+  if (!payment.dispatchId) return session.role === 'admin' ? null : 'NOT_AUTHORIZED';
+
   const dispatches = await getDispatches();
   const dispatch = dispatches.find((d) => d.id === payment.dispatchId);
-  return dispatch?.status === 'in_transit';
+
+  // Kapanmış veya henüz dağıtıma çıkmamış seferde tahsilat değiştirilemez.
+  if (!dispatch || dispatch.status !== 'in_transit') return 'DISPATCH_CLOSED';
+
+  if (session.role === 'admin') return null;
+  return payment.collectedByUserId === session.userId ? null : 'NOT_AUTHORIZED';
 }
 
 function sendPaymentCorrectionError(res: Response, err: any, fallback: string) {
@@ -1128,7 +1137,7 @@ function sendPaymentCorrectionError(res: Response, err: any, fallback: string) {
       ? 404
       : code === 'NOT_AUTHORIZED'
         ? 403
-        : code === 'PAYMENT_ALREADY_CANCELLED'
+        : code === 'PAYMENT_ALREADY_CANCELLED' || code === 'DISPATCH_CLOSED'
           ? 409
           : 400;
   res.status(status).json({
@@ -1187,10 +1196,12 @@ app.get('/api/payments', requireAdminOrDriver, async (req, res) => {
           : null;
         const canCorrect =
           payment.status === 'active' &&
-          (session.role === 'admin' ||
-            (payment.collectedByUserId === session.userId &&
-              Boolean(dispatch) &&
-              dispatch?.status === 'in_transit'));
+          (payment.dispatchId
+            ? Boolean(dispatch) &&
+              dispatch?.status === 'in_transit' &&
+              (session.role === 'admin' ||
+                payment.collectedByUserId === session.userId)
+            : session.role === 'admin');
 
         return {
           ...payment,
@@ -1220,8 +1231,15 @@ app.put('/api/payments/:id', requireAdminOrDriver, async (req, res) => {
         code: 'PAYMENT_ALREADY_CANCELLED',
       });
     }
-    if (!(await canCorrectPaymentRecord(existing, session))) {
-      return res.status(403).json({ error: 'Bu tahsilatı düzeltme yetkiniz yok.' });
+    const denial = await getPaymentCorrectionDenial(existing, session);
+    if (denial) {
+      return res.status(denial === 'DISPATCH_CLOSED' ? 409 : 403).json({
+        error:
+          denial === 'DISPATCH_CLOSED'
+            ? 'Kapanmış seferde tahsilat iptal veya düzeltmesi yapılamaz.'
+            : 'Bu tahsilatı düzeltme yetkiniz yok.',
+        code: denial,
+      });
     }
 
     const body = req.body && typeof req.body === 'object' ? req.body : {};
@@ -1300,8 +1318,15 @@ app.post('/api/payments/:id/cancel', requireAdminOrDriver, async (req, res) => {
       });
     }
 
-    if (!(await canCorrectPaymentRecord(existing, session))) {
-      return res.status(403).json({ error: 'Bu tahsilatı iptal etme yetkiniz yok.' });
+    const denial = await getPaymentCorrectionDenial(existing, session);
+    if (denial) {
+      return res.status(denial === 'DISPATCH_CLOSED' ? 409 : 403).json({
+        error:
+          denial === 'DISPATCH_CLOSED'
+            ? 'Kapanmış seferde tahsilat iptal veya düzeltmesi yapılamaz.'
+            : 'Bu tahsilatı iptal etme yetkiniz yok.',
+        code: denial,
+      });
     }
 
     const body = req.body && typeof req.body === 'object' ? req.body : {};

@@ -342,16 +342,16 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
         </div>
 
         {/* Breakdown Grid: Cash, POS, Empty Containers */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="bg-white  p-5 rounded-2xl border border-slate-200  shadow-xs space-y-1">
             <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
               <span>Nakit Tahsilat</span>
               <Wallet className="w-4 h-4 text-emerald-600" />
             </div>
             <div className="text-2xl font-black font-mono text-emerald-600  tabular-nums">
-              {driverCashCollected.toLocaleString('tr-TR')} ₺
+              {(driverCashCollected + driverStandaloneCash).toLocaleString('tr-TR')} ₺
             </div>
-            <p className="text-[11px] text-slate-400">Elden alınan nakit kasa</p>
+            <p className="text-[11px] text-slate-400">Teslimat içi + dışı nakit</p>
           </div>
 
           <div className="bg-white  p-5 rounded-2xl border border-slate-200  shadow-xs space-y-1">
@@ -360,23 +360,9 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
               <CreditCard className="w-4 h-4 text-indigo-600" />
             </div>
             <div className="text-2xl font-black font-mono text-indigo-600  tabular-nums">
-              {driverPosCollected.toLocaleString('tr-TR')} ₺
+              {(driverPosCollected + driverStandalonePos).toLocaleString('tr-TR')} ₺
             </div>
-            <p className="text-[11px] text-slate-400">Banka slip toplamı</p>
-          </div>
-
-          <div className="bg-white  p-5 rounded-2xl border border-slate-200  shadow-xs space-y-1">
-            <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-              <span>Teslimat Dışı Tahsilat</span>
-              <Wallet className="w-4 h-4 text-sky-600" />
-            </div>
-            <div className="text-2xl font-black font-mono text-sky-700  tabular-nums">
-              {(driverStandaloneCash + driverStandalonePos).toLocaleString('tr-TR')} ₺
-            </div>
-            <p className="text-[11px] text-slate-400">
-              Nakit {driverStandaloneCash.toLocaleString('tr-TR')} ₺ · POS{' '}
-              {driverStandalonePos.toLocaleString('tr-TR')} ₺
-            </p>
+            <p className="text-[11px] text-slate-400">Teslimat içi + dışı POS</p>
           </div>
 
           <div className="bg-white  p-5 rounded-2xl border border-slate-200  shadow-xs space-y-1">
@@ -596,7 +582,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
       </div>
 
       {/* Summary KPI Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         <div className="bg-white  p-3.5 rounded-xl border border-slate-200  shadow-xs">
           <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
             Toplam Teslimat
@@ -622,9 +608,9 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
             Fiili Nakit Kasa
           </span>
           <div className="text-xl font-extrabold font-mono text-emerald-600 mt-1 tabular-nums">
-            {summary.totalCashCollected.toLocaleString('tr-TR')} ₺
+            {((summary.totalCashCollected || 0) + (summary.totalStandaloneCash || 0)).toLocaleString('tr-TR')} ₺
           </div>
-          <span className="text-[10px] text-emerald-600/80 font-medium">Teslim Edilecek Nakit</span>
+          <span className="text-[10px] text-emerald-600/80 font-medium">Teslimat içi + dışı nakit</span>
         </div>
 
         <div className="bg-white  p-3.5 rounded-xl border border-indigo-200  bg-indigo-50/20 shadow-xs">
@@ -632,22 +618,9 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
             POS Kart Slip Toplamı
           </span>
           <div className="text-xl font-extrabold font-mono text-indigo-600 mt-1 tabular-nums">
-            {summary.totalPosCollected.toLocaleString('tr-TR')} ₺
+            {((summary.totalPosCollected || 0) + (summary.totalStandalonePos || 0)).toLocaleString('tr-TR')} ₺
           </div>
-          <span className="text-[10px] text-indigo-600/80 font-medium">Banka POS Çekimleri</span>
-        </div>
-
-        <div className="bg-white  p-3.5 rounded-xl border border-teal-200  bg-teal-50/20 shadow-xs">
-          <span className="text-[11px] font-semibold text-teal-700  uppercase tracking-wider block">
-            Teslimat Dışı Tahsilat
-          </span>
-          <div className="text-xl font-extrabold font-mono text-teal-600 mt-1 tabular-nums">
-            {(summary.totalStandaloneCollected || 0).toLocaleString('tr-TR')} ₺
-          </div>
-          <span className="text-[10px] text-teal-600/80 font-medium break-words">
-            Nakit {(summary.totalStandaloneCash || 0).toLocaleString('tr-TR')} ₺ · POS{' '}
-            POS {(summary.totalStandalonePos || 0).toLocaleString('tr-TR')} ₺
-          </span>
+          <span className="text-[10px] text-indigo-600/80 font-medium">Teslimat içi + dışı POS</span>
         </div>
 
         <div className="bg-white  p-3.5 rounded-xl border border-amber-200  bg-amber-50/20 shadow-xs">

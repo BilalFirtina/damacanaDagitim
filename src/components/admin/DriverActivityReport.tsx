@@ -56,8 +56,6 @@ export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({
         sales: number;
         cash: number;
         pos: number;
-        standaloneCash: number;
-        standalonePos: number;
         unpaid: number;
         emptyDamacana: number;
         emptyCamDamacana: number;
@@ -78,8 +76,6 @@ export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({
           sales: 0,
           cash: 0,
           pos: 0,
-          standaloneCash: 0,
-          standalonePos: 0,
           unpaid: 0,
           emptyDamacana: 0,
           emptyCamDamacana: 0,
@@ -137,10 +133,8 @@ export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({
       const amount = Number(payment.amount) || 0;
       if (payment.method === 'CASH') {
         row.cash += amount;
-        row.standaloneCash += amount;
       } else {
         row.pos += amount;
-        row.standalonePos += amount;
       }
     }
 
@@ -235,13 +229,6 @@ export const DriverActivityReport: React.FC<DriverActivityReportProps> = ({
               </dd>
             </div>
           </dl>
-
-          {(row.standaloneCash > 0 || row.standalonePos > 0) && (
-            <div className="text-[10px] text-slate-500">
-              Teslimat dışı tahsilat: Nakit {money(row.standaloneCash)} · POS{' '}
-              {money(row.standalonePos)}
-            </div>
-          )}
 
           <div className="flex flex-wrap gap-1.5 text-[10px] font-mono">
             <span className="px-2 py-0.5 rounded bg-cyan-50  text-cyan-800 ">

@@ -4843,6 +4843,12 @@ function paymentError(e: any, fallback: string): Error {
   if (/PAYMENT_ALREADY_CANCELLED/i.test(raw)) {
     return new DispatchDbError('PAYMENT_ALREADY_CANCELLED', 'İptal edilmiş tahsilat düzeltilemez.');
   }
+  if (/DISPATCH_CLOSED/i.test(raw)) {
+    return new DispatchDbError(
+      'DISPATCH_CLOSED',
+      'Kapanmış seferde tahsilat iptal veya düzeltmesi yapılamaz.'
+    );
+  }
   if (/PAYMENT_MODE_INVALID/i.test(raw)) {
     return new DispatchDbError('PAYMENT_MODE_INVALID', 'Geçersiz tahsilat işlemi.');
   }

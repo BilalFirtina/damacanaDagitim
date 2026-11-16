@@ -71,8 +71,9 @@ Teslimat dışı (sonraki ziyaret) tahsilatlar ayrı kaydedilir; bakiye ve tahsi
 Şoförün teslimat dışı tahsilatı yalnızca kendi aktif (Dağıtımda) seferi varken kaydedilebilir ve sefere bağlanır; sefer 60 gün sonra silinse bile aktif tahsilat kaydı korunur.
 Şoförün sefer ekranındaki tahsilat listesi yalnızca aktif sefere bağlı tahsilatları gösterir; önceki seferlerin tahsilatları yeni sefer listesine karışmaz.
 Aktif her tahsilat; tutar, yöntem (nakit/POS), tahsil eden kullanıcı, tarih, varsa not ve sefer referansı ile saklanır. Yetkili iptal işlemi tahsilatı fiziksel olarak siler ve bakiyeyi geri ekler; iptal için denetim kaydı veya açıklama tutulmaz.
+Kapanmış seferde teslimat ve tahsilat iptali/düzeltmesi yönetici dahil yapılamaz; sunucu ve veritabanı bu işlemleri reddeder.
 Aynı tahsilat kimliğiyle tekrar gönderim, kayıt silinmemişse bakiyeyi ikinci kez düşürmez. Silinmiş bir tahsilat kimliğinin gecikmiş tekrarı yeni kayıt oluşturabilir; iptal denetim kaydı tutulmadığı için bu durum kabul edilmiştir.
-Günlük raporda teslimat tahsilatları ve teslimat dışı tahsilatlar ayrı toplanır; şoför filtresinde yalnızca o şoförün tahsilatları görünür.
+Günlük raporlarda nakit kasa ve POS toplamları teslimat içi ve teslimat dışı tahsilatları birlikte kapsar; ayrı teslimat dışı tahsilat bölümü gösterilmez. Şoför filtresinde yalnızca o şoförün tahsilatları görünür.
 Faturalı müşteride birim fiyat/mal tutarı gösterilmediği için tahsilat tutarı manuel girilir; otomatik "tam tahsilat" kullanılmaz.
 Faturalı tahsilatları kasa/POS toplamlarında görünür; mal tutarı ve cari borç toplamları gösterilmez.
 Tahsilat, satış geliriyle karıştırılmaz; ödenmemiş satış nakit olarak sayılmaz.
@@ -569,6 +570,7 @@ Faturalı teslimatta birim fiyatı istemciden almak yerine ürün default fiyat�
 Şoförün teslimat dışı tahsilatını yalnızca kendi aktif seferi için kabul etmek ve tahsilatı sefere bağlamak.
 Tahsilatı idempotent kimlikle kaydetmek; kayıt silinmemişse aynı kimliğin bakiyeyi ikinci kez düşürmesini engellemek.
 Tahsilat ve bakiye değişikliğini tek veritabanı işleminde yazmak; iptalde tahsilat kaydını fiziksel olarak silmek ve bakiyeyi geri eklemek. İptal için denetim kaydı veya açıklama yazmamak.
+Kapanmış seferde teslimat ve tahsilat iptali/düzeltmesini yönetici dahil reddetmek; kapalı seferin kasa/POS ve actual toplamlarına yazmamak.
 
 Bir işlemi arayüzde gizlemek onu güvence altına almak için yeterli değildir. Yetkisiz istekler sunucu veya veritabanı tarafından da reddedilmelidir.
 
@@ -610,6 +612,7 @@ Bir sefer, yapıldığı gün sonlandırılmamışsa sistem onu otomatik kapatma
 Şoförler hem peşin hem faturalı müşteriden tahsilat yapabilir; her aktif tahsilat tahsil eden kullanıcı, tarih ve sefer referansıyla izlenebilir olmalıdır. İptal edilen tahsilat için kayıt tutulmaz.
 Faturalı müşteride birim fiyat, mal tutarı, cari borç ve geçmiş ürün fiyatı arayüzde gösterilmez; sistem default fiyatla borç hesaplamaya devam eder. Fiyat bilgisi Supabase'de ileride kullanım için saklanır.
 Peşin müşteride kısmi/veresiye kalan tutar cari borca yazılır; şoför önceki borcu ve son satış fiyatını görür.
+Kapanmış seferde teslimat ve tahsilat iptali/düzeltmesi yönetici dahil yapılamaz; sunucu ve veritabanı bu işlemleri reddeder.
 Bir şoförün ve bir araç plakasının aynı anda en fazla bir aktif seferi olabilir. Aynı gün kapatma zorunlu değildir; bugün yüklenen araçla ertesi gün teslimat yapılabilir.
 60 gün sonra sefer/teslimat kayıtları ve aktif tahsilatlar arşivsiz ve durum bağımsız silinir; müşteri bakiyesi, iade edilebilir kalemler ve son fiyat korunur. İptal edilen tahsilat iptal anında fiziksel olarak silinir.
 16. Genel Hedef
@@ -651,9 +654,9 @@ Faturalı müşteride birim fiyat, mal tutarı, cari borç ve geçmiş fiyat ara
 Faturalı teslimatta sunucu, istemci fiyatı yerine ürün default fiyatını uygular; `delivery_items.unit_price` ve `customer_product_prices` ileride kullanım için saklanır.
 Peşin müşteride son satış fiyatı gösterilir; kısmi/veresiye kalan tutar `current_balance_tl` alanına borç yazılır.
 Şoför teslimat dışı tahsilatı `customer_payments` tablosuna yazılır; `dispatch_id` ile aktif sefere bağlanır. Sefer silinirse 60 günden yeni tahsilat `ON DELETE SET NULL` ile korunur; 60 günü geçen aktif tahsilat temizlikte silinir. İptal edilen tahsilat iptal anında fiziksel olarak silinir.
-`record_customer_payment` idempotenttir; aynı `payment_id` kaydı silinmemişse bakiyeyi ikinci kez düşürmez ve finansal denetim kaydı yazmaz. İptal işlemi `amend_customer_payment` ile bakiyeyi geri ekler, `customer_payments` satırını siler ve denetim/açıklama yazmaz.
+`record_customer_payment` idempotenttir; aynı `payment_id` kaydı silinmemişse bakiyeyi ikinci kez düşürmez ve finansal denetim kaydı yazmaz. İptal işlemi `amend_customer_payment` ile bakiyeyi geri ekler, `customer_payments` satırını siler ve denetim/açıklama yazmaz; sefere bağlı tahsilatlarda yalnızca `in_transit` seferde çalışır.
 Aktif sefer tekilliği `ux_dispatches_active_driver` ve `ux_dispatches_active_plate` kısmi tekil indeksleriyle korunur.
-60 günlük temizlik `20261108_retention_purge_all_movements.sql` ile uygulanır; tüm müşteri borcu `20261106_cash_customer_debt.sql`, sefere bağlı tahsilat `20261107_customer_payment_dispatch.sql`, tahsilat iptalinde fiziksel silme `20261116_customer_payment_hard_delete.sql` ile yönetilir.
+60 günlük temizlik `20261108_retention_purge_all_movements.sql` ile uygulanır; tüm müşteri borcu `20261106_cash_customer_debt.sql`, sefere bağlı tahsilat `20261107_customer_payment_dispatch.sql`, tahsilat iptalinde fiziksel silme `20261116_customer_payment_hard_delete.sql`, kapanmış seferde tahsilat değişikliği engeli `20261116_customer_payment_closed_dispatch_guard.sql` ile yönetilir.
 Temizlik 23:00 Türkiye saatinde otomatik çalışır; arşiv yoktur, tüm sefer durumları ve günlük hareket/denetim kayıtları kapsanır. Müşteri kaydı, nihai bakiye, nihai emanet adetleri, son fiyat ve sebil detayları korunur. İptal edilen tahsilatlar bu temizliği beklemeden iptal anında silinir.
 
 <!-- trail:start -->

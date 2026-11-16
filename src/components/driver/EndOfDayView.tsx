@@ -199,7 +199,6 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
   const standalonePos = dispatchPayments
     .filter((p) => p.method === 'POS')
     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-  const standaloneTotal = standaloneCash + standalonePos;
   const cashPosPayments = dispatchPayments.filter(
     (p) => p.method === 'CASH' || p.method === 'POS'
   );
@@ -560,7 +559,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
           <span>B. Boş Kap & Kasa Tahsilat Mutabakatı</span>
         </h3>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <div className="p-3.5 rounded-xl bg-slate-50  border border-slate-200 ">
             <span className="text-[11px] font-semibold text-slate-500 uppercase">Toplanan Boş Damacana</span>
             <div className="text-xl font-bold font-mono text-slate-900  mt-1">
@@ -602,7 +601,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
             <div className="text-xl font-bold font-mono text-emerald-600 mt-1">
               {actualCashInPocket.toLocaleString('tr-TR')} ₺
             </div>
-            <span className="text-[10px] text-emerald-600/80">Teslim edilecek nakit para</span>
+            <span className="text-[10px] text-emerald-600/80">Teslimat içi + dışı nakit</span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-indigo-50/50  border border-indigo-200 ">
@@ -610,20 +609,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
             <div className="text-xl font-bold font-mono text-indigo-600 mt-1">
               {actualPosSlipsTotal.toLocaleString('tr-TR')} ₺
             </div>
-            <span className="text-[10px] text-indigo-600/80">Banka slip toplamı</span>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-teal-50/50  border border-teal-200 ">
-            <span className="text-[11px] font-semibold text-teal-700  uppercase">
-              Teslimat Dışı Tahsilat
-            </span>
-            <div className="text-xl font-bold font-mono text-teal-600 mt-1">
-              {standaloneTotal.toLocaleString('tr-TR')} ₺
-            </div>
-            <span className="text-[10px] text-teal-600/80 break-words">
-              Nakit {standaloneCash.toLocaleString('tr-TR')} ₺ · POS{' '}
-              {standalonePos.toLocaleString('tr-TR')} ₺
-            </span>
+            <span className="text-[10px] text-indigo-600/80">Teslimat içi + dışı POS</span>
           </div>
         </div>
 

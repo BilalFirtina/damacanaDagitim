@@ -17,6 +17,11 @@ const hardDeleteMigration = fs.readFileSync(
   path.resolve('migrations/20261116_customer_payment_hard_delete.sql'),
   'utf8'
 );
+const closedDispatchGuardMigration = fs.readFileSync(
+  path.resolve('migrations/20261116_customer_payment_closed_dispatch_guard.sql'),
+  'utf8'
+);
+const dbSource = fs.readFileSync(path.resolve('src/server/db.ts'), 'utf8');
 const server = fs.readFileSync(path.resolve('server.ts'), 'utf8');
 const statementRules = fs.readFileSync(
   path.resolve('src/services/statementRules.ts'),
@@ -109,11 +114,20 @@ check(
 );
 check(
   'şoför yalnızca aktif seferde düzeltebilir',
-  /dispatch\?\.status === 'in_transit'/.test(server)
+  /dispatch\.status !== 'in_transit'/.test(server) &&
+    /return payment\.collectedByUserId === session\.userId \? null : 'NOT_AUTHORIZED';/.test(
+      server
+    )
 );
 check(
-  'admin her aktif tahsilatı düzeltebilir',
-  /session\.role === 'admin'/.test(server)
+  'admin kapalı seferde tahsilatı düzeltemez',
+  /if \(!payment\.dispatchId\) return session\.role === 'admin' \? null : 'NOT_AUTHORIZED';/.test(
+    server
+  ) &&
+    /if \(!dispatch \|\| dispatch\.status !== 'in_transit'\) return 'DISPATCH_CLOSED';/.test(
+      server
+    ) &&
+    /getPaymentCorrectionDenial\(existing, session\)/.test(server)
 );
 check(
   'migration tek transaction içinde',
@@ -184,6 +198,26 @@ check(
   /payments\s*\.filter/.test(statsStrip) &&
     /payment\.method === 'CASH'/.test(statsStrip) &&
     /payment\.method === 'POS'/.test(statsStrip)
+);
+check(
+  'kapanmış seferde tahsilat guard migration var',
+  /DISPATCH_CLOSED/.test(closedDispatchGuardMigration) &&
+    /v_dispatch_status IS DISTINCT FROM 'in_transit'/.test(
+      closedDispatchGuardMigration
+    )
+);
+check(
+  'kapalı seferin kasa/POS toplamları güncellenmez',
+  !/d\.status = 'completed'/.test(closedDispatchGuardMigration)
+);
+check(
+  'DISPATCH_CLOSED sunucu hatasına eşlenir',
+  /DISPATCH_CLOSED/.test(dbSource) &&
+    /Kapanmış seferde tahsilat iptal veya düzeltmesi yapılamaz/.test(dbSource)
+);
+check(
+  'DISPATCH_CLOSED 409 döner',
+  /code === 'DISPATCH_CLOSED'/.test(server)
 );
 
 console.log(`\nSonuç: ${passed} başarılı, ${failed} başarısız`);
