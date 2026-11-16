@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   unit:
     name: Lint, doğrulama betikleri ve build
@@ -34,6 +41,12 @@ jobs:
 
       - name: Build (vite build)
         run: npm run build
+
+      - name: PWA varlık kontrolü
+        run: npx tsx scripts/ci/check-pwa-assets.ts
+
+      - name: Bundle boyut bütçesi
+        run: npx tsx scripts/ci/check-bundle-budget.ts
 
   retention-db:
     name: PostgreSQL SQL (şema + saklama + iptal + sebil + tahsilat)
@@ -69,6 +82,9 @@ jobs:
       - name: Supabase stub + temel şema + migration'ları uygula
         run: npx tsx scripts/ci/retention-pg-test.ts --apply-only
 
+      - name: Şema sözleşmesi (kritik tablo/kolon/fonksiyonlar)
+        run: npx tsx scripts/ci/schema-contract-pg-test.ts
+
       - name: Retention semantiğini doğrula
         run: npx tsx scripts/ci/retention-pg-test.ts
 
@@ -80,3 +96,44 @@ jobs:
 
       - name: Tahsilat RPC semantiğini doğrula
         run: npx tsx scripts/ci/payments-pg-test.ts
+
+  api:
+    name: API entegrasyon (auth + yetki + tahsilat + stok + satın alım)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Bağımlılıkları kur
+        run: npm ci --legacy-peer-deps
+
+      - name: Supabase stub + temel şema + migration'ları uygula
+        run: npx tsx scripts/ci/retention-pg-test.ts --apply-only
+
+      - name: Şema sözleşmesini doğrula
+        run: npx tsx scripts/ci/schema-contract-pg-test.ts
+
+      - name: API entegrasyon testi
+        run: npx tsx scripts/ci/api-integration-test.ts
