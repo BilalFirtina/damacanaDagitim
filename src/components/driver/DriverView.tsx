@@ -146,6 +146,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
 
   const inspectedDriverId =
     currentUser.role === 'admin' ? selectedDriverIdForAdmin : currentUser.id;
+  const activeDispatchId = activeDispatch?.id ?? null;
 
   // Completed dispatches for this driver today
   const completedDispatchesToday = dispatches.filter(
@@ -161,19 +162,26 @@ export const DriverView: React.FC<DriverViewProps> = ({
     : [];
 
   const loadPayments = useCallback(async () => {
+    if (!activeDispatchId) {
+      setPayments([]);
+      return;
+    }
     if (document.visibilityState === 'hidden') return;
     if (!navigator.onLine) return;
     if (!getAuthToken()) return;
     try {
-      const list = await fetchPayments({
-        date: todayStr,
-        driverId: inspectedDriverId,
-      });
-      setPayments(list);
+      const list = await fetchPayments({ dispatchId: activeDispatchId });
+      setPayments(list.filter((payment) => payment.status === 'active'));
     } catch {
       // Canlı ekranı kesmemek için okuma hatası sessizce yok sayılır.
     }
-  }, [todayStr, inspectedDriverId]);
+  }, [activeDispatchId]);
+
+  useEffect(() => {
+    setPayments([]);
+    setPaymentEditTarget(null);
+    setPaymentActionId(null);
+  }, [activeDispatchId]);
 
   useEffect(() => {
     void loadPayments();
@@ -189,12 +197,14 @@ export const DriverView: React.FC<DriverViewProps> = ({
         at: new Date(delivery.timestamp).getTime(),
         delivery,
       })),
-      ...payments.map((payment) => ({
-        kind: 'payment' as const,
-        id: `payment_${payment.id}`,
-        at: new Date(payment.collectedAt).getTime(),
-        payment,
-      })),
+      ...payments
+        .filter((payment) => payment.status === 'active')
+        .map((payment) => ({
+          kind: 'payment' as const,
+          id: `payment_${payment.id}`,
+          at: new Date(payment.collectedAt).getTime(),
+          payment,
+        })),
     ];
     return rows.sort((a, b) => b.at - a.at);
   }, [myDeliveries, payments]);
@@ -206,7 +216,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
       `${customerLabel} için ${payment.amount.toLocaleString('tr-TR', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
-      })} ₺ tahsilat iptal edilecek. Müşteri bakiyesine geri eklenecek. Devam edilsin mi?`
+      })} ₺ tahsilat kalıcı olarak silinecek. Müşteri bakiyesine geri eklenecek. Devam edilsin mi?`
     );
     if (!confirmed) return;
 
@@ -217,7 +227,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
       await loadPayments();
       onDeliveryCorrected();
     } catch (err: any) {
-      setPaymentError(err?.message || 'Tahsilat iptal edilemedi.');
+      setPaymentError(err?.message || 'Tahsilat silinemedi.');
     } finally {
       setPaymentActionId(null);
     }
@@ -225,8 +235,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
 
   const inspectedDriverName =
     users.find((u) => u.id === inspectedDriverId)?.name || 'Şoför';
-  const inspectedPlate =
-    activeDispatch?.vehiclePlate || payments[0]?.dispatchPlate || 'Seçili araç';
+  const inspectedPlate = activeDispatch?.vehiclePlate || 'Seçili araç';
 
   const isShiftReady = activeDispatch && activeDispatch.status === 'in_transit';
 
@@ -314,7 +323,12 @@ export const DriverView: React.FC<DriverViewProps> = ({
 
       {/* Live Vehicle Counters (Dolu Damacana, Boşlar, Nakit, POS) */}
       {activeDispatch && (
-        <DriverStatsStrip dispatch={activeDispatch} deliveries={deliveries} products={products} />
+        <DriverStatsStrip
+          dispatch={activeDispatch}
+          deliveries={deliveries}
+          payments={payments}
+          products={products}
+        />
       )}
 
       {/* Primary Action CTA Bar for Driver (depo yöneticisi teslimat yapmaz) */}
@@ -355,11 +369,11 @@ export const DriverView: React.FC<DriverViewProps> = ({
             <h3 className="text-sm font-bold text-slate-900  flex items-center gap-2">
               <Building2 className="w-4 h-4 text-sky-600 shrink-0" />
               <span className="break-words">
-                Günün Yapılan Teslimatları &amp; Tahsilatları ({combinedRows.length})
+                Seferin Yapılan Teslimatları &amp; Tahsilatları ({combinedRows.length})
               </span>
             </h3>
             <p className="text-xs text-slate-500 mt-0.5 break-words">
-              {inspectedPlate} ({inspectedDriverName}) tarafından bugün tamamlanan teslimatlar ve tahsilatlar
+              {inspectedPlate} ({inspectedDriverName}) tarafından bu seferde yapılan teslimatlar ve tahsilatlar
             </p>
             {!isOnline && (
               <p className="text-[11px] font-semibold text-amber-700  mt-1">
@@ -389,7 +403,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
         {combinedRows.length === 0 ? (
           <div className="py-12 text-center text-slate-400 text-xs space-y-2">
             <Truck className="w-8 h-8 text-slate-300 mx-auto" />
-            <p>Bugün henüz bu araçla teslimat veya tahsilat kaydı yapılmadı.</p>
+            <p>Bu seferde henüz teslimat veya tahsilat kaydı yapılmadı.</p>
             {isShiftReady && currentUser.role !== 'admin' && (
               <button
                 onClick={() => setShowDeliveryModal(true)}
@@ -427,11 +441,6 @@ export const DriverView: React.FC<DriverViewProps> = ({
                         <span className="text-[10px] text-slate-400 font-mono">
                           {timeStr}
                         </span>
-                        {payment.status === 'cancelled' && (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 border border-rose-200">
-                            İptal Edildi
-                          </span>
-                        )}
                       </div>
 
                       <div className="flex flex-wrap items-center gap-1.5 text-[11px]">

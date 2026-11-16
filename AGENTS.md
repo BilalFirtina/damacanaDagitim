@@ -60,16 +60,18 @@ Sebil için ayrı bir yönetim ekranı zorunlu değildir; sebil yükleme ve tesl
 Fark varsa açıklama istenir; uyuşmazlık raporlanır.
 Toplanan boş damacana, cam damacana, tüp ve sebil adetleri rapora yazılır.
 Nakit kasa ve POS slip toplamları teslim edilen tutarlarla mutabık hale getirilir.
+Canlı araç göstergesindeki nakit ve POS toplamları teslimat içi ve teslimat dışı tahsilatları birlikte kapsar.
 Rapor; toplam satış, tahsil edilen ödeme ve bekleyen borcu ayrı gösterir.
 Rapor gönderilip sefer kapatılmadan şoför yeni sefer başlatamaz.
 
 1.2.6. Tahsilatlar
 Teslimat sırasında alınan ödemeler teslimat kaydına işlenir.
 Şoförler hem peşin hem faturalı müşteriden tahsilat yapabilir.
-Teslimat dışı (sonraki ziyaret) tahsilatlar ayrı kaydedilir; bakiye ve denetim izi tek işlemde güncellenir.
-Şoförün teslimat dışı tahsilatı yalnızca kendi aktif (Dağıtımda) seferi varken kaydedilebilir ve sefere bağlanır; sefer 60 gün sonra silinse bile tahsilat kaydı korunur.
-Her tahsilat; tutar, yöntem (nakit/POS), tahsil eden kullanıcı, tarih, varsa not ve sefer referansı ile saklanır.
-Aynı tahsilat kimliğiyle tekrar gönderim bakiyeyi ikinci kez düşürmez.
+Teslimat dışı (sonraki ziyaret) tahsilatlar ayrı kaydedilir; bakiye ve tahsilat kaydı tek işlemde güncellenir.
+Şoförün teslimat dışı tahsilatı yalnızca kendi aktif (Dağıtımda) seferi varken kaydedilebilir ve sefere bağlanır; sefer 60 gün sonra silinse bile aktif tahsilat kaydı korunur.
+Şoförün sefer ekranındaki tahsilat listesi yalnızca aktif sefere bağlı tahsilatları gösterir; önceki seferlerin tahsilatları yeni sefer listesine karışmaz.
+Aktif her tahsilat; tutar, yöntem (nakit/POS), tahsil eden kullanıcı, tarih, varsa not ve sefer referansı ile saklanır. Yetkili iptal işlemi tahsilatı fiziksel olarak siler ve bakiyeyi geri ekler; iptal için denetim kaydı veya açıklama tutulmaz.
+Aynı tahsilat kimliğiyle tekrar gönderim, kayıt silinmemişse bakiyeyi ikinci kez düşürmez. Silinmiş bir tahsilat kimliğinin gecikmiş tekrarı yeni kayıt oluşturabilir; iptal denetim kaydı tutulmadığı için bu durum kabul edilmiştir.
 Günlük raporda teslimat tahsilatları ve teslimat dışı tahsilatlar ayrı toplanır; şoför filtresinde yalnızca o şoförün tahsilatları görünür.
 Faturalı müşteride birim fiyat/mal tutarı gösterilmediği için tahsilat tutarı manuel girilir; otomatik "tam tahsilat" kullanılmaz.
 Faturalı tahsilatları kasa/POS toplamlarında görünür; mal tutarı ve cari borç toplamları gösterilmez.
@@ -426,7 +428,7 @@ Korunanlar: müşteri kaydı (ad, telefon, adres, e-posta, not, tür), nihai car
 Temizlik her gün 23:00 Türkiye saatinde (UTC+3) otomatik çalışır; üretimde gerçek silme modu kullanılır.
 Yöneticiye manuel temizlik ekranı sunulmaz; temizlik yalnızca zamanlanmış sunucu işiyle yürütülür.
 Temizlik seferi otomatik kapatmaz ve şoför adına rapor oluşturmaz; yalnızca süresi geçmiş hareketleri temizler.
-Tahsilat kaydı da 60 gün sonra silinir; müşterinin nihai borç bakiyesi korunur.
+Aktif tahsilat kaydı da 60 gün sonra silinir; iptal edilen tahsilat ise iptal anında fiziksel olarak silinir ve bakiyesi geri eklenir. Müşterinin nihai borç bakiyesi korunur.
 
 10. Müşteri Hesap Ekstreleri ve Operasyonel Raporlar
 
@@ -441,6 +443,7 @@ Teslim edilen ürünler ve fiyatları.
 Toplam satışlar.
 Alınan ödemeler.
 Kısmi ve sonraki ödemeler.
+İptal edilip silinen tahsilatlar ekstrede gösterilmez; ekstre yalnızca aktif tahsilat kayıtlarını kullanır.
 Yetkilendirilmiş alacaklar, iadeler ve düzeltmeler.
 Kapanış bekleyen borç bakiyesi.
 Kalem türüne göre güncel iade edilebilir kalem miktarları.
@@ -555,8 +558,8 @@ Depo genelindeki yönetim ve yetkilendirme işlevlerini depo yöneticisiyle sın
 Yükleme ve teslimat işlemlerini onaylamadan önce stok durumunu doğrulamak.
 Müşteri ödeme tutarlarını doğrulamak ve hesap bakiyelerini tutarlı şekilde güncellemek.
 Her müşteri için doğru iade edilebilir kalem miktarlarını tutmak.
-Önemli işlemleri kimin ne zaman gerçekleştirdiğini kaydetmek.
-Geçmiş işlemleri ve gönderilen raporları korumak.
+Önemli işlemleri kimin ne zaman gerçekleştirdiğini kaydetmek; tahsilat iptali bu kuralın istisnasıdır.
+Geçmiş işlemleri ve gönderilen raporları korumak; iptal edilen tahsilat kaydı fiziksel olarak silinir.
 Uygun veritabanı işlemleri, kısıtlamaları ve yetkilendirme politikaları kullanmak.
 Mükerrer veya çakışan işlemleri önlemek.
 Başarı mesajlarını göstermeden önce veritabanı işlemlerinin başarılı olduğunu doğrulamak.
@@ -564,8 +567,8 @@ Hassas kimlik bilgilerini veya ayrıcalıklı veritabanı anahtarlarını istemc
 Yerel olarak önbelleğe alınmış ve çevrimdışı verileri kullanıcının yetki düzeyine göre korumak.
 Faturalı teslimatta birim fiyatı istemciden almak yerine ürün default fiyatını sunucuda uygulamak.
 Şoförün teslimat dışı tahsilatını yalnızca kendi aktif seferi için kabul etmek ve tahsilatı sefere bağlamak.
-Tahsilatı idempotent kimlikle kaydetmek; aynı kimliğin bakiyeyi ikinci kez düşürmesini engellemek.
-Tahsilat, bakiye değişikliği ve denetim kaydını tek veritabanı işleminde yazmak.
+Tahsilatı idempotent kimlikle kaydetmek; kayıt silinmemişse aynı kimliğin bakiyeyi ikinci kez düşürmesini engellemek.
+Tahsilat ve bakiye değişikliğini tek veritabanı işleminde yazmak; iptalde tahsilat kaydını fiziksel olarak silmek ve bakiyeyi geri eklemek. İptal için denetim kaydı veya açıklama yazmamak.
 
 Bir işlemi arayüzde gizlemek onu güvence altına almak için yeterli değildir. Yetkisiz istekler sunucu veya veritabanı tarafından da reddedilmelidir.
 
@@ -575,7 +578,7 @@ Tüm ekranlarda ve raporlarda net ve tutarlı Türkçe terminoloji kullanın.
 Kullanıcı arayüzünü, iş mantığını ve veritabanı işlemlerini ayırın.
 Ürünleri, ürün kategorilerini, şoförleri, müşterileri, araç plakalarını ve ilgili operasyonel ayarları yapılandırılabilir hale getirin.
 Yetkili kullanıcılar tarafından yönetilmesi gereken iş verilerini koda gömmekten kaçının.
-Geçmiş verileri koruyun ve önemli işlemler için bir denetim izi sağlayın.
+Geçmiş verileri koruyun ve önemli işlemler için bir denetim izi sağlayın; tahsilat iptali istisnadır ve kayıt denetim izi bırakmadan silinir.
 Günlük dağıtım operasyonları sırasında depo personeli ve şoförler için kullanılabilirliğe öncelik verin.
 İş kurallarını uygun uygulama ve veritabanı katmanlarında uygulayın ve doğrulayın.
 Bir gereksinim belirsiz olduğunda ek iş kuralları icat etmeyin. Envanteri, müşteri borcunu, iade edilebilir kalem bakiyelerini veya muhasebeyi etkileyebilecek kararları uygulamadan önce açıklama isteyin.
@@ -598,17 +601,17 @@ Müşteri borç bakiyeleri; kaydedilmiş satışlara, ödemelere ve yetkilendiri
 Müşteri iade edilebilir kalem bakiyeleri müşteri ve kalem türü bazında ayrı takip edilmelidir.
 İade edilebilir kalem takibi yalnızca miktarlara dayanır. Parasal depozito ücretleri, iadeleri ve bakiyeleri uygulanmamalıdır.
 Müşterinin finansal borcu ve bekleyen iade edilebilir kalem miktarları asla tek bir bakiyede birleştirilmemelidir.
-Tüm önemli işlemler izlenebilir olmalı ve geçmiş kayıtlar sessizce üzerine yazılmamalı veya silinmemelidir.
+Tüm önemli işlemler izlenebilir olmalı ve geçmiş kayıtlar sessizce üzerine yazılmamalı veya silinmemelidir; tahsilat iptali istisnadır ve iptal edilen tahsilat fiziksel olarak silinir.
 Mobil cihazlarda uygulama, yatay sayfa kaydırması olmadan dikey kaydırmayla kullanılabilmelidir.
 Uygulama, desteklenen platformlarda PWA olarak kurulabilmelidir.
 Çevrimdışı işlem desteği, bir işlemin sunucu tarafından senkronize edildiğini veya onaylandığını asla yanlış bir şekilde belirtmemelidir.
 PWA kurulum rehberliği, bağlantı durumu, senkronizasyon mesajları ve hata bildirimleri dahil tüm kullanıcıya dönük metinler Türkçe olmalıdır.
 Bir sefer, yapıldığı gün sonlandırılmamışsa sistem onu otomatik kapatmaz ve otomatik rapor oluşturmaz. Şoför ertesi gün uygulamaya girdiğinde “önceki gün sonlandırılmadı” uyarısı alır ve önceki sefer sonlandırılana kadar yeni sefere başlayamaz. Yönetici ve şoför aynı sefer durumunu görür (Bölüm 9.1).
-Şoförler hem peşin hem faturalı müşteriden tahsilat yapabilir; her tahsilat tahsil eden kullanıcı, tarih ve sefer referansıyla izlenebilir olmalıdır.
+Şoförler hem peşin hem faturalı müşteriden tahsilat yapabilir; her aktif tahsilat tahsil eden kullanıcı, tarih ve sefer referansıyla izlenebilir olmalıdır. İptal edilen tahsilat için kayıt tutulmaz.
 Faturalı müşteride birim fiyat, mal tutarı, cari borç ve geçmiş ürün fiyatı arayüzde gösterilmez; sistem default fiyatla borç hesaplamaya devam eder. Fiyat bilgisi Supabase'de ileride kullanım için saklanır.
 Peşin müşteride kısmi/veresiye kalan tutar cari borca yazılır; şoför önceki borcu ve son satış fiyatını görür.
 Bir şoförün ve bir araç plakasının aynı anda en fazla bir aktif seferi olabilir. Aynı gün kapatma zorunlu değildir; bugün yüklenen araçla ertesi gün teslimat yapılabilir.
-60 gün sonra sefer/teslimat kayıtları arşivsiz ve durum bağımsız silinir; müşteri bakiyesi, iade edilebilir kalemler, son fiyat, tahsilatlar ve denetim kayıtları korunur.
+60 gün sonra sefer/teslimat kayıtları ve aktif tahsilatlar arşivsiz ve durum bağımsız silinir; müşteri bakiyesi, iade edilebilir kalemler ve son fiyat korunur. İptal edilen tahsilat iptal anında fiziksel olarak silinir.
 16. Genel Hedef
 
 Depo yöneticisinin envanteri ve dağıtım ekibini kontrol etmesini sağlayan, yetkili şoförlerin kendilerine atanan teslimatları yönetmesine izin veren, müşteri borçlarını ve iade edilebilir kalem miktarlarını doğru şekilde takip eden ve yeni bir dağıtım seferi başlamadan önce zorunlu gün sonu mutabakatını uygulayan; güvenli, güvenilir, Türkçe dilinde bir dağıtım ve muhasebe uygulaması geliştirin.
@@ -647,11 +650,11 @@ Faturalı/peşin ayrımı `is_account_customer` alanıyla tutulur; `true` fatura
 Faturalı müşteride birim fiyat, mal tutarı, cari borç ve geçmiş fiyat arayüzde FATURALI olarak yazılır; müşteri kartında "Faturalı Müşteri" etiketi kullanılır.
 Faturalı teslimatta sunucu, istemci fiyatı yerine ürün default fiyatını uygular; `delivery_items.unit_price` ve `customer_product_prices` ileride kullanım için saklanır.
 Peşin müşteride son satış fiyatı gösterilir; kısmi/veresiye kalan tutar `current_balance_tl` alanına borç yazılır.
-Şoför teslimat dışı tahsilatı `customer_payments` tablosuna yazılır; `dispatch_id` ile aktif sefere bağlanır. Sefer silinirse 60 günden yeni tahsilat `ON DELETE SET NULL` ile korunur; 60 günü geçen tahsilat temizlikte silinir.
-`record_customer_payment` idempotenttir; aynı `payment_id` bakiyeyi ikinci kez düşürmez ve denetim kaydı yazar.
+Şoför teslimat dışı tahsilatı `customer_payments` tablosuna yazılır; `dispatch_id` ile aktif sefere bağlanır. Sefer silinirse 60 günden yeni tahsilat `ON DELETE SET NULL` ile korunur; 60 günü geçen aktif tahsilat temizlikte silinir. İptal edilen tahsilat iptal anında fiziksel olarak silinir.
+`record_customer_payment` idempotenttir; aynı `payment_id` kaydı silinmemişse bakiyeyi ikinci kez düşürmez ve finansal denetim kaydı yazmaz. İptal işlemi `amend_customer_payment` ile bakiyeyi geri ekler, `customer_payments` satırını siler ve denetim/açıklama yazmaz.
 Aktif sefer tekilliği `ux_dispatches_active_driver` ve `ux_dispatches_active_plate` kısmi tekil indeksleriyle korunur.
-60 günlük temizlik `20261108_retention_purge_all_movements.sql` ile uygulanır; tüm müşteri borcu `20261106_cash_customer_debt.sql`, sefere bağlı tahsilat `20261107_customer_payment_dispatch.sql` ile yönetilir.
-Temizlik 23:00 Türkiye saatinde otomatik çalışır; arşiv yoktur, tüm sefer durumları ve günlük hareket/denetim kayıtları kapsanır. Müşteri kaydı, nihai bakiye, nihai emanet adetleri, son fiyat ve sebil detayları korunur.
+60 günlük temizlik `20261108_retention_purge_all_movements.sql` ile uygulanır; tüm müşteri borcu `20261106_cash_customer_debt.sql`, sefere bağlı tahsilat `20261107_customer_payment_dispatch.sql`, tahsilat iptalinde fiziksel silme `20261116_customer_payment_hard_delete.sql` ile yönetilir.
+Temizlik 23:00 Türkiye saatinde otomatik çalışır; arşiv yoktur, tüm sefer durumları ve günlük hareket/denetim kayıtları kapsanır. Müşteri kaydı, nihai bakiye, nihai emanet adetleri, son fiyat ve sebil detayları korunur. İptal edilen tahsilatlar bu temizliği beklemeden iptal anında silinir.
 
 <!-- trail:start -->
 Trail — depo bağlam grafiği

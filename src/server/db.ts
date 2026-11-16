@@ -4856,7 +4856,7 @@ export async function amendCustomerPayment(input: {
   paymentId: string;
   balance: number;
   alreadyApplied: boolean;
-  status: 'active' | 'cancelled';
+  status: 'active' | 'deleted';
 }> {
   const result = await callJsonbRpc('amend_customer_payment', {
     request_id: input.requestId,
@@ -4872,28 +4872,35 @@ export async function amendCustomerPayment(input: {
     paymentId: result?.payment_id || input.paymentId,
     balance: Number(result?.balance) || 0,
     alreadyApplied: Boolean(result?.already_applied),
-    status: result?.status === 'cancelled' ? 'cancelled' : 'active',
+    status: result?.status === 'deleted' ? 'deleted' : 'active',
   };
 }
 
 export async function getCustomerPayments(
   customerId: string,
-  limit = 100
+  limit = 100,
+  includeCancelled = false
 ): Promise<CustomerPaymentRow[]> {
   const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 500);
   if (isSupabaseOperational() && supabase) {
-    const { data, error } = await supabase
+    let query = supabase
       .from('customer_payments')
       .select('*')
       .eq('customer_id', customerId)
       .order('collected_at', { ascending: false })
       .limit(safeLimit);
+    if (!includeCancelled) query = query.eq('status', 'active');
+    const { data, error } = await query;
     if (error) throw paymentError(error, 'Tahsilat kayıtları okunamadı.');
     return (data || []).map(mapCustomerPayment);
   }
   if (pgPool) {
     const res = await pgPool.query(
-      'SELECT * FROM public.customer_payments WHERE customer_id = $1 ORDER BY collected_at DESC LIMIT $2',
+      `SELECT * FROM public.customer_payments
+       WHERE customer_id = $1
+         ${includeCancelled ? '' : "AND status = 'active'"}
+       ORDER BY collected_at DESC
+       LIMIT $2`,
       [customerId, safeLimit]
     );
     return res.rows.map(mapCustomerPayment);
@@ -4901,10 +4908,38 @@ export async function getCustomerPayments(
   return [];
 }
 
+// Cari hesap ekstresi: müşterinin tüm aktif tahsilatları. 60 günlük saklama
+// penceresi nedeniyle hacim sınırlıdır; ekstre açılış bakiyesi için tüm
+// kayıtlar gerekir.
+export async function getCustomerPaymentsForStatement(
+  customerId: string
+): Promise<CustomerPaymentRow[]> {
+  if (isSupabaseOperational() && supabase) {
+    const { data, error } = await supabase
+      .from('customer_payments')
+      .select('*')
+      .eq('customer_id', customerId)
+      .eq('status', 'active')
+      .order('collected_at', { ascending: true });
+    if (error) throw paymentError(error, 'Tahsilat kayıtları okunamadı.');
+    return (data || []).map(mapCustomerPayment);
+  }
+  if (pgPool) {
+    const res = await pgPool.query(
+      `SELECT * FROM public.customer_payments
+       WHERE customer_id = $1 AND status = 'active'
+       ORDER BY collected_at ASC`,
+      [customerId]
+    );
+    return res.rows.map(mapCustomerPayment);
+  }
+  return [];
+}
+
 // Canlı akış ve dağıtım ekranı için bir güne ait tahsilatlar. İptal edilen
-// kayıtlar canlı akışta görünür; rapor toplamlarına ise
-// getCustomerPaymentsForReport() üzerinden dahil edilmez. Görünürlük filtresi
-// (şoför/admin) sunucu rotasında uygulanır.
+// kayıtlar fiziksel silindiği için normalde hiçbir listede görünmez.
+// `includeCancelled` yalnızca geçmiş/denetim amaçlı iç çağrılar içindir.
+// Görünürlük filtresi (şoför/admin) sunucu rotasında uygulanır.
 export async function getCustomerPaymentsByDate(
   date: string,
   includeCancelled = false

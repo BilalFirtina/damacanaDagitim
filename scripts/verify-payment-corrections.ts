@@ -13,7 +13,23 @@ const migration = fs.readFileSync(
   path.resolve('migrations/20261116_customer_payment_corrections.sql'),
   'utf8'
 );
+const hardDeleteMigration = fs.readFileSync(
+  path.resolve('migrations/20261116_customer_payment_hard_delete.sql'),
+  'utf8'
+);
 const server = fs.readFileSync(path.resolve('server.ts'), 'utf8');
+const statementRules = fs.readFileSync(
+  path.resolve('src/services/statementRules.ts'),
+  'utf8'
+);
+const driverView = fs.readFileSync(
+  path.resolve('src/components/driver/DriverView.tsx'),
+  'utf8'
+);
+const statsStrip = fs.readFileSync(
+  path.resolve('src/components/driver/DriverStatsStrip.tsx'),
+  'utf8'
+);
 
 let passed = 0;
 let failed = 0;
@@ -102,6 +118,72 @@ check(
 check(
   'migration tek transaction içinde',
   /BEGIN;/.test(migration) && /COMMIT;/.test(migration)
+);
+
+check(
+  'fiziksel silme migration dosyası var',
+  /DELETE FROM public\.customer_payments WHERE id = v_payment_id/i.test(
+    hardDeleteMigration
+  )
+);
+check(
+  'iptal işlemi status deleted döner',
+  /'status', 'deleted'/i.test(hardDeleteMigration)
+);
+check(
+  'iptal işlemi finansal denetim yazmaz',
+  !/INSERT INTO public\.customer_financial_audit/i.test(hardDeleteMigration)
+);
+check(
+  'tahsilat oluşturma finansal denetim yazmaz',
+  !/INSERT INTO public\.customer_financial_audit/i.test(hardDeleteMigration)
+);
+check(
+  'iptal silmesi trigger tarafından izinli',
+  /TG_OP = 'DELETE'[\s\S]*current_setting\('app\.payment_correction', true\) = 'on'/i.test(
+    hardDeleteMigration
+  )
+);
+check(
+  'mevcut iptal kayıtları temizleniyor',
+  /DELETE FROM public\.customer_payments WHERE status = ''cancelled''/i.test(
+    hardDeleteMigration
+  )
+);
+check(
+  'eski tahsilat denetim satırları temizleniyor',
+  /Tahsilat iptali/.test(hardDeleteMigration) &&
+    /DELETE FROM public\.customer_financial_audit/i.test(hardDeleteMigration)
+);
+check(
+  'payments rotası iptal edilenleri istemez',
+  !/getCustomerPaymentsByDate\(date, true\)/.test(server)
+);
+check(
+  'payments rotası dispatchId destekler',
+  /req\.query\.dispatchId/.test(server) &&
+    /getCustomerPaymentsByDispatch\(dispatchId\)/.test(server)
+);
+check(
+  'iptal rotası kayıt yoksa başarı döner',
+  /Tahsilat zaten silinmiş/.test(server)
+);
+check(
+  'statement aktif tahsilatları kullanır',
+  /getCustomerPaymentsForStatement/.test(server) &&
+    /payments: payments\.map/.test(server) &&
+    /isLegacyPaymentAudit/.test(statementRules)
+);
+check(
+  'şoför görünümü aktif sefere göre tahsilat çeker',
+  /fetchPayments\(\{ dispatchId: activeDispatchId \}\)/.test(driverView) &&
+    !/fetchPayments\(\{\s*date: todayStr/.test(driverView)
+);
+check(
+  'nakit/POS göstergesi teslimat dışı tahsilatı içerir',
+  /payments\s*\.filter/.test(statsStrip) &&
+    /payment\.method === 'CASH'/.test(statsStrip) &&
+    /payment\.method === 'POS'/.test(statsStrip)
 );
 
 console.log(`\nSonuç: ${passed} başarılı, ${failed} başarısız`);

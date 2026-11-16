@@ -482,10 +482,12 @@ export async function fetchCustomerPayments(customerId: string): Promise<
 export async function fetchPayments(params?: {
   date?: string;
   driverId?: string;
+  dispatchId?: string;
 }): Promise<CustomerPayment[]> {
   const query = new URLSearchParams();
   if (params?.date) query.set('date', params.date);
   if (params?.driverId) query.set('driverId', params.driverId);
+  if (params?.dispatchId) query.set('dispatchId', params.dispatchId);
   const suffix = query.toString() ? `?${query.toString()}` : '';
   const res = await apiFetch(`/api/payments${suffix}`);
   if (!res.ok) await throwServerError(res, 'Tahsilat kayıtları alınamadı');

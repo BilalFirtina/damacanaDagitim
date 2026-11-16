@@ -125,6 +125,13 @@ async function main(): Promise<void> {
 
     await c.query('SET ROLE service_role');
 
+    const auditBefore = await c.query(
+      `SELECT count(*)::int AS n
+         FROM public.customer_financial_audit
+        WHERE customer_id = $1`,
+      [CUSTOMER_ID]
+    );
+
     const first = await callPayment(c, payload());
     check('ilk tahsilat uygulandı', first.already_applied === false);
     check('bakiye 374,50', Number(first.balance) === 374.5, `${first.balance}`);
@@ -136,20 +143,15 @@ async function main(): Promise<void> {
     check('tutar 125,50', Number(paymentRow.rows[0]?.amount) === 125.5);
     check('yöntem CASH', paymentRow.rows[0]?.method === 'CASH');
 
-    const audit = await c.query(
-      `SELECT previous_balance, new_balance, reason
+    const auditAfter = await c.query(
+      `SELECT count(*)::int AS n
          FROM public.customer_financial_audit
-        WHERE customer_id = $1
-        ORDER BY changed_at DESC, id DESC
-        LIMIT 1`,
+        WHERE customer_id = $1`,
       [CUSTOMER_ID]
     );
-    check('denetim kaydı oluştu', audit.rowCount === 1);
-    check('önceki bakiye 500', Number(audit.rows[0]?.previous_balance) === 500);
-    check('yeni bakiye 374,50', Number(audit.rows[0]?.new_balance) === 374.5);
     check(
-      'denetim gerekçesi tahsilat',
-      /tahsilat/i.test(String(audit.rows[0]?.reason ?? ''))
+      'tahsilat finansal denetim kaydı yazmıyor',
+      auditAfter.rows[0]?.n === auditBefore.rows[0]?.n
     );
 
     const second = await callPayment(c, payload());

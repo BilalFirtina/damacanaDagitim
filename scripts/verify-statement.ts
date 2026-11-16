@@ -178,21 +178,22 @@ console.log('8) Müşteri avansı (negatif bakiye) korunur');
   check('tahsilat 750', r.totalPayments, 750);
 }
 
-console.log('9) Teslimat dışı tahsilat, düzeltme değil tahsilat olarak sınıflanır');
+console.log('9) Teslimat dışı tahsilat, aktif tahsilat kaydından tahsilat olarak sınıflanır');
 {
   const r = buildCustomerStatement({
     currentBalance: 300,
     deliveries: [delivery('d1', '2026-10-05', 500, 0)],
-    audits: [
+    payments: [
       {
-        id: 7,
-        changedAt: '2026-10-20T12:00:00.000Z',
-        changedByUserName: 'Depo Yöneticisi',
-        reason: 'Tahsilat (CASH): Geçen haftaki borç',
-        previousBalance: 500,
-        newBalance: 300,
+        id: 'p1',
+        amount: 200,
+        method: 'CASH',
+        note: 'Geçen haftaki borç',
+        collectedAt: '2026-10-20T12:00:00.000Z',
+        collectedByUserName: 'Şoför',
       },
     ],
+    audits: [],
     from: '2026-10-01',
     to: '2026-10-31',
   });
@@ -200,13 +201,19 @@ console.log('9) Teslimat dışı tahsilat, düzeltme değil tahsilat olarak sın
   check('tahsilat toplamı 200', r.totalPayments, 200);
   check('düzeltme toplamı 0', r.totalAdjustments, 0);
   check('kapanış 300', r.closingBalance, 300);
+  check(
+    'tahsilat açıklaması',
+    r.entries[1].description,
+    'Tahsilat (Nakit): Geçen haftaki borç'
+  );
 }
 
-console.log('10) Tahsilat düzeltmesi ve iptali toplam tahsilattan düşülür');
+console.log('10) Silinen tahsilat ve eski tahsilat denetim satırları ekstrede görünmez');
 {
   const r = buildCustomerStatement({
     currentBalance: 500,
     deliveries: [delivery('d1', '2026-10-05', 500, 0)],
+    payments: [],
     audits: [
       {
         id: 10,
@@ -239,9 +246,40 @@ console.log('10) Tahsilat düzeltmesi ve iptali toplam tahsilattan düşülür')
   check('kapanış 500', r.closingBalance, 500);
   check('net tahsilat 0', r.totalPayments, 0);
   check('düzeltme toplamı 0', r.totalAdjustments, 0);
-  check('4 hareket', r.entries.length, 4);
-  check('düzeltme tahsilat türünde', r.entries[2].type, 'payment');
-  check('iptal tahsilat türünde', r.entries[3].type, 'payment');
+  check('yalnızca satış hareketi', r.entries.length, 1);
+  check('hareket satış', r.entries[0].type, 'sale');
+}
+
+console.log('11) Aktif tahsilat ile eski denetim satırı çift sayılmaz');
+{
+  const r = buildCustomerStatement({
+    currentBalance: 300,
+    deliveries: [delivery('d1', '2026-10-05', 500, 0)],
+    payments: [
+      {
+        id: 'p2',
+        amount: 200,
+        method: 'CASH',
+        collectedAt: '2026-10-20T12:00:00.000Z',
+        collectedByUserName: 'Şoför',
+      },
+    ],
+    audits: [
+      {
+        id: 20,
+        changedAt: '2026-10-20T12:00:00.000Z',
+        changedByUserName: 'Şoför',
+        reason: 'Tahsilat (CASH)',
+        previousBalance: 500,
+        newBalance: 300,
+      },
+    ],
+    from: '2026-10-01',
+    to: '2026-10-31',
+  });
+  check('kapanış 300', r.closingBalance, 300);
+  check('tahsilat 200', r.totalPayments, 200);
+  check('iki hareket', r.entries.length, 2);
 }
 
 console.log(`\nSonuç: ${passed} başarılı, ${failed} başarısız`);

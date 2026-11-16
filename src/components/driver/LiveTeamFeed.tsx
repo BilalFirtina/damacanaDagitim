@@ -256,6 +256,7 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
     }
 
     for (const payment of payments) {
+      if (payment.status === 'cancelled') continue;
       items.push({
         kind: 'payment',
         id: `payment_${payment.id}`,

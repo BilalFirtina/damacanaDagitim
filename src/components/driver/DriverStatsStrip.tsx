@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dispatch, Delivery, Product, isGlassDamacana } from '../../types';
+import { Dispatch, Delivery, Product, CustomerPayment, isGlassDamacana } from '../../types';
 import { RotateCcw, Wallet, Flame } from 'lucide-react';
 import { totalTupEmpty } from '../../services/depositRules';
 
@@ -46,12 +46,15 @@ const PosTerminalIcon: React.FC<{ className?: string }> = ({ className }) => (
 interface DriverStatsStripProps {
   dispatch: Dispatch | null;
   deliveries: Delivery[];
+  /** Aktif sefere bağlı teslimat dışı tahsilatlar. */
+  payments?: CustomerPayment[];
   products?: Product[];
 }
 
 export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
   dispatch,
   deliveries,
+  payments = [],
   products = [],
 }) => {
   if (!dispatch) return null;
@@ -103,6 +106,21 @@ export const DriverStatsStrip: React.FC<DriverStatsStripProps> = ({
       }
     });
   });
+
+  // Teslimat dışı (sonraki ziyaret) tahsilatlar da kasadaki fiili nakit ve
+  // POS toplamına dahildir; gün sonu mutabakatıyla aynı hesap kullanılır.
+  payments
+    .filter(
+      (payment) =>
+        payment.status !== 'cancelled' && payment.dispatchId === dispatch.id
+    )
+    .forEach((payment) => {
+      if (payment.method === 'CASH') {
+        cashTotal += Number(payment.amount) || 0;
+      } else if (payment.method === 'POS') {
+        posTotal += Number(payment.amount) || 0;
+      }
+    });
 
   const remainingPlasticDamacana = Math.max(
     0,
