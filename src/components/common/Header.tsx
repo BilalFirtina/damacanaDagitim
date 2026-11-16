@@ -109,16 +109,17 @@ export const Header: React.FC<HeaderProps> = ({
     icon: React.ComponentType<{ className?: string }>;
     iconClass: string;
     activeClass: string;
+    activeTextClass: string;
     adminOnly?: boolean;
   }> = [
-    { tab: 'delivery', label: 'Dağıtım', ariaLabel: 'Saha Dağıtımı', icon: Truck, iconClass: 'text-sky-600', activeClass: 'bg-sky-600' },
-    { tab: 'team_feed', label: 'Canlı Akış', ariaLabel: 'Ekip Canlı Akışı', icon: Activity, iconClass: 'text-emerald-500', activeClass: 'bg-sky-600' },
-    { tab: 'eod', label: 'Gün Sonu', ariaLabel: 'Gün Sonu Kapatma', icon: CheckCircle2, iconClass: 'text-amber-500', activeClass: 'bg-sky-600' },
-    { tab: 'customers', label: 'Müşteriler', ariaLabel: 'Müşteriler & Borçlar', icon: Users, iconClass: 'text-indigo-500', activeClass: 'bg-sky-600' },
-    { tab: 'products', label: 'Ürünler', ariaLabel: 'Ürünler & Fiyatlar', icon: Package, iconClass: 'text-violet-500', activeClass: 'bg-sky-600' },
-    { tab: 'purchases', label: 'Satın Alınanlar', ariaLabel: 'Toptancı Satın Alımları', icon: ShoppingCart, iconClass: 'text-rose-600', activeClass: 'bg-gradient-to-r from-rose-400 via-pink-400 to-red-400' },
-    { tab: 'reports', label: 'Raporlar', ariaLabel: 'Raporlar & Gün Sonu Dökümü', icon: FileText, iconClass: 'text-blue-500', activeClass: 'bg-sky-600', adminOnly: true },
-    { tab: 'admin_loads', label: 'Araç Yükleme Yetkisi', ariaLabel: 'Araç Yüklemeleri & Yetki', icon: ShieldCheck, iconClass: 'text-indigo-600', activeClass: 'bg-indigo-600', adminOnly: true },
+    { tab: 'delivery', label: 'Dağıtım', ariaLabel: 'Saha Dağıtımı', icon: Truck, iconClass: 'text-sky-600', activeClass: 'bg-gradient-to-r from-sky-300 to-sky-400', activeTextClass: 'text-sky-950' },
+    { tab: 'team_feed', label: 'Canlı Akış', ariaLabel: 'Ekip Canlı Akışı', icon: Activity, iconClass: 'text-emerald-500', activeClass: 'bg-gradient-to-r from-emerald-300 to-emerald-400', activeTextClass: 'text-emerald-950' },
+    { tab: 'eod', label: 'Gün Sonu', ariaLabel: 'Gün Sonu Kapatma', icon: CheckCircle2, iconClass: 'text-amber-500', activeClass: 'bg-gradient-to-r from-amber-300 to-amber-400', activeTextClass: 'text-amber-950' },
+    { tab: 'customers', label: 'Müşteriler', ariaLabel: 'Müşteriler & Borçlar', icon: Users, iconClass: 'text-indigo-500', activeClass: 'bg-gradient-to-r from-indigo-300 to-indigo-400', activeTextClass: 'text-indigo-950' },
+    { tab: 'products', label: 'Ürünler', ariaLabel: 'Ürünler & Fiyatlar', icon: Package, iconClass: 'text-violet-500', activeClass: 'bg-gradient-to-r from-violet-300 to-violet-400', activeTextClass: 'text-violet-950' },
+    { tab: 'purchases', label: 'Satın Alınanlar', ariaLabel: 'Toptancı Satın Alımları', icon: ShoppingCart, iconClass: 'text-rose-600', activeClass: 'bg-gradient-to-r from-rose-400 via-pink-400 to-red-400', activeTextClass: 'text-rose-950' },
+    { tab: 'reports', label: 'Raporlar', ariaLabel: 'Raporlar & Gün Sonu Dökümü', icon: FileText, iconClass: 'text-blue-500', activeClass: 'bg-gradient-to-r from-blue-300 to-blue-400', activeTextClass: 'text-blue-950', adminOnly: true },
+    { tab: 'admin_loads', label: 'Araç Yükleme Yetkisi', ariaLabel: 'Araç Yüklemeleri & Yetki', icon: ShieldCheck, iconClass: 'text-indigo-600', activeClass: 'bg-indigo-600', activeTextClass: 'text-white', adminOnly: true },
   ];
 
   const visibleNavItems = mobileNavItems.filter((item) => !item.adminOnly || isAdmin);
@@ -225,17 +226,18 @@ export const Header: React.FC<HeaderProps> = ({
                   type="button"
                   onClick={() => setActiveTab(item.tab)}
                   aria-label={item.ariaLabel}
+                  aria-current={active ? 'page' : undefined}
                   title={item.ariaLabel}
                   className={`min-h-11 px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 shrink-0 cursor-pointer border ${
                     item.tab === 'purchases' ? 'whitespace-normal text-left' : 'whitespace-nowrap'
                   } ${
                     active
-                      ? `${item.activeClass} ${item.tab === 'purchases' ? 'text-rose-950' : 'text-white'} border-transparent shadow-md`
+                      ? `${item.activeClass} ${item.activeTextClass} border-transparent shadow-md`
                       : 'bg-white  text-slate-700  border-slate-200  hover:border-slate-300  hover:bg-slate-50 '
                   }`}
                 >
                   <Icon
-                    className={`w-4 h-4 shrink-0 ${active ? (item.tab === 'purchases' ? 'text-rose-950' : 'text-white') : item.iconClass}`}
+                    className={`w-4 h-4 shrink-0 ${active ? item.activeTextClass : item.iconClass}`}
                   />
                   <span>{item.label}</span>
                 </button>
@@ -255,6 +257,7 @@ export const Header: React.FC<HeaderProps> = ({
               type="button"
               onClick={() => setActiveTab(item.tab)}
               aria-label={item.ariaLabel}
+              aria-current={active ? 'page' : undefined}
               title={item.ariaLabel}
               className={`w-full min-w-0 min-h-[56px] py-1.5 rounded-lg text-[13px] font-semibold flex flex-col items-center justify-center gap-1 text-center transition-all cursor-pointer box-border px-1.5 ${
                 item.tab === 'admin_loads' || item.tab === 'purchases'
@@ -262,11 +265,11 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'whitespace-nowrap'
               } ${
                 active
-                  ? `${item.activeClass} ${item.tab === 'purchases' ? 'text-rose-950' : 'text-white'} shadow-sm ring-1 ring-white/20 font-bold`
+                  ? `${item.activeClass} ${item.activeTextClass} shadow-sm ring-1 ring-black/5 font-bold`
                   : 'bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-100'
               }`}
             >
-              <Icon className={`w-5 h-5 shrink-0 ${active ? (item.tab === 'purchases' ? 'text-rose-950' : 'text-white') : item.iconClass}`} />
+              <Icon className={`w-5 h-5 shrink-0 ${active ? item.activeTextClass : item.iconClass}`} />
               <span
                 className={`leading-tight ${
                   item.tab === 'admin_loads' || item.tab === 'purchases'
