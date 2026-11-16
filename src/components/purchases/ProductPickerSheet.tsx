@@ -113,7 +113,7 @@ export const ProductPickerSheet: React.FC<ProductPickerSheetProps> = ({
             )}
           </div>
 
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+          <div className="flex flex-wrap gap-1.5 pb-0.5">
             {allGroups.map((group) => {
               const active = categoryCode === group.code;
               return (
