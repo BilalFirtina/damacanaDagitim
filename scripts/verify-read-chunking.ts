@@ -117,6 +117,44 @@ function buildDispatchesTable(count: number) {
   return { dispatches, dispatch_items: items, dispatch_reconciliation_items: recons };
 }
 
+function buildCustomersTable(count: number) {
+  const customers: any[] = [];
+  const empties: any[] = [];
+  const prices: any[] = [];
+  const depositTypes = ['damacana', 'cam_damacana', 'tup_buyuk', 'tup_kucuk', 'sebil'];
+  for (let i = 0; i < count; i++) {
+    const id = `cust_${1700000000000 + i}_test`;
+    customers.push({
+      id,
+      name: `Müşteri ${String(i).padStart(4, '0')}`,
+      phone: '05550000000',
+      address: 'Adres',
+      emails: [],
+      is_account_customer: i % 2 === 0,
+      current_balance_tl: 0,
+      notes: '',
+      created_date: '2026-11-01',
+    });
+    for (const depositType of depositTypes) {
+      empties.push({
+        customer_id: id,
+        deposit_type: depositType,
+        quantity: depositType === 'sebil' ? 1 : 0,
+      });
+    }
+    prices.push({
+      customer_id: id,
+      product_id: 'prod_damacana_19l',
+      unit_price: 100 + (i % 20),
+    });
+  }
+  return {
+    customers,
+    customer_empty_balances: empties,
+    customer_product_prices: prices,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Reference mappers — byte-for-byte mirrors of db.ts mapDeliveryFromDb /
 // mapDispatchFromDb. Used as the independent oracle for the deep-equality test.
@@ -283,9 +321,40 @@ async function main() {
       res.end(JSON.stringify({ message: 'persistent failure', code: 'TEST_FAILURE' }));
       return;
     }
-    const body = JSON.stringify(rows);
+    // PostgREST embedded resource taklidi: getCustomers tek istekte boş kap ve
+    // özel fiyat satırlarını iç içe döndürür.
+    const selectParam = url.searchParams.get('select') || '';
+    if (table === 'customers' && selectParam.includes('customer_empty_balances')) {
+      const emptiesByCustomer = new Map<string, any[]>();
+      for (const row of tables.customer_empty_balances || []) {
+        const list = emptiesByCustomer.get(row.customer_id) || [];
+        list.push(row);
+        emptiesByCustomer.set(row.customer_id, list);
+      }
+      const pricesByCustomer = new Map<string, any[]>();
+      for (const row of tables.customer_product_prices || []) {
+        const list = pricesByCustomer.get(row.customer_id) || [];
+        list.push(row);
+        pricesByCustomer.set(row.customer_id, list);
+      }
+      rows = rows.map((customer: any) => ({
+        ...customer,
+        customer_empty_balances: emptiesByCustomer.get(customer.id) || [],
+        customer_product_prices: pricesByCustomer.get(customer.id) || [],
+      }));
+    }
+    // supabase-js `.range(from, to)` offset/limit gönderir; sayfalama test
+    // edilebilsin diye mock da aynı şekilde dilimler.
+    const offset = Number(url.searchParams.get('offset') || 0);
+    const limitParam = url.searchParams.get('limit');
+    const pageRows =
+      limitParam === null ? rows : rows.slice(offset, offset + Math.max(0, Number(limitParam)));
+    const body = JSON.stringify(pageRows);
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Range', `0-${Math.max(0, rows.length - 1)}/*`);
+    res.setHeader(
+      'Content-Range',
+      `${offset}-${offset + Math.max(0, pageRows.length - 1)}/*`
+    );
     res.end(body);
   });
 
@@ -402,6 +471,146 @@ async function main() {
         `maxUrl=${maxUrlLen} bytes`
       );
     }
+  }
+
+  // PostgREST 1000 satır sınırı: müşteriler ve ilişkili satırlar eksiksiz
+  // okunmalı; aksi hâlde yeni müşterilerin emanet bakiyeleri 0 görünür.
+  {
+    const customerCount = 1200;
+    tables = buildCustomersTable(customerCount);
+    requestCount = 0;
+    const got = await db.getCustomers();
+    check(
+      'getCustomers returns every customer beyond 1000 rows',
+      got.length === customerCount,
+      `got=${got.length}`
+    );
+    check(
+      'getCustomers keeps embedded empty balances (sebil=1) for every row',
+      got.every((c) => Number(c.emptyDepositBalance?.sebil) === 1)
+    );
+    check(
+      'getCustomers keeps embedded custom prices for every row',
+      got.every((c) => Number(c.customPrices?.prod_damacana_19l) >= 100)
+    );
+    const last = got.find(
+      (c) => c.id === `cust_${1700000000000 + customerCount - 1}_test`
+    );
+    check(
+      'getCustomers last page customer is complete',
+      Boolean(last) && Number(last?.emptyDepositBalance?.sebil) === 1
+    );
+    check(
+      'getCustomers used paginated requests',
+      requestCount >= 2,
+      `requests=${requestCount}`
+    );
+  }
+
+  // getDispatches alt sorgusu tek ID grubunda 1000'i aşan teslimatları
+  // (hasActiveDeliveries) eksiksiz okumalı.
+  {
+    const dispatchCount = 100;
+    const perDispatch = 13;
+    const dispatches: any[] = [];
+    const deliveries: any[] = [];
+    for (let i = 0; i < dispatchCount; i++) {
+      dispatches.push({
+        id: `disp_${i}`,
+        date: '2026-10-19',
+        driver_id: 'u1',
+        driver_name: 'Şoför',
+        vehicle_plate: '01 AA 100',
+        loaded_by_user_id: 'u0',
+        loaded_by_user_name: 'Yönetici',
+        status: 'in_transit',
+        created_at: new Date(1700000000000 + i * 1000).toISOString(),
+      });
+    }
+    for (let i = 0; i < dispatchCount * perDispatch; i++) {
+      deliveries.push({
+        id: `del_dense_${i}`,
+        dispatch_id: `disp_${i % dispatchCount}`,
+        status: 'active',
+      });
+    }
+    tables = {
+      dispatches,
+      deliveries,
+      dispatch_items: [],
+      dispatch_reconciliation_items: [],
+      customer_payments: [],
+    };
+    const got = await db.getDispatches();
+    check(
+      'getDispatches reads every delivery beyond 1000 child rows',
+      got.length === dispatchCount && got.every((d) => d.hasActiveDeliveries),
+      `dispatches=${got.length} flagged=${got.filter((d) => d.hasActiveDeliveries).length}`
+    );
+  }
+
+  // getDeliveries alt sorgusu tek ID grubunda 1000'i aşan kalemleri eksiksiz
+  // okumalı.
+  {
+    const deliveryCount = 250;
+    const itemsPerDelivery = 6;
+    const deliveries: any[] = [];
+    const items: any[] = [];
+    const containers: any[] = [];
+    for (let i = 0; i < deliveryCount; i++) {
+      const id = `del_items_${i}`;
+      deliveries.push({
+        id,
+        dispatch_id: 'disp_0',
+        driver_id: 'u1',
+        driver_name: 'Şoför',
+        vehicle_plate: '01 AA 100',
+        customer_id: 'cust_0',
+        customer_name: 'Müşteri',
+        timestamp: new Date(1700000000000 + i * 1000).toISOString(),
+        delivered_grand_total: 0,
+        payment_method: 'UNPAID',
+        cash_amount: 0,
+        pos_amount: 0,
+        total_collected: 0,
+        diff_uncollected: 0,
+        payment_status: 'unpaid',
+        notes: '',
+        is_offline_sync: false,
+      });
+      for (let line = 1; line <= itemsPerDelivery; line++) {
+        items.push({
+          delivery_id: id,
+          line_no: line,
+          product_id: `p${line}`,
+          product_name: `Ürün ${line}`,
+          quantity: 1,
+          unit_price: 10,
+          line_total: 10,
+        });
+      }
+      containers.push({
+        delivery_id: id,
+        deposit_type: 'damacana',
+        received_qty: 0,
+        diff_qty: 0,
+      });
+    }
+    tables = {
+      deliveries,
+      delivery_items: items,
+      delivery_container_returns: containers,
+    };
+    const got = await db.getDeliveries();
+    check(
+      'getDeliveries reads every item beyond 1000 child rows',
+      got.length === deliveryCount &&
+        got.every((d) => d.deliveredItems.length === itemsPerDelivery),
+      `deliveries=${got.length} items=${got.reduce(
+        (n, d) => n + d.deliveredItems.length,
+        0
+      )}`
+    );
   }
 
   // (a) A single transient chunk failure must be recovered by the retry and

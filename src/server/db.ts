@@ -901,18 +901,46 @@ function chunkIds(ids: string[], size: number): string[][] {
   return batches;
 }
 
-type ChunkQuery = (batch: string[]) => PromiseLike<{ data: any[] | null; error: any }>;
+// Supabase/PostgREST tek istekte en fazla 1000 satır döndürür. Tüm sonucu
+// gerektiren okumalarda `range` ile sayfa sayfa ilerlenir; aksi hâlde 1000
+// satırdan sonrası sessizce eksilir.
+const SUPABASE_PAGE_SIZE = 1000;
 
-async function runChunkOnce(makeQuery: ChunkQuery, batch: string[]): Promise<{ data: any[] | null; error: any }> {
-  try {
-    const res = await makeQuery(batch);
-    return { data: res?.data ?? null, error: res?.error };
-  } catch (err) {
-    return { data: null, error: err };
+type PagedChunkQuery = (
+  batch: string[],
+  from: number,
+  to: number
+) => PromiseLike<{ data: any[] | null; error: any }>;
+
+async function fetchAllPages(
+  makeQuery: (from: number, to: number) => PromiseLike<{ data: any[] | null; error: any }>,
+  errorLabel: string
+): Promise<any[]> {
+  const rows: any[] = [];
+  for (let from = 0; ; from += SUPABASE_PAGE_SIZE) {
+    let res: { data: any[] | null; error: any };
+    try {
+      res = await makeQuery(from, from + SUPABASE_PAGE_SIZE - 1);
+    } catch (err) {
+      res = { data: null, error: err };
+    }
+    if (res.error) {
+      console.error(errorLabel, res.error);
+      throw new Error(`${errorLabel}: ${res.error?.message || res.error}`);
+    }
+    const page = res.data || [];
+    if (page.length === 0) break;
+    rows.push(...page);
+    if (page.length < SUPABASE_PAGE_SIZE) break;
   }
+  return rows;
 }
 
-async function fetchInChunks(ids: string[], makeQuery: ChunkQuery, errorLabel: string): Promise<any[]> {
+async function fetchInChunksPaged(
+  ids: string[],
+  makeQuery: PagedChunkQuery,
+  errorLabel: string
+): Promise<any[]> {
   if (ids.length === 0) return [];
   const batches = chunkIds(ids, IN_CHUNK_SIZE);
   const rows: any[] = [];
@@ -920,22 +948,38 @@ async function fetchInChunks(ids: string[], makeQuery: ChunkQuery, errorLabel: s
     const group = batches.slice(i, i + IN_CHUNK_CONCURRENCY);
     const settled = await Promise.all(
       group.map(async (batch) => {
-        let lastError: any = null;
-        for (let attempt = 1; attempt <= CHUNK_ATTEMPTS; attempt++) {
-          const res = await runChunkOnce(makeQuery, batch);
-          if (!res.error) return res;
-          lastError = res.error;
-          if (attempt < CHUNK_ATTEMPTS) {
-            console.error(`${errorLabel} (retry ${attempt})`, lastError);
+        const collected: any[] = [];
+        for (let from = 0; ; from += SUPABASE_PAGE_SIZE) {
+          let res: { data: any[] | null; error: any } = { data: null, error: null };
+          let lastError: any = null;
+          for (let attempt = 1; attempt <= CHUNK_ATTEMPTS; attempt++) {
+            try {
+              res = await makeQuery(batch, from, from + SUPABASE_PAGE_SIZE - 1);
+            } catch (err) {
+              res = { data: null, error: err };
+            }
+            if (!res.error) {
+              lastError = null;
+              break;
+            }
+            lastError = res.error;
+            if (attempt < CHUNK_ATTEMPTS) {
+              console.error(`${errorLabel} (retry ${attempt})`, lastError);
+            }
           }
+          if (lastError) {
+            console.error(errorLabel, lastError);
+            throw new Error(`${errorLabel}: ${lastError?.message || lastError}`);
+          }
+          const page = res.data || [];
+          if (page.length === 0) break;
+          collected.push(...page);
+          if (page.length < SUPABASE_PAGE_SIZE) break;
         }
-        console.error(errorLabel, lastError);
-        throw new Error(`${errorLabel}: ${lastError?.message || lastError}`);
+        return collected;
       })
     );
-    for (const res of settled) {
-      if (res.data) rows.push(...res.data);
-    }
+    for (const batchRows of settled) rows.push(...batchRows);
   }
   return rows;
 }
@@ -1884,19 +1928,28 @@ export async function deleteProduct(id: string): Promise<boolean> {
 export async function getCustomers(): Promise<Customer[]> {
   if (isSupabaseOperational() && supabase) {
     try {
-      const { data, error } = await supabase.from('customers').select('*').order('name', { ascending: true });
-      if (!error && data) {
-        const [priceRes, emptyRes] = await Promise.all([
-          supabase.from('customer_product_prices').select('customer_id, product_id, unit_price'),
-          supabase.from('customer_empty_balances').select('customer_id, deposit_type, quantity'),
-        ]);
-        if (priceRes.error) console.error('[Supabase getCustomers prices]', priceRes.error);
-        if (emptyRes.error) console.error('[Supabase getCustomers empties]', emptyRes.error);
-        const relations = buildCustomerRelations(emptyRes.data || [], priceRes.data || []);
-        const localMap = getLocalCustomerMap();
-        return data.map((row) => mapCustomerFromDb(row, localMap, relations));
-      }
-      if (error) console.error('[Supabase getCustomers]', error);
+      // Boş kap ve özel fiyatlar tek istekte iç içe (embedded) okunur; üst
+      // seviye müşteri satırları da 1000'lik sayfalarla eksiksiz çekilir.
+      const rows = await fetchAllPages(
+        (from, to) =>
+          supabase!
+            .from('customers')
+            .select(
+              `*,
+               customer_empty_balances(customer_id, deposit_type, quantity),
+               customer_product_prices(customer_id, product_id, unit_price)`
+            )
+            .order('name', { ascending: true })
+            .order('id', { ascending: true })
+            .range(from, to),
+        '[Supabase getCustomers]'
+      );
+      const relations = buildCustomerRelations(
+        rows.flatMap((row: any) => row.customer_empty_balances || []),
+        rows.flatMap((row: any) => row.customer_product_prices || [])
+      );
+      const localMap = getLocalCustomerMap();
+      return rows.map((row) => mapCustomerFromDb(row, localMap, relations));
     } catch (e) {
       console.error('[Supabase getCustomers Exception]', e);
     }
@@ -2357,70 +2410,89 @@ export async function deleteCustomerDispenser(
 export async function getDispatches(date?: string): Promise<Dispatch[]> {
   if (isSupabaseOperational() && supabase) {
     try {
-      let query = supabase.from('dispatches').select('*').order('created_at', { ascending: false });
-      if (date) query = query.eq('date', date);
-      const { data, error } = await query;
-      if (!error && data) {
-        const ids = data.map((d: any) => d.id);
-        const [items, recons, activeDeliveries, linkedPayments] = await Promise.all([
-          fetchInChunks(
-            ids,
-            (batch) =>
-              supabase!
-                .from('dispatch_items')
-                .select('dispatch_id, product_id, quantity')
-                .in('dispatch_id', batch),
-            '[Supabase getDispatches items]'
-          ),
-          fetchInChunks(
-            ids,
-            (batch) =>
-              supabase!
-                .from('dispatch_reconciliation_items')
-                .select('dispatch_id, product_id, expected_qty, counted_qty')
-                .in('dispatch_id', batch),
-            '[Supabase getDispatches recon]'
-          ),
-          fetchInChunks(
-            ids,
-            (batch) =>
-              supabase!
-                .from('deliveries')
-                .select('dispatch_id')
-                .in('dispatch_id', batch)
-                .neq('status', 'cancelled'),
-            '[Supabase getDispatches active deliveries]'
-          ),
-          fetchInChunks(
-            ids,
-            (batch) =>
-              supabase!
-                .from('customer_payments')
-                .select('dispatch_id')
-                .in('dispatch_id', batch)
-                .not('dispatch_id', 'is', null),
-            '[Supabase getDispatches linked payments]'
-          ),
-        ]);
-        const itemsByDispatch = groupRows(items, (i: any) => i.dispatch_id);
-        const reconsByDispatch = groupRows(recons, (r: any) => r.dispatch_id);
-        const activeDeliveryDispatchIds = new Set(
-          activeDeliveries.map((row: any) => row.dispatch_id)
-        );
-        const linkedPaymentDispatchIds = new Set(
-          linkedPayments.map((row: any) => row.dispatch_id)
-        );
-        return data.map((row: any) => ({
-          ...mapDispatchFromDb(
-            row,
-            itemsByDispatch.get(row.id) || [],
-            reconsByDispatch.get(row.id) || []
-          ),
-          hasActiveDeliveries: activeDeliveryDispatchIds.has(row.id),
-          hasLinkedPayments: linkedPaymentDispatchIds.has(row.id),
-        }));
-      }
-      console.error('[Supabase getDispatches]', error);
+      const data = await fetchAllPages(
+        (from, to) => {
+          let query = supabase!
+            .from('dispatches')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .order('id', { ascending: false })
+            .range(from, to);
+          if (date) query = query.eq('date', date);
+          return query;
+        },
+        '[Supabase getDispatches]'
+      );
+      const ids = data.map((d: any) => d.id);
+      const [items, recons, activeDeliveries, linkedPayments] = await Promise.all([
+        fetchInChunksPaged(
+          ids,
+          (batch, from, to) =>
+            supabase!
+              .from('dispatch_items')
+              .select('dispatch_id, product_id, quantity')
+              .in('dispatch_id', batch)
+              .order('dispatch_id', { ascending: true })
+              .order('product_id', { ascending: true })
+              .range(from, to),
+          '[Supabase getDispatches items]'
+        ),
+        fetchInChunksPaged(
+          ids,
+          (batch, from, to) =>
+            supabase!
+              .from('dispatch_reconciliation_items')
+              .select('dispatch_id, product_id, expected_qty, counted_qty')
+              .in('dispatch_id', batch)
+              .order('dispatch_id', { ascending: true })
+              .order('product_id', { ascending: true })
+              .range(from, to),
+          '[Supabase getDispatches recon]'
+        ),
+        fetchInChunksPaged(
+          ids,
+          (batch, from, to) =>
+            supabase!
+              .from('deliveries')
+              .select('dispatch_id')
+              .in('dispatch_id', batch)
+              .neq('status', 'cancelled')
+              .order('dispatch_id', { ascending: true })
+              .order('id', { ascending: true })
+              .range(from, to),
+          '[Supabase getDispatches active deliveries]'
+        ),
+        fetchInChunksPaged(
+          ids,
+          (batch, from, to) =>
+            supabase!
+              .from('customer_payments')
+              .select('dispatch_id')
+              .in('dispatch_id', batch)
+              .not('dispatch_id', 'is', null)
+              .order('dispatch_id', { ascending: true })
+              .order('id', { ascending: true })
+              .range(from, to),
+          '[Supabase getDispatches linked payments]'
+        ),
+      ]);
+      const itemsByDispatch = groupRows(items, (i: any) => i.dispatch_id);
+      const reconsByDispatch = groupRows(recons, (r: any) => r.dispatch_id);
+      const activeDeliveryDispatchIds = new Set(
+        activeDeliveries.map((row: any) => row.dispatch_id)
+      );
+      const linkedPaymentDispatchIds = new Set(
+        linkedPayments.map((row: any) => row.dispatch_id)
+      );
+      return data.map((row: any) => ({
+        ...mapDispatchFromDb(
+          row,
+          itemsByDispatch.get(row.id) || [],
+          reconsByDispatch.get(row.id) || []
+        ),
+        hasActiveDeliveries: activeDeliveryDispatchIds.has(row.id),
+        hasLinkedPayments: linkedPaymentDispatchIds.has(row.id),
+      }));
     } catch (e) {
       console.error('[Supabase getDispatches Exception]', e);
     }
@@ -3523,88 +3595,97 @@ export async function getDeliveries(params?: {
   if (isSupabaseOperational() && supabase) {
     try {
       let data: any[] | null = null;
-      let error: any = null;
 
       if (params?.dispatchIds) {
         if (params.dispatchIds.length === 0) return [];
-        data = await fetchInChunks(
+        data = await fetchInChunksPaged(
           params.dispatchIds,
-          (batch) => {
+          (batch, from, to) => {
             let q = supabase!
               .from('deliveries')
               .select('*')
               .in('dispatch_id', batch)
-              .order('timestamp', { ascending: false });
+              .order('timestamp', { ascending: false })
+              .order('id', { ascending: false })
+              .range(from, to);
             if (!params?.includeCancelled) q = q.neq('status', 'cancelled');
             return q;
           },
           '[Supabase getDeliveries by dispatch ids]'
         );
       } else {
-        let query = supabase
-          .from('deliveries')
-          .select('*')
-          .order('timestamp', { ascending: false });
-        if (!params?.includeCancelled) query = query.neq('status', 'cancelled');
-        if (params?.dispatchId) query = query.eq('dispatch_id', params.dispatchId);
-        if (params?.driverId) query = query.eq('driver_id', params.driverId);
-        if (params?.customerId) query = query.eq('customer_id', params.customerId);
-        if (params?.date) {
-          // Gün filtresi sunucu tarafında dar bir aralığa indirilir; kesin gün
-          // eşleşmesi aşağıda bellekte doğrulanır. Böylece tüm geçmiş çekilmez
-          // ve idx_deliveries_timestamp indeksi kullanılabilir.
-          const window = utcDayQueryWindow(params.date);
-          if (window) {
-            query = query.gte('timestamp', window.lower).lt('timestamp', window.upper);
-          }
-        }
-        const result = await query;
-        data = result.data;
-        error = result.error;
+        data = await fetchAllPages(
+          (from, to) => {
+            let query = supabase!
+              .from('deliveries')
+              .select('*')
+              .order('timestamp', { ascending: false })
+              .order('id', { ascending: false })
+              .range(from, to);
+            if (!params?.includeCancelled) query = query.neq('status', 'cancelled');
+            if (params?.dispatchId) query = query.eq('dispatch_id', params.dispatchId);
+            if (params?.driverId) query = query.eq('driver_id', params.driverId);
+            if (params?.customerId) query = query.eq('customer_id', params.customerId);
+            if (params?.date) {
+              // Gün filtresi sunucu tarafında dar bir aralığa indirilir; kesin gün
+              // eşleşmesi aşağıda bellekte doğrulanır. Böylece tüm geçmiş çekilmez
+              // ve idx_deliveries_timestamp indeksi kullanılabilir.
+              const window = utcDayQueryWindow(params.date);
+              if (window) {
+                query = query.gte('timestamp', window.lower).lt('timestamp', window.upper);
+              }
+            }
+            return query;
+          },
+          '[Supabase getDeliveries]'
+        );
       }
 
-      if (!error && data) {
-        const ids = data.map((d: any) => d.id);
-        const [items, containers] = await Promise.all([
-          fetchInChunks(
-            ids,
-            (batch) =>
-              supabase!
-                .from('delivery_items')
-                .select('delivery_id, line_no, product_id, product_name, quantity, unit_price, line_total')
-                .in('delivery_id', batch),
-            '[Supabase getDeliveries items]'
-          ),
-          fetchInChunks(
-            ids,
-            (batch) =>
-              supabase!
-                .from('delivery_container_returns')
-                .select('delivery_id, deposit_type, received_qty, diff_qty')
-                .in('delivery_id', batch),
-            '[Supabase getDeliveries containers]'
-          ),
-        ]);
-        const itemsByDelivery = groupRows(items, (i: any) => i.delivery_id);
-        const containersByDelivery = groupRows(containers, (c: any) => c.delivery_id);
-        let list = data.map((row: any) =>
-          mapDeliveryFromDb(
-            row,
-            itemsByDelivery.get(row.id) || [],
-            containersByDelivery.get(row.id) || []
-          )
-        );
-        if (params?.date) {
-          list = list.filter((d) => isSameUtcDate(d.timestamp, params.date!));
-        }
-        // dispatchIds yolu birden çok chunk'tan geldiği için sıra garanti
-        // değildir; raporlarda kronolojik sıra için burada sıralanır.
-        if (params?.dispatchIds) {
-          list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        }
-        return list;
+      const ids = data.map((d: any) => d.id);
+      const [items, containers] = await Promise.all([
+        fetchInChunksPaged(
+          ids,
+          (batch, from, to) =>
+            supabase!
+              .from('delivery_items')
+              .select('delivery_id, line_no, product_id, product_name, quantity, unit_price, line_total')
+              .in('delivery_id', batch)
+              .order('delivery_id', { ascending: true })
+              .order('line_no', { ascending: true })
+              .range(from, to),
+          '[Supabase getDeliveries items]'
+        ),
+        fetchInChunksPaged(
+          ids,
+          (batch, from, to) =>
+            supabase!
+              .from('delivery_container_returns')
+              .select('delivery_id, deposit_type, received_qty, diff_qty')
+              .in('delivery_id', batch)
+              .order('delivery_id', { ascending: true })
+              .order('deposit_type', { ascending: true })
+              .range(from, to),
+          '[Supabase getDeliveries containers]'
+        ),
+      ]);
+      const itemsByDelivery = groupRows(items, (i: any) => i.delivery_id);
+      const containersByDelivery = groupRows(containers, (c: any) => c.delivery_id);
+      let list = data.map((row: any) =>
+        mapDeliveryFromDb(
+          row,
+          itemsByDelivery.get(row.id) || [],
+          containersByDelivery.get(row.id) || []
+        )
+      );
+      if (params?.date) {
+        list = list.filter((d) => isSameUtcDate(d.timestamp, params.date!));
       }
-      console.error('[Supabase getDeliveries]', error);
+      // dispatchIds yolu birden çok chunk'tan geldiği için sıra garanti
+      // değildir; raporlarda kronolojik sıra için burada sıralanır.
+      if (params?.dispatchIds) {
+        list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      }
+      return list;
     } catch (e) {
       console.error('[Supabase getDeliveries Exception]', e);
     }
@@ -5009,15 +5090,17 @@ export async function getCustomerPaymentsByDispatchIds(
 ): Promise<CustomerPaymentRow[]> {
   if (!dispatchIds || dispatchIds.length === 0) return [];
   if (isSupabaseOperational() && supabase) {
-    const data = await fetchInChunks(
+    const data = await fetchInChunksPaged(
       dispatchIds,
-      (batch) =>
+      (batch, from, to) =>
         supabase!
           .from('customer_payments')
           .select('*')
           .in('dispatch_id', batch)
           .eq('status', 'active')
-          .order('collected_at', { ascending: true }),
+          .order('collected_at', { ascending: true })
+          .order('id', { ascending: true })
+          .range(from, to),
       '[Supabase getCustomerPaymentsByDispatchIds]'
     );
     return data.map(mapCustomerPayment);
