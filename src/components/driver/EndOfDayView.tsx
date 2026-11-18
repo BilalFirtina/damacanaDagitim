@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Customer, Dispatch, Delivery, Product, User } from '../../types';
+import { getProductCategoryColor, sortItemsByProductCategory } from '../../types';
 import { isAccountCustomerDelivery } from '../../services/customerVisibility';
 import { todayUtcDateStr, formatDateTr } from '../../services/dateWindow';
 import { totalTupEmpty } from '../../services/depositRules';
@@ -239,23 +240,25 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
 
   // A. tablosu için tek kaynak: masaüstü tablo ve mobil kartlar aynı
   // hesaplanmış değerleri kullanır.
-  const productReconciliationRows = currentViewDispatch.loadedItems.map(
-    (loaded) => {
-      const product = products.find((p) => p.id === loaded.productId);
-      const delivered = deliveredTotals[loaded.productId] || 0;
-      const expected = expectedRemainingFull[loaded.productId] || 0;
-      const counted = countedFull[loaded.productId] ?? expected;
-      return {
-        productId: loaded.productId,
-        name: product?.name || loaded.productId,
-        unit: product?.unit || 'Adet',
-        loaded: loaded.quantity,
-        delivered,
-        counted,
-        oversold: oversoldFull[loaded.productId] || 0,
-      };
-    }
-  );
+  const productReconciliationRows = sortItemsByProductCategory(
+    currentViewDispatch.loadedItems,
+    products
+  ).map((loaded) => {
+    const product = products.find((p) => p.id === loaded.productId);
+    const delivered = deliveredTotals[loaded.productId] || 0;
+    const expected = expectedRemainingFull[loaded.productId] || 0;
+    const counted = countedFull[loaded.productId] ?? expected;
+    return {
+      productId: loaded.productId,
+      name: product?.name || loaded.productId,
+      unit: product?.unit || 'Adet',
+      category: product?.category || 'none',
+      loaded: loaded.quantity,
+      delivered,
+      counted,
+      oversold: oversoldFull[loaded.productId] || 0,
+    };
+  });
 
   const handleCloseShift = async () => {
     try {
@@ -464,10 +467,12 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
 
         {/* Mobil: kart düzeni, yatay kaydırma yok */}
         <div className="md:hidden print:hidden space-y-2.5">
-          {productReconciliationRows.map((row) => (
+          {productReconciliationRows.map((row) => {
+            const color = getProductCategoryColor(row.category);
+            return (
             <div
               key={row.productId}
-              className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 min-w-0"
+              className={`rounded-xl border border-slate-200 p-3 min-w-0 ${color.row}`}
             >
               <div className="text-sm font-semibold text-slate-900 break-words">
                 {row.name}
@@ -509,7 +514,8 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Masaüstü ve yazdırma: dört sütunlu tablo */}
@@ -533,8 +539,8 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {productReconciliationRows.map((row) => (
-                <tr key={row.productId}>
-                  <td className="py-3.5 pr-3 font-semibold text-slate-900 break-words">
+                <tr key={row.productId} className={getProductCategoryColor(row.category).row}>
+                  <td className="py-3.5 pr-3 font-semibold break-words">
                     {row.name}
                   </td>
                   <td className="py-3.5 px-2 text-center font-mono font-bold tabular-nums">
@@ -696,7 +702,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
           ) : (
             dispatchDeliveries.map((del, index) => {
               const isAccount = isAccountCustomerDelivery(del, customers);
-              const deliveredParts = del.deliveredItems.map((i) => {
+              const deliveredParts = sortItemsByProductCategory(del.deliveredItems, products).map((i) => {
                 const unit = products.find((p) => p.id === i.productId)?.unit;
                 return `${i.productName} - ${i.quantity}${unit ? ` ${unit}` : ''}`;
               });

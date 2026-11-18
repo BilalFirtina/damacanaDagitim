@@ -5,8 +5,10 @@ import {
   User,
   AUTHORIZED_VEHICLE_PLATES,
   filterProductsBySearch,
+  getProductCategoryColor,
   groupProductsByCategory,
   isGlassDamacana,
+  sortItemsByProductCategory,
   sortProductsForLoading,
 } from '../../types';
 import {
@@ -460,14 +462,15 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                         Ürün kaydı yok
                       </div>
                     ) : (
-                      disp.loadedItems.map((item) => {
+                      sortItemsByProductCategory(disp.loadedItems, products).map((item) => {
                         const p = products.find((prod) => prod.id === item.productId);
+                        const color = getProductCategoryColor(p?.category || '');
                         return (
                           <div
                             key={item.productId}
-                            className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-3 py-2 min-w-0"
+                            className={`flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-3 py-2 min-w-0 ${color.row}`}
                           >
-                            <span className="text-[11px] md:text-[13px] font-medium text-slate-700 break-words min-w-0">
+                            <span className="text-[11px] md:text-[13px] font-medium break-words min-w-0">
                               {p?.name || item.productId}
                             </span>
                             <span className="shrink-0 font-mono text-[11px] md:text-[13px] font-bold text-sky-700 tabular-nums">

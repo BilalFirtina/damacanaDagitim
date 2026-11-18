@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Dispatch, Delivery, Customer, Product, User, CustomerPayment } from '../../types';
+import { getProductCategoryColor, sortItemsByProductCategory } from '../../types';
 import { todayUtcDateStr } from '../../services/dateWindow';
 import {
   cancelCustomerPayment,
@@ -520,12 +521,15 @@ export const DriverView: React.FC<DriverViewProps> = ({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                      {del.deliveredItems.map((item, idx) => {
+                      {sortItemsByProductCategory(del.deliveredItems, products).map((item, idx) => {
                         const unit = products.find((p) => p.id === item.productId)?.unit;
+                        const color = getProductCategoryColor(
+                          products.find((p) => p.id === item.productId)?.category || ''
+                        );
                         return (
                           <span
                             key={idx}
-                            className="px-2 py-0.5 rounded bg-slate-100  text-[11px] break-words max-w-full"
+                            className={`px-2 py-0.5 rounded border text-[11px] break-words max-w-full ${color.chip}`}
                           >
                             {item.productName} - <strong>{item.quantity}</strong>
                             {unit ? ` ${unit}` : ""}

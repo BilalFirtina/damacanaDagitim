@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Customer, CustomerPayment, Delivery, Product, Purchase, User } from '../../types';
+import { getProductCategoryColor, sortItemsByProductCategory } from '../../types';
 import { isAccountCustomerDelivery } from '../../services/customerVisibility';
 import { todayUtcDateStr } from '../../services/dateWindow';
 import { fetchPayments, fetchPurchases, getAuthToken } from '../../services/api';
@@ -501,12 +502,15 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
 
                     {/* Delivered Products Badges */}
                     <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                      {item.deliveredItems.map((prod, idx) => {
+                      {sortItemsByProductCategory(item.deliveredItems, products).map((prod, idx) => {
                         const unit = products.find((p) => p.id === prod.productId)?.unit;
+                        const color = getProductCategoryColor(
+                          products.find((p) => p.id === prod.productId)?.category || ''
+                        );
                         return (
                           <span
                             key={idx}
-                            className="px-2.5 py-1 rounded-lg bg-white/90  text-slate-800  text-xs font-medium border border-slate-200  shadow-2xs max-w-full break-words"
+                            className={`px-2.5 py-1 rounded-lg border text-xs font-medium shadow-2xs max-w-full break-words ${color.chip}`}
                           >
                             {prod.productName} -{' '}
                             <strong className={`font-mono tabular-nums ${pal.textClass}`}>

@@ -5,8 +5,10 @@ import {
   User,
   AUTHORIZED_VEHICLE_PLATES,
   filterProductsBySearch,
+  getProductCategoryColor,
   groupProductsByCategory,
   isGlassDamacana,
+  sortItemsByProductCategory,
   sortProductsForLoading,
 } from "../../types";
 import {
@@ -698,12 +700,13 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
 
         {/* Loaded Items Grid */}
         <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          {currentDispatch.loadedItems.map((item) => {
+          {sortItemsByProductCategory(currentDispatch.loadedItems, products).map((item) => {
             const product = products.find((p) => p.id === item.productId);
+            const color = getProductCategoryColor(product?.category || '');
             return (
               <div
                 key={item.productId}
-                className="bg-white  p-3 rounded-xl border border-amber-200  shadow-xs flex flex-col"
+                className={`${color.row} p-3 rounded-xl border border-amber-200  shadow-xs flex flex-col`}
               >
                 <span className="text-[11px] text-slate-500  truncate">
                   {product?.name || item.productId}
@@ -802,12 +805,13 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
         <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">
           Yüklenen Ürünler:
         </span>
-        {currentDispatch.loadedItems.map((item) => {
+        {sortItemsByProductCategory(currentDispatch.loadedItems, products).map((item) => {
           const product = products.find((p) => p.id === item.productId);
+          const color = getProductCategoryColor(product?.category || '');
           return (
             <span
               key={item.productId}
-              className="inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-x-1.5 gap-y-0.5 px-3 py-1.5 rounded-lg bg-slate-100  text-slate-700  border border-slate-200/70 text-sm"
+              className={`inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-x-1.5 gap-y-0.5 px-3 py-1.5 rounded-lg border text-sm ${color.chip}`}
             >
               <span className="font-semibold break-words">
                 {product?.name || item.productId}

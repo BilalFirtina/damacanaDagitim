@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Customer, Delivery, User, Product } from '../../types';
+import { getProductCategoryColor, sortItemsByProductCategory } from '../../types';
 import { isAccountCustomerDelivery } from '../../services/customerVisibility';
 import { totalTupEmpty } from '../../services/depositRules';
 import {
@@ -142,7 +143,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
         minute: '2-digit',
       });
       const isAccount = isAccountCustomerDelivery(del, customers);
-      const itemsStr = del.deliveredItems
+      const itemsStr = sortItemsByProductCategory(del.deliveredItems, products)
         .map((i) => {
           const unit = products.find((p) => p.id === i.productId)?.unit;
           return `${i.productName} - ${i.quantity}${unit ? ` ${unit}` : ''}${
@@ -739,12 +740,15 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                       </td>
                       <td className="py-3 px-3">
                         <div className="flex flex-col items-start gap-1">
-                          {del.deliveredItems.map((item, idx) => {
+                          {sortItemsByProductCategory(del.deliveredItems, products).map((item, idx) => {
                             const unit = products.find((p) => p.id === item.productId)?.unit;
+                            const color = getProductCategoryColor(
+                              products.find((p) => p.id === item.productId)?.category || ''
+                            );
                             return (
                               <span
                                 key={idx}
-                                className="px-2 py-0.5 rounded bg-slate-100  text-[11px] break-words max-w-full"
+                                className={`px-2 py-0.5 rounded border text-[11px] break-words max-w-full ${color.chip}`}
                               >
                                 {item.productName} - <strong>{item.quantity}</strong>
                                 {unit ? ` ${unit}` : ''}
@@ -874,12 +878,15 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                   </div>
 
                   <div className="flex flex-col items-start gap-1">
-                    {del.deliveredItems.map((item, idx) => {
+                    {sortItemsByProductCategory(del.deliveredItems, products).map((item, idx) => {
                       const unit = products.find((p) => p.id === item.productId)?.unit;
+                      const color = getProductCategoryColor(
+                        products.find((p) => p.id === item.productId)?.category || ''
+                      );
                       return (
                         <span
                           key={idx}
-                          className="px-2 py-0.5 rounded bg-slate-100  text-[11px] break-words max-w-full"
+                          className={`px-2 py-0.5 rounded border text-[11px] break-words max-w-full ${color.chip}`}
                         >
                           {item.productName} - <strong>{item.quantity}</strong>
                           {unit ? ` ${unit}` : ''}

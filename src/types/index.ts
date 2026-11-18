@@ -164,6 +164,128 @@ export function sortProductsForLoading<
   });
 }
 
+// Kategori bazlı görsel ayrım. Aynı kategorideki ürünler her ekranda aynı
+// renk setiyle gösterilir. Sınıflar Tailwind JIT tarafından görülebilmesi
+// için statik dize olarak tanımlanır (dinamik sınıf birleştirme yapılmaz).
+export interface ProductCategoryColor {
+  /** Çip/kart için zemin + yazı + kenarlık sınıfları. */
+  chip: string;
+  /** Liste/tablo satırı için hafif zemin + yazı sınıfları. */
+  row: string;
+  /** Küçük renk göstergesi (nokta) sınıfları. */
+  dot: string;
+}
+
+const PRODUCT_CATEGORY_COLORS: Record<string, ProductCategoryColor> = {
+  damacana: {
+    chip: 'bg-sky-50 text-sky-900 border-sky-200',
+    row: 'bg-sky-50/60 text-sky-950',
+    dot: 'bg-sky-500',
+  },
+  pet: {
+    chip: 'bg-teal-50 text-teal-900 border-teal-200',
+    row: 'bg-teal-50/60 text-teal-950',
+    dot: 'bg-teal-500',
+  },
+  soda: {
+    chip: 'bg-green-50 text-green-900 border-green-200',
+    row: 'bg-green-50/60 text-green-950',
+    dot: 'bg-green-500',
+  },
+  tup: {
+    chip: 'bg-gray-100 text-gray-900 border-gray-300',
+    row: 'bg-gray-100/70 text-gray-900',
+    dot: 'bg-gray-500',
+  },
+  bardak: {
+    chip: 'cat-bardak-speckled text-slate-900 border-slate-400/70',
+    row: 'bg-[#f7efdc]/70 text-slate-900',
+    dot: 'cat-bardak-speckled',
+  },
+  sebil: {
+    chip: 'bg-white text-slate-900 border-slate-400',
+    row: 'bg-white text-slate-900',
+    dot: 'bg-white border border-slate-400',
+  },
+};
+
+// Veritabanından gelen yeni/dinamik kategoriler için yedek palet.
+// Kod adına göre deterministik seçilir; aynı kod her zaman aynı rengi alır.
+const FALLBACK_CATEGORY_COLORS: ProductCategoryColor[] = [
+  {
+    chip: 'bg-violet-50 text-violet-900 border-violet-200',
+    row: 'bg-violet-50/60 text-violet-950',
+    dot: 'bg-violet-500',
+  },
+  {
+    chip: 'bg-orange-50 text-orange-900 border-orange-200',
+    row: 'bg-orange-50/60 text-orange-950',
+    dot: 'bg-orange-500',
+  },
+  {
+    chip: 'bg-pink-50 text-pink-900 border-pink-200',
+    row: 'bg-pink-50/60 text-pink-950',
+    dot: 'bg-pink-500',
+  },
+  {
+    chip: 'bg-indigo-50 text-indigo-900 border-indigo-200',
+    row: 'bg-indigo-50/60 text-indigo-950',
+    dot: 'bg-indigo-500',
+  },
+  {
+    chip: 'bg-lime-50 text-lime-900 border-lime-200',
+    row: 'bg-lime-50/60 text-lime-950',
+    dot: 'bg-lime-500',
+  },
+  {
+    chip: 'bg-cyan-50 text-cyan-900 border-cyan-200',
+    row: 'bg-cyan-50/60 text-cyan-950',
+    dot: 'bg-cyan-500',
+  },
+];
+
+export function getProductCategoryColor(code: string): ProductCategoryColor {
+  if (code && PRODUCT_CATEGORY_COLORS[code]) return PRODUCT_CATEGORY_COLORS[code];
+  const key = String(code || 'none');
+  let hash = 0;
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  }
+  return FALLBACK_CATEGORY_COLORS[hash % FALLBACK_CATEGORY_COLORS.length];
+}
+
+// LoadedItem / DeliveryItem gibi yalnızca productId taşıyan kayıtları,
+// çözümlenen ürünün kategorisine göre sıralar. Kayıt sırası değiştirilmez,
+// yalnızca dönen kopya sıralanır. Eşleşmeyen ürünler en sonda yer alır.
+export function sortItemsByProductCategory<T extends { productId: string }>(
+  items: T[],
+  products: Array<{
+    id: string;
+    category?: string;
+    name?: string;
+    depositType?: string;
+  }>
+): T[] {
+  const productById = new Map<string, { id: string; category?: string; name?: string; depositType?: string }>();
+  for (const product of products || []) productById.set(product.id, product);
+  return [...(items || [])].sort((a, b) => {
+    const pa = productById.get(a.productId);
+    const pb = productById.get(b.productId);
+    const orderA = pa ? getProductCategoryOrder(pa.category || '') : 99;
+    const orderB = pb ? getProductCategoryOrder(pb.category || '') : 99;
+    if (orderA !== orderB) return orderA - orderB;
+    if (pa && pb && pa.category === 'damacana') {
+      const glassA = isGlassDamacana(pa) ? 1 : 0;
+      const glassB = isGlassDamacana(pb) ? 1 : 0;
+      if (glassA !== glassB) return glassA - glassB;
+    }
+    return String(pa?.name || a.productId).localeCompare(
+      String(pb?.name || b.productId),
+      'tr'
+    );
+  });
+}
+
 export interface ProductCategoryGroup<T> {
   code: string;
   title: string;
