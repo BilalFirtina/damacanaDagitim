@@ -801,7 +801,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
         Yükleme düzeltmesi veya iptali için depo yöneticisine başvurun.
       </p>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2 py-1 w-full max-w-full min-w-0 max-[425px]:flex-col max-[425px]:items-stretch">
+      <div className="mt-3 flex flex-wrap items-center gap-2 py-1 w-full max-w-full min-w-0 max-[426px]:flex-col max-[426px]:items-stretch">
         <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">
           Yüklenen Ürünler:
         </span>
@@ -811,7 +811,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
           return (
             <span
               key={item.productId}
-              className={`inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-x-1.5 gap-y-0.5 px-3 py-1.5 rounded-lg border text-sm max-[425px]:w-full ${color.chip}`}
+              className={`inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-x-1.5 gap-y-0.5 px-3 py-1.5 rounded-lg border text-sm max-[426px]:w-full ${color.chip}`}
             >
               <span className="font-semibold break-words">
                 {product?.name || item.productId}

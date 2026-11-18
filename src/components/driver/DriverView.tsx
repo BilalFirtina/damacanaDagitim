@@ -608,7 +608,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
                                 ? 'Teslimatı düzenle'
                                 : 'Çevrimdışıyken düzenleme yapılamaz'
                             }
-                            className="min-h-8 px-2.5 py-1.5 rounded-lg bg-sky-100 hover:bg-sky-200 text-sky-800 border border-sky-300 text-[11px] font-bold flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="min-h-8 px-2.5 py-1.5 rounded-lg bg-sky-100 hover:bg-sky-200 text-sky-800 border border-sky-300 text-[11px] font-bold flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed max-[426px]:h-6 max-[426px]:min-h-6! max-[426px]:py-px"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                             Düzenle
@@ -622,7 +622,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
                                 ? 'Teslimatı iptal et'
                                 : 'Çevrimdışıyken iptal yapılamaz'
                             }
-                            className="min-h-8 px-2.5 py-1.5 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 text-[11px] font-bold flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="min-h-8 px-2.5 py-1.5 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 text-[11px] font-bold flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed max-[426px]:h-6 max-[426px]:min-h-6! max-[426px]:py-px"
                           >
                             <Ban className="w-3.5 h-3.5" />
                             İptal
