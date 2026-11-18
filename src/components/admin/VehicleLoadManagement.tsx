@@ -488,7 +488,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                       <button
                         type="button"
                         onClick={() => handleOpenEdit(disp)}
-                        className="min-h-11 px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-semibold text-xs flex items-center justify-center gap-1.5 flex-1 md:flex-none shadow-2xs"
+                        className="min-h-11 px-3 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 flex-1 md:flex-none shadow-2xs"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                         <span>Düzenle</span>
