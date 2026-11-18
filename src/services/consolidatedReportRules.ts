@@ -2,6 +2,14 @@ import type { Customer, Delivery, Product } from '../types';
 import { isGlassDamacana } from '../types';
 import { isAccountCustomerDelivery } from './customerVisibility';
 
+// Damacana markaları ürün kimliğinden okunur; ürün adı değişse bile
+// rapor etiketi sabit kalır. Yalnızca Sırma ve Tekir ayrıca gösterilir.
+const DAMACANA_BRAND_BY_PRODUCT_ID: Record<string, string> = {
+  prod_damacana_sirma_19l: 'Sırma',
+  prod_damacana_tekir_19l: 'Tekir',
+};
+const DAMACANA_BRAND_ORDER = ['Sırma', 'Tekir'];
+
 // Konsolide gün sonu raporu için saf hesaplama katmanı.
 // Şoför bazında, müşteri başına tek satır üretir. Aynı müşteri farklı
 // şoförlerden hizmet alırsa her şoförün kendi bölümünde ayrı satır oluşur.
@@ -74,6 +82,7 @@ export interface ConsolidatedRow {
   hasLateDelivery: boolean;
   deliveryCount: number;
   damacanaFull: number;
+  damacanaBrands: string[];
   camDamacanaFull: number;
   tupBuyukFull: number;
   tupKucukFull: number;
@@ -221,6 +230,7 @@ function newRow(
     hasLateDelivery: false,
     deliveryCount: 0,
     damacanaFull: 0,
+    damacanaBrands: [],
     camDamacanaFull: 0,
     tupBuyukFull: 0,
     tupKucukFull: 0,
@@ -433,6 +443,14 @@ export function buildConsolidatedReport(input: {
       if (depositType === 'damacana') {
         row.damacanaFull += quantity;
         icmal.damacanaFull += quantity;
+        const brand = DAMACANA_BRAND_BY_PRODUCT_ID[item.productId];
+        if (brand && !row.damacanaBrands.includes(brand)) {
+          row.damacanaBrands.push(brand);
+          row.damacanaBrands.sort(
+            (a, b) =>
+              DAMACANA_BRAND_ORDER.indexOf(a) - DAMACANA_BRAND_ORDER.indexOf(b)
+          );
+        }
       } else if (depositType === 'cam_damacana') {
         row.camDamacanaFull += quantity;
         icmal.camDamacanaFull += quantity;

@@ -39,7 +39,10 @@ const timeText = (row: ConsolidatedRow) => {
 // Dolu: plastik sayısı kendi satırında, cam damacana altında C.D satırında.
 const fullLines = (row: ConsolidatedRow): string[] => {
   const lines: string[] = [];
-  if (row.damacanaFull > 0) lines.push(String(row.damacanaFull));
+  if (row.damacanaFull > 0) {
+    lines.push(String(row.damacanaFull));
+    for (const brand of row.damacanaBrands) lines.push(`(${brand})`);
+  }
   if (row.camDamacanaFull > 0) lines.push(`C.D - ${row.camDamacanaFull}`);
   return lines;
 };
@@ -55,6 +58,7 @@ const emptyLines = (row: ConsolidatedRow): string[] => {
 interface ContainerTableRow {
   full: string;
   empty: string;
+  fullBrands?: string[];
 }
 
 // Tabloda plastik ve cam damacana ayrı satırlarda gösterilir. Boş sütununda
@@ -65,6 +69,7 @@ const containerTableRows = (row: ConsolidatedRow): ContainerTableRow[] => {
     rows.push({
       full: row.damacanaFull > 0 ? String(row.damacanaFull) : '-',
       empty: row.damacanaEmpty > 0 ? String(row.damacanaEmpty) : '-',
+      fullBrands: row.damacanaFull > 0 ? row.damacanaBrands : [],
     });
   }
   if (row.camDamacanaFull > 0 || row.camDamacanaEmpty > 0) {
@@ -689,7 +694,15 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                     {row.customerName}
                                   </td>
                                   <td className="p-0 border-r border-black text-center align-middle font-mono xl:text-base print:text-base">
-                                    {container.full}
+                                    <div>{container.full}</div>
+                                    {container.fullBrands?.map((brand) => (
+                                      <div
+                                        key={brand}
+                                        className="text-[11px] leading-tight whitespace-nowrap"
+                                      >
+                                        ({brand})
+                                      </div>
+                                    ))}
                                   </td>
                                   <td className="p-0 border-r border-black text-center align-middle font-mono xl:text-base print:text-base">
                                     {container.empty}

@@ -32,6 +32,8 @@ function check(name: string, actual: unknown, expected: unknown) {
 
 const products = [
   { id: 'p-dam', name: 'Hayat Damacana', unit: 'Adet', depositType: 'damacana' },
+  { id: 'prod_damacana_sirma_19l', name: 'Sırma Damacana', unit: 'Adet', depositType: 'damacana' },
+  { id: 'prod_damacana_tekir_19l', name: 'Tekir Damacana', unit: 'Adet', depositType: 'damacana' },
   { id: 'p-cam', name: 'Hayat Cam Damacana', unit: 'Adet', depositType: 'cam_damacana' },
   { id: 'p-tup', name: 'Büyük Tüp (12 Kg)', unit: 'Adet', depositType: 'tup_buyuk' },
   { id: 'p-tup-kucuk', name: 'Küçük Tüp (2 Kg)', unit: 'Adet', depositType: 'tup_kucuk' },
@@ -266,6 +268,185 @@ const damacanaLine = report.products.find((p) => p.productId === 'p-dam')!;
 check('damacana adedi tüm teslimatlar', damacanaLine.quantity, 6);
 check('damacana tutarı yalnız peşin', damacanaLine.amount, 210);
 check('damacana faturalı kalem işareti', damacanaLine.hasAccountAmount, true);
+
+console.log('\n[8) Sırma/Tekir damacana marka etiketleri]');
+const brandCustomers = [
+  {
+    id: 'c-brand-both',
+    name: 'Marka Market',
+    address: '',
+    isAccountCustomer: false,
+    currentBalanceTL: 0,
+  },
+  {
+    id: 'c-brand-tekir',
+    name: 'Tekir Market',
+    address: '',
+    isAccountCustomer: false,
+    currentBalanceTL: 0,
+  },
+  {
+    id: 'c-brand-hayat',
+    name: 'Hayat Market',
+    address: '',
+    isAccountCustomer: false,
+    currentBalanceTL: 0,
+  },
+] as unknown as Customer[];
+
+const brandDeliveries = [
+  {
+    id: 'del-brand-1',
+    driverId: 'd1',
+    driverName: 'Ali',
+    vehiclePlate: '34 A 1',
+    customerId: 'c-brand-both',
+    customerName: 'Marka Market',
+    timestamp: '2026-11-07T16:00:00.000Z',
+    deliveredItems: [
+      {
+        productId: 'prod_damacana_tekir_19l',
+        productName: 'Tekir Damacana',
+        quantity: 3,
+        unitPrice: 100,
+        lineTotal: 300,
+      },
+      {
+        productId: 'prod_damacana_sirma_19l',
+        productName: 'Sırma Damacana',
+        quantity: 2,
+        unitPrice: 100,
+        lineTotal: 200,
+      },
+      {
+        productId: 'p-dam',
+        productName: 'Hayat Damacana',
+        quantity: 1,
+        unitPrice: 70,
+        lineTotal: 70,
+      },
+    ],
+    deliveredGrandTotal: 570,
+    collectedPayment: {
+      method: 'UNPAID',
+      cashAmount: 0,
+      posAmount: 0,
+      totalCollected: 0,
+      diffUncollected: 570,
+    },
+    emptyContainersReceived: { damacana: 0, camDamacana: 0, sebil: 0 },
+    notes: '',
+  },
+  {
+    id: 'del-brand-2',
+    driverId: 'd1',
+    driverName: 'Ali',
+    vehiclePlate: '34 A 1',
+    customerId: 'c-brand-both',
+    customerName: 'Marka Market',
+    timestamp: '2026-11-07T17:00:00.000Z',
+    deliveredItems: [
+      {
+        productId: 'prod_damacana_sirma_19l',
+        productName: 'Sırma Damacana',
+        quantity: 1,
+        unitPrice: 100,
+        lineTotal: 100,
+      },
+    ],
+    deliveredGrandTotal: 100,
+    collectedPayment: {
+      method: 'UNPAID',
+      cashAmount: 0,
+      posAmount: 0,
+      totalCollected: 0,
+      diffUncollected: 100,
+    },
+    emptyContainersReceived: { damacana: 0, camDamacana: 0, sebil: 0 },
+    notes: '',
+  },
+  {
+    id: 'del-brand-tekir',
+    driverId: 'd1',
+    driverName: 'Ali',
+    vehiclePlate: '34 A 1',
+    customerId: 'c-brand-tekir',
+    customerName: 'Tekir Market',
+    timestamp: '2026-11-07T18:00:00.000Z',
+    deliveredItems: [
+      {
+        productId: 'prod_damacana_tekir_19l',
+        productName: 'Tekir Damacana',
+        quantity: 4,
+        unitPrice: 100,
+        lineTotal: 400,
+      },
+    ],
+    deliveredGrandTotal: 400,
+    collectedPayment: {
+      method: 'UNPAID',
+      cashAmount: 0,
+      posAmount: 0,
+      totalCollected: 0,
+      diffUncollected: 400,
+    },
+    emptyContainersReceived: { damacana: 0, camDamacana: 0, sebil: 0 },
+    notes: '',
+  },
+  {
+    id: 'del-brand-hayat',
+    driverId: 'd1',
+    driverName: 'Ali',
+    vehiclePlate: '34 A 1',
+    customerId: 'c-brand-hayat',
+    customerName: 'Hayat Market',
+    timestamp: '2026-11-07T19:00:00.000Z',
+    deliveredItems: [
+      {
+        productId: 'p-dam',
+        productName: 'Hayat Damacana',
+        quantity: 2,
+        unitPrice: 70,
+        lineTotal: 140,
+      },
+    ],
+    deliveredGrandTotal: 140,
+    collectedPayment: {
+      method: 'UNPAID',
+      cashAmount: 0,
+      posAmount: 0,
+      totalCollected: 0,
+      diffUncollected: 140,
+    },
+    emptyContainersReceived: { damacana: 0, camDamacana: 0, sebil: 0 },
+    notes: '',
+  },
+] as unknown as Delivery[];
+
+const brandReport = buildConsolidatedReport({
+  deliveries: brandDeliveries,
+  payments: [],
+  dispatches: [{ driverId: 'd1', driverName: 'Ali', vehiclePlate: '34 A 1' }],
+  products,
+  customers: brandCustomers,
+  drivers,
+});
+
+const brandRows = brandReport.drivers[0].rows;
+const bothBrands = brandRows.find((row) => row.customerId === 'c-brand-both')!;
+const tekirBrand = brandRows.find((row) => row.customerId === 'c-brand-tekir')!;
+const hayatBrand = brandRows.find((row) => row.customerId === 'c-brand-hayat')!;
+
+check(
+  'Sırma + Tekir sabit sırada ve tekrar etmez',
+  bothBrands.damacanaBrands,
+  ['Sırma', 'Tekir']
+);
+check('Sırma + Tekir dolu toplamı', bothBrands.damacanaFull, 7);
+check('yalnız Tekir etiketi', tekirBrand.damacanaBrands, ['Tekir']);
+check('yalnız Tekir dolu toplamı', tekirBrand.damacanaFull, 4);
+check('Hayat için marka etiketi yok', hayatBrand.damacanaBrands, []);
+check('Hayat dolu toplamı', hayatBrand.damacanaFull, 2);
 
 console.log(`\nSONUC: ${passed} basarili, ${failed} basarisiz`);
 if (failed > 0) process.exit(1);
