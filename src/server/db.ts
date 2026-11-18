@@ -556,7 +556,7 @@ const CANONICAL_SEED_PRODUCTS: Product[] = [
   {
     id: 'prod_bardak_su_60',
     name: "Bardak Su (60'lı Koli)",
-    category: 'bardak',
+    category: 'pet',
     defaultUnitPrice: 90,
     isDeposit: false,
     depositType: 'none',

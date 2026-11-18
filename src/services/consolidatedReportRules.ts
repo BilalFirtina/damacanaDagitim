@@ -164,29 +164,24 @@ const timeOf = (value: string | null | undefined): number => {
 const isCashOrPos = (method: string) => method === 'CASH' || method === 'POS';
 
 // III. "Gün İçinde Teslim Edilen Ürün ve Miktar Dökümü" tablosunun sırası:
-// damacana → pet → bardak su → soda → tüp → bardak/sarf → sebil.
-// Bardak Su ürünleri bardak kategorisinde tutulsa da pet ile soda arasında
-// gösterilir; grupların içinde Türkçe alfabetik sıralama yapılır.
+// damacana → pet → soda → tüp → bardak/sarf → sebil.
+// "Bardak Su (60'lı Koli)" pet su kategorisinde tanımlıdır; pet grubu içinde
+// Türkçe alfabetik sırada gösterilir. Grupların içinde Türkçe alfabetik
+// sıralama yapılır.
 const REPORT_CATEGORY_RANK: Record<string, number> = {
   damacana: 1,
   pet: 2,
-  bardak_su: 3,
-  soda: 4,
-  tup: 5,
-  bardak: 6,
-  sebil: 7,
+  soda: 3,
+  tup: 4,
+  bardak: 5,
+  sebil: 6,
 };
-
-const isBardakSuLine = (line: { name: string }): boolean =>
-  line.name.toLocaleLowerCase('tr-TR').includes('bardak su');
 
 export function sortConsolidatedProductLines(
   lines: ConsolidatedProductLine[]
 ): ConsolidatedProductLine[] {
   const rankOf = (line: ConsolidatedProductLine): number =>
-    isBardakSuLine(line)
-      ? REPORT_CATEGORY_RANK.bardak_su
-      : REPORT_CATEGORY_RANK[line.category] ?? 99;
+    REPORT_CATEGORY_RANK[line.category] ?? 99;
 
   return [...lines].sort((a, b) => {
     const rankA = rankOf(a);
