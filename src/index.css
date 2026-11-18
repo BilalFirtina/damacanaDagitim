@@ -119,12 +119,12 @@ img, svg, video, canvas, audio, iframe, embed, object {
   outline-offset: 2px;
 }
 
-/* Bardak & Sarf kategorisi: krem zemin üzerinde siyah benek deseni.
+/* Bardak & Sarf kategorisi: krem zemin üzerinde soluk siyah benek deseni.
    Kategori renk setinden (`getProductCategoryColor`) uygulanır. */
 .cat-bardak-speckled {
   background-color: #f7efdc;
-  background-image: radial-gradient(#1f2937 0.8px, transparent 1px);
-  background-size: 9px 9px;
+  background-image: radial-gradient(rgba(31, 41, 55, 0.28) 0.7px, transparent 1px);
+  background-size: 10px 10px;
 }
 
 /* Konsolide rapor: Microsoft Word uyumlu Arial. Yalnızca rapor kapsamına
