@@ -746,7 +746,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                             <td colSpan={6} className="p-0 text-center align-middle border-r border-black uppercase">
                               {section.driverName} Ara Toplamı:
                             </td>
-                            <td className="p-0 text-center align-middle font-mono border-r border-black tabular-nums xl:text-sm">
+                            <td className="p-0 text-center align-middle font-mono border-r border-black tabular-nums xl:text-sm print:text-base">
                               <CollectionCell cash={section.cash} pos={section.pos} align="center" />
                             </td>
                             <td className="p-0" />
