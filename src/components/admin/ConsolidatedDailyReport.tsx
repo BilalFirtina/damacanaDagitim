@@ -298,7 +298,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
             }
             @page {
               size: A4 portrait;
-              margin: 10mm;
+              margin: 10mm 5mm;
             }
             .print-avoid-break {
               break-inside: avoid;
@@ -630,14 +630,14 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                     <div className="hidden md:block print:block overflow-x-auto print:overflow-visible">
                       <table className="w-full table-fixed text-xs border-collapse text-left">
                         <colgroup>
-                          <col style={{ width: '3%' }} />
-                          <col style={{ width: '5%' }} />
-                          <col style={{ width: '20%' }} />
-                          <col style={{ width: '7%' }} />
-                          <col style={{ width: '7%' }} />
-                          <col style={{ width: '30%' }} />
-                          <col style={{ width: '9%' }} />
+                          <col style={{ width: '2.85%' }} />
+                          <col style={{ width: '4.75%' }} />
                           <col style={{ width: '19%' }} />
+                          <col style={{ width: '6.65%' }} />
+                          <col style={{ width: '6.65%' }} />
+                          <col style={{ width: '33.5%' }} />
+                          <col style={{ width: '8.55%' }} />
+                          <col style={{ width: '18.05%' }} />
                         </colgroup>
                         <thead>
                           <tr className="border-b border-black bg-white">
@@ -685,20 +685,20 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                       </td>
                                     </>
                                   )}
-                                  <td className="p-0 border-r border-black text-center align-middle font-bold break-words text-sm">
+                                  <td className="p-0 border-r border-black text-center align-middle font-bold break-words text-sm print:text-base">
                                     {row.customerName}
                                   </td>
-                                  <td className="p-0 border-r border-black text-center align-middle font-mono xl:text-base">
+                                  <td className="p-0 border-r border-black text-center align-middle font-mono xl:text-base print:text-base">
                                     {container.full}
                                   </td>
-                                  <td className="p-0 border-r border-black text-center align-middle font-mono xl:text-base">
+                                  <td className="p-0 border-r border-black text-center align-middle font-mono xl:text-base print:text-base">
                                     {container.empty}
                                   </td>
                                   {isFirst && (
                                     <>
                                       <td
                                         rowSpan={containers.length}
-                                        className="p-0 border-r border-black text-center align-middle font-medium xl:text-base"
+                                        className="p-0 border-r border-black text-center align-middle font-medium xl:text-base print:text-base"
                                       >
                                         <div className="min-[1440px]:whitespace-nowrap">
                                           <LinesCell items={productLines(row)} />
@@ -706,13 +706,13 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                                       </td>
                                       <td
                                         rowSpan={containers.length}
-                                        className="p-0 border-r border-black text-center align-middle font-mono tabular-nums xl:text-sm"
+                                        className="p-0 border-r border-black text-center align-middle font-mono tabular-nums xl:text-sm print:text-base"
                                       >
                                         <CollectionCell cash={rowCash(row)} pos={rowPos(row)} align="center" />
                                       </td>
                                       <td
                                         rowSpan={containers.length}
-                                        className="p-0 text-center align-middle text-xs xl:text-sm break-words whitespace-pre-line"
+                                        className="p-0 text-center align-middle text-xs xl:text-sm print:text-base break-words whitespace-pre-line"
                                       >
                                         {row.notes.length
                                           ? row.notes.map((note, noteIndex) => (
