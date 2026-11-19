@@ -518,29 +518,33 @@ export const CustomersManagement: React.FC<CustomersManagementProps> = ({
                   </div>
 
                   <div className="flex flex-wrap items-center justify-end gap-1.5 w-full">
-                    <button
-                      onClick={() => setPaymentCustomer(c)}
-                      className="p-1.5 text-slate-400 hover:text-emerald-600  hover:bg-slate-100  rounded-lg transition-colors"
-                      title="Tahsilat Al"
-                    >
-                      <Wallet className="w-3.5 h-3.5" />
-                    </button>
+                    {isAdmin && (
+                      <>
+                        <button
+                          onClick={() => setPaymentCustomer(c)}
+                          className="p-1.5 text-slate-400 hover:text-emerald-600  hover:bg-slate-100  rounded-lg transition-colors"
+                          title="Tahsilat Al"
+                        >
+                          <Wallet className="w-3.5 h-3.5" />
+                        </button>
 
-                    <button
-                      onClick={() => setStatementCustomer(c)}
-                      className="p-1.5 text-slate-400 hover:text-indigo-600  hover:bg-slate-100  rounded-lg transition-colors"
-                      title="Cari Hesap Ekstresi"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                    </button>
+                        <button
+                          onClick={() => setStatementCustomer(c)}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600  hover:bg-slate-100  rounded-lg transition-colors"
+                          title="Cari Hesap Ekstresi"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                        </button>
 
-                    <button
-                      onClick={() => handleOpenEditModal(c)}
-                      className="p-1.5 text-slate-400 hover:text-sky-600  hover:bg-slate-100  rounded-lg transition-colors"
-                      title="Müşteriyi ve E-postaları Düzenle"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
+                        <button
+                          onClick={() => handleOpenEditModal(c)}
+                          className="p-1.5 text-slate-400 hover:text-sky-600  hover:bg-slate-100  rounded-lg transition-colors"
+                          title="Müşteriyi ve E-postaları Düzenle"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
 
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded-md shrink-0 cursor-default select-none ${
