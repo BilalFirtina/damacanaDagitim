@@ -9,6 +9,7 @@ import {
   filterProductsBySearch,
   groupProductsByCategory,
   isGlassDamacana,
+  isGlassPresentation,
   sortItemsByProductCategory,
   sortProductsByCategory,
   sortProductsForLoading,
@@ -161,6 +162,39 @@ check(
 check(
   'cam damacana tespiti deposit_type ile',
   isGlassDamacana({ category: 'damacana', depositType: 'cam_damacana' }) === true
+);
+check(
+  'cam su kart görünümü',
+  isGlassPresentation({
+    id: 'prod_pet_cam_su_0_33_12',
+    category: 'pet',
+    name: "0.33 lt Cam Su (12'li Koli)",
+  }) === true
+);
+check(
+  'cam damacana kart görünümü',
+  isGlassPresentation({
+    id: 'prod_cam_damacana',
+    category: 'damacana',
+    depositType: 'cam_damacana',
+    name: 'Hayat Cam Damacana',
+  }) === true
+);
+check(
+  'plastik damacana kart görünümü değil',
+  isGlassPresentation({
+    id: 'prod_damacana_19l',
+    category: 'damacana',
+    depositType: 'damacana',
+    name: 'Hayat Damacana',
+  }) === false
+);
+check(
+  'cam su iş mantığında cam damacana değil',
+  isGlassDamacana({
+    category: 'pet',
+    name: "0.33 lt Cam Su (12'li Koli)",
+  }) === false
 );
 check(
   'plastik damacana cam sayılmaz',

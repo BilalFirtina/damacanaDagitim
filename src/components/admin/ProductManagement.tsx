@@ -8,6 +8,7 @@ import {
   getProductCategoryCodes,
   getProductCategoryTitle,
   getProductCategoryDefaults,
+  isGlassPresentation,
 } from '../../types';
 import {
   Package,
@@ -23,6 +24,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { createProduct, updateProduct, deleteProduct } from '../../services/api';
+import { GlassProductBadge, GLASS_PRODUCT_CARD_CLASS } from '../common/GlassProductBadge';
 
 interface ProductManagementProps {
   products: Product[];
@@ -285,14 +287,22 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
       {/* Products Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredProducts.map((p) => {
+          const isGlass = isGlassPresentation(p);
           return (
             <div
               key={p.id}
-              className="bg-white  rounded-2xl border border-slate-200  p-4 shadow-xs flex flex-col justify-between hover:border-sky-300  transition-all"
+              className={`rounded-2xl border p-4 flex flex-col justify-between transition-all ${
+                isGlass
+                  ? `${GLASS_PRODUCT_CARD_CLASS} hover:border-cyan-300`
+                  : 'bg-white border-slate-200 shadow-xs hover:border-sky-300'
+              }`}
             >
               <div>
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  {getCategoryBadge(p.category)}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {getCategoryBadge(p.category)}
+                    {isGlass && <GlassProductBadge />}
+                  </div>
                   {canManage && (
                     <div className="flex items-center gap-1">
                       <button

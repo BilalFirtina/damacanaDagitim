@@ -7,7 +7,7 @@ import {
   filterProductsBySearch,
   getProductCategoryColor,
   groupProductsByCategory,
-  isGlassDamacana,
+  isGlassPresentation,
   sortItemsByProductCategory,
   sortProductsForLoading,
 } from "../../types";
@@ -21,9 +21,9 @@ import {
   AlertCircle,
   Search,
   ChevronDown,
-  Gem,
 } from "lucide-react";
 import { confirmDispatch, createDispatch } from "../../services/api";
+import { GlassProductBadge, GLASS_PRODUCT_CARD_CLASS } from "../common/GlassProductBadge";
 
 interface MorningLoadCardProps {
   currentDispatch: Dispatch | null;
@@ -473,14 +473,14 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                           {group.products.map((p) => {
                             const currentQty = loadQuantities[p.id] || 0;
                             const step = p.category === "damacana" ? 5 : 1;
-                            const isGlass = isGlassDamacana(p);
+                            const isGlass = isGlassPresentation(p);
 
                             return (
                               <div
                                 key={p.id}
                                 className={`flex flex-col gap-2 p-3 rounded-xl border sm:flex-row sm:items-center sm:justify-between ${
                                   isGlass
-                                    ? "border-cyan-200 bg-gradient-to-br from-cyan-50 via-sky-50 to-white ring-1 ring-cyan-100 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)]"
+                                    ? GLASS_PRODUCT_CARD_CLASS
                                     : "bg-slate-50 border-slate-100"
                                 }`}
                               >
@@ -489,12 +489,7 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                                     <div className="text-xs font-bold text-slate-900  break-words">
                                       {p.name}
                                     </div>
-                                    {isGlass && (
-                                      <span className="inline-flex items-center gap-1 rounded-full border border-cyan-200 bg-white/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-cyan-700">
-                                        <Gem className="w-2.5 h-2.5" />
-                                        Cam
-                                      </span>
-                                    )}
+                                    {isGlass && <GlassProductBadge />}
                                   </div>
                                   <div className="text-[11px] text-slate-500">
                                     {p.unit} ·{" "}

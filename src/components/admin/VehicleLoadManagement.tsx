@@ -7,7 +7,7 @@ import {
   filterProductsBySearch,
   getProductCategoryColor,
   groupProductsByCategory,
-  isGlassDamacana,
+  isGlassPresentation,
   sortItemsByProductCategory,
   sortProductsForLoading,
 } from '../../types';
@@ -22,11 +22,11 @@ import {
   AlertTriangle,
   Search,
   ChevronDown,
-  Gem
 } from 'lucide-react';
 import { createDispatch, updateDispatch, cancelDispatch, updateUser } from '../../services/api';
 import { todayUtcDateStr, formatDateTr } from '../../services/dateWindow';
 import { isStaleDispatch } from '../../services/dispatchRules';
+import { GlassProductBadge, GLASS_PRODUCT_CARD_CLASS } from '../common/GlassProductBadge';
 
 interface VehicleLoadManagementProps {
   dispatches: Dispatch[];
@@ -719,13 +719,13 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                             {group.products.map((p) => {
                               const currentQty = loadQuantities[p.id] || 0;
                               const step = p.category === 'damacana' ? 10 : 5;
-                              const isGlass = isGlassDamacana(p);
+                              const isGlass = isGlassPresentation(p);
                               return (
                                 <div
                                   key={p.id}
                                   className={`flex flex-col gap-2 p-2.5 rounded-xl border sm:flex-row sm:items-center sm:justify-between ${
                                     isGlass
-                                      ? 'border-cyan-200 bg-gradient-to-br from-cyan-50 via-sky-50 to-white ring-1 ring-cyan-100 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)]'
+                                      ? GLASS_PRODUCT_CARD_CLASS
                                       : 'bg-slate-50 border-slate-100'
                                   }`}
                                 >
@@ -734,12 +734,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                                       <div className="font-semibold text-slate-900  break-words">
                                         {p.name}
                                       </div>
-                                      {isGlass && (
-                                        <span className="inline-flex items-center gap-1 rounded-full border border-cyan-200 bg-white/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-cyan-700">
-                                          <Gem className="w-2.5 h-2.5" />
-                                          Cam
-                                        </span>
-                                      )}
+                                      {isGlass && <GlassProductBadge />}
                                     </div>
                                     <div className="text-[10px] text-slate-400">{p.unit}</div>
                                   </div>
@@ -909,13 +904,13 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                             {group.products.map((p) => {
                               const currentQty = editQuantities[p.id] || 0;
                               const step = p.category === 'damacana' ? 10 : 5;
-                              const isGlass = isGlassDamacana(p);
+                              const isGlass = isGlassPresentation(p);
                               return (
                                 <div
                                   key={p.id}
                                   className={`flex flex-col gap-2 p-2.5 rounded-xl border sm:flex-row sm:items-center sm:justify-between ${
                                     isGlass
-                                      ? 'border-cyan-200 bg-gradient-to-br from-cyan-50 via-sky-50 to-white ring-1 ring-cyan-100 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)]'
+                                      ? GLASS_PRODUCT_CARD_CLASS
                                       : 'bg-slate-50 border-slate-100'
                                   }`}
                                 >
@@ -924,12 +919,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                                       <div className="font-semibold text-slate-900 break-words">
                                         {p.name}
                                       </div>
-                                      {isGlass && (
-                                        <span className="inline-flex items-center gap-1 rounded-full border border-cyan-200 bg-white/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-cyan-700">
-                                          <Gem className="w-2.5 h-2.5" />
-                                          Cam
-                                        </span>
-                                      )}
+                                      {isGlass && <GlassProductBadge />}
                                     </div>
                                     <div className="text-[10px] text-slate-400">{p.unit}</div>
                                   </div>

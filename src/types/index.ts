@@ -163,6 +163,18 @@ export function isGlassDamacana(product: {
   return normalizeProductSearch(String(product.name || '')).includes('cam damacana');
 }
 
+// Yalnızca kart görünümü için: cam damacana ve 0.33 lt cam su aynı cam
+// stilini kullanır. Stok, emanet, sıralama ve rapor mantığına dokunmaz.
+export function isGlassPresentation(product: {
+  id?: string;
+  category?: string;
+  depositType?: string;
+  name?: string;
+}): boolean {
+  if (isGlassDamacana(product)) return true;
+  return product?.id === 'prod_pet_cam_su_0_33_12';
+}
+
 // Yükleme ekranı sıralaması: kategori içinde cam damacana en sonda,
 // diğer ürünler Türkçe ada göre alfabetik.
 export function sortProductsForLoading<

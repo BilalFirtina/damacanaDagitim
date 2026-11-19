@@ -13,7 +13,7 @@ import {
   getProductCategoryTitle,
   filterProductsBySearch,
   groupProductsByCategory,
-  isGlassDamacana,
+  isGlassPresentation,
   sortProductsForLoading,
 } from "../../types";
 import {
@@ -29,7 +29,6 @@ import {
   X,
   ChevronDown,
   ArrowRight,
-  Gem,
 } from "lucide-react";
 import {
   createDelivery,
@@ -39,6 +38,7 @@ import {
   replaceDelivery,
 } from "../../services/api";
 import { CustomerDispenserInfo } from "../common/CustomerDispenserInfo";
+import { GlassProductBadge, GLASS_PRODUCT_CARD_CLASS } from "../common/GlassProductBadge";
 import {
   computeStockWarnings,
   getStockWarningSignature,
@@ -2140,7 +2140,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                     const isCustomerSpecific =
                       !selectedCustomer?.isAccountCustomer &&
                       selectedCustomer?.customPrices?.[p.id] !== undefined;
-                    const isGlass = isGlassDamacana(p);
+                    const isGlass = isGlassPresentation(p);
                     const isSebilProduct = p.depositType === "sebil";
 
                     return (
@@ -2150,19 +2150,14 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                           qty > 0
                             ? "border-sky-400 bg-sky-50/30   shadow-2xs"
                             : isGlass
-                              ? "border-cyan-200 bg-gradient-to-br from-cyan-50 via-sky-50 to-white ring-1 ring-cyan-100 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)]"
+                              ? GLASS_PRODUCT_CARD_CLASS
                               : "border-slate-100  bg-slate-50/50 "
                         }`}
                       >
                         <div className="min-w-0">
                           <div className="text-xs font-bold text-slate-900  flex flex-wrap items-center gap-1.5">
                             <span className="break-words">{p.name}</span>
-                            {isGlass && (
-                              <span className="inline-flex items-center gap-1 rounded-full border border-cyan-200 bg-white/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-cyan-700">
-                                <Gem className="w-2.5 h-2.5" />
-                                Cam
-                              </span>
-                            )}
+                            {isGlass && <GlassProductBadge />}
                             {isCustomerSpecific && (
                               <span className="text-[10px] text-sky-700 font-medium bg-sky-100  px-1 py-0.2 rounded">
                                 Müşteriye Özel Fiyat
