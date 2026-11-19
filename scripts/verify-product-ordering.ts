@@ -9,6 +9,7 @@ import {
   filterProductsBySearch,
   groupProductsByCategory,
   isGlassDamacana,
+  sortItemsByProductCategory,
   sortProductsByCategory,
   sortProductsForLoading,
 } from '../src/types/index.ts';
@@ -180,6 +181,76 @@ check(
     .products.map((p) => p.name)
     .join('|') ===
     'Hayat Damacana|Sırma Damacana|Tekir Damacana|Hayat Cam Damacana'
+);
+
+console.log('\n[6) Pet ürün sırası]');
+const petProducts = [
+  {
+    id: 'prod_pet_cam_su_0_33_12',
+    name: "0.33 lt Cam Su (12'li Koli)",
+    category: 'pet',
+  },
+  {
+    id: 'prod_bardak_su_60',
+    name: "Bardak Su (60'lı Koli)",
+    category: 'pet',
+  },
+  {
+    id: 'prod_1794290320342',
+    name: "Hayat 0.33 lt Pet Su (12'li Paket)",
+    category: 'pet',
+  },
+  {
+    id: 'prod_pet_hayat_0_5l_12',
+    name: "Hayat 0.5 lt Pet Su (12'li Paket)",
+    category: 'pet',
+  },
+  {
+    id: 'prod_1794290594559',
+    name: "Hayat 1.0 lt Pet Su (6'lı Paket)",
+    category: 'pet',
+  },
+  {
+    id: 'prod_pet_hayat_1_5l_6',
+    name: "Hayat 1.5 lt Pet Su (6'lı Paket)",
+    category: 'pet',
+  },
+];
+const expectedPetOrder = [
+  "Bardak Su (60'lı Koli)",
+  "Hayat 0.33 lt Pet Su (12'li Paket)",
+  "Hayat 0.5 lt Pet Su (12'li Paket)",
+  "Hayat 1.0 lt Pet Su (6'lı Paket)",
+  "Hayat 1.5 lt Pet Su (6'lı Paket)",
+  "0.33 lt Cam Su (12'li Koli)",
+];
+check(
+  'pet kategori sırası Bardak -> Hayat -> Cam Su',
+  sortProductsByCategory(petProducts).map((p) => p.name).join('|') ===
+    expectedPetOrder.join('|'),
+  sortProductsByCategory(petProducts).map((p) => p.name)
+);
+check(
+  'pet yükleme sırası Bardak -> Hayat -> Cam Su',
+  sortProductsForLoading(petProducts).map((p) => p.name).join('|') ===
+    expectedPetOrder.join('|'),
+  sortProductsForLoading(petProducts).map((p) => p.name)
+);
+check(
+  'pet ürün özeti sırası Bardak -> Hayat -> Cam Su',
+  sortItemsByProductCategory(
+    petProducts.map((p) => ({ productId: p.id })),
+    petProducts
+  )
+    .map((item) => petProducts.find((p) => p.id === item.productId)!.name)
+    .join('|') === expectedPetOrder.join('|')
+);
+check(
+  'pet grubu yükleme sırasını korur',
+  groupProductsByCategory(petProducts, sortProductsForLoading)
+    .find((group) => group.code === 'pet')!
+    .products.map((p) => p.name)
+    .join('|') === expectedPetOrder.join('|')
 );
 
 console.log(`\nResult: ${passed} passed, ${failed} failed`);

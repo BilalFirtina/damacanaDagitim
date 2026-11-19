@@ -125,11 +125,28 @@ export function getProductCategoryCodes(): string[] {
   );
 }
 
-export function sortProductsByCategory<T extends { category: string; name: string }>(items: T[]): T[] {
+// Pet grubunda rafta/araçta en sık kullanılan bardak suyu başa, cam suyu
+// sona alır. Diğer pet ürünleri kendi aralarında alfabetik kalır.
+const PET_FIRST_PRODUCT_ID = 'prod_bardak_su_60';
+const PET_LAST_PRODUCT_ID = 'prod_pet_cam_su_0_33_12';
+
+function petProductRank(product: { id?: string }): number {
+  if (product.id === PET_FIRST_PRODUCT_ID) return 0;
+  if (product.id === PET_LAST_PRODUCT_ID) return 2;
+  return 1;
+}
+
+export function sortProductsByCategory<
+  T extends { id?: string; category: string; name: string }
+>(items: T[]): T[] {
   return [...items].sort((a, b) => {
     const orderA = getProductCategoryOrder(a.category);
     const orderB = getProductCategoryOrder(b.category);
     if (orderA !== orderB) return orderA - orderB;
+    if (a.category === 'pet' && b.category === 'pet') {
+      const rank = petProductRank(a) - petProductRank(b);
+      if (rank !== 0) return rank;
+    }
     return a.name.localeCompare(b.name, 'tr');
   });
 }
@@ -149,7 +166,7 @@ export function isGlassDamacana(product: {
 // Yükleme ekranı sıralaması: kategori içinde cam damacana en sonda,
 // diğer ürünler Türkçe ada göre alfabetik.
 export function sortProductsForLoading<
-  T extends { category: string; name: string; depositType?: string }
+  T extends { id?: string; category: string; name: string; depositType?: string }
 >(items: T[]): T[] {
   return [...items].sort((a, b) => {
     const orderA = getProductCategoryOrder(a.category);
@@ -159,6 +176,10 @@ export function sortProductsForLoading<
       const glassA = isGlassDamacana(a) ? 1 : 0;
       const glassB = isGlassDamacana(b) ? 1 : 0;
       if (glassA !== glassB) return glassA - glassB;
+    }
+    if (a.category === 'pet' && b.category === 'pet') {
+      const rank = petProductRank(a) - petProductRank(b);
+      if (rank !== 0) return rank;
     }
     return a.name.localeCompare(b.name, 'tr');
   });
@@ -278,6 +299,10 @@ export function sortItemsByProductCategory<T extends { productId: string }>(
       const glassA = isGlassDamacana(pa) ? 1 : 0;
       const glassB = isGlassDamacana(pb) ? 1 : 0;
       if (glassA !== glassB) return glassA - glassB;
+    }
+    if (pa && pb && pa.category === 'pet' && pb.category === 'pet') {
+      const rank = petProductRank(pa) - petProductRank(pb);
+      if (rank !== 0) return rank;
     }
     return String(pa?.name || a.productId).localeCompare(
       String(pb?.name || b.productId),
