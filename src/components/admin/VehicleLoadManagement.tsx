@@ -386,7 +386,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
 
       {/* Today's Dispatches / Vehicle Loads Table */}
       <div className="bg-white  rounded-2xl border border-slate-200  p-5 shadow-xs space-y-3">
-        <h3 className="text-xs font-bold text-slate-900  uppercase tracking-wider">
+        <h3 className="text-xs font-bold text-slate-900  uppercase tracking-wider text-center">
           Sefer ve Araç Yüklemeleri ({dispatches.length} Sefer)
         </h3>
 
@@ -396,8 +396,8 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
               <div className="grid grid-cols-1 gap-4 md:gap-3">
                 {/* Sol: plaka, şoför, durum ve tarih bilgileri */}
                 <div className="min-w-0 space-y-2">
-                  <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center md:justify-center">
-                    <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-col items-center gap-2 text-center md:flex-row md:flex-wrap md:justify-center">
+                    <div className="flex flex-wrap items-center justify-center gap-2">
                       <span className="font-mono font-bold text-xs md:text-[13px] px-2 py-0.5 rounded bg-slate-100 text-slate-900">
                         {disp.vehiclePlate}
                       </span>
@@ -406,7 +406,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                       </span>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-1.5 md:justify-center">
+                    <div className="flex flex-wrap items-center justify-center gap-1.5">
                       {disp.status === 'in_transit' ? (
                         <span className="inline-flex items-center gap-1 text-[10px] md:text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
                           Şoför Onayladı (Sahada / Dağıtımda)
@@ -429,7 +429,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                     </div>
                   </div>
 
-                  <div className="space-y-0.5 text-[11px] md:text-xs leading-4 md:leading-5 text-slate-500 md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-4 md:gap-y-1 md:space-y-0">
+                  <div className="flex flex-col items-center gap-0.5 text-center text-[11px] md:text-xs leading-4 md:leading-5 text-slate-500 md:flex-row md:flex-wrap md:justify-center md:gap-x-4 md:gap-y-1">
                     <div>
                       <span className="text-slate-400">Tarih: </span>
                       <strong className="font-semibold text-slate-700">
@@ -455,12 +455,12 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
 
                 {/* Sağ: yüklenen ürünler */}
                 <div className="min-w-0 w-full space-y-1">
-                  <div className="text-[10px] md:text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  <div className="text-[10px] md:text-[11px] font-semibold uppercase tracking-wide text-slate-400 text-center">
                     Yüklenen Ürünler
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-100 md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-1.5 md:divide-y-0 md:rounded-none md:border-0 md:bg-transparent md:overflow-visible">
                     {disp.loadedItems.length === 0 ? (
-                      <div className="px-3 py-2 text-[11px] md:text-[13px] text-slate-400">
+                      <div className="px-3 py-2 text-[11px] md:text-[13px] text-slate-400 text-center">
                         Ürün kaydı yok
                       </div>
                     ) : (
@@ -470,7 +470,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                         return (
                           <div
                             key={item.productId}
-                            className={`flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-3 py-2 min-w-0 md:rounded-lg md:border md:border-slate-200 ${color.row}`}
+                            className={`flex flex-wrap items-baseline justify-center gap-x-2 gap-y-0.5 px-3 py-2 min-w-0 text-center md:rounded-lg md:border md:border-slate-200 ${color.row}`}
                           >
                             <span className="text-[11px] md:text-[13px] font-medium break-words min-w-0">
                               {p?.name || item.productId}
@@ -508,7 +508,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                       </button>
                     </>
                   ) : (
-                    <span className="text-[10px] md:text-[11px] font-semibold text-slate-400 w-full md:w-auto text-center md:text-right">
+                    <span className="text-[10px] md:text-[11px] font-semibold text-slate-400 w-full text-center">
                       Teslimat veya tahsilat başladı; yükleme düzeltilemez.
                     </span>
                   )}
