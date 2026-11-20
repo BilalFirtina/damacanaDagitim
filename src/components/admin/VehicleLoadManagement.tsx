@@ -651,9 +651,6 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                     );
                   })}
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Aktif dağıtımda olan araçlar seçilemez; yalnızca müsait araçlar seçilebilir.
-                </p>
               </div>
 
               {/* Products Quantities */}

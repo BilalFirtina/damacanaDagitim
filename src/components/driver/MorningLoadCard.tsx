@@ -233,11 +233,6 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                 <span className="text-base font-bold text-slate-900 ">
                   Depo Yükleme Girişi
                 </span>
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-indigo-100  text-indigo-700 ">
-                  {currentUser.role === "admin"
-                    ? "Depo Yöneticisi"
-                    : "Tek Yetkili Şoför"}
-                </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
                 Yüklemeyi Yapan:{" "}
@@ -329,10 +324,6 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                     );
                   })}
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1">
-                  İş yeri sahibi şoför değildir; sadece saha şoförleri
-                  listelenir.
-                </p>
               </div>
 
               {/* 2. Vehicle Plate Selection */}
@@ -394,10 +385,6 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                     );
                   })}
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Aktif dağıtımda olan araçlar seçilemez; yalnızca müsait
-                  araçlar seçilebilir.
-                </p>
               </div>
             </div>
 
@@ -406,9 +393,6 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-slate-900  uppercase tracking-wider">
                   Araca Yüklenen Ürünler & Adetler
-                </span>
-                <span className="text-[11px] text-slate-400">
-                  Damacana, pet, bardak vb.
                 </span>
               </div>
 
@@ -589,6 +573,8 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
   // Case 1: No active dispatch exists for this driver/vehicle (ready for loading/trip)
   if (!currentDispatch || currentDispatch.status === "completed") {
     const isNextTrip = currentDispatch?.status === "completed";
+    const showLoadHint =
+      isNextTrip || currentUser.role === "admin" || !currentUser.canLoadVehicle;
     return (
       <div className="bg-white  rounded-2xl border border-slate-200  p-4 sm:p-5 shadow-xs mb-6 w-full max-w-full min-w-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -608,22 +594,16 @@ export const MorningLoadCard: React.FC<MorningLoadCardProps> = ({
                     Araç Boş & Sefer Hazır
                   </span>
                 )}
-                {currentUser.canLoadVehicle &&
-                  currentUser.role === "driver" && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50  text-emerald-700 ">
-                      Tek Yetkili Şoför
-                    </span>
-                  )}
               </div>
-              <p className="text-xs text-slate-500  mt-0.5">
-                {isNextTrip
-                  ? "Önceki sefer tamamlandı, kalan ürünler depoya indirildi. Yeni dağıtım seferi için yükleme adetlerini girebilirsiniz."
-                  : currentUser.role === "admin"
-                    ? "Depo Yöneticisi olarak bağımsız şoför ve plaka seçerek araç yüklemelerini sisteme girebilirsiniz."
-                    : currentUser.canLoadVehicle
-                      ? "Tek Yetkili Şoför yetkiniz bulunuyor. Kendi aracınız veya diğer şoförlerin araçları için yükleme girebilirsiniz."
+              {showLoadHint && (
+                <p className="text-xs text-slate-500  mt-0.5">
+                  {isNextTrip
+                    ? "Önceki sefer tamamlandı, kalan ürünler depoya indirildi. Yeni dağıtım seferi için yükleme adetlerini girebilirsiniz."
+                    : currentUser.role === "admin"
+                      ? "Depo Yöneticisi olarak bağımsız şoför ve plaka seçerek araç yüklemelerini sisteme girebilirsiniz."
                       : "Yöneticiniz veya yetkili şoför aracınıza yükleme girdiğinde burada teslim alma onayı belirecektir."}
-              </p>
+                </p>
+              )}
             </div>
           </div>
 
