@@ -2202,11 +2202,15 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => setEditingPriceProductId(p.id)}
-                                    className="flex items-center gap-1 font-mono font-bold text-slate-800  hover:text-sky-600"
-                                    title="Fiyatı Düzenle"
+                                    className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 font-mono font-bold text-sky-800 active:scale-95 whitespace-nowrap"
+                                    title="Birim fiyatı düzenle"
+                                    aria-label="Birim fiyatı düzenle"
                                   >
                                     <span>{unitPrice} ₺</span>
-                                    <Edit2 className="w-2.5 h-2.5 text-slate-400" />
+                                    <Edit2 className="w-3.5 h-3.5 text-sky-600" />
+                                    <span className="text-[10px] font-sans font-semibold text-sky-700">
+                                      Düzenle
+                                    </span>
                                   </button>
                                 )}
                               </div>
