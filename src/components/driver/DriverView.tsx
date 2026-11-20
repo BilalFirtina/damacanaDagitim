@@ -608,7 +608,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
                                 ? 'Teslimatı düzenle'
                                 : 'Çevrimdışıyken düzenleme yapılamaz'
                             }
-                            className="min-h-8 px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 border border-slate-300 shadow-2xs text-[11px] font-bold flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed max-[426px]:h-6 max-[426px]:min-h-6! max-[426px]:py-px"
+                            className="min-h-8 px-2.5 py-1.5 rounded-lg bg-white text-slate-700 border border-slate-300 shadow-[inset_0_1px_0_#ffffff,0_3px_0_#cbd5e1] hover:bg-slate-50 active:translate-y-[3px] active:bg-slate-100 active:shadow-[inset_0_1px_0_#ffffff,inset_0_-1px_0_#cbd5e1] text-[11px] font-bold flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed max-[426px]:h-6 max-[426px]:min-h-6! max-[426px]:py-px"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                             Düzenle
@@ -622,7 +622,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
                                 ? 'Teslimatı iptal et'
                                 : 'Çevrimdışıyken iptal yapılamaz'
                             }
-                            className="min-h-8 px-2.5 py-1.5 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 text-[11px] font-bold flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed max-[426px]:h-6 max-[426px]:min-h-6! max-[426px]:py-px"
+                            className="min-h-8 px-2.5 py-1.5 rounded-lg bg-rose-100 text-rose-800 border border-rose-300 shadow-[inset_0_1px_0_#fff1f2,0_3px_0_#fda4af] hover:bg-rose-200 active:translate-y-[3px] active:bg-rose-200 active:shadow-[inset_0_1px_0_#fff1f2,inset_0_-1px_0_#fda4af] text-[11px] font-bold flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed max-[426px]:h-6 max-[426px]:min-h-6! max-[426px]:py-px"
                           >
                             <Ban className="w-3.5 h-3.5" />
                             İptal
