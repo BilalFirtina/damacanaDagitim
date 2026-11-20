@@ -393,41 +393,43 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
         <div className="divide-y divide-slate-100  text-xs">
           {dispatches.map((disp) => (
             <div key={disp.id} className="py-4 space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] gap-4 md:gap-6">
+              <div className="grid grid-cols-1 gap-4 md:gap-3">
                 {/* Sol: plaka, şoför, durum ve tarih bilgileri */}
                 <div className="min-w-0 space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono font-bold text-xs md:text-[13px] px-2 py-0.5 rounded bg-slate-100 text-slate-900">
-                      {disp.vehiclePlate}
-                    </span>
-                    <span className="font-bold text-sm md:text-[15px] text-slate-800">
-                      {disp.driverName}
-                    </span>
+                  <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center md:justify-center">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono font-bold text-xs md:text-[13px] px-2 py-0.5 rounded bg-slate-100 text-slate-900">
+                        {disp.vehiclePlate}
+                      </span>
+                      <span className="font-bold text-sm md:text-[15px] text-slate-800">
+                        {disp.driverName}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5 md:justify-center">
+                      {disp.status === 'in_transit' ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] md:text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                          Şoför Onayladı (Sahada / Dağıtımda)
+                        </span>
+                      ) : disp.status === 'pending_confirmation' ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] md:text-[11px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">
+                          Şoför Sayım Onayı Bekliyor (Dağıtımda)
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] md:text-[11px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                          <Check className="w-3 h-3" />
+                          Bitiş Raporu Tamamlandı (Kapatıldı / Müsait)
+                        </span>
+                      )}
+                      {isStaleDispatch(disp, todayStr) && (
+                        <span className="text-[10px] md:text-[11px] font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-800">
+                          Önceki gün sonlandırılmadı
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {disp.status === 'in_transit' ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] md:text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                        Şoför Onayladı (Sahada / Dağıtımda)
-                      </span>
-                    ) : disp.status === 'pending_confirmation' ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] md:text-[11px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">
-                        Şoför Sayım Onayı Bekliyor (Dağıtımda)
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-[10px] md:text-[11px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                        <Check className="w-3 h-3" />
-                        Bitiş Raporu Tamamlandı (Kapatıldı / Müsait)
-                      </span>
-                    )}
-                    {isStaleDispatch(disp, todayStr) && (
-                      <span className="text-[10px] md:text-[11px] font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-800">
-                        Önceki gün sonlandırılmadı
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="space-y-0.5 text-[11px] md:text-xs leading-4 md:leading-5 text-slate-500">
+                  <div className="space-y-0.5 text-[11px] md:text-xs leading-4 md:leading-5 text-slate-500 md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-4 md:gap-y-1 md:space-y-0">
                     <div>
                       <span className="text-slate-400">Tarih: </span>
                       <strong className="font-semibold text-slate-700">
@@ -456,7 +458,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                   <div className="text-[10px] md:text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                     Yüklenen Ürünler
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-100">
+                  <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-100 md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-1.5 md:divide-y-0 md:rounded-none md:border-0 md:bg-transparent md:overflow-visible">
                     {disp.loadedItems.length === 0 ? (
                       <div className="px-3 py-2 text-[11px] md:text-[13px] text-slate-400">
                         Ürün kaydı yok
@@ -468,7 +470,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                         return (
                           <div
                             key={item.productId}
-                            className={`flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-3 py-2 min-w-0 ${color.row}`}
+                            className={`flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-3 py-2 min-w-0 md:rounded-lg md:border md:border-slate-200 ${color.row}`}
                           >
                             <span className="text-[11px] md:text-[13px] font-medium break-words min-w-0">
                               {p?.name || item.productId}
@@ -485,13 +487,13 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
               </div>
 
               {disp.status !== 'completed' && (
-                <div className="flex flex-wrap items-center gap-2 w-full md:justify-end">
+                <div className="flex flex-wrap items-center gap-2 w-full">
                   {canCorrectDispatch(disp) ? (
                     <>
                       <button
                         type="button"
                         onClick={() => handleOpenEdit(disp)}
-                        className="min-h-11 px-3 py-2 rounded-lg bg-sky-100 border border-sky-200 text-sky-700 hover:bg-sky-200 font-semibold text-xs flex items-center justify-center gap-1.5 flex-1 md:flex-none shadow-2xs"
+                        className="min-h-11 px-3 py-2 rounded-lg bg-sky-100 border border-sky-200 text-sky-700 hover:bg-sky-200 font-semibold text-xs flex items-center justify-center gap-1.5 flex-1 shadow-2xs"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                         <span>Düzenle</span>
@@ -499,7 +501,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                       <button
                         type="button"
                         onClick={() => handleOpenCancel(disp)}
-                        className="min-h-11 px-3 py-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 font-semibold text-xs flex items-center justify-center gap-1.5 flex-1 md:flex-none shadow-2xs"
+                        className="min-h-11 px-3 py-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 font-semibold text-xs flex items-center justify-center gap-1.5 flex-1 shadow-2xs"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                         <span>İptal</span>
