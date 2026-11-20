@@ -608,7 +608,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
                                 ? 'Teslimatı düzenle'
                                 : 'Çevrimdışıyken düzenleme yapılamaz'
                             }
-                            className="min-h-8 px-2.5 py-1.5 rounded-lg bg-sky-100 hover:bg-sky-200 text-sky-800 border border-sky-300 text-[11px] font-bold flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed max-[426px]:h-6 max-[426px]:min-h-6! max-[426px]:py-px"
+                            className="min-h-8 px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 border border-slate-300 shadow-2xs text-[11px] font-bold flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed max-[426px]:h-6 max-[426px]:min-h-6! max-[426px]:py-px"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                             Düzenle
