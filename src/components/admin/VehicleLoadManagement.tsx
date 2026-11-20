@@ -458,7 +458,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                   <div className="text-[10px] md:text-[11px] font-semibold uppercase tracking-wide text-slate-400 text-center">
                     Yüklenen Ürünler
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-100 md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-1.5 md:divide-y-0 md:rounded-none md:border-0 md:bg-transparent md:overflow-visible">
+                  <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-100">
                     {disp.loadedItems.length === 0 ? (
                       <div className="px-3 py-2 text-[11px] md:text-[13px] text-slate-400 text-center">
                         Ürün kaydı yok
@@ -470,7 +470,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                         return (
                           <div
                             key={item.productId}
-                            className={`flex flex-wrap items-baseline justify-center gap-x-2 gap-y-0.5 px-3 py-2 min-w-0 text-center md:rounded-lg md:border md:border-slate-200 ${color.row}`}
+                            className={`flex flex-wrap items-baseline justify-center gap-x-2 gap-y-0.5 px-3 py-2 min-w-0 text-center ${color.row}`}
                           >
                             <span className="text-[11px] md:text-[13px] font-medium break-words min-w-0">
                               {p?.name || item.productId}
