@@ -2165,7 +2165,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                             )}
                           </div>
 
-                          <div className="flex items-center gap-3 mt-1 text-xs">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs">
                             {!selectedCustomer?.isAccountCustomer && (
                               <div className="flex items-center gap-1.5">
                                 <span className="text-slate-500">
@@ -2212,9 +2212,9 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                               </div>
                             )}
 
-                            <span className="text-slate-400">· {p.unit}</span>
+                            <span className="text-slate-400">{p.unit}</span>
 
-                            <span className="text-[11px] font-medium text-slate-500 font-mono">
+                            <span className="text-[11px] font-medium text-slate-500 font-mono max-[425px]:basis-full">
                               (Araçta: {vehicleStock})
                             </span>
                           </div>
