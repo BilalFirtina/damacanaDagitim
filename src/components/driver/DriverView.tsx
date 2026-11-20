@@ -529,7 +529,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
                         return (
                           <span
                             key={idx}
-                            className={`px-2 py-0.5 rounded border text-[11px] break-words max-w-full ${color.chip}`}
+                            className={`px-2 py-0.5 rounded border text-[11px] break-words max-w-full max-[426px]:w-full ${color.chip}`}
                           >
                             {item.productName} - <strong>{item.quantity}</strong>
                             {unit ? ` ${unit}` : ""}
