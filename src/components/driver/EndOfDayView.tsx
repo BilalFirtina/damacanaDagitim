@@ -682,7 +682,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
               <span>
                 {isSubmitting
                   ? 'Kapatılıyor & Depoya Boşaltılıyor...'
-                  : 'Aracı Depoya Boşalt, Raporu Onayla & Seferi Kapat'}
+                  : 'Aracı Say, Raporu Onayla & Seferi Kapat'}
               </span>
             </button>
           </div>
