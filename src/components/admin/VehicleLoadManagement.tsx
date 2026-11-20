@@ -62,6 +62,8 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
   const [openEditCategories, setOpenEditCategories] = useState<Record<string, boolean>>({
     damacana: true,
   });
+  // Masaüstü kartlarında yüklenen ürünlerin aç/kapa durumu.
+  const [productOpenById, setProductOpenById] = useState<Record<string, boolean>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [editingDispatch, setEditingDispatch] = useState<Dispatch | null>(null);
@@ -385,14 +387,26 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
       </div>
 
       {/* Today's Dispatches / Vehicle Loads Table */}
-      <div className="bg-white  rounded-2xl border border-slate-200  p-5 shadow-xs space-y-3">
+      <div className="bg-white  rounded-2xl border border-slate-200  p-5 shadow-xs space-y-3 md:bg-transparent md:border-0 md:p-0 md:shadow-none">
         <h3 className="text-xs font-bold text-slate-900  uppercase tracking-wider text-center">
           Sefer ve Araç Yüklemeleri ({dispatches.length} Sefer)
         </h3>
 
-        <div className="divide-y divide-slate-100  text-xs">
-          {dispatches.map((disp) => (
-            <div key={disp.id} className="py-4 space-y-3">
+        <div className="divide-y divide-slate-100  text-xs md:divide-y-0 md:space-y-3">
+          {dispatches.map((disp) => {
+            const isProductsOpen =
+              productOpenById[disp.id] ?? disp.status !== 'completed';
+            const statusAccent =
+              disp.status === 'in_transit'
+                ? 'md:border-l-emerald-500'
+                : disp.status === 'pending_confirmation'
+                  ? 'md:border-l-amber-500'
+                  : 'md:border-l-slate-300';
+            return (
+            <div
+              key={disp.id}
+              className={`py-4 space-y-3 md:p-4 md:rounded-2xl md:border md:border-slate-200 md:bg-white md:shadow-xs md:overflow-hidden md:border-l-4 ${statusAccent}`}
+            >
               <div className="grid grid-cols-1 gap-4 md:gap-3">
                 {/* Sol: plaka, şoför, durum ve tarih bilgileri */}
                 <div className="min-w-0 space-y-2">
@@ -455,10 +469,34 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
 
                 {/* Sağ: yüklenen ürünler */}
                 <div className="min-w-0 w-full space-y-1">
-                  <div className="text-[10px] md:text-[11px] font-semibold uppercase tracking-wide text-slate-400 text-center">
+                  <div className="text-[10px] md:text-[11px] font-semibold uppercase tracking-wide text-slate-400 text-center md:hidden">
                     Yüklenen Ürünler
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-100">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setProductOpenById((prev) => ({
+                        ...prev,
+                        [disp.id]: !isProductsOpen,
+                      }))
+                    }
+                    className="hidden md:flex w-full items-center justify-between gap-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-600"
+                    aria-expanded={isProductsOpen}
+                    aria-controls={`dispatch-products-${disp.id}`}
+                  >
+                    <span>Yüklenen Ürünler ({disp.loadedItems.length} kalem)</span>
+                    <ChevronDown
+                      className={`w-4 h-4 shrink-0 transition-transform ${
+                        isProductsOpen ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+                  <div
+                    id={`dispatch-products-${disp.id}`}
+                    className={`rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-100 ${
+                      isProductsOpen ? '' : 'block md:hidden'
+                    }`}
+                  >
                     {disp.loadedItems.length === 0 ? (
                       <div className="px-3 py-2 text-[11px] md:text-[13px] text-slate-400 text-center">
                         Ürün kaydı yok
@@ -515,7 +553,8 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
