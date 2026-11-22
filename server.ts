@@ -58,9 +58,6 @@ import {
   updatePurchaseRecord,
   cancelPurchaseRecord,
   getDeliveryById,
-  getDeliveryCorrections,
-  getDispatchCancellationAudits,
-  getDispatchLoadingAudits,
   createDeliveryRecord,
   cancelDeliveryAtomic,
   replaceDeliveryAtomic,
@@ -2524,81 +2521,6 @@ app.post('/api/deliveries/:id/replace', async (req, res) => {
     });
   } catch (err: any) {
     sendDeliveryCorrectionError(res, err);
-  }
-});
-
-// 5d. Teslimat iptal/düzenleme denetim kayıtları — salt okunur, yönetici
-app.get('/api/delivery-corrections', requireAdmin, async (req, res) => {
-  try {
-    const requested = Number(req.query.limit);
-    const corrections = await getDeliveryCorrections(
-      Number.isFinite(requested) ? requested : 100
-    );
-    res.json({ corrections });
-  } catch (err: any) {
-    res.status(500).json({
-      error: err.message || 'Teslimat düzeltme kayıtları yüklenemedi.',
-      code: 'CORRECTIONS_FAILED',
-    });
-  }
-});
-
-// 5e. Birleşik işlem geçmişi — teslimat düzeltme + yükleme düzeltme/iptal
-app.get('/api/audit/history', requireAdmin, async (req, res) => {
-  try {
-    const requested = Number(req.query.limit);
-    const limit = Math.min(Math.max(Number.isFinite(requested) ? requested : 100, 1), 200);
-
-    const [corrections, cancellations, loadings] = await Promise.all([
-      getDeliveryCorrections(limit),
-      getDispatchCancellationAudits(limit),
-      getDispatchLoadingAudits(limit),
-    ]);
-
-    const events = [
-      ...corrections.map((c) => ({
-        id: `correction_${c.id}`,
-        kind: 'delivery_correction',
-        at: c.createdAt,
-        by: c.performedByUserName,
-        title: c.action === 'cancel' ? 'Teslimat iptali' : 'Teslimat düzeltmesi',
-        reason: c.reason,
-        detail:
-          c.action === 'cancel'
-            ? 'Teslimat iptal edildi; bakiye ve stok geri alındı.'
-            : 'Teslimat yeni içerikle değiştirildi; eski kayıt arşivlendi.',
-        dispatchId: c.dispatchId,
-        deliveryId: c.deliveryId,
-      })),
-      ...cancellations.map((c) => ({
-        id: c.id,
-        kind: 'dispatch_cancellation',
-        at: c.changedAt,
-        by: c.userName,
-        title: 'Yükleme iptal edildi',
-        reason: c.reason,
-        detail: c.detail,
-        dispatchId: c.dispatchId,
-        deliveryId: null,
-      })),
-      ...loadings.map((l) => ({
-        id: l.id,
-        kind: 'dispatch_loading',
-        at: l.changedAt,
-        by: l.userName,
-        title: 'Yükleme düzeltmesi',
-        reason: l.reason,
-        detail: l.detail,
-        dispatchId: l.dispatchId,
-        deliveryId: null,
-      })),
-    ]
-      .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
-      .slice(0, limit);
-
-    res.json({ events });
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message || 'İşlem geçmişi yüklenemedi.' });
   }
 });
 

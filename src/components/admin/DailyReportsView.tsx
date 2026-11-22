@@ -15,7 +15,6 @@ import {
   RotateCcw,
   RefreshCw,
   FileText,
-  History,
   AlertTriangle,
   Truck
 } from 'lucide-react';
@@ -25,7 +24,6 @@ import { ConsolidatedDailyReport } from './ConsolidatedDailyReport';
 import { BalancesReportView } from './BalancesReportView';
 import { DriverActivityReport } from './DriverActivityReport';
 import { DiscrepancyReport } from './DiscrepancyReport';
-import { AuditLogView } from './AuditLogView';
 
 // Şoför faaliyeti, uyuşmazlık ve detaylı Excel görünümleri kodda korunur;
 // bu bayrak açılırsa üst sekmelerde yeniden görünür.
@@ -46,7 +44,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
 }) => {
   const isDriver = currentUser?.role === 'driver';
   const todayStr = todayUtcDateStr();
-  const [subTab, setSubTab] = useState<'consolidated' | 'detailed' | 'drivers' | 'discrepancies' | 'balances' | 'corrections' | 'history'>(
+  const [subTab, setSubTab] = useState<'consolidated' | 'detailed' | 'drivers' | 'discrepancies' | 'balances'>(
     'consolidated'
   );
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
@@ -476,17 +474,6 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
           <Wallet className="w-4 h-4 shrink-0" />
           <span>Cari & İade Edilebilir Bakiyeler</span>
         </button>
-        <button
-          onClick={() => setSubTab('corrections')}
-          className={`w-full sm:w-auto min-h-11 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center sm:justify-start gap-2 text-left ${
-            subTab === 'corrections'
-              ? 'bg-white  text-slate-900  shadow-xs'
-              : 'text-slate-600  hover:text-slate-900 '
-          }`}
-        >
-          <History className="w-4 h-4 shrink-0" />
-          <span>Denetim Kayıtları</span>
-        </button>
       </div>
 
       {subTab === 'consolidated' ? (
@@ -516,8 +503,6 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
           customers={customers}
           date={selectedDate}
         />
-      ) : subTab === 'corrections' ? (
-        <AuditLogView customers={customers} />
       ) : (
         <>
           {/* Top Controls Filter Bar */}

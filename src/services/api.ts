@@ -949,38 +949,6 @@ export async function replaceDelivery(
   return res.json();
 }
 
-export interface DeliveryCorrectionAudit {
-  id: number;
-  deliveryId: string;
-  dispatchId: string;
-  customerId: string;
-  action: 'cancel' | 'replace';
-  performedByUserId: string;
-  performedByUserName: string;
-  reason: string;
-  replacementDeliveryId: string | null;
-  previousBalance: number;
-  newBalance: number;
-  reversedBalance: number;
-  previousEmpty: Record<string, number>;
-  newEmpty: Record<string, number>;
-  reversedEmpty: Record<string, number>;
-  createdAt: string;
-}
-
-export async function fetchDeliveryCorrections(
-  limit = 100
-): Promise<DeliveryCorrectionAudit[]> {
-  const res = await apiFetch(
-    `/api/delivery-corrections?limit=${encodeURIComponent(String(limit))}`
-  );
-  if (!res.ok) {
-    await throwServerError(res, 'Teslimat düzeltme kayıtları yüklenemedi.');
-  }
-  const json = await res.json();
-  return Array.isArray(json?.corrections) ? json.corrections : [];
-}
-
 export interface OfflineSyncSummary {
   synced: number;
   conflicts: number;
@@ -1090,28 +1058,6 @@ export async function triggerManualCleanup(): Promise<any> {
     throw new Error(message);
   }
   return res.json();
-}
-
-
-
-// Birleşik işlem geçmişi — AGENTS.md Bölüm 10.2.
-export interface AuditHistoryEvent {
-  id: string;
-  kind: 'delivery_correction' | 'dispatch_cancellation' | 'dispatch_loading';
-  at: string;
-  by: string;
-  title: string;
-  reason: string;
-  detail: string;
-  dispatchId: string;
-  deliveryId: string | null;
-}
-
-export async function fetchAuditHistory(limit = 100): Promise<AuditHistoryEvent[]> {
-  const res = await apiFetch(`/api/audit/history?limit=${limit}`);
-  if (!res.ok) await throwServerError(res, 'İşlem geçmişi alınamadı');
-  const json = await res.json();
-  return json.events || [];
 }
 
 // ---------------------------------------------------------------------
