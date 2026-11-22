@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Dispatch, Delivery, Customer, Product, User, CustomerPayment } from '../../types';
 import { getProductCategoryColor, sortItemsByProductCategory } from '../../types';
 import { todayUtcDateStr } from '../../services/dateWindow';
+import { POLL_INTERVAL_MS } from '../../services/polling';
 import {
   cancelCustomerPayment,
   cancelDelivery,
@@ -186,7 +187,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
 
   useEffect(() => {
     void loadPayments();
-    const interval = window.setInterval(loadPayments, 8000);
+    const interval = window.setInterval(loadPayments, POLL_INTERVAL_MS);
     return () => window.clearInterval(interval);
   }, [loadPayments]);
 

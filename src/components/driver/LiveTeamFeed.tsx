@@ -3,6 +3,7 @@ import { Customer, CustomerPayment, Delivery, Product, Purchase, User } from '..
 import { getProductCategoryColor, sortItemsByProductCategory } from '../../types';
 import { isAccountCustomerDelivery } from '../../services/customerVisibility';
 import { todayUtcDateStr } from '../../services/dateWindow';
+import { POLL_INTERVAL_MS } from '../../services/polling';
 import { fetchPayments, fetchPurchases, getAuthToken } from '../../services/api';
 import { PurchaseFeedCard } from '../purchases/PurchaseFeedCard';
 import { PaymentFeedCard } from './PaymentFeedCard';
@@ -174,7 +175,7 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
       }
     };
     void load();
-    const interval = window.setInterval(load, 8000);
+    const interval = window.setInterval(load, POLL_INTERVAL_MS);
     return () => {
       cancelled = true;
       window.clearInterval(interval);

@@ -15,6 +15,7 @@ import {
 } from './services/api';
 import { LoginView } from './components/auth/LoginView';
 import { todayUtcDateStr } from './services/dateWindow';
+import { POLL_INTERVAL_MS } from './services/polling';
 import {
   findOldestStaleOpenDispatch,
   findStaleOpenDispatch,
@@ -182,7 +183,7 @@ export default function App() {
         setDeliveries(latestDeliveries);
         setDispatches(latestDispatches);
       } catch {}
-    }, 8000);
+    }, POLL_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, []);

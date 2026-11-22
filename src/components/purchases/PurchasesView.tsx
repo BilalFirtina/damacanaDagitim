@@ -11,6 +11,7 @@ import {
   canManagePurchase,
   sortPurchasesNewestFirst,
 } from '../../services/purchaseRules';
+import { POLL_INTERVAL_MS } from '../../services/polling';
 import { PurchaseFeedCard } from './PurchaseFeedCard';
 import { PurchaseFormModal } from './PurchaseFormModal';
 import { SupplierManagerModal } from './SupplierManagerModal';
@@ -64,7 +65,7 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
       if (!navigator.onLine) return;
       if (!getAuthToken()) return;
       void loadPurchases();
-    }, 8000);
+    }, POLL_INTERVAL_MS);
     return () => window.clearInterval(interval);
   }, [refreshAll, loadPurchases]);
 
