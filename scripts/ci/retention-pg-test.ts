@@ -104,6 +104,11 @@ async function seedReference(c: Client): Promise<void> {
     ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
   `);
   await c.query(`
+    INSERT INTO public.suppliers (id, name, is_active, note)
+    VALUES ('sup_ci', 'CI Toptancı', true, 'Retention testi')
+    ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, is_active = true;
+  `);
+  await c.query(`
     INSERT INTO public.customers (id, name, current_balance_tl, is_account_customer)
     VALUES ('c1', 'Test Müşteri', 1234.56, true)
     ON CONFLICT (id) DO UPDATE SET current_balance_tl = 1234.56;
@@ -147,6 +152,9 @@ async function resetTransactional(c: Client): Promise<void> {
         public.dispatch_items,
         public.dispatches,
         public.retention_archive,
+        public.purchase_audit,
+        public.purchase_items,
+        public.purchases,
         public.customer_payments
       RESTART IDENTITY CASCADE;
     `);
@@ -221,6 +229,29 @@ async function seedScenario(c: Client): Promise<void> {
   await c.query(
     `UPDATE public.customer_dispensers SET source_delivery_id = 'DEL61OLD' WHERE id = 'DISP1'`
   );
+  // Satın alım temizliği: eşikten eski alım ve bağlı kalem/denetim kayıtları silinir.
+  await c.query(`
+    INSERT INTO public.purchases
+      (id, purchased_at, supplier_id, description, status, total_amount,
+       created_by_user_id, created_by_user_name)
+    VALUES
+      ('PUR61', now() - interval '61 day', 'sup_ci', 'CI eski alim', 'active', 100, 'u_admin', 'Yönetici'),
+      ('PUR59', now() - interval '59 day', 'sup_ci', 'CI yeni alim', 'active', 100, 'u_admin', 'Yönetici');
+  `);
+  await c.query(`
+    INSERT INTO public.purchase_items
+      (purchase_id, line_no, product_id, product_name, quantity, unit, unit_price, line_total)
+    VALUES
+      ('PUR61', 1, 'p_water', 'Damacana Su', 1, 'Adet', 100, 100),
+      ('PUR59', 1, 'p_water', 'Damacana Su', 1, 'Adet', 100, 100);
+  `);
+  await c.query(`
+    INSERT INTO public.purchase_audit
+      (id, purchase_id, action, actor_user_id, actor_user_name, previous_data, new_data, created_at)
+    VALUES
+      ('PUA61', 'PUR61', 'create', 'u_admin', 'Yönetici', '{}'::jsonb, '{}'::jsonb, now() - interval '61 day'),
+      ('PUA59', 'PUR59', 'create', 'u_admin', 'Yönetici', '{}'::jsonb, '{}'::jsonb, now() - interval '59 day');
+  `);
 }
 
 async function eligibleDispatchIds(c: Client): Promise<string[]> {
@@ -291,14 +322,21 @@ async function scenarioDryRun(c: Client): Promise<void> {
   const before = {
     d: await count(c, 'dispatches'),
     del: await count(c, 'deliveries'),
+    pur: await count(c, 'purchases'),
+    purItems: await count(c, 'purchase_items'),
+    purAudit: await count(c, 'purchase_audit'),
     bal: await balancesSnapshot(c),
   };
   const res = await purge(c, true, await eligibleDispatchIds(c));
   check('dry-run archived_rows = 0', Number(res.archived_rows) === 0);
   check('dry-run purged_dispatches = 0', Number(res.purged_dispatches) === 0);
   check('dry-run purged_deliveries = 0', Number(res.purged_deliveries) === 0);
+  check('dry-run purged_purchases = 0', Number(res.purged_purchases) === 0);
   check('dry-run sefer sayisi degismedi', (await count(c, 'dispatches')) === before.d);
   check('dry-run teslimat sayisi degismedi', (await count(c, 'deliveries')) === before.del);
+  check('dry-run satin alim sayisi degismedi', (await count(c, 'purchases')) === before.pur);
+  check('dry-run alim kalemi sayisi degismedi', (await count(c, 'purchase_items')) === before.purItems);
+  check('dry-run alim denetimi sayisi degismedi', (await count(c, 'purchase_audit')) === before.purAudit);
   check('dry-run arsiv bos kaldi', (await count(c, 'retention_archive')) === 0);
   check('dry-run bakiye degismedi', (await balancesSnapshot(c)) === before.bal);
 }
@@ -378,6 +416,40 @@ async function scenarioRealRun(c: Client): Promise<void> {
   check(
     'silinen teslimat sebil kaynagini null yapti, detay korundu',
     dispenser.rowCount === 1 && dispenser.rows[0]?.source_delivery_id === null
+  );
+
+  const oldPurchase = await c.query(`SELECT id FROM public.purchases WHERE id = 'PUR61'`);
+  const oldPurchaseItems = await c.query(
+    `SELECT purchase_id FROM public.purchase_items WHERE purchase_id = 'PUR61'`
+  );
+  const oldPurchaseAudit = await c.query(
+    `SELECT purchase_id FROM public.purchase_audit WHERE purchase_id = 'PUR61'`
+  );
+  const recentPurchase = await c.query(`SELECT id FROM public.purchases WHERE id = 'PUR59'`);
+  const recentPurchaseItems = await c.query(
+    `SELECT purchase_id FROM public.purchase_items WHERE purchase_id = 'PUR59'`
+  );
+  const recentPurchaseAudit = await c.query(
+    `SELECT purchase_id FROM public.purchase_audit WHERE purchase_id = 'PUR59'`
+  );
+  const supplier = await c.query(`SELECT id FROM public.suppliers WHERE id = 'sup_ci'`);
+  check('esikten eski satin alim silindi', oldPurchase.rowCount === 0);
+  check('eski satin alim kalemleri silindi', oldPurchaseItems.rowCount === 0);
+  check('eski satin alim denetimi silindi', oldPurchaseAudit.rowCount === 0);
+  check('esik icindeki satin alim korundu', recentPurchase.rowCount === 1);
+  check('esik icindeki alim kalemleri korundu', recentPurchaseItems.rowCount === 1);
+  check('esik icindeki alim denetimi korundu', recentPurchaseAudit.rowCount === 1);
+  check('toptanci kaydi korundu', supplier.rowCount === 1);
+  check(
+    'satin alim silme sayilari raporlandi',
+    Number(res.purged_purchases) === 1 &&
+      Number(res.purged_purchase_items) === 1 &&
+      Number(res.purged_purchase_audit) === 1,
+    JSON.stringify({
+      purchases: res.purged_purchases,
+      items: res.purged_purchase_items,
+      audit: res.purged_purchase_audit,
+    })
   );
 
   const seqs = (await c.query('SELECT tbl FROM ci_del_log ORDER BY seq')).rows.map((x: any) => x.tbl);
