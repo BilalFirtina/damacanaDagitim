@@ -171,8 +171,17 @@ check(
 check(
   'boş kaplar yalnızca sıfırdan büyük',
   newest.empties.length === 3 &&
-    newest.empties.find((e) => e.label === 'Damacana')?.quantity === 4 &&
-    newest.empties.find((e) => e.label === 'Sebil')?.quantity === 1
+    newest.empties.find((e) => e.label === 'Boş Damacana')?.quantity === 4 &&
+    newest.empties.find((e) => e.label === 'Su Sebili')?.quantity === 1
+);
+check(
+  'boş tüp etiketleri başında Boş taşır',
+  newest.empties.find((e) => e.label === 'Boş Büyük Tüp')?.quantity === 1
+);
+check(
+  'sebil boş olarak etiketlenmez',
+  newest.empties.some((e) => e.label === 'Su Sebili') &&
+    !newest.empties.some((e) => e.label.includes('Boş Sebil'))
 );
 check('nakit ve POS ayrı', newest.cash === 1000 && newest.pos === 500);
 check('toplam tahsilat', newest.total === 1500);

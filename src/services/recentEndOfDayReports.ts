@@ -97,11 +97,11 @@ export function buildRecentEndOfDayReports(params: {
       }
 
       const emptyCandidates: Array<[string, number]> = [
-        ['Damacana', Number(recon.collectedEmptyDamacana) || 0],
-        ['Cam Damacana', Number(recon.collectedEmptyCamDamacana) || 0],
-        ['Büyük Tüp', Number(recon.collectedEmptyTupBuyuk) || 0],
-        ['Küçük Tüp', Number(recon.collectedEmptyTupKucuk) || 0],
-        ['Sebil', Number(recon.collectedEmptySebil) || 0],
+        ['Boş Damacana', Number(recon.collectedEmptyDamacana) || 0],
+        ['Boş Cam Damacana', Number(recon.collectedEmptyCamDamacana) || 0],
+        ['Boş Büyük Tüp', Number(recon.collectedEmptyTupBuyuk) || 0],
+        ['Boş Küçük Tüp', Number(recon.collectedEmptyTupKucuk) || 0],
+        ['Su Sebili', Number(recon.collectedEmptySebil) || 0],
       ];
       const empties = emptyCandidates
         .filter(([, quantity]) => quantity > 0)

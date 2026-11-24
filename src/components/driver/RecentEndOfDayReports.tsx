@@ -105,7 +105,7 @@ export const RecentEndOfDayReports: React.FC<RecentEndOfDayReportsProps> = ({
                   <div className="min-w-0">
                     <div className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1.5 mb-1.5">
                       <PackageCheck className="w-3.5 h-3.5 text-sky-600" />
-                      <span>Depoya Teslim Edilen Ürünler</span>
+                      <span>Depoya Teslim Edilecek Ürünler</span>
                     </div>
                     {report.products.length === 0 ? (
                       <p className="text-xs text-slate-400">Depoya ürün kalmadı.</p>
@@ -116,7 +116,7 @@ export const RecentEndOfDayReports: React.FC<RecentEndOfDayReportsProps> = ({
                             key={product.productId}
                             className="px-2.5 py-1 rounded-lg bg-sky-50 border border-sky-200 text-slate-800 text-xs font-medium break-words"
                           >
-                            {product.name} · {product.quantity} {product.unit}
+                            {product.name} - {product.quantity} {product.unit}
                           </span>
                         ))}
                       </div>
@@ -137,7 +137,7 @@ export const RecentEndOfDayReports: React.FC<RecentEndOfDayReportsProps> = ({
                             key={empty.label}
                             className="px-2.5 py-1 rounded-lg bg-orange-50 border border-orange-200 text-orange-900 text-xs font-medium break-words"
                           >
-                            {empty.label} · {empty.quantity} Adet
+                            {empty.label} - {empty.quantity} Adet
                           </span>
                         ))}
                       </div>
