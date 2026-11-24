@@ -65,7 +65,6 @@ export const DriverView: React.FC<DriverViewProps> = ({
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [editTarget, setEditTarget] = useState<Delivery | null>(null);
   const [cancelTarget, setCancelTarget] = useState<Delivery | null>(null);
-  const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [payments, setPayments] = useState<CustomerPayment[]>([]);
@@ -89,32 +88,31 @@ export const DriverView: React.FC<DriverViewProps> = ({
 
   const openCancelDialog = (delivery: Delivery) => {
     setCancelTarget(delivery);
-    setCancelReason('');
     setCancelError(null);
   };
 
   const closeCancelDialog = () => {
     if (isCancelling) return;
     setCancelTarget(null);
-    setCancelReason('');
     setCancelError(null);
   };
 
   const handleCancelDelivery = async () => {
     if (!cancelTarget || isCancelling) return;
-    if (cancelReason.trim().length < 3) {
-      setCancelError('İptal için en az 3 karakterlik bir gerekçe girin.');
-      return;
-    }
 
     try {
       setIsCancelling(true);
       setCancelError(null);
-      await cancelDelivery(cancelTarget.id, cancelReason.trim());
+      await cancelDelivery(cancelTarget.id);
       setCancelTarget(null);
-      setCancelReason('');
       onDeliveryCorrected();
     } catch (err: any) {
+      if (err?.code === 'DELIVERY_NOT_FOUND') {
+        setPaymentError('Bu teslimat zaten iptal edilmiş. Liste yenileniyor.');
+        setCancelTarget(null);
+        onDeliveryCorrected();
+        return;
+      }
       setCancelError(err.message || 'Teslimat iptal edilemedi.');
     } finally {
       setIsCancelling(false);
@@ -750,26 +748,8 @@ export const DriverView: React.FC<DriverViewProps> = ({
               </div>
 
               <p className="text-xs text-slate-600 ">
-                Cari bakiye ve boş kap bakiyeleri geri alınır. Bu işlem geri
-                alınamaz ve denetim kaydına yazılır.
+                Cari bakiye ve boş kap bakiyeleri geri alınır. Teslimat kalıcı olarak silinir.
               </p>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700  block mb-1">
-                  İptal Gerekçesi *
-                </label>
-                <textarea
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  rows={3}
-                  minLength={3}
-                  placeholder="Örn: Teslimat yanlış müşteriye kaydedildi."
-                  className="w-full p-2.5 rounded-xl border border-slate-300  text-xs bg-white  text-slate-900  resize-y"
-                />
-                <p className="text-[11px] text-slate-500 mt-1">
-                  En az 3 karakter.
-                </p>
-              </div>
 
               {cancelError && (
                 <p className="text-xs font-semibold text-rose-600 bg-rose-50  rounded-lg p-2 break-words">
@@ -790,7 +770,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
               <button
                 type="button"
                 onClick={handleCancelDelivery}
-                disabled={isCancelling || cancelReason.trim().length < 3}
+                disabled={isCancelling}
                 className="px-4 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
               >
                 <Ban className="w-3.5 h-3.5" />

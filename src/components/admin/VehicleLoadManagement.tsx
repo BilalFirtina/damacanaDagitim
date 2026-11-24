@@ -69,7 +69,6 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
   const [editingDispatch, setEditingDispatch] = useState<Dispatch | null>(null);
   const [editQuantities, setEditQuantities] = useState<Record<string, number>>({});
   const [cancelTarget, setCancelTarget] = useState<Dispatch | null>(null);
-  const [cancelReason, setCancelReason] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
   const [isActionSubmitting, setIsActionSubmitting] = useState(false);
 
@@ -231,25 +230,18 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
 
   const handleOpenCancel = (disp: Dispatch) => {
     setCancelTarget(disp);
-    setCancelReason('');
     setActionError(null);
   };
 
   const handleConfirmCancel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cancelTarget) return;
-    const reason = cancelReason.trim();
-    if (reason.length < 3) {
-      setActionError('İptal için en az 3 karakterlik bir gerekçe girin.');
-      return;
-    }
     try {
       setIsActionSubmitting(true);
       setActionError(null);
-      await cancelDispatch(cancelTarget.id, reason);
+      await cancelDispatch(cancelTarget.id);
       onDispatchCancelled(cancelTarget.id);
       setCancelTarget(null);
-      setCancelReason('');
     } catch (err: any) {
       setActionError(err.message || 'Yükleme iptal edilemedi');
     } finally {
@@ -1047,8 +1039,8 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
               <div className="min-w-0">
                 <h3 className="text-base font-bold text-slate-900">Yüklemeyi İptal Et</h3>
                 <p className="text-xs text-slate-500 mt-0.5 break-words">
-                  {cancelTarget.driverName} · {cancelTarget.vehiclePlate} yüklemesi fiziksel olarak
-                  silinecek. İşlem denetim kaydına alınacak.
+                  {cancelTarget.driverName} · {cancelTarget.vehiclePlate} yüklemesi kalıcı olarak
+                  silinecek. Bu işlem geri alınamaz.
                 </p>
               </div>
             </div>
@@ -1060,18 +1052,6 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
             )}
 
             <form onSubmit={handleConfirmCancel} className="space-y-3 text-xs">
-              <label className="font-semibold text-slate-700 block">
-                İptal Gerekçesi *
-              </label>
-              <textarea
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                rows={3}
-                maxLength={500}
-                placeholder="Yanlış yükleme girildi..."
-                className="w-full p-2.5 rounded-xl border border-slate-200 bg-white text-xs"
-                required
-              />
               <div className="flex items-center gap-3 pt-1">
                 <button
                   type="button"
@@ -1082,7 +1062,7 @@ export const VehicleLoadManagement: React.FC<VehicleLoadManagementProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={isActionSubmitting || cancelReason.trim().length < 3}
+                  disabled={isActionSubmitting}
                   className="w-1/2 min-h-11 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-semibold"
                 >
                   {isActionSubmitting ? 'İptal ediliyor...' : 'Yüklemeyi İptal Et'}

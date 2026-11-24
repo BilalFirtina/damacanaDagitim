@@ -300,36 +300,6 @@ interface LocalDatabaseSchema {
   deliveries: Delivery[];
   lastCleanupDate?: string;
   purgedCountTotal?: number;
-  loadingAudit?: Array<{
-    dispatchId: string;
-    changedByUserId: string;
-    changedByUserName: string;
-    previousItems: LoadedItem[];
-    newItems: LoadedItem[];
-    changedAt: string;
-  }>;
-  cancellationAudit?: Array<{
-    dispatchId: string;
-    driverId: string;
-    driverName: string;
-    vehiclePlate: string;
-    cancelledByUserId: string;
-    cancelledByUserName: string;
-    reason: string;
-    snapshot: any;
-    cancelledAt: string;
-  }>;
-  financialAudit?: Array<{
-    customerId: string;
-    changedByUserId: string;
-    changedByUserName: string;
-    reason: string;
-    previousBalance: number | null;
-    newBalance: number | null;
-    previousEmpty: any;
-    newEmpty: any;
-    changedAt: string;
-  }>;
   retentionArchive?: Array<{
     runId: string;
     purgeDate: string;
@@ -1156,10 +1126,6 @@ function mapDeliveryFromDb(row: any, itemRows: any[] = [], containerRows: any[] 
       : {}),
     status: row.status === 'cancelled' ? 'cancelled' : 'active',
     cancelledAt: row.cancelled_at || null,
-    cancelledByUserId: row.cancelled_by_user_id || null,
-    cancelledByUserName: row.cancelled_by_user_name || null,
-    cancelReason: row.cancel_reason || null,
-    replacedByDeliveryId: row.replaced_by_delivery_id || null,
   };
 }
 
@@ -2672,9 +2638,6 @@ function parseDispatchOperationError(e: any, fnName: string): DispatchDbError {
       'Sefere bağlı tahsilat olduğu için yükleme düzeltilemez/iptal edilemez.'
     );
   }
-  if (/REASON_REQUIRED/.test(raw)) {
-    return new DispatchDbError('REASON_REQUIRED', 'İptal için en az 3 karakterlik gerekçe girin.');
-  }
   if (/CUSTOMER_NOT_FOUND/.test(raw)) {
     return new DispatchDbError('CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
   }
@@ -2910,33 +2873,21 @@ export async function updateDispatchLoading(
     );
   }
 
-  const previousItems = db.dispatches[idx].loadedItems || [];
   db.dispatches[idx] = { ...db.dispatches[idx], loadedItems: loadedItems || [] };
-  if (!Array.isArray(db.loadingAudit)) db.loadingAudit = [];
-  db.loadingAudit.push({
-    dispatchId: id,
-    changedByUserId: actor.id,
-    changedByUserName: actor.name,
-    previousItems,
-    newItems: loadedItems || [],
-    changedAt: new Date().toISOString(),
-  });
   saveLocalDatabase(db);
   return db.dispatches[idx];
 }
 
-// Yükleme iptali: sefer fiziksel olarak silinir, denetim kaydı korunur.
+// Yükleme iptali: sefer ve bağlı kayıtlar fiziksel olarak silinir.
 // Yalnızca yönetici çağırabilir; sunucu ayrıca requireAdmin ile korur.
 export async function cancelDispatch(
   id: string,
-  reason: string,
   actor: { id: string; name: string }
 ): Promise<{ cancelled: boolean }> {
   const payload = {
     dispatch_id: id,
     cancelled_by_user_id: actor.id,
     cancelled_by_user_name: actor.name,
-    reason,
   };
 
   if (isSupabaseOperational() && supabase) {
@@ -2983,24 +2934,6 @@ export async function cancelDispatch(
     );
   }
 
-  const cancelledDeliveries = db.deliveries.filter(
-    (d) => d.dispatchId === id && d.status === 'cancelled'
-  );
-  if (!Array.isArray(db.cancellationAudit)) db.cancellationAudit = [];
-  db.cancellationAudit.push({
-    dispatchId: dispatch.id,
-    driverId: dispatch.driverId,
-    driverName: dispatch.driverName,
-    vehiclePlate: dispatch.vehiclePlate,
-    cancelledByUserId: actor.id,
-    cancelledByUserName: actor.name,
-    reason,
-    snapshot: {
-      dispatch,
-      cancelledDeliveries,
-    },
-    cancelledAt: new Date().toISOString(),
-  });
   db.deliveries = db.deliveries.filter((d) => d.dispatchId !== id);
   db.dispatches = db.dispatches.filter((d) => d.id !== id);
   saveLocalDatabase(db);
@@ -3168,14 +3101,12 @@ export async function adminUpdateCustomerAtomic(
   id: string,
   updates: Partial<Customer> & { clearDispensers?: boolean },
   expected: ExpectedCustomerSnapshot,
-  actor: { id: string; name: string },
-  reason?: string
+  actor: { id: string; name: string }
 ): Promise<Customer | null> {
   const payload: any = {
     customer_id: id,
     changed_by_user_id: actor.id,
     changed_by_user_name: actor.name,
-    reason: typeof reason === 'string' ? reason.slice(0, 500) : '',
   };
   if (updates.name !== undefined) payload.name = updates.name;
   if (updates.phone !== undefined) payload.phone = updates.phone;
@@ -3350,29 +3281,6 @@ export async function adminUpdateCustomerAtomic(
         : current.emptyDepositBalance,
   };
   db.customers[idx] = merged;
-  if (
-    updates.currentBalanceTL !== undefined ||
-    updates.emptyDepositBalance !== undefined
-  ) {
-    if (!Array.isArray(db.financialAudit)) db.financialAudit = [];
-    db.financialAudit.push({
-      customerId: id,
-      changedByUserId: actor.id,
-      changedByUserName: actor.name,
-      reason: typeof reason === 'string' && reason.trim() ? reason.trim() : 'Yönetici düzeltmesi',
-      previousBalance:
-        updates.currentBalanceTL !== undefined
-          ? Number(current.currentBalanceTL) || 0
-          : null,
-      newBalance:
-        updates.currentBalanceTL !== undefined
-          ? Number(merged.currentBalanceTL) || 0
-          : null,
-      previousEmpty: current.emptyDepositBalance || null,
-      newEmpty: merged.emptyDepositBalance || null,
-      changedAt: new Date().toISOString(),
-    });
-  }
   saveLocalDatabase(db);
   return merged;
 }
@@ -3772,69 +3680,6 @@ export async function getDeliveries(params?: {
   if (params?.date) list = list.filter((d) => isSameUtcDate(d.timestamp, params.date!));
   list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   return list;
-}
-
-// Müşteri finansal düzeltme denetim kayıtları — AGENTS.md Bölüm 6 ve 13.
-// Bakiye/boş kap düzeltmeleri silinemez; ekstrede "düzeltme" hareketi olarak
-// görünür ve açılış/kapanış bakiyesine yansır.
-export interface CustomerFinancialAuditRow {
-  id: string;
-  customerId: string;
-  changedByUserId: string;
-  changedByUserName: string;
-  reason: string;
-  previousBalance: number | null;
-  newBalance: number | null;
-  changedAt: string;
-}
-
-export async function getCustomerFinancialAudit(customerId: string): Promise<CustomerFinancialAuditRow[]> {
-  if (isSupabaseOperational() && supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('customer_financial_audit')
-        .select(
-          'id, customer_id, changed_by_user_id, changed_by_user_name, reason, previous_balance, new_balance, changed_at'
-        )
-        .eq('customer_id', customerId)
-        .order('changed_at', { ascending: true });
-      if (!error && data) {
-        return data.map((row: any) => ({
-          id: String(row.id),
-          customerId: row.customer_id,
-          changedByUserId: row.changed_by_user_id || '',
-          changedByUserName: row.changed_by_user_name || '',
-          reason: row.reason || '',
-          previousBalance:
-            row.previous_balance === null || row.previous_balance === undefined
-              ? null
-              : Number(row.previous_balance),
-          newBalance:
-            row.new_balance === null || row.new_balance === undefined
-              ? null
-              : Number(row.new_balance),
-          changedAt: row.changed_at,
-        }));
-      }
-      console.error('[Supabase getCustomerFinancialAudit]', error);
-    } catch (e) {
-      console.error('[Supabase getCustomerFinancialAudit Exception]', e);
-    }
-  }
-
-  const db = loadLocalDatabase();
-  return (db.financialAudit || [])
-    .filter((row) => row.customerId === customerId)
-    .map((row, idx) => ({
-      id: `local_${idx}`,
-      customerId: row.customerId,
-      changedByUserId: row.changedByUserId,
-      changedByUserName: row.changedByUserName,
-      reason: row.reason,
-      previousBalance: row.previousBalance ?? null,
-      newBalance: row.newBalance ?? null,
-      changedAt: row.changedAt,
-    }));
 }
 
 // Tek bir teslimatı satırları ve boş kap hareketleriyle okur.
@@ -4245,9 +4090,6 @@ function parseCancellationDbError(e: any): DeliveryDbError {
       'Bu teslimatı yalnızca kendi seferinizdeki şoför iptal edebilir.'
     );
   }
-  if (/REASON_REQUIRED/.test(raw)) {
-    return new DeliveryDbError('REASON_REQUIRED', 'En az 3 karakterlik bir gerekçe girin.');
-  }
   if (/DISPATCH_CLOSED/.test(raw)) {
     return new DeliveryDbError(
       'DISPATCH_CLOSED',
@@ -4304,6 +4146,10 @@ async function readCorrectionResult(
 
   if (delivery && updatedCustomer) {
     mirrorDeliveryLocally(delivery, updatedCustomer);
+  } else if (!delivery) {
+    const db = loadLocalDatabase();
+    db.deliveries = db.deliveries.filter((d) => d.id !== deliveryId);
+    saveLocalDatabase(db);
   }
   if (replacement && updatedCustomer) {
     mirrorDeliveryLocally(replacement, updatedCustomer);
@@ -4314,14 +4160,12 @@ async function readCorrectionResult(
 
 export async function cancelDeliveryAtomic(
   deliveryId: string,
-  actorId: string,
-  reason: string
+  actorId: string
 ): Promise<DeliveryCorrectionResult> {
   const payload = {
     delivery_id: deliveryId,
     mode: 'cancel',
     actor_id: actorId,
-    reason,
   };
 
   if (isSupabaseOperational() && supabase) {
@@ -4361,14 +4205,12 @@ export async function cancelDeliveryAtomic(
 export async function replaceDeliveryAtomic(
   deliveryId: string,
   actorId: string,
-  reason: string,
   replacement: Delivery
 ): Promise<DeliveryCorrectionResult> {
   const payload = {
     delivery_id: deliveryId,
     mode: 'replace',
     actor_id: actorId,
-    reason,
     replacement: buildApplyDeliveryPayload(replacement),
   };
 
@@ -4512,7 +4354,7 @@ export async function runRetentionCleanup(): Promise<RetentionRunResult> {
         Number(remoteCounts?.purged_deliveries ?? remoteCounts?.counts?.deliveries) || 0;
       result.archivedRows = Number(remoteCounts?.archived_rows) || 0;
       console.log(
-        `[Retention] ${dryRun ? 'DRY-RUN' : 'PURGE'} cutoff=${thresholdDateStr} dispatches=${result.purgedDispatches} deliveries=${result.purgedDeliveries} payments=${result.counts?.customer_payments ?? 0} financial_audit=${result.counts?.customer_financial_audit ?? 0} archive=disabled`
+        `[Retention] ${dryRun ? 'DRY-RUN' : 'PURGE'} cutoff=${thresholdDateStr} dispatches=${result.purgedDispatches} deliveries=${result.purgedDeliveries} payments=${result.counts?.customer_payments ?? 0} archive=disabled`
       );
     } catch (e: any) {
       const msg = e?.message || e?.details || String(e);
@@ -4573,13 +4415,6 @@ export async function runRetentionCleanup(): Promise<RetentionRunResult> {
       db.dispatches = local.dispatches;
       db.deliveries = local.deliveries;
     }
-    // Yerel yedekte de günlük hareket/denetim geçmişi 60 günde temizlenir.
-    const cutoffMs = new Date(cutoffInstant).getTime();
-    const isOld = (value: string | undefined) =>
-      !value || new Date(value).getTime() < cutoffMs;
-    db.financialAudit = (db.financialAudit || []).filter((a) => !isOld(a.changedAt));
-    db.cancellationAudit = (db.cancellationAudit || []).filter((a) => !isOld(a.cancelledAt));
-    db.loadingAudit = (db.loadingAudit || []).filter((a) => !isOld(a.changedAt));
     db.retentionArchive = (db.retentionArchive || []).filter(
       (a) => !a.purgeDate || a.purgeDate >= thresholdDateStr
     );
@@ -4798,9 +4633,6 @@ export interface CustomerPaymentRow {
   collectedByUserName: string;
   collectedAt: string;
   status: 'active' | 'cancelled';
-  correctedAt?: string | null;
-  correctedByUserName?: string | null;
-  correctionCount: number;
 }
 
 function paymentError(e: any, fallback: string): Error {
@@ -4832,8 +4664,17 @@ function paymentError(e: any, fallback: string): Error {
   if (/PAYMENT_MODE_INVALID/i.test(raw)) {
     return new DispatchDbError('PAYMENT_MODE_INVALID', 'Geçersiz tahsilat işlemi.');
   }
-  if (/REQUEST_ID_REQUIRED/i.test(raw)) {
-    return new DispatchDbError('REQUEST_ID_REQUIRED', 'İşlem kimliği gerekli.');
+  if (/PAYMENT_CHANGED/i.test(raw)) {
+    return new DispatchDbError(
+      'PAYMENT_CHANGED',
+      'Bu tahsilat başka bir cihazda değiştirildi. Lütfen güncel tutarı kontrol edip tekrar kaydedin.'
+    );
+  }
+  if (/EXPECTATION_REQUIRED/i.test(raw)) {
+    return new DispatchDbError(
+      'EXPECTATION_REQUIRED',
+      'Uygulama güncellendi. Lütfen sayfayı yenileyip tekrar deneyin.'
+    );
   }
   if (/ACTOR_REQUIRED/i.test(raw)) {
     return new DispatchDbError('ACTOR_REQUIRED', 'İşlemi yapan kullanıcı bilgisi eksik.');
@@ -4912,12 +4753,12 @@ export async function createCustomerPayment(input: {
 }
 
 export async function amendCustomerPayment(input: {
-  requestId: string;
   paymentId: string;
   mode: 'update' | 'cancel';
   amount?: number;
-  method?: 'CASH' | 'POS' | 'TRANSFER';
-  note?: string;
+  method?: 'CASH' | 'POS';
+  expectedAmount?: number;
+  expectedMethod?: 'CASH' | 'POS';
   actor: { id: string; name: string };
 }): Promise<{
   paymentId: string;
@@ -4926,12 +4767,12 @@ export async function amendCustomerPayment(input: {
   status: 'active' | 'deleted';
 }> {
   const result = await callJsonbRpc('amend_customer_payment', {
-    request_id: input.requestId,
     payment_id: input.paymentId,
     mode: input.mode,
     amount: input.amount ?? null,
     method: input.method ?? null,
-    note: input.note ?? '',
+    expected_amount: input.expectedAmount ?? null,
+    expected_method: input.expectedMethod ?? null,
     actor_id: input.actor.id,
     actor_name: input.actor.name,
   });
@@ -5135,9 +4976,6 @@ function mapCustomerPayment(row: any): CustomerPaymentRow {
     collectedByUserName: row.collected_by_user_name,
     collectedAt: row.collected_at,
     status: row.status === 'cancelled' ? 'cancelled' : 'active',
-    correctedAt: row.corrected_at || null,
-    correctedByUserName: row.corrected_by_user_name || null,
-    correctionCount: Number(row.correction_count) || 0,
   };
 }
 
@@ -5792,12 +5630,6 @@ function mapPurchasesFromRows(
       ? dispatchPlateById.get(String(row.dispatch_id)) || null
       : null,
     cancelledAt: row.cancelled_at ? String(row.cancelled_at) : null,
-    cancelledByUserId: row.cancelled_by_user_id
-      ? String(row.cancelled_by_user_id)
-      : null,
-    cancelledByUserName: row.cancelled_by_user_name
-      ? String(row.cancelled_by_user_name)
-      : null,
     createdAt: String(row.created_at || ''),
     updatedAt: String(row.updated_at || ''),
     items: itemsByPurchase.get(String(row.id)) || [],
@@ -6021,9 +5853,9 @@ export async function cancelPurchaseRecord(
   id: string,
   actor: { id: string; name: string },
   isAdmin: boolean
-): Promise<Purchase> {
+): Promise<{ deleted: true; id: string }> {
   if (isSupabaseOperational() && supabase) {
-    const { data, error } = await supabase.rpc('cancel_purchase', {
+    const { error } = await supabase.rpc('cancel_purchase', {
       p: {
         id,
         actor_user_id: actor.id,
@@ -6032,17 +5864,12 @@ export async function cancelPurchaseRecord(
       },
     });
     if (error) throw parsePurchaseDbError(error, 'Satın alım iptal edilemedi.');
-    const purchaseId = String(data?.purchase?.id || id);
-    const purchase = await getPurchaseById(purchaseId);
-    if (!purchase) {
-      throw new DispatchDbError('PURCHASE_FAILED', 'Satın alım iptal edildi ancak okunamadı.');
-    }
-    return purchase;
+    return { deleted: true, id };
   }
 
   if (pgPool) {
     try {
-      const res = await pgPool.query('SELECT public.cancel_purchase($1::jsonb) AS r', [
+      await pgPool.query('SELECT public.cancel_purchase($1::jsonb) AS r', [
         {
           id,
           actor_user_id: actor.id,
@@ -6050,13 +5877,7 @@ export async function cancelPurchaseRecord(
           is_admin: isAdmin,
         },
       ]);
-      const data = res.rows[0]?.r;
-      const purchaseId = String(data?.purchase?.id || id);
-      const purchase = await getPurchaseById(purchaseId);
-      if (!purchase) {
-        throw new DispatchDbError('PURCHASE_FAILED', 'Satın alım iptal edildi ancak okunamadı.');
-      }
-      return purchase;
+      return { deleted: true, id };
     } catch (e) {
       if (e instanceof DispatchDbError) throw e;
       throw parsePurchaseDbError(e, 'Satın alım iptal edilemedi.');

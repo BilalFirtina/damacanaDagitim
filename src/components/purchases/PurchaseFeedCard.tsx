@@ -30,33 +30,15 @@ export const PurchaseFeedCard: React.FC<PurchaseFeedCardProps> = ({
   onEdit,
   onCancel,
 }) => {
-  const cancelled = purchase.status === 'cancelled';
-
   return (
-    <div
-      className={`relative overflow-hidden rounded-2xl border p-4 sm:p-5 shadow-xs transition-all hover:shadow-md ${
-        cancelled
-          ? 'border-slate-200 bg-white opacity-80'
-          : 'border-rose-200 bg-gradient-to-br from-pink-50/40 via-white to-red-50/30'
-      }`}
-    >
+    <div className="relative overflow-hidden rounded-2xl border border-rose-200 bg-gradient-to-br from-pink-50/40 via-white to-red-50/30 p-4 sm:p-5 shadow-xs transition-all hover:shadow-md">
       <span
         aria-hidden="true"
-        className={`absolute inset-y-0 left-0 w-1 ${
-          cancelled
-            ? 'bg-slate-400'
-            : 'bg-gradient-to-b from-pink-400 via-rose-400 to-red-400'
-        }`}
+        className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-pink-400 via-rose-400 to-red-400"
       />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div
-            className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-xs ${
-              cancelled
-                ? 'bg-slate-500 text-white'
-                : 'bg-gradient-to-br from-pink-400 via-rose-400 to-red-400 text-rose-950'
-            }`}
-          >
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-xs bg-gradient-to-br from-pink-400 via-rose-400 to-red-400 text-rose-950">
             <Package className="w-4 h-4" />
           </div>
           <div className="flex items-center gap-2 flex-wrap min-w-0">
@@ -68,11 +50,6 @@ export const PurchaseFeedCard: React.FC<PurchaseFeedCardProps> = ({
               <span className="inline-flex items-center gap-1 font-mono font-bold text-xs px-2 py-0.5 rounded-lg bg-slate-100 text-slate-800 border border-slate-200">
                 <Truck className="w-3 h-3" />
                 {purchase.dispatchPlate}
-              </span>
-            )}
-            {cancelled && (
-              <span className="font-bold text-[10px] px-2 py-0.5 rounded-lg bg-rose-100 text-rose-800 border border-rose-200">
-                İptal Edildi
               </span>
             )}
           </div>
@@ -121,7 +98,7 @@ export const PurchaseFeedCard: React.FC<PurchaseFeedCardProps> = ({
             Teslim Alan: <strong>{purchase.createdByUserName || '-'}</strong>
           </div>
 
-          {canManage && !cancelled && (onEdit || onCancel) && (
+          {canManage && (onEdit || onCancel) && (
             <div className="flex flex-wrap items-center gap-2 pt-1">
               {onEdit && (
                 <button

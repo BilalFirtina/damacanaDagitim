@@ -14,7 +14,6 @@ export type DispatchRuleCode =
   | 'INVALID_LOAD_ITEMS'
   | 'DELIVERIES_EXIST'
   | 'PAYMENTS_EXIST'
-  | 'REASON_REQUIRED'
   | 'EXPECTATION_REQUIRED'
   | 'BALANCE_CONFLICT'
   | 'EMPTY_CONFLICT'
@@ -126,13 +125,12 @@ export interface DispatchCancelContext {
   status: DispatchStatus | string;
   hasActiveDeliveries?: boolean;
   hasLinkedPayments?: boolean;
-  reason?: string | null;
 }
 
-export interface DispatchCancelResult extends DispatchRuleResult<{ reason: string }> {}
+export interface DispatchCancelResult extends DispatchRuleResult<Record<string, never>> {}
 
 // Yükleme iptali yalnızca depo yöneticisine açıktır. Fiziksel silme
-// sunucu/DB tarafında denetim kaydıyla birlikte yapılır.
+// sunucu/DB tarafında tek transaction içinde yapılır.
 export function validateDispatchCancel(
   ctx: DispatchCancelContext
 ): DispatchCancelResult {
@@ -168,12 +166,7 @@ export function validateDispatchCancel(
     );
   }
 
-  const reason = String(ctx.reason || '').trim();
-  if (reason.length < 3) {
-    return fail('REASON_REQUIRED', 'Yükleme iptali için en az 3 karakterlik gerekçe girin.');
-  }
-
-  return { ok: true, value: { reason } };
+  return { ok: true, value: {} };
 }
 
 export interface TransitionResult extends DispatchRuleResult {

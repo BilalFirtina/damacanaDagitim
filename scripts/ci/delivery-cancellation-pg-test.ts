@@ -97,8 +97,9 @@ async function seedReference(c: Client): Promise<void> {
 }
 
 async function resetTransactional(c: Client): Promise<void> {
-  // dispatches CASCADE, FK nedeniyle customer_payments'i de truncate eder;
-  // denetim trigger'ı yalnızca test kurulumunda geçici olarak kapatılır.
+  // dispatches CASCADE, FK nedeniyle customer_payments ve customer_payment_audit
+  // tablolarını da truncate eder; TRUNCATE trigger'ları yalnızca test kurulumunda
+  // geçici olarak kapatılır.
   const paymentTrigger = 'trg_customer_payments_no_truncate';
   const paymentAuditTrigger = 'trg_customer_payment_audit_no_truncate';
   await c.query(`ALTER TABLE public.customer_payments DISABLE TRIGGER ${paymentTrigger}`);
@@ -121,20 +122,6 @@ async function resetTransactional(c: Client): Promise<void> {
     await c.query(
       `ALTER TABLE public.customer_payment_audit ENABLE TRIGGER ${paymentAuditTrigger}`
     );
-  }
-  // Denetim tablosu normalde TRUNCATE edilemez. Test izolasyonu icin trigger
-  // yalnizca bu baglantida gecici olarak devre disi birakilir.
-  await c.query('ALTER TABLE public.delivery_cancellation_audit DISABLE TRIGGER USER');
-  await c.query('ALTER TABLE public.dispatch_cancellation_audit DISABLE TRIGGER USER');
-  await c.query('ALTER TABLE public.dispatch_loading_audit DISABLE TRIGGER USER');
-  try {
-    await c.query('TRUNCATE public.delivery_cancellation_audit RESTART IDENTITY');
-    await c.query('TRUNCATE public.dispatch_cancellation_audit RESTART IDENTITY');
-    await c.query('DELETE FROM public.dispatch_loading_audit');
-  } finally {
-    await c.query('ALTER TABLE public.delivery_cancellation_audit ENABLE TRIGGER USER');
-    await c.query('ALTER TABLE public.dispatch_cancellation_audit ENABLE TRIGGER USER');
-    await c.query('ALTER TABLE public.dispatch_loading_audit ENABLE TRIGGER USER');
   }
   await c.query('DELETE FROM public.customer_empty_balances');
   await c.query('DELETE FROM public.customer_product_prices');
@@ -342,22 +329,6 @@ async function deliveryRow(c: Client, id: string): Promise<any> {
   return r.rows[0];
 }
 
-async function auditCount(c: Client, id: string): Promise<number> {
-  const r = await c.query(
-    'SELECT count(*)::int AS n FROM public.delivery_cancellation_audit WHERE delivery_id = $1',
-    [id]
-  );
-  return Number(r.rows[0].n);
-}
-
-async function auditRow(c: Client, id: string): Promise<any> {
-  const r = await c.query(
-    'SELECT * FROM public.delivery_cancellation_audit WHERE delivery_id = $1 ORDER BY id DESC LIMIT 1',
-    [id]
-  );
-  return r.rows[0];
-}
-
 async function callRpc(c: Client, payload: Record<string, unknown>): Promise<any> {
   const r = await c.query(
     `SELECT public.cancel_or_replace_delivery($1::jsonb) AS r`,
@@ -375,11 +346,10 @@ async function errorOf(fn: () => Promise<unknown>): Promise<string> {
   }
 }
 
-function cancelPayload(id = 'DEL1', reason = 'Yanlış müşteriye kaydedildi') {
+function cancelPayload(id = 'DEL1') {
   return {
     mode: 'cancel',
     delivery_id: id,
-    reason,
     actor_id: 'u_driver',
   };
 }
@@ -567,7 +537,10 @@ async function deliveryItemQty(c: Client, id: string): Promise<number> {
 
 async function auditTotal(c: Client): Promise<number> {
   const r = await c.query(
-    `SELECT count(*)::int AS n FROM public.delivery_cancellation_audit`
+    `SELECT (SELECT count(*) FROM public.delivery_cancellation_audit)
+          + (SELECT count(*) FROM public.dispatch_cancellation_audit)
+          + (SELECT count(*) FROM public.dispatch_loading_audit)
+          + (SELECT count(*) FROM public.customer_financial_audit) AS n`
   );
   return Number(r.rows[0].n);
 }
@@ -596,25 +569,20 @@ async function scenarioCancel(c: Client): Promise<void> {
   check('ters bakiye 300', Number(res.reversed_balance) === 300);
   check('bos damacana 2 -> 0', (await empty(c)) === 0);
 
-  const row = await deliveryRow(c, 'DEL1');
-  check('teslimat cancelled', row.status === 'cancelled');
-  check('cancel alanlari dolu', !!row.cancelled_at && row.cancelled_by_user_id === 'u_driver' && row.cancel_reason.length >= 3);
+  check('teslimat fiziksel olarak silindi', !(await deliveryRow(c, 'DEL1')));
+  check('teslimat kalemleri silindi', (await deliveryItemQty(c, 'DEL1')) === 0);
   check('musteri bakiyesi 0', (await balance(c)) === 0);
+  check('denetim yazilmadi', (await auditTotal(c)) === 0);
 
-  const audit = await auditRow(c, 'DEL1');
-  check('denetim kaydi olustu', !!audit && audit.action === 'cancel');
-  check('denetimde ters bos kap 2', Number(audit.reversed_empty?.damacana) === 2);
-  check('denetimde onceki/sonraki bakiye', Number(audit.previous_balance) === 300 && Number(audit.new_balance) === 0);
-
-  const auditBefore = await auditCount(c, 'DEL1');
-  const dup = await callRpc(c, cancelPayload());
-  check('ikinci iptal duplicate', dup.duplicate === true);
+  const secondErr = await errorOf(() => callRpc(c, cancelPayload()));
+  check('ikinci iptal DELIVERY_NOT_FOUND', /DELIVERY_NOT_FOUND/.test(secondErr), secondErr);
   check('ikinci iptal bakiyeyi degistirmedi', (await balance(c)) === 0);
-  check('ikinci iptal denetim eklemedi', (await auditCount(c, 'DEL1')) === auditBefore);
+  check('ikinci iptal bos kabi degistirmedi', (await empty(c)) === 0);
+  check('ikinci iptal denetim eklemedi', (await auditTotal(c)) === 0);
 
   await c.query(`UPDATE public.dispatches SET status = 'completed', closed_at = now() WHERE id = 'D1'`);
-  const afterClose = await callRpc(c, cancelPayload());
-  check('sefer kapandiktan sonra da duplicate', afterClose.duplicate === true);
+  const afterCloseErr = await errorOf(() => callRpc(c, cancelPayload()));
+  check('sefer kapandiktan sonra iptal DELIVERY_NOT_FOUND', /DELIVERY_NOT_FOUND/.test(afterCloseErr), afterCloseErr);
   check('sefer kapali retry bakiyeyi degistirmedi', (await balance(c)) === 0);
 }
 
@@ -628,7 +596,6 @@ async function scenarioReplace(c: Client): Promise<void> {
   const res = await callRpc(c, {
     mode: 'replace',
     delivery_id: 'DEL1',
-    reason: 'Adet yanlis girilmis',
     actor_id: 'u_driver',
     replacement,
   });
@@ -637,9 +604,7 @@ async function scenarioReplace(c: Client): Promise<void> {
   check('islem turu replace', res.action === 'replace');
   check('yeni teslimat id dogru', res.replacement_delivery_id === 'DEL_REPLACEMENT');
 
-  const oldRow = await deliveryRow(c, 'DEL1');
-  check('eski teslimat cancelled', oldRow.status === 'cancelled');
-  check('eski teslimat yeni id ile isaretli', oldRow.replaced_by_delivery_id === 'DEL_REPLACEMENT');
+  check('eski teslimat fiziksel olarak silindi', !(await deliveryRow(c, 'DEL1')));
 
   const newRow = await deliveryRow(c, 'DEL_REPLACEMENT');
   check('yeni teslimat active', newRow && newRow.status === 'active');
@@ -652,22 +617,17 @@ async function scenarioReplace(c: Client): Promise<void> {
   );
   check('yeni kalem miktari 12', Number(newItems.rows[0]?.quantity) === 12);
 
-  const audit = await auditRow(c, 'DEL1');
-  check('denetimde replace kaydi', audit.action === 'replace');
-  check('denetimde yeni teslimat id', audit.replacement_delivery_id === 'DEL_REPLACEMENT');
-  check('denetimde ters bakiye 300', Number(audit.reversed_balance) === 300);
-  check('denetimde ters bos kap 2', Number(audit.reversed_empty?.damacana) === 2);
+  check('denetim yazilmadi', (await auditTotal(c)) === 0);
 
-  const auditBefore = await auditCount(c, 'DEL1');
   const dup = await callRpc(c, {
     mode: 'replace',
     delivery_id: 'DEL1',
-    reason: 'Adet yanlis girilmis',
     actor_id: 'u_driver',
     replacement,
   });
-  check('ayni replacement retry duplicate', dup.duplicate === true);
-  check('duplicate denetim eklemedi', (await auditCount(c, 'DEL1')) === auditBefore);
+  check('ayni replacement retry duplicate', dup.cancelled === true && dup.duplicate === true);
+  check('duplicate bakiyeyi degistirmedi', (await balance(c)) === 300);
+  check('duplicate denetim eklemedi', (await auditTotal(c)) === 0);
 
   const cancelNew = await callRpc(c, cancelPayload('DEL_REPLACEMENT'));
   check('yeni teslimat da iptal edilebilir', cancelNew.duplicate === false);
@@ -685,7 +645,7 @@ async function scenarioHistorical(c: Client): Promise<void> {
   check('CANCEL_HISTORICAL_UNSUPPORTED', /CANCEL_HISTORICAL_UNSUPPORTED/.test(err), err);
   check('teslimat active kaldi', (await deliveryRow(c, 'DEL1')).status === 'active');
   check('bakiye degismedi', (await balance(c)) === 300);
-  check('denetim yazilmadi', (await auditCount(c, 'DEL1')) === 0);
+  check('denetim yazilmadi', (await auditTotal(c)) === 0);
 }
 
 async function scenarioEmptyConflict(c: Client): Promise<void> {
@@ -696,10 +656,10 @@ async function scenarioEmptyConflict(c: Client): Promise<void> {
 
   const res = await callRpc(c, cancelPayload());
   check('iptal basarili', res.cancelled === true && res.duplicate === false);
-  check('teslimat cancelled', (await deliveryRow(c, 'DEL1')).status === 'cancelled');
+  check('teslimat fiziksel olarak silindi', !(await deliveryRow(c, 'DEL1')));
   check('bakiye sifirlandi', (await balance(c)) === 0);
   check('bos kap negatif -3', (await empty(c)) === -3);
-  check('denetim yazildi', (await auditCount(c, 'DEL1')) === 1);
+  check('denetim yazilmadi', (await auditTotal(c)) === 0);
 }
 
 async function scenarioValidation(c: Client): Promise<void> {
@@ -713,9 +673,6 @@ async function scenarioValidation(c: Client): Promise<void> {
   );
   check('yonetici iptal edemez', /NOT_AUTHORIZED/.test(adminErr), adminErr);
 
-  const shortErr = await errorOf(() => callRpc(c, cancelPayload('DEL1', 'ab')));
-  check('kisa gerekce reddedilir', /REASON_REQUIRED/.test(shortErr), shortErr);
-
   const modeErr = await errorOf(() =>
     callRpc(c, { ...cancelPayload(), mode: 'delete' })
   );
@@ -727,7 +684,6 @@ async function scenarioValidation(c: Client): Promise<void> {
     callRpc(c, {
       mode: 'replace',
       delivery_id: 'DEL1',
-      reason: 'Musteri degistirilemez',
       actor_id: 'u_driver',
       replacement: mismatch,
     })
@@ -737,7 +693,7 @@ async function scenarioValidation(c: Client): Promise<void> {
 }
 
 async function scenarioPrivileges(c: Client): Promise<void> {
-  console.log('\n[6] Yetkiler ve denetim degismezligi');
+  console.log('\n[6] Yetkiler ve denetim tablosu erisimi');
   await resetTransactional(c);
   await seedDispatch(c);
   await seedDelivery(c, { emptyDiff: 1, emptyBalance: 1 });
@@ -787,25 +743,7 @@ async function scenarioPrivileges(c: Client): Promise<void> {
     await anon.end();
   }
 
-  const last = await c.query('SELECT id FROM public.delivery_cancellation_audit ORDER BY id LIMIT 1');
-  if (last.rows[0]) {
-    const mutErr = await errorOf(() =>
-      c.query('UPDATE public.delivery_cancellation_audit SET reason = $1 WHERE id = $2', [
-        'degistirildi',
-        last.rows[0].id,
-      ])
-    );
-    check('denetim UPDATE reddedildi', /AUDIT_IMMUTABLE/.test(mutErr), mutErr);
-    const delErr = await errorOf(() =>
-      c.query('DELETE FROM public.delivery_cancellation_audit WHERE id = $1', [
-        last.rows[0].id,
-      ])
-    );
-    check('denetim DELETE reddedildi', /AUDIT_IMMUTABLE/.test(delErr), delErr);
-  } else {
-    check('denetim UPDATE reddedildi', false, 'denetim kaydi yok');
-    check('denetim DELETE reddedildi', false, 'denetim kaydi yok');
-  }
+  check('denetim yazilmadi', (await auditTotal(c)) === 0);
 }
 
 async function scenarioClosedDispatch(c: Client): Promise<void> {
@@ -820,7 +758,7 @@ async function scenarioClosedDispatch(c: Client): Promise<void> {
   check('kapali sefer iptali teslimati degistirmedi', (await deliveryRow(c, 'DEL1')).status === 'active');
   check('kapali sefer iptali bakiyeyi degistirmedi', (await balance(c)) === 300);
   check('kapali sefer iptali bos kabi degistirmedi', (await empty(c)) === 2);
-  check('kapali sefer iptali denetim yazmadi', (await auditCount(c, 'DEL1')) === 0);
+  check('kapali sefer iptali denetim yazmadi', (await auditTotal(c)) === 0);
 
   const replacement = replacementPayload();
   replacement.id = 'DEL_CLOSED_REPLACEMENT';
@@ -828,7 +766,6 @@ async function scenarioClosedDispatch(c: Client): Promise<void> {
     callRpc(c, {
       mode: 'replace',
       delivery_id: 'DEL1',
-      reason: 'Kapali seferde duzenleme',
       actor_id: 'u_driver',
       replacement,
     })
@@ -838,7 +775,7 @@ async function scenarioClosedDispatch(c: Client): Promise<void> {
   check('kapali sefer duzenlemesi eski teslimati degistirmedi', (await deliveryRow(c, 'DEL1')).status === 'active');
   check('kapali sefer duzenlemesi bakiyeyi degistirmedi', (await balance(c)) === 300);
   check('kapali sefer duzenlemesi bos kabi degistirmedi', (await empty(c)) === 2);
-  check('kapali sefer duzenlemesi denetim yazmadi', (await auditCount(c, 'DEL1')) === 0);
+  check('kapali sefer duzenlemesi denetim yazmadi', (await auditTotal(c)) === 0);
 
   const reopenFn = await c.query(
     `SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -872,10 +809,7 @@ async function scenarioDispatchCorrection(c: Client): Promise<void> {
     `SELECT quantity FROM public.dispatch_items WHERE dispatch_id = 'D1' AND product_id = 'p_water'`
   );
   check('yeni yukleme adedi 25', Number(waterQty.rows[0]?.quantity) === 25);
-  const loadingAudit = await c.query(
-    `SELECT count(*)::int AS n FROM public.dispatch_loading_audit WHERE dispatch_id = 'D1'`
-  );
-  check('yukleme denetim kaydi yazildi', Number(loadingAudit.rows[0]?.n) === 1);
+  check('yukleme denetim kaydi yazilmadi', (await auditTotal(c)) === 0);
 
   const driverErr = await errorOf(() =>
     c.query(`SELECT public.update_dispatch_loading($1::jsonb)`, [
@@ -911,7 +845,6 @@ async function scenarioDispatchCorrection(c: Client): Promise<void> {
       JSON.stringify({
         dispatch_id: 'D1',
         cancelled_by_user_id: 'u_admin',
-        reason: 'CI iptal',
       }),
     ])
   );
@@ -930,7 +863,6 @@ async function scenarioDispatchCorrection(c: Client): Promise<void> {
       JSON.stringify({
         dispatch_id: 'D1',
         cancelled_by_user_id: 'u_admin',
-        reason: 'CI iptal',
       }),
     ]
   );
@@ -939,27 +871,7 @@ async function scenarioDispatchCorrection(c: Client): Promise<void> {
     'sefer fiziksel olarak silindi',
     (await c.query(`SELECT 1 FROM public.dispatches WHERE id = 'D1'`)).rowCount === 0
   );
-  const cancelAudit = await c.query(
-    `SELECT count(*)::int AS n FROM public.dispatch_cancellation_audit WHERE dispatch_id = 'D1'`
-  );
-  check('iptal denetim kaydi yazildi', Number(cancelAudit.rows[0]?.n) === 1);
-
-  const auditId = (
-    await c.query(`SELECT id FROM public.dispatch_cancellation_audit WHERE dispatch_id = 'D1' LIMIT 1`)
-  ).rows[0]?.id;
-  if (auditId) {
-    const mutErr = await errorOf(() =>
-      c.query(`UPDATE public.dispatch_cancellation_audit SET reason = 'degisti' WHERE id = $1`, [auditId])
-    );
-    check('iptal denetim UPDATE reddedildi', /AUDIT_IMMUTABLE/.test(mutErr), mutErr);
-    const delErr = await errorOf(() =>
-      c.query(`DELETE FROM public.dispatch_cancellation_audit WHERE id = $1`, [auditId])
-    );
-    check('iptal denetim DELETE reddedildi', /AUDIT_IMMUTABLE/.test(delErr), delErr);
-  } else {
-    check('iptal denetim UPDATE reddedildi', false, 'denetim kaydi yok');
-    check('iptal denetim DELETE reddedildi', false, 'denetim kaydi yok');
-  }
+  check('iptal denetim kaydi yazilmadi', (await auditTotal(c)) === 0);
 
   // Aynı şoför/plaka ile yeni sefer açılabilmeli (aktiflik kısıtı serbest).
   await seedDispatch(c, 20);
@@ -1027,9 +939,7 @@ async function scenarioAccountFlagChange(c: Client): Promise<void> {
   check('bayrak false iken iptal basarili', res.cancelled === true);
   check('orijinal 300 delta geri alindi', (await balance(c)) === 0);
   check('bos kap 0', (await empty(c)) === 0);
-  const audit = await auditRow(c, 'DEL_ACCOUNT');
-  check('denetim ters delta 300', Number(audit.reversed_balance) === 300);
-  check('denetim onceki 300 sonraki 0', Number(audit.previous_balance) === 300 && Number(audit.new_balance) === 0);
+  check('denetim yazilmadi', (await auditTotal(c)) === 0);
 }
 
 async function scenarioApplyRegression(c: Client): Promise<void> {
@@ -1175,8 +1085,8 @@ async function scenarioConcurrentDispatchLock(c: Client): Promise<void> {
     check('iptal basarili', result.ok && result.value.cancelled === true);
     check('bakiye 0', (await balance(c)) === 0);
     check('bos kap 0', (await empty(c)) === 0);
-    check('teslimat cancelled', (await deliveryRow(c, 'DEL1')).status === 'cancelled');
-    check('tek denetim', (await auditCount(c, 'DEL1')) === 1);
+    check('teslimat fiziksel olarak silindi', !(await deliveryRow(c, 'DEL1')));
+    check('denetim yazilmadi', (await auditTotal(c)) === 0);
   } finally {
     if (aInTransaction) {
       try {
@@ -1247,13 +1157,13 @@ async function scenarioCancelRacesNewDelivery(c: Client): Promise<void> {
 
       const finalBalance = await balance(c);
       const finalEmpty = await empty(c);
-      const cancelled = await deliveryCount(c, 'cancelled');
-      const audit = await auditCount(c, 'DEL1');
+      const oldRow = await deliveryRow(c, 'DEL1');
+      const audit = await auditTotal(c);
       const newRow = await deliveryRow(c, 'RACE_NEW');
       if (finalBalance !== 200) failures.push(`iter ${i}: bakiye ${finalBalance}`);
       if (finalEmpty !== 1) failures.push(`iter ${i}: bos kap ${finalEmpty}`);
-      if (cancelled !== 1) failures.push(`iter ${i}: cancelled ${cancelled}`);
-      if (audit !== 1) failures.push(`iter ${i}: audit ${audit}`);
+      if (oldRow) failures.push(`iter ${i}: DEL1 silinmedi`);
+      if (audit !== 0) failures.push(`iter ${i}: denetim ${audit}`);
       if (!newRow || newRow.status !== 'active') failures.push(`iter ${i}: yeni teslimat active degil`);
       if (Number(newRow?.applied_balance_delta_tl) !== 200) {
         failures.push(`iter ${i}: yeni delta ${newRow?.applied_balance_delta_tl}`);
@@ -1271,7 +1181,7 @@ async function scenarioCancelRacesNewDelivery(c: Client): Promise<void> {
   }
 
   check(
-    '20/20 yaris: bakiye 200, bos kap 1, tek cancelled, tek audit, deadlock/timeout yok',
+    '20/20 yaris: bakiye 200, bos kap 1, DEL1 silindi, denetim yok, deadlock/timeout yok',
     failures.length === 0,
     failures.slice(0, 3).join(' | ')
   );
@@ -1299,23 +1209,15 @@ async function scenarioCancelSeparatesPools(c: Client): Promise<void> {
     countsMatch(await emptyBalances(c), { damacana: 5, cam_damacana: 2, tup_buyuk: 1 }),
     JSON.stringify(await emptyBalances(c))
   );
-  const audit = await auditRow(c, 'POOL_CANCEL');
-  check(
-    'denetimde ters havuzlar 2/1/1',
-    Number(audit.reversed_empty?.damacana) === 2 &&
-      Number(audit.reversed_empty?.cam_damacana) === 1 &&
-      Number(audit.reversed_empty?.tup_buyuk) === 1,
-    JSON.stringify(audit.reversed_empty)
-  );
+  check('denetim yazilmadi', (await auditTotal(c)) === 0);
 
-  const auditBefore = await auditCount(c, 'POOL_CANCEL');
-  const dup = await callRpc(c, cancelPayload('POOL_CANCEL'));
-  check('ikinci iptal duplicate', dup.duplicate === true);
+  const dupErr = await errorOf(() => callRpc(c, cancelPayload('POOL_CANCEL')));
+  check('ikinci iptal DELIVERY_NOT_FOUND', /DELIVERY_NOT_FOUND/.test(dupErr), dupErr);
   check(
-    'duplicate havuzlari degistirmedi',
+    'ikinci iptal havuzlari degistirmedi',
     countsMatch(await emptyBalances(c), { damacana: 5, cam_damacana: 2, tup_buyuk: 1 })
   );
-  check('duplicate denetim eklemedi', (await auditCount(c, 'POOL_CANCEL')) === auditBefore);
+  check('ikinci iptal denetim eklemedi', (await auditTotal(c)) === 0);
 }
 
 async function scenarioCamOnlyWithPlasticReturn(c: Client): Promise<void> {
@@ -1437,13 +1339,12 @@ async function scenarioReplacementSeparatesPools(c: Client): Promise<void> {
   const res = await callRpc(c, {
     mode: 'replace',
     delivery_id: 'POOL_OLD',
-    reason: 'Havuz bazli duzenleme',
     actor_id: 'u_driver',
     replacement,
   });
 
   check('uc havuzlu duzenleme basarili', res.cancelled === true && res.duplicate === false);
-  check('eski teslimat cancelled', (await deliveryRow(c, 'POOL_OLD')).status === 'cancelled');
+  check('eski teslimat fiziksel olarak silindi', !(await deliveryRow(c, 'POOL_OLD')));
   check(
     'yeni teslimat active',
     (await deliveryRow(c, 'POOL_REPLACEMENT'))?.status === 'active'
@@ -1453,14 +1354,7 @@ async function scenarioReplacementSeparatesPools(c: Client): Promise<void> {
     countsMatch(await emptyBalances(c), { damacana: 4, cam_damacana: 4, tup_buyuk: 1 }),
     JSON.stringify(await emptyBalances(c))
   );
-  const audit = await auditRow(c, 'POOL_OLD');
-  check(
-    'duzenleme denetiminde ters havuzlar 2/1/1',
-    Number(audit.reversed_empty?.damacana) === 2 &&
-      Number(audit.reversed_empty?.cam_damacana) === 1 &&
-      Number(audit.reversed_empty?.tup_buyuk) === 1,
-    JSON.stringify(audit.reversed_empty)
-  );
+  check('duzenleme denetim yazmadi', (await auditTotal(c)) === 0);
 
   await callRpc(c, cancelPayload('POOL_REPLACEMENT'));
   check(
@@ -1487,8 +1381,8 @@ async function scenarioPoolFailureIsolation(c: Client): Promise<void> {
     countsMatch(await emptyBalances(c), { damacana: 5, cam_damacana: -2, tup_buyuk: 1 }),
     JSON.stringify(await emptyBalances(c))
   );
-  check('iptal teslimati kapatti', (await deliveryRow(c, 'POOL_CONFLICT')).status === 'cancelled');
-  check('iptal denetim yazdi', (await auditCount(c, 'POOL_CONFLICT')) === 1);
+  check('iptal teslimati fiziksel olarak silindi', !(await deliveryRow(c, 'POOL_CONFLICT')));
+  check('iptal denetim yazilmadi', (await auditTotal(c)) === 0);
 
   await resetTransactional(c);
   await seedDispatch(c);

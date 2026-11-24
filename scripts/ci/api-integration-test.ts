@@ -247,10 +247,45 @@ async function main() {
     });
     check('tahsilat oluşturma 201', paymentCreate.status === 201);
 
+    const paymentList = await request(`/api/payments?dispatchId=d_api_1`, {
+      token: driverToken,
+    });
+    const listedPayment = paymentList.body?.payments?.find((p: any) => p.id === paymentId);
+    check('tahsilat listesinde kayıt var', paymentList.status === 200 && !!listedPayment);
+
+    const paymentAmend = await request(`/api/payments/${paymentId}`, {
+      method: 'PUT',
+      token: driverToken,
+      body: {
+        amount: 120,
+        method: 'POS',
+        expectedAmount: listedPayment?.amount,
+        expectedMethod: listedPayment?.method,
+      },
+    });
+    check(
+      'tahsilat düzeltme beklenen tutarla 200',
+      paymentAmend.status === 200 &&
+        Number(paymentAmend.body?.payment?.amount) === 120 &&
+        paymentAmend.body?.payment?.method === 'POS'
+    );
+
+    const paymentStale = await request(`/api/payments/${paymentId}`, {
+      method: 'PUT',
+      token: driverToken,
+      body: { amount: 130, method: 'CASH', expectedAmount: 100, expectedMethod: 'CASH' },
+    });
+    check(
+      'bayat beklenen tutar 409 PAYMENT_CHANGED',
+      paymentStale.status === 409 &&
+        paymentStale.body?.code === 'PAYMENT_CHANGED' &&
+        Number(paymentStale.body?.currentAmount) === 120 &&
+        paymentStale.body?.currentMethod === 'POS'
+    );
+
     const paymentCancel = await request(`/api/payments/${paymentId}/cancel`, {
       method: 'POST',
       token: driverToken,
-      body: { requestId: `payfix_api_ci_${Date.now()}` },
     });
     check('tahsilat iptali 200', paymentCancel.status === 200);
     const paymentRow = await db.query('SELECT count(*)::int AS n FROM public.customer_payments WHERE id=$1', [
@@ -314,9 +349,23 @@ async function main() {
     const cancelDelivery = await request(`/api/deliveries/${overrideId}/cancel`, {
       method: 'POST',
       token: driverToken,
-      body: { reason: 'API CI temizliği' },
     });
     check('teslimat iptali 200', cancelDelivery.status === 200);
+    const deliveryRow = await db.query(
+      'SELECT count(*)::int AS n FROM public.deliveries WHERE id = $1',
+      [overrideId]
+    );
+    check('iptalde teslimat fiziksel silindi', deliveryRow.rows[0]?.n === 0);
+
+    const cancelDeliveryAgain = await request(`/api/deliveries/${overrideId}/cancel`, {
+      method: 'POST',
+      token: driverToken,
+    });
+    check(
+      'silinmiş teslimatın tekrar iptali DELIVERY_NOT_FOUND',
+      cancelDeliveryAgain.status === 404 &&
+        cancelDeliveryAgain.body?.code === 'DELIVERY_NOT_FOUND'
+    );
 
     const purchaseId = `pur_api_ci_${Date.now()}`;
     const purchaseCreate = await request('/api/purchases', {
@@ -362,6 +411,20 @@ async function main() {
       body: { currentBalanceTL: 0, expectedBalanceTL: 250 },
     });
     check('şoför bakiye düzeltme 403', driverBalance.status === 403);
+
+    const dispatchCancel = await request('/api/dispatches/d_api_2/cancel', {
+      method: 'POST',
+      token: adminToken,
+    });
+    check(
+      'yükleme iptali gerekçesiz 200',
+      dispatchCancel.status === 200 && dispatchCancel.body?.cancelled === true
+    );
+    const dispatchRow = await db.query(
+      'SELECT count(*)::int AS n FROM public.dispatches WHERE id = $1',
+      ['d_api_2']
+    );
+    check('yükleme iptalinde sefer fiziksel silindi', dispatchRow.rows[0]?.n === 0);
   } finally {
     const exited = new Promise<void>((resolve) => server.once('exit', () => resolve()));
     server.kill('SIGTERM');

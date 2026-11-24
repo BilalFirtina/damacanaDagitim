@@ -107,12 +107,6 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
         tone: 'emerald',
       },
       {
-        label: 'Düzeltme',
-        value: statement?.totalAdjustments ?? 0,
-        display: money(statement?.totalAdjustments ?? 0),
-        tone: 'amber',
-      },
-      {
         label: 'Kapanış Bakiyesi',
         value: closing,
         display: formatCustomerBalance(closing, money),
@@ -126,8 +120,6 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
       ? 'text-sky-700 '
       : tone === 'emerald'
       ? 'text-emerald-700 '
-      : tone === 'amber'
-      ? 'text-amber-700 '
       : tone === 'rose'
       ? 'text-rose-700 '
       : 'text-slate-700 ';
@@ -207,7 +199,7 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
                 </div>
               ) : (
                 <>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {summary.map((s) => (
                   <div
                     key={s.label}
@@ -245,17 +237,13 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
                           className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
                             entry.type === 'sale'
                               ? 'bg-sky-100 text-sky-700  '
-                              : entry.type === 'payment'
-                              ? 'bg-emerald-100 text-emerald-700  '
-                              : 'bg-amber-100 text-amber-700  '
+                              : 'bg-emerald-100 text-emerald-700  '
                           }`}
                         >
                           {entry.type === 'sale' ? (
                             <ArrowUpRight className="w-3.5 h-3.5" />
-                          ) : entry.type === 'payment' ? (
-                            <ArrowDownLeft className="w-3.5 h-3.5" />
                           ) : (
-                            <AlertCircle className="w-3.5 h-3.5" />
+                            <ArrowDownLeft className="w-3.5 h-3.5" />
                           )}
                         </div>
 
@@ -270,11 +258,7 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
                             })}
                           </div>
                           <div className="text-xs font-semibold text-slate-900  break-words">
-                            {entry.type === 'sale'
-                              ? 'Satış'
-                              : entry.type === 'payment'
-                              ? 'Tahsilat'
-                              : 'Düzeltme'}
+                            {entry.type === 'sale' ? 'Satış' : 'Tahsilat'}
                           </div>
                           <div className="text-[11px] text-slate-500 break-words">
                             {entry.description}

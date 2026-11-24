@@ -22,7 +22,7 @@ const newPaymentId = () =>
   `pay_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
 // AGENTS.md Bölüm 6 — Teslimat dışı (sonraki ziyaret) müşteri tahsilatı.
-// Bakiye, ödeme kaydı ve denetim izi sunucuda tek transaction'da yazılır.
+// Bakiye ve ödeme kaydı sunucuda tek transaction'da yazılır.
 export const CustomerPaymentModal: React.FC<CustomerPaymentModalProps> = ({
   customer,
   onClose,

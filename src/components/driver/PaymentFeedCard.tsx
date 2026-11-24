@@ -82,12 +82,6 @@ export const PaymentFeedCard: React.FC<PaymentFeedCardProps> = ({ payment }) => 
 
           <div className="text-[11px] text-slate-500 break-words">
             Tahsil Eden: <strong>{payment.collectedByUserName || '-'}</strong>
-            {payment.correctedByUserName && (
-              <span className="text-slate-400">
-                {' '}
-                · Son düzeltme: {payment.correctedByUserName}
-              </span>
-            )}
           </div>
         </div>
 

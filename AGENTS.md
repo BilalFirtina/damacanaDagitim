@@ -3,7 +3,7 @@ Proje Talimatları: Su ve LPG Tüpü Dağıtım, Envanter, Muhasebe ve PWA Uygul
 
 Damacana (iade edilebilir su damacanaları), LPG tüpleri, PET şişe su (Pet Su), karton bardak, plastik bardak ve yapılandırılabilir diğer ürünleri dağıtan bir şirket için güvenli ve güvenilir bir dağıtım takibi, envanter yönetimi ve muhasebe uygulaması geliştirin.
 
-Uygulama; depo envanterini, sabah araç yüklemesini, günlük teslimatları, müşteri hesaplarını, müşteri borçlarını, iade edilebilir kalem takibini, tahsilatları, şoför sorumluluğunu, gün sonu raporlarını ve operasyon geçmişini yönetmelidir.
+Uygulama; depo envanterini, sabah araç yüklemesini, günlük teslimatları, müşteri hesaplarını, müşteri borçlarını, iade edilebilir kalem takibini, tahsilatları, şoför sorumluluğunu, gün sonu raporlarını ve operasyon kayıtlarını yönetmelidir.
 
 Uygulama duyarlı (responsive), mobil öncelikli ve Aşamalı Web Uygulaması (PWA) olarak yüklenebilir olmalıdır.
 
@@ -31,7 +31,7 @@ Sistem aşağıdaki sırayı uygular. Depo stoğu tutulmaz; stok yalnızca araç
 Depo yöneticisi şoförü ve araç plakasını seçer.
 Araca yüklenen ürünler ve miktarlar girilir. Su sebili de diğer ürünler gibi yüklemeye girer; fiyatı yoktur.
 Yükleme kaydı onaylanır ve araç stoku bu miktarlar kadar artar.
-Yükleme; tarih, şoför, plaka, ürünler, miktarlar ve yetkilendiren kullanıcı ile denetlenebilir biçimde saklanır.
+Yükleme; tarih, şoför, plaka, ürünler, miktarlar ve yetkilendiren kullanıcı ile saklanır.
 Şoför, onaylanmış yükleme olmadan dağıtıma başlayamaz.
 
 1.2.2. Dağıtım
@@ -44,6 +44,7 @@ Tahsilat tam, kısmi veya ödenmemiş olabilir. Kısmi veya ödenmemiş kalan tu
 Her kalem türü müşteri bazında ayrı adet bakiyesi olarak izlenir.
 Müşteriye bırakılan miktar bakiyeyi artırır, müşteriden alınan miktar azaltır.
 Fazla iade, müşteriye borcumuz anlamında negatif bakiye oluşturabilir.
+Yetkili manuel bakiye düzeltmesi yapılabilir; düzeltmenin geçmişi ve gerekçesi tutulmaz, yalnızca güncel adet görünür.
 Parasal depozito, kira veya bedel hesaplanmaz; yalnızca adet tutulur.
 Müşterinin parasal borcu ile iade edilebilir kalem adetleri hiçbir zaman tek bakiyede birleştirilmez.
 
@@ -70,9 +71,9 @@ Teslimat sırasında alınan ödemeler teslimat kaydına işlenir.
 Teslimat dışı (sonraki ziyaret) tahsilatlar ayrı kaydedilir; bakiye ve tahsilat kaydı tek işlemde güncellenir.
 Şoförün teslimat dışı tahsilatı yalnızca kendi aktif (Dağıtımda) seferi varken kaydedilebilir ve sefere bağlanır; sefer 60 gün sonra silinse bile aktif tahsilat kaydı korunur.
 Şoförün sefer ekranındaki tahsilat listesi yalnızca aktif sefere bağlı tahsilatları gösterir; önceki seferlerin tahsilatları yeni sefer listesine karışmaz.
-Aktif her tahsilat; tutar, yöntem (nakit/POS), tahsil eden kullanıcı, tarih, varsa not ve sefer referansı ile saklanır. Yetkili iptal işlemi tahsilatı fiziksel olarak siler ve bakiyeyi geri ekler; iptal için denetim kaydı veya açıklama tutulmaz.
+Aktif her tahsilat; tutar, yöntem (nakit/POS), tahsil eden kullanıcı, tarih, varsa not ve sefer referansı ile saklanır. Yetkili iptal işlemi tahsilatı fiziksel olarak siler ve bakiyeyi geri ekler; iptal için denetim kaydı veya açıklama tutulmaz. Tahsilat düzeltmesi, ekrandaki beklenen tutarın mevcut tutarla karşılaştırılmasıyla yapılır; kayıt başka cihazda değiştiyse reddedilir. Düzeltmede not değişmez ve düzeltme kaydı tutulmaz.
 Kapanmış seferde teslimat ve tahsilat iptali/düzeltmesi yönetici dahil yapılamaz; sunucu ve veritabanı bu işlemleri reddeder.
-Aynı tahsilat kimliğiyle tekrar gönderim, kayıt silinmemişse bakiyeyi ikinci kez düşürmez. Silinmiş bir tahsilat kimliğinin gecikmiş tekrarı yeni kayıt oluşturabilir; iptal denetim kaydı tutulmadığı için bu durum kabul edilmiştir.
+Aynı tahsilat kimliğiyle tekrar gönderim, kayıt silinmemişse bakiyeyi ikinci kez düşürmez. Silinmiş bir tahsilat kimliğinin gecikmiş tekrarı yeni kayıt oluşturabilir; iptal kaydı tutulmadığı için bu durum kabul edilmiştir.
 Günlük raporlarda nakit kasa ve POS toplamları teslimat içi ve teslimat dışı tahsilatları birlikte kapsar; ayrı teslimat dışı tahsilat bölümü gösterilmez. Şoför filtresinde yalnızca o şoförün tahsilatları görünür.
 Faturalı müşteride birim fiyat/mal tutarı gösterilmediği için tahsilat tutarı manuel girilir; otomatik "tam tahsilat" kullanılmaz.
 Faturalı tahsilatları kasa/POS toplamlarında görünür; mal tutarı ve cari borç toplamları gösterilmez.
@@ -201,7 +202,7 @@ Sistem; tarihi, şoförü, plakayı, ürünleri, miktarları ve yüklemeyi yetki
 
 Araç plakaları dinamik olmalıdır. Koda gömülmemeli veya belirli bir şoföre kalıcı olarak atanmamalıdır. Depo yöneticisi, yükleme sırasında plakayı girebilmeli veya seçebilmelidir.
 
-Sistem, her yükleme işleminin denetlenebilir bir kaydını tutmalıdır. Onaylanmış yükleme kayıtları sessizce üzerine yazılmamalı veya silinmemelidir.
+Sistem her onaylanmış yüklemeyi operasyonel kayıt olarak tutmalıdır; kayıt sessizce üzerine yazılmaz. Yükleme iptali kaydı fiziksel olarak siler; iptal için gerekçe veya denetim kaydı tutulmaz.
 
 Şoförün, yetkilendirilmiş ve onaylanmış bir yükleme kaydı olmadan dağıtıma başlamasına izin verilmemelidir.
 
@@ -263,11 +264,11 @@ Toplam satış tutarı.
 Alınan ödemeler.
 Bekleyen borç bakiyesi.
 Kısmi ödemeler ve daha sonra alınan ödemeler.
-Yetkilendirilmiş alacaklar, iadeler ve finansal düzeltmeler (uygulanabilir olduğunda).
+Yetkili manuel cari bakiye düzeltmeleri (düzeltme geçmişi tutulmaz).
 İşlem tarihleri ve ilgili dağıtım referansları.
-Eksiksiz ve izlenebilir bir hesap geçmişi.
+Hesap hareketleri: teslimat ve aktif tahsilat kayıtları (düzeltme satırı tutulmaz).
 
-Müşterinin bekleyen borcu; kaydedilmiş satışlardan, ödemelerden ve yetkilendirilmiş finansal düzeltmelerden hesaplanmalıdır.
+Müşterinin bekleyen borcu; kaydedilmiş satışlardan, ödemelerden ve yetkili manuel cari bakiye düzeltmelerinden hesaplanmalıdır.
 
 Örnek:
 
@@ -320,8 +321,8 @@ Her müşteri ve her iade edilebilir kalem türü için sistem şunları takip e
 Müşteride bırakılan kalem miktarı.
 Müşterinin iade ettiği veya müşteriden alınan miktar.
 Müşteride kalan güncel miktar.
-Yetkilendirilmiş miktar düzeltmeleri ve nedenleri.
-Teslim edilen, müşteride bırakılan, müşteriden alınan veya başka şekilde düzeltilen kalemlerin eksiksiz geçmişi.
+Yetkili manuel miktar düzeltmesi; güncel miktara yansır, düzeltmenin geçmişi ve nedeni tutulmaz.
+Teslim edilen, müşteride bırakılan ve müşteriden alınan kalemlerin operasyonel kayıtları.
 
 Sistem güncel miktarı otomatik olarak hesaplamalıdır:
 
@@ -362,12 +363,12 @@ Gün sonunda araçta kalan ürünleri sayımla doğrulamak ve depoya iade edilen
 İade edilen veya teslim edilmeyen ürünleri doğru araç stok işlemiyle kaydetmek.
 İade edilebilir kalemleri (boş damacana, cam damacana, tüp, sebil) sıradan satılabilir ürünlerden ayrı, müşteri ve kalem türü bazında adet olarak takip etmek.
 Özel olarak yetkilendirilmiş bir iş kuralı izin vermedikçe araç stokunun negatife düşmesini engellemek.
-Her araç stok hareketini (yükleme, teslimat, iade, düzeltme) tarihi, miktarı, kaynağı, hedefi, nedeni ve sorumlu kullanıcısıyla kaydetmek.
-Araç stok hareketlerinin geçmiş kaydını tutmak.
+Her operasyonel araç stok hareketini (yükleme, teslimat, iade) tarihi, miktarı, kaynağı, hedefi, nedeni ve sorumlu kullanıcısıyla kaydetmek; düzeltme ve iptal hareketleri için ayrı geçmiş tutulmaz.
+Yükleme, teslimat ve iade hareketlerinin kaydını tutmak.
 Yükleme, teslimat, iade veya düzeltme işlemlerinin mükerrer işlenmesini engellemek.
 Eşzamanlı işlemlerden kaynaklananlar dahil tutarsız güncellemeleri önlemek için veritabanı işlemlerini (transaction) ve uygun kısıtlamaları kullanmak.
 
-Onaylanmış işlemler sessizce üzerine yazılmamalı veya silinmemelidir. Düzeltmeler, yetkili ve denetlenebilir bir süreçle yapılmalıdır.
+Onaylanmış operasyonel kayıtlar sessizce üzerine yazılmamalıdır. Düzeltmeler yetkili kullanıcı tarafından yapılır; düzeltme geçmişi tutulmaz. İptal edilen teslimat, yükleme ve satın alım kayıtları fiziksel olarak silinir.
 
 9. Zorunlu Gün Sonu Raporu
 
@@ -407,7 +408,7 @@ Rapor gönderildikten ve dağıtım seferi başarıyla sonlandırıldıktan sonr
 
 Sistem, aynı şoför için mükerrer aktif seferleri engellemelidir.
 
-Gönderilen raporlar ve sonlandırılan seferler geçmiş incelemesi için erişilebilir kalmalıdır. Düzeltmeler, geçmiş kayıtları sessizce değiştirmek yerine yetkili ve denetlenebilir bir süreci izlemelidir.
+Gönderilen raporlar ve sonlandırılan seferler geçmiş incelemesi için erişilebilir kalmalıdır. Kapanmış seferde teslimat ve tahsilat değişikliği yapılamaz (Bölüm 15).
 
 9.1. Sonlandırılmamış Sefer Uyarısı
 
@@ -424,7 +425,7 @@ Depo yöneticisi, günü içinde sonlandırılmamış seferleri “Önceki gün 
 
 Dağıtım tarihinden 60 gün sonra günlük dağıtım faaliyetlerinden doğan tüm hareketler arşivlenmeden doğrudan silinir.
 Temizlik, durumdan bağımsız olarak eşikten eski tüm seferleri kapsar: Yükleme Bekleniyor, Dağıtımda ve Dağıtım Tamamlandı.
-Silinenler: seferler, teslimatlar, teslimat kalemleri, boş kap hareketleri, tahsilatlar, cari/boş kap denetim kayıtları, iptal/yeniden açma/yükleme denetimleri ve müşteri işlem denetimleri.
+Silinenler: seferler, teslimatlar, teslimat kalemleri, boş kap hareketleri, tahsilatlar ve diğer operasyonel kayıtlar. Denetim tabloları yoktur; temizlik bu tablolara yazmaz ve onları işlemez.
 Korunanlar: müşteri kaydı (ad, telefon, adres, e-posta, not, tür), nihai cari borç (`current_balance_tl`), nihai iade edilebilir kalem adetleri (`customer_empty_balances`), son satış fiyatı (`customer_product_prices`) ve sebil marka/model/adet/açıklama detayları (`customer_dispensers`).
 Temizlik her gün 23:00 Türkiye saatinde (UTC+3) otomatik çalışır; üretimde gerçek silme modu kullanılır.
 Yöneticiye manuel temizlik ekranı sunulmaz; temizlik yalnızca zamanlanmış sunucu işiyle yürütülür.
@@ -445,10 +446,12 @@ Toplam satışlar.
 Alınan ödemeler.
 Kısmi ve sonraki ödemeler.
 İptal edilip silinen tahsilatlar ekstrede gösterilmez; ekstre yalnızca aktif tahsilat kayıtlarını kullanır.
-Yetkilendirilmiş alacaklar, iadeler ve düzeltmeler.
+İadeler.
 Kapanış bekleyen borç bakiyesi.
 Kalem türüne göre güncel iade edilebilir kalem miktarları.
 Müşteride bırakılan ve müşteriden alınan geçmiş miktarlar.
+
+Manuel cari bakiye düzeltmesi ekstreye satır olarak yazılmaz; ekstrede düzeltme satırı ve "Düzeltme" özeti yoktur. Bu nedenle açılış ve kapanış bakiyeleri arasında düzeltme kaynaklı fark oluşabilir; bu durum kabul edilmiştir.
 
 Müşterinin finansal bakiyesi ve iade edilebilir kalem miktarları her zaman ayrı gösterilmelidir.
 
@@ -464,7 +467,7 @@ Bekleyen müşteri borç raporları.
 Müşteri bazında iade edilebilir kalem bakiyeleri.
 Şoför faaliyet ve dağıtım seferi raporları.
 Gün sonu mutabakat raporları.
-Stok uyuşmazlığı ve işlem geçmişi raporları.
+Stok uyuşmazlığı raporları.
 
 Faturalı müşteri birim fiyat, mal tutarı ve cari borç toplamları raporlanmaz; bu tutarlar günlük/konsolide rapor toplamlarına ve şoför faaliyet raporu cirosuna dahil edilmez. Bakiye raporunda faturalı cari borç satırları ve toplamları gösterilmez; iade edilebilir kalem miktarları görünür. Faturalı nakit/POS tahsilatları ve tahsil eden kullanıcı raporlanır.
 
@@ -547,7 +550,7 @@ Uygulama kurulu bir PWA olarak başlatıldığında da kimlik doğrulamanın ve 
 Süresi dolmuş oturumları, oturum kapatmayı ve iptal edilmiş erişimi güvenli şekilde yönetin.
 PWA’yı desteklenen Android tarayıcılarda ve masaüstü tarayıcılarda, ayrıca desteklenen yerlerde iOS’ta test edin.
 Kurulumun, gezinmenin, önbelleklemenin, senkronizasyonun ve uygulama güncellemelerinin üretim ortamında çalıştığından emin olun.
-13. Güvenlik, Denetim İzi ve Veri Bütünlüğü
+13. Güvenlik ve Veri Bütünlüğü
 
 Uygulama, tüm önemli yetkileri ve iş kurallarını sunucu tarafında ve uygun olduğunda veritabanında uygulamalıdır.
 
@@ -559,8 +562,8 @@ Depo genelindeki yönetim ve yetkilendirme işlevlerini depo yöneticisiyle sın
 Yükleme ve teslimat işlemlerini onaylamadan önce stok durumunu doğrulamak.
 Müşteri ödeme tutarlarını doğrulamak ve hesap bakiyelerini tutarlı şekilde güncellemek.
 Her müşteri için doğru iade edilebilir kalem miktarlarını tutmak.
-Önemli işlemleri kimin ne zaman gerçekleştirdiğini kaydetmek; tahsilat iptali bu kuralın istisnasıdır.
-Geçmiş işlemleri ve gönderilen raporları korumak; iptal edilen tahsilat kaydı fiziksel olarak silinir.
+Operasyonel kayıtların sahibini (şoför, yükleyen, tahsil eden) ve zamanını kaydetmek.
+Gönderilen raporları korumak; iptal edilen teslimat, yükleme, satın alma ve tahsilat kayıtları fiziksel olarak silinir.
 Uygun veritabanı işlemleri, kısıtlamaları ve yetkilendirme politikaları kullanmak.
 Mükerrer veya çakışan işlemleri önlemek.
 Başarı mesajlarını göstermeden önce veritabanı işlemlerinin başarılı olduğunu doğrulamak.
@@ -570,6 +573,7 @@ Faturalı teslimatta birim fiyatı istemciden almak yerine ürün default fiyat�
 Şoförün teslimat dışı tahsilatını yalnızca kendi aktif seferi için kabul etmek ve tahsilatı sefere bağlamak.
 Tahsilatı idempotent kimlikle kaydetmek; kayıt silinmemişse aynı kimliğin bakiyeyi ikinci kez düşürmesini engellemek.
 Tahsilat ve bakiye değişikliğini tek veritabanı işleminde yazmak; iptalde tahsilat kaydını fiziksel olarak silmek ve bakiyeyi geri eklemek. İptal için denetim kaydı veya açıklama yazmamak.
+Tahsilat düzeltmesinde ekrandaki beklenen tutarı mevcut tutarla karşılaştırmak; eşleşmezse işlemi reddetmek.
 Kapanmış seferde teslimat ve tahsilat iptali/düzeltmesini yönetici dahil reddetmek; kapalı seferin kasa/POS ve actual toplamlarına yazmamak.
 
 Bir işlemi arayüzde gizlemek onu güvence altına almak için yeterli değildir. Yetkisiz istekler sunucu veya veritabanı tarafından da reddedilmelidir.
@@ -580,12 +584,12 @@ Tüm ekranlarda ve raporlarda net ve tutarlı Türkçe terminoloji kullanın.
 Kullanıcı arayüzünü, iş mantığını ve veritabanı işlemlerini ayırın.
 Ürünleri, ürün kategorilerini, şoförleri, müşterileri, araç plakalarını ve ilgili operasyonel ayarları yapılandırılabilir hale getirin.
 Yetkili kullanıcılar tarafından yönetilmesi gereken iş verilerini koda gömmekten kaçının.
-Geçmiş verileri koruyun ve önemli işlemler için bir denetim izi sağlayın; tahsilat iptali istisnadır ve kayıt denetim izi bırakmadan silinir.
+Gönderilen raporları ve sonlandırılmış seferleri koruyun; projede denetim izi (audit) tutulmaz. Düzeltme ve iptal geçmişi tutulmaz; iptal edilen kayıtlar fiziksel olarak silinir.
 Günlük dağıtım operasyonları sırasında depo personeli ve şoförler için kullanılabilirliğe öncelik verin.
 İş kurallarını uygun uygulama ve veritabanı katmanlarında uygulayın ve doğrulayın.
 Bir gereksinim belirsiz olduğunda ek iş kuralları icat etmeyin. Envanteri, müşteri borcunu, iade edilebilir kalem bakiyelerini veya muhasebeyi etkileyebilecek kararları uygulamadan önce açıklama isteyin.
 Başarılı bir kullanıcı arayüzü etkileşimini bir veritabanı işleminin başarılı olduğunun kanıtı olarak kabul etmeyin.
-Hesaplamaların onaylanmış ve izlenebilir işlemlere dayandığından emin olun.
+Hesaplamaların onaylanmış operasyonel kayıtlara dayandığından emin olun.
 Uygulamanın küçük ekranlarda yatay sayfa kaydırması olmadan doğru çalıştığını doğrulayın.
 PWA kurulumunu, servis çalışanı davranışını ve desteklenen çevrimdışı yetenekleri üretim ortamında doğrulayın.
 Mevcut proje bağımlılıkları gerekli işlevselliği güvenle sağlayabildiğinde gereksiz kütüphane eklemekten kaçının.
@@ -599,11 +603,11 @@ Depo yöneticisi ekibi denetler ve teslimat yapmaz.
 Her dağıtım seferi; yetkili bir şoför, dinamik olarak seçilen bir araç plakası ve onaylanmış bir yükleme kaydı gerektirir.
 Araç stoku; yükleme, teslimat, iade ve düzeltme hareketlerinin her biri için tutarlı şekilde güncellenmelidir.
 Bir şoför, önceki sefer mutabık hale getirilmeden, gün sonu raporu gönderilmeden ve sefer başarıyla sonlandırılmadan yeni bir dağıtım seferi başlatamaz.
-Müşteri borç bakiyeleri; kaydedilmiş satışlara, ödemelere ve yetkilendirilmiş finansal düzeltmelere dayanmalıdır.
+Müşteri borç bakiyeleri; kaydedilmiş satışlara, ödemelere ve yetkili manuel cari bakiye düzeltmelerine dayanmalıdır.
 Müşteri iade edilebilir kalem bakiyeleri müşteri ve kalem türü bazında ayrı takip edilmelidir.
 İade edilebilir kalem takibi yalnızca miktarlara dayanır. Parasal depozito ücretleri, iadeleri ve bakiyeleri uygulanmamalıdır.
 Müşterinin finansal borcu ve bekleyen iade edilebilir kalem miktarları asla tek bir bakiyede birleştirilmemelidir.
-Tüm önemli işlemler izlenebilir olmalı ve geçmiş kayıtlar sessizce üzerine yazılmamalı veya silinmemelidir; tahsilat iptali istisnadır ve iptal edilen tahsilat fiziksel olarak silinir.
+Düzeltme ve iptal işlemleri için denetim kaydı tutulmaz; gerekçe veya açıklama zorunlu değildir. İptal edilen teslimat, yükleme ve satın alım kayıtları fiziksel olarak silinir; tahsilat iptali ve düzeltmesi de kayıt bırakmaz. Tahsilat düzeltmesi beklenen tutar kontrolüyle yapılır. Onaylanmış operasyonel kayıtlar sessizce üzerine yazılmaz.
 Mobil cihazlarda uygulama, yatay sayfa kaydırması olmadan dikey kaydırmayla kullanılabilmelidir.
 Uygulama, desteklenen platformlarda PWA olarak kurulabilmelidir.
 Çevrimdışı işlem desteği, bir işlemin sunucu tarafından senkronize edildiğini veya onaylandığını asla yanlış bir şekilde belirtmemelidir.
@@ -630,7 +634,7 @@ Aşağıdaki gereksinimler zorunludur:
 Mevcut Supabase proje yapılandırmasını değiştirmeyin, yenisiyle değiştirmeyin, sıfırlamayın veya kaldırmayın.
 Mevcut Supabase proje URL’sini, proje referansını, API anahtarlarını, ortam değişkeni adlarını veya ortam değişkeni yapılandırmasını değiştirmeyin.
 Uygulamayı mevcut Supabase projesinden ayırmayın veya farklı bir Supabase projesine, veritabanına ya da arka uç ortamına geçirmeyin.
-Mevcut veritabanı tablolarının, şemaların, kayıtların, kimlik doğrulama ayarlarının, Satır Düzeyi Güvenlik (RLS) politikalarının, veritabanı fonksiyonlarının, tetikleyicilerin veya diğer Supabase kaynaklarının üzerine yazmayın, bunları silmeyin, yeniden oluşturmayın veya sıfırlamayın.
+Mevcut veritabanı tablolarının, şemaların, kayıtların, kimlik doğrulama ayarlarının, Satır Düzeyi Güvenlik (RLS) politikalarının, veritabanı fonksiyonlarının, tetikleyicilerin veya diğer Supabase kaynaklarının üzerine yazmayın, bunları silmeyin, yeniden oluşturmayın veya sıfırlamayın. İstisna: denetim tabloları (customer_financial_audit, customer_operations, delivery_cancellation_audit, dispatch_cancellation_audit, dispatch_loading_audit, dispatch_reopen_audit, customer_payment_audit, purchase_audit, retention_archive) yalnızca kullanıcı onayıyla kaldırılabilir; bu tablolara yazım yapılmaz ve temizlik bunları işlemez. Bu istisna dışındaki madde aynen geçerlidir.
 Açıkça talep edilmedikçe Supabase kimlik doğrulama sağlayıcılarını, yönlendirme URL’lerini, oturum ayarlarını veya yetkilendirme yapılandırmasını değiştirmeyin.
 Geliştirmeyi kolaylaştırmak için RLS’yi devre dışı bırakmayın veya mevcut veritabanı izinlerini zayıflatmayın.
 Supabase kimlik bilgilerini, servis rolü anahtarlarını veya diğer gizli bilgileri istemci tarafı kodunda veya kaynak kontrolünde açığa çıkarmayın, yazdırmayın, commit etmeyin ve koda gömmeyin.
@@ -645,7 +649,7 @@ Değişiklikleri uyguladıktan sonra uygulamanın mevcut Supabase projesine hâl
 
 Birincil hedef: Mevcut Supabase yapılandırmasını, arka uç bağlantısını, veritabanı içeriğini, kimlik doğrulamasını ve yetkilendirme kurallarını koruyarak uygulamayı geliştirmeye ve iyileştirmeye devam edin. Yeni bir özellik uygulamak veya kullanıcı arayüzünü iyileştirmek uğruna mevcut arka uçla iletişim kurma yeteneğinden ödün vermeyin.
 
-17.1. Mevcut Uygulama Sözleşmesi (2026-11-04)
+17.1. Mevcut Uygulama Sözleşmesi (2026-11-24)
 
 Aşağıdaki davranışlar mevcut uygulamada geçerlidir ve korunmalıdır:
 
@@ -654,11 +658,12 @@ Faturalı müşteride birim fiyat, mal tutarı, cari borç ve geçmiş fiyat ara
 Faturalı teslimatta sunucu, istemci fiyatı yerine ürün default fiyatını uygular; `delivery_items.unit_price` ve `customer_product_prices` ileride kullanım için saklanır.
 Peşin müşteride son satış fiyatı gösterilir; kısmi/veresiye kalan tutar `current_balance_tl` alanına borç yazılır.
 Şoför teslimat dışı tahsilatı `customer_payments` tablosuna yazılır; `dispatch_id` ile aktif sefere bağlanır. Sefer silinirse 60 günden yeni tahsilat `ON DELETE SET NULL` ile korunur; 60 günü geçen aktif tahsilat temizlikte silinir. İptal edilen tahsilat iptal anında fiziksel olarak silinir.
-`record_customer_payment` idempotenttir; aynı `payment_id` kaydı silinmemişse bakiyeyi ikinci kez düşürmez ve finansal denetim kaydı yazmaz. İptal işlemi `amend_customer_payment` ile bakiyeyi geri ekler, `customer_payments` satırını siler ve denetim/açıklama yazmaz; sefere bağlı tahsilatlarda yalnızca `in_transit` seferde çalışır.
+`record_customer_payment` idempotenttir; aynı `payment_id` kaydı silinmemişse bakiyeyi ikinci kez düşürmez. İptal ve tahsilat düzeltmesi `amend_customer_payment` ile yapılır; bakiyeyi geri ekler, `customer_payments` satırını siler ve beklenen tutar kontrolü uygular (kayıt başka cihazda değiştiyse reddedilir). Düzeltmede not değişmez, denetim/açıklama yazılmaz; sefere bağlı tahsilatlarda yalnızca `in_transit` seferde çalışır.
 Aktif sefer tekilliği `ux_dispatches_active_driver` ve `ux_dispatches_active_plate` kısmi tekil indeksleriyle korunur.
 60 günlük temizlik `20261108_retention_purge_all_movements.sql` ile uygulanır; tüm müşteri borcu `20261106_cash_customer_debt.sql`, sefere bağlı tahsilat `20261107_customer_payment_dispatch.sql`, tahsilat iptalinde fiziksel silme `20261116_customer_payment_hard_delete.sql`, kapanmış seferde tahsilat değişikliği engeli `20261116_customer_payment_closed_dispatch_guard.sql` ile yönetilir.
-Temizlik 23:00 Türkiye saatinde otomatik çalışır; arşiv yoktur, tüm sefer durumları ve günlük hareket/denetim kayıtları kapsanır. Müşteri kaydı, nihai bakiye, nihai emanet adetleri, son fiyat ve sebil detayları korunur. İptal edilen tahsilatlar bu temizliği beklemeden iptal anında silinir.
+Temizlik 23:00 Türkiye saatinde otomatik çalışır; arşiv yoktur, tüm sefer durumları ve günlük operasyonel kayıtları kapsar; denetim tabloları yoktur ve temizlik bunlara dokunmaz. Müşteri kaydı, nihai bakiye, nihai emanet adetleri, son fiyat ve sebil detayları korunur. İptal edilen tahsilatlar bu temizliği beklemeden iptal anında silinir.
 Sebil iade takibi `20261117_sebil_return_tracking.sql` ile yönetilir; `customer_dispensers.source_delivery_id` verilen sebili teslimata bağlar (`ON DELETE SET NULL`), `dispatches.collected_empty_sebil` kapanışta teslimatlardan hesaplanır. İade detayı müşterideki kayıtlarla eşleşmezse açıklama `delivery.notes` alanına `Sebil iade açıklaması: ...` olarak yazılır; `admin_update_customer` içindeki `clear_dispensers` sebil detaylarını da aynı işlemde siler.
+Denetim katmanı kaldırıldı (2026-11-24): projede hiçbir denetim/düzeltme kaydı tutulmaz. `customer_financial_audit`, `customer_operations`, `delivery_cancellation_audit`, `dispatch_cancellation_audit`, `dispatch_loading_audit`, `dispatch_reopen_audit`, `customer_payment_audit`, `purchase_audit` ve `retention_archive` tablolarına yazım yoktur; tablo kaldırma işlemi kullanıcı onayına bağlıdır. Manuel cari bakiye ve boş kap düzeltmesi geçmiş tutulmadan yapılır; cari ekstrede düzeltme satırı yoktur.
 
 <!-- trail:start -->
 Trail — depo bağlam grafiği

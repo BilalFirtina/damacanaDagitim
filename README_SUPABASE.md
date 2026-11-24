@@ -63,8 +63,8 @@ Her `push` ve `pull_request` (hedef: `main`) için GitHub Actions (`.github/work
 2. **retention-db** — `postgres:16` servis konteynerine önce Supabase stub'i
    (`scripts/ci/supabase_stub.sql`) + `supabase_schema.sql` + tüm migration'lar uygulanır,
    ardından `scripts/ci/retention-pg-test.ts` gerçek `public.purge_retention` çağrılarıyla
-   retention semantiğini doğrular (dry-run arşive yazmaz, arşiv-önce silme sırası, eşik sınırı,
-   hata geri alma, advisory lock, denetim tabloları, yetkiler).
+   retention semantiğini doğrular (eşik sınırı,
+   hata geri alma, advisory lock, yetkiler). Denetim tabloları ve arşiv (`retention_archive`) artık kullanılmaz (2026-11-24 kararı); bu kontroller CI testinde güncellenmelidir.
 
 Yerelde aynı SQL doğrulaması için herhangi bir PostgreSQL 16 üzerinde:
 

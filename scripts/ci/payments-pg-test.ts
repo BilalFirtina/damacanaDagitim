@@ -2,7 +2,7 @@
  * scripts/ci/payments-pg-test.ts
  *
  * Gerçek PostgreSQL üzerinde teslimat dışı tahsilat RPC'sini doğrular:
- * atomik bakiye güncellemesi, ödeme + denetim kaydı, idempotency,
+ * atomik bakiye güncellemesi, idempotency, tahsilat düzeltme/iptali (denetim yok),
  * doğrulama hataları, rol yetkileri ve sefere bağlı tahsilatların gün sonu
  * kasa/POS toplamlarına dahil edilmesi. Mock değildir.
  *
@@ -20,6 +20,7 @@ const DATABASE_URL =
 
 const FN = 'public.record_customer_payment';
 const FN_SIG = 'public.record_customer_payment(jsonb)';
+const AMEND_FN = 'public.amend_customer_payment';
 const TABLE = 'public.customer_payments';
 const CUSTOMER_ID = 'c_pay_ci';
 
@@ -64,11 +65,25 @@ async function callPayment(c: Client, body: Record<string, unknown>) {
   };
 }
 
-async function expectError(c: Client, body: Record<string, unknown>, pattern: RegExp) {
+async function callAmend(c: Client, body: Record<string, unknown>) {
+  const res = await c.query(`SELECT ${AMEND_FN}($1::jsonb) AS result`, [JSON.stringify(body)]);
+  return res.rows[0].result as {
+    already_applied?: boolean;
+    balance?: number;
+    status?: string;
+  };
+}
+
+async function expectError(
+  c: Client,
+  body: Record<string, unknown>,
+  pattern: RegExp,
+  call: (client: Client, payload: Record<string, unknown>) => Promise<unknown> = callPayment
+) {
   await c.query('SAVEPOINT payment_error');
   let message = '';
   try {
-    await callPayment(c, body);
+    await call(c, body);
   } catch (e: any) {
     message = String(e?.message ?? e);
   } finally {
@@ -113,7 +128,7 @@ async function main(): Promise<void> {
   check('service_role tablo SELECT yetkisi var', (await hasTable('service_role', 'SELECT')) === true);
   check('service_role tablo INSERT yetkisi var', (await hasTable('service_role', 'INSERT')) === true);
 
-  console.log('\n[2] Atomik tahsilat, idempotency ve denetim izi');
+  console.log('\n[2] Atomik tahsilat ve idempotency');
   await c.query('BEGIN');
   try {
     await c.query(
@@ -125,13 +140,6 @@ async function main(): Promise<void> {
 
     await c.query('SET ROLE service_role');
 
-    const auditBefore = await c.query(
-      `SELECT count(*)::int AS n
-         FROM public.customer_financial_audit
-        WHERE customer_id = $1`,
-      [CUSTOMER_ID]
-    );
-
     const first = await callPayment(c, payload());
     check('ilk tahsilat uygulandı', first.already_applied === false);
     check('bakiye 374,50', Number(first.balance) === 374.5, `${first.balance}`);
@@ -142,17 +150,6 @@ async function main(): Promise<void> {
     check('ödeme kaydı oluştu', paymentRow.rowCount === 1);
     check('tutar 125,50', Number(paymentRow.rows[0]?.amount) === 125.5);
     check('yöntem CASH', paymentRow.rows[0]?.method === 'CASH');
-
-    const auditAfter = await c.query(
-      `SELECT count(*)::int AS n
-         FROM public.customer_financial_audit
-        WHERE customer_id = $1`,
-      [CUSTOMER_ID]
-    );
-    check(
-      'tahsilat finansal denetim kaydı yazmıyor',
-      auditAfter.rows[0]?.n === auditBefore.rows[0]?.n
-    );
 
     const second = await callPayment(c, payload());
     check('aynı payment_id idempotent', second.already_applied === true);
@@ -306,6 +303,145 @@ async function main(): Promise<void> {
       /DISPATCH_NOT_OPEN/
     );
     check('kapanmis sefere tahsilat reddedildi', closedPayment);
+
+    const closedAmend = await expectError(
+      c,
+      {
+        payment_id: 'pay_linked_ci',
+        mode: 'update',
+        amount: 90,
+        method: 'CASH',
+        expected_amount: 100,
+        expected_method: 'CASH',
+        actor_id: 'u_driver_pay_ci',
+        actor_name: 'CI Şoför',
+      },
+      /DISPATCH_CLOSED/,
+      callAmend
+    );
+    check('kapanmis seferde tahsilat duzeltilemez', closedAmend);
+  } finally {
+    await c.query('ROLLBACK');
+  }
+
+  console.log('\n[6] Tahsilat düzeltme ve iptal: beklenen tutar kontrolü, denetim kaydı yok');
+  await c.query('BEGIN');
+  try {
+    await c.query(
+      `INSERT INTO public.customers (id, name, current_balance_tl, is_account_customer)
+       VALUES ($1, 'CI Düzeltme Müşterisi', 500, true)
+       ON CONFLICT (id) DO UPDATE SET current_balance_tl = 500`,
+      [CUSTOMER_ID]
+    );
+
+    const auditCounts = async () =>
+      (
+        await c.query(
+          `SELECT (SELECT count(*)::int FROM public.customer_payment_audit) AS pay,
+                  (SELECT count(*)::int FROM public.customer_financial_audit) AS fin`
+        )
+      ).rows[0];
+    const balanceNow = async () =>
+      Number(
+        (
+          await c.query('SELECT current_balance_tl FROM public.customers WHERE id = $1', [
+            CUSTOMER_ID,
+          ])
+        ).rows[0]?.current_balance_tl
+      );
+    const auditBefore = await auditCounts();
+
+    await callPayment(c, payload({ payment_id: 'pay_amend_1', amount: 100, method: 'CASH' }));
+    check('düzeltme testi tahsilatı sonrası bakiye 400', (await balanceNow()) === 400);
+
+    const amendBody = (overrides: Record<string, unknown> = {}) => ({
+      payment_id: 'pay_amend_1',
+      mode: 'update',
+      amount: 150,
+      method: 'POS',
+      expected_amount: 100,
+      expected_method: 'CASH',
+      actor_id: 'u_admin',
+      actor_name: 'Yönetici',
+      ...overrides,
+    });
+
+    check(
+      'beklenen tutar yoksa EXPECTATION_REQUIRED',
+      await expectError(
+        c,
+        amendBody({ expected_amount: null }),
+        /EXPECTATION_REQUIRED/,
+        callAmend
+      )
+    );
+    check(
+      'beklenen tutar uyuşmazsa PAYMENT_CHANGED',
+      await expectError(c, amendBody({ expected_amount: 90 }), /PAYMENT_CHANGED/, callAmend)
+    );
+    check(
+      'beklenen yöntem uyuşmazsa PAYMENT_CHANGED',
+      await expectError(c, amendBody({ expected_method: 'POS' }), /PAYMENT_CHANGED/, callAmend)
+    );
+    check('uyuşmazlıklarda bakiye değişmedi', (await balanceNow()) === 400);
+
+    const amended = await callAmend(c, amendBody());
+    check('düzeltme uygulandı', amended.already_applied === false);
+    check(
+      'düzeltme bakiye farkını uygular (400 -> 350)',
+      Number(amended.balance) === 350 && (await balanceNow()) === 350
+    );
+    const amendedRow = await c.query(
+      `SELECT amount, method, note FROM ${TABLE} WHERE id = 'pay_amend_1'`
+    );
+    check(
+      'düzeltilmiş tutar ve yöntem saklandı',
+      Number(amendedRow.rows[0]?.amount) === 150 && amendedRow.rows[0]?.method === 'POS'
+    );
+    check('düzeltmede not değişmedi', amendedRow.rows[0]?.note === 'CI testi');
+
+    const same = await callAmend(c, amendBody());
+    check('aynı değerler already_applied döner', same.already_applied === true);
+    check('aynı değerlerde bakiye değişmedi', (await balanceNow()) === 350);
+
+    check(
+      'eski beklenen değerle ikinci düzeltme reddedilir',
+      await expectError(
+        c,
+        amendBody({ amount: 200, method: 'CASH', expected_amount: 100, expected_method: 'CASH' }),
+        /PAYMENT_CHANGED/,
+        callAmend
+      )
+    );
+
+    const cancelled = await callAmend(c, {
+      payment_id: 'pay_amend_1',
+      mode: 'cancel',
+      actor_id: 'u_admin',
+      actor_name: 'Yönetici',
+    });
+    check('iptal tahsilatı siler', cancelled.status === 'deleted');
+    check(
+      'iptal bakiyeyi geri ekler (350 -> 500)',
+      Number(cancelled.balance) === 500 && (await balanceNow()) === 500
+    );
+    const gone = await c.query(`SELECT count(*)::int AS n FROM ${TABLE} WHERE id = 'pay_amend_1'`);
+    check('iptal sonrası tahsilat satırı yok', Number(gone.rows[0]?.n) === 0);
+    check(
+      'silinmiş tahsilatın tekrar iptali PAYMENT_NOT_FOUND',
+      await expectError(
+        c,
+        { payment_id: 'pay_amend_1', mode: 'cancel', actor_id: 'u_admin', actor_name: 'Yönetici' },
+        /PAYMENT_NOT_FOUND/,
+        callAmend
+      )
+    );
+
+    const auditAfter = await auditCounts();
+    check(
+      'düzeltme ve iptal denetim kaydı yazmadı',
+      auditAfter.pay === auditBefore.pay && auditAfter.fin === auditBefore.fin
+    );
   } finally {
     await c.query('ROLLBACK');
   }

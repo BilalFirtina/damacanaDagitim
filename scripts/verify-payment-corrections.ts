@@ -17,6 +17,12 @@ const hardDeleteMigration = fs.readFileSync(
   path.resolve('migrations/20261116_customer_payment_hard_delete.sql'),
   'utf8'
 );
+const correctionMigration = fs
+  .readFileSync(
+    path.resolve('migrations/20261124_remove_correction_audits_payments_purchases.sql'),
+    'utf8'
+  )
+  .replace(/--.*$/gm, '');
 const closedDispatchGuardMigration = fs.readFileSync(
   path.resolve('migrations/20261116_customer_payment_closed_dispatch_guard.sql'),
   'utf8'
@@ -60,29 +66,39 @@ check(
   /CHECK \(status IN \('active', 'cancelled'\)\)/i.test(migration)
 );
 check(
-  'customer_payment_audit tablosu oluşturuluyor',
-  /CREATE TABLE IF NOT EXISTS public\.customer_payment_audit/i.test(migration)
-);
-check(
-  'denetim kaydı request_id ile idempotent',
-  /request_id TEXT NOT NULL UNIQUE/i.test(migration)
-);
-check(
-  'denetim kaydı payment silinince temizleniyor',
-  /REFERENCES public\.customer_payments\(id\) ON DELETE CASCADE/i.test(migration)
-);
-check(
-  'denetim tablosu değiştirilemez',
-  /prevent_customer_payment_audit_mutation/i.test(migration)
-);
-check(
   'tahsilat trigger yalnızca kontrollü düzeltmeye izin veriyor',
   /current_setting\('app\.payment_correction', true\) = 'on'/i.test(migration)
 );
 check(
+  'yeni migration request_id kullanmıyor',
+  !/request_id/i.test(correctionMigration)
+);
+check(
+  'yeni migration customer_payment_audit yazmıyor',
+  !/INSERT INTO public\.customer_payment_audit/i.test(correctionMigration)
+);
+check(
+  'yeni migration customer_financial_audit yazmıyor',
+  !/INSERT INTO public\.customer_financial_audit/i.test(correctionMigration)
+);
+check(
+  'yeni migration beklenen tutar kontrolü içeriyor (EXPECTATION_REQUIRED)',
+  /EXPECTATION_REQUIRED/.test(correctionMigration)
+);
+check(
+  'yeni migration beklenen tutar uyuşmazlığını reddediyor (PAYMENT_CHANGED)',
+  /PAYMENT_CHANGED/.test(correctionMigration)
+);
+check(
+  'yeni düzeltme yalnızca tutar ve yöntemi günceller (not değişmez)',
+  /SET amount = v_amount,\s*method = v_method\s*WHERE id = v_payment_id/.test(
+    correctionMigration
+  )
+);
+check(
   'amend_customer_payment SECURITY DEFINER',
   /FUNCTION public\.amend_customer_payment\(p jsonb\)[\s\S]*SECURITY DEFINER/i.test(
-    migration
+    correctionMigration
   )
 );
 check(
@@ -186,7 +202,7 @@ check(
   'statement aktif tahsilatları kullanır',
   /getCustomerPaymentsForStatement/.test(server) &&
     /payments: payments\.map/.test(server) &&
-    /isLegacyPaymentAudit/.test(statementRules)
+    !/audits/.test(statementRules)
 );
 check(
   'şoför görünümü aktif sefere göre tahsilat çeker',

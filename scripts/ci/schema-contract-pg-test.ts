@@ -80,7 +80,6 @@ async function main() {
       ['deliveries', 'stock_override_details'],
       ['customer_payments', 'status'],
       ['customer_payments', 'dispatch_id'],
-      ['customer_payment_audit', 'request_id'],
       ['purchases', 'status'],
       ['purchase_items', 'quantity'],
       ['purchase_items', 'unit_price'],
@@ -98,6 +97,9 @@ async function main() {
 
     const functions = [
       'public.apply_delivery(jsonb)',
+      'public.cancel_or_replace_delivery(jsonb)',
+      'public.update_dispatch_loading(jsonb)',
+      'public.cancel_dispatch(jsonb)',
       'public.close_dispatch(jsonb)',
       'public.record_customer_payment(jsonb)',
       'public.amend_customer_payment(jsonb)',
@@ -123,9 +125,6 @@ async function main() {
     const triggers = [
       ['customer_payments', 'trg_customer_payments_no_update_delete'],
       ['customer_payments', 'trg_customer_payments_no_truncate'],
-      ['customer_payment_audit', 'trg_customer_payment_audit_no_update_delete'],
-      ['customer_payment_audit', 'trg_customer_payment_audit_no_truncate'],
-      ['customer_financial_audit', 'trg_customer_financial_audit_no_update_delete'],
     ];
     const triggerRows = await client.query(
       `select c.relname as table_name, t.tgname as trigger_name

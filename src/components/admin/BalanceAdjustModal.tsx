@@ -17,8 +17,6 @@ const moneyFmt = new Intl.NumberFormat('tr-TR', {
 
 const money = (value: number) => `${moneyFmt.format(value)} ₺`;
 
-// Yönetici cari bakiye düzeltmesi. Açıklama istenmez; denetim kaydında
-// sunucu tarafından "Yönetici düzeltmesi" yazılır.
 export const BalanceAdjustModal: React.FC<BalanceAdjustModalProps> = ({
   customer,
   onClose,

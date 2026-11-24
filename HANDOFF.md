@@ -53,12 +53,12 @@ Dört temel unsur:
 | Cari borç + iade edilebilir kalem bakiye raporu | ✅ | `185dbb0` |
 | Şoför faaliyet raporu | ✅ | `cab9347` |
 | Depo stoğu kaldırıldı, araç merkezli modele dönüş | ✅ | `327825c` |
-| Teslimat dışı tahsilat (idempotent, bakiye + denetim izi tek transaction) | ✅ | `46ca675` |
+| Teslimat dışı tahsilat (idempotent, bakiye tek transaction) | ✅ | `46ca675` |
 | Araçta kalan ürün ve kasa uyuşmazlık raporu | ✅ | `4ae62f4` |
 | Su sebili: fiyatsız iade edilebilir kalem | ✅ | `7a1b56f` |
 | Sebil tesliminde marka/model/nereye bırakıldığı | ✅ | `382961e` |
 | Sebil detayları sadece kayıtta, raporlarda sadece adet | ✅ | `a8dc325` |
-| Birleşik işlem geçmişi raporu (teslimat/sefer/yükleme) | ✅ | `24701f5` |
+| Birleşik işlem geçmişi raporu (teslimat/sefer/yükleme) — kaldırıldı (2026-11-24) | ➖ | `24701f5` |
 | Sıfır fiyatlı ürün hatası (sebil 100 TL görünüyordu) | ✅ | `e59a50f` |
 
 ### Eklenen doğrulama betikleri
@@ -85,9 +85,9 @@ Dört temel unsur:
 - `product_categories` → `sebil`
 - `products` → `prod_sebil` / "Su Sebili" / fiyat 0 / `is_deposit: true`
 
-### 3.2. İşlem geçmişi raporu — TAMAMLANDI ✅
+### 3.2. Denetim kayıtları kaldırıldı — 2026-11-24
 
-`GET /api/audit/history` + Raporlar > **İşlem Geçmişi** sekmesi. Teslimat iptal/düzeltme, sefer yeniden açma ve yükleme düzeltmeleri tek kronolojik listede; tür filtresi var.
+Denetim kayıtları kaldırıldı (2026-11-24); düzeltme/iptal kayıtları tutulmaz. Önceki "İşlem Geçmişi" raporu (`GET /api/audit/history`, Raporlar > İşlem Geçmişi sekmesi) bu karara göre kaldırılacaktır; kod değişikliği bu dokümanın kapsamı dışındadır.
 
 ### 3.3. Uçtan uca test — TAMAMLANDI ✅
 
@@ -97,7 +97,7 @@ Dört temel unsur:
 - Teslimat dışı tahsilat + bakiye düşüşü
 - Idempotency: aynı `payment_id` ikinci kez düşmüyor
 - Cari ekstre: tahsilat satırı + kapanış bakiyesi
-- Bakiye raporu, günlük rapor "Teslimat Dışı Tahsilat", işlem geçmişi endpoint'i
+- Bakiye raporu, günlük rapor "Teslimat Dışı Tahsilat" (işlem geçmişi endpoint'i 2026-11-24'te kaldırıldı)
 
 **Sebil zinciri turu (19/19 PASS):**
 - Ergün'ün 2026-10-21 açık seferi gün sonu mutabakatıyla kapatıldı (kullanıcı onayıyla)
@@ -117,8 +117,8 @@ Dört temel unsur:
   `cust_1793596877990_1kr3` (125,50 TL tahsilat), `cust_1793597127934_2fyp`,
   `cust_1793597182363_5rvs`, `cust_1793597228128_7r6g` (her biri 220 TL açık borç)
 - Test seferleri: birkaç kapatılmış `disp_...` kaydı
-- Silme endpoint'i yok; gerekirse Supabase'den temizlenebilir. Tahsilat/denetim kayıtları
-  trigger nedeniyle silinemez.
+- Silme endpoint'i yok; gerekirse Supabase'den temizlenebilir. Tahsilat kayıtları
+  trigger nedeniyle silinemez. Denetim kaydı tutulmaz (2026-11-24).
 
 ### 3.4. (Eski) Uçtan uca test adımları
 
@@ -132,7 +132,7 @@ Dört temel unsur:
 6. Tahsilat → bakiye → ekstre
 7. Günlük rapor → "Teslimat Dışı Tahsilat"
 
-> Test kayıtları `customer_payments` ve `customer_financial_audit` tablolarında kalıcıdır (immutable trigger). Veritabanı geliştirme aşamasında olduğu için kabul edilebilir.
+> Test kayıtları `customer_payments` tablosunda kalıcıdır (immutable trigger). `customer_financial_audit` artık yazılmaz (2026-11-24). Veritabanı geliştirme aşamasında olduğu için kabul edilebilir.
 
 ---
 
@@ -212,4 +212,4 @@ Beklenen sağlık yanıtı: `{"status":"ok","database":"supabase_api","connected
 - Supabase URL/anahtar/env adları değiştirilmedi; RLS zayıflatılmadı.
 - Yeni npm bağımlılığı eklenmedi.
 - Sunucu tarafı yetkilendirme: `requireAdmin`, `requireAdminOrDriver`, `requireAdminOrLoader`.
-- `customer_payments` ve `customer_financial_audit` kayıtları değiştirilemez/silinemez (trigger).
+- `customer_payments` kayıtları değiştirilemez/silinemez (trigger). Denetim tablolarına yazım yoktur (2026-11-24).

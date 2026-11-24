@@ -347,34 +347,16 @@ async function retentionSnapshot(c: Client): Promise<string> {
 async function scenarioRetention(c: Client): Promise<void> {
   console.log('\n[4] Retention: sebil, musteri bakiyesi ve bos kap degismez');
 
-  // dispatches CASCADE, FK nedeniyle customer_payments'i de truncate eder;
-  // denetim trigger'ı yalnızca test kurulumunda geçici olarak kapatılır.
-  const paymentTrigger = 'trg_customer_payments_no_truncate';
-  const paymentAuditTrigger = 'trg_customer_payment_audit_no_truncate';
-  await c.query(`ALTER TABLE public.customer_payments DISABLE TRIGGER ${paymentTrigger}`);
-  await c.query(
-    `ALTER TABLE public.customer_payment_audit DISABLE TRIGGER ${paymentAuditTrigger}`
-  );
-  try {
-    // TRUNCATE ... CASCADE, yeni source_delivery_id FK'si nedeniyle
-    // customer_dispensers tablosunu da boşaltırdı. Bu yüzden operasyonel
-    // tablolar bağımlılık sırasıyla DELETE ile temizlenir; müşteri sebil
-    // kayıtları korunur (FK ON DELETE SET NULL).
-    await c.query(`
-      DELETE FROM public.delivery_container_returns;
-      DELETE FROM public.delivery_items;
-      DELETE FROM public.deliveries;
-      DELETE FROM public.dispatch_reconciliation_items;
-      DELETE FROM public.dispatch_items;
-      DELETE FROM public.dispatches;
-      DELETE FROM public.retention_archive;
-    `);
-  } finally {
-    await c.query(`ALTER TABLE public.customer_payments ENABLE TRIGGER ${paymentTrigger}`);
-    await c.query(
-      `ALTER TABLE public.customer_payment_audit ENABLE TRIGGER ${paymentAuditTrigger}`
-    );
-  }
+  // Operasyonel tablolar bağımlılık sırasıyla DELETE ile temizlenir; müşteri
+  // sebil kayıtları korunur (source_delivery_id FK'si ON DELETE SET NULL).
+  await c.query(`
+    DELETE FROM public.delivery_container_returns;
+    DELETE FROM public.delivery_items;
+    DELETE FROM public.deliveries;
+    DELETE FROM public.dispatch_reconciliation_items;
+    DELETE FROM public.dispatch_items;
+    DELETE FROM public.dispatches;
+  `);
   await c.query(`
     INSERT INTO public.dispatches
       (id, date, driver_id, driver_name, vehicle_plate, loaded_by_user_id, loaded_by_user_name,
