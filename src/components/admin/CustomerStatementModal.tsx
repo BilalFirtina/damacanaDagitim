@@ -134,8 +134,8 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white  rounded-2xl border border-slate-200  shadow-2xl w-full max-w-3xl my-4 min-w-0">
-        <div className="p-4 sm:p-5 border-b border-slate-100  flex items-start justify-between gap-3">
+      <div className="bg-white  rounded-2xl border border-slate-200  shadow-2xl w-full max-w-3xl min-w-0 max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] flex flex-col">
+        <div className="shrink-0 p-4 sm:p-5 border-b border-slate-100  flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-sm sm:text-base font-bold text-slate-900  break-words">
               Cari Hesap Ekstresi
@@ -152,7 +152,7 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
           </button>
         </div>
 
-        <div className="p-4 sm:p-5 space-y-4">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">
           <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
             <label className="flex-1 min-w-0">
               <span className="text-[11px] font-semibold text-slate-500 block mb-1">Başlangıç</span>
