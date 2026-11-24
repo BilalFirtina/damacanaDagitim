@@ -119,14 +119,10 @@ check(
   'kapatma: completed reddedilir',
   validateCloseTransition('completed').errorCode === 'DISPATCH_ALREADY_COMPLETED'
 );
-check(
-  'iptal: pending + gerekçe kabul',
-  validateDispatchCancel({ ...pendingCtx, reason: 'Yanlış yükleme' }).ok
-);
+check('iptal: pending kabul', validateDispatchCancel({ ...pendingCtx }).ok);
 check(
   'iptal: şoför reddedilir',
-  validateDispatchCancel({ ...pendingCtx, role: 'driver', reason: 'Yanlış yükleme' }).errorCode ===
-    'NOT_AUTHORIZED'
+  validateDispatchCancel({ ...pendingCtx, role: 'driver' }).errorCode === 'NOT_AUTHORIZED'
 );
 check(
   'iptal: aktif teslimat varsa reddedilir',
@@ -134,7 +130,6 @@ check(
     ...pendingCtx,
     status: 'in_transit',
     hasActiveDeliveries: true,
-    reason: 'Yanlış yükleme',
   }).errorCode === 'DELIVERIES_EXIST'
 );
 check(
@@ -142,17 +137,12 @@ check(
   validateDispatchCancel({
     ...pendingCtx,
     hasLinkedPayments: true,
-    reason: 'Yanlış yükleme',
   }).errorCode === 'PAYMENTS_EXIST'
 );
 check(
-  'iptal: kısa gerekçe reddedilir',
-  validateDispatchCancel({ ...pendingCtx, reason: '  ' }).errorCode === 'REASON_REQUIRED'
-);
-check(
   'iptal: completed reddedilir',
-  validateDispatchCancel({ ...pendingCtx, status: 'completed', reason: 'Yanlış yükleme' })
-    .errorCode === 'DISPATCH_ALREADY_COMPLETED'
+  validateDispatchCancel({ ...pendingCtx, status: 'completed' }).errorCode ===
+    'DISPATCH_ALREADY_COMPLETED'
 );
 
 // ---------------------------------------------------------------------------

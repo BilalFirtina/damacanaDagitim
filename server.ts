@@ -35,7 +35,6 @@ import {
   closeDispatchAtomic,
   adminUpdateCustomerAtomic,
   getDeliveries,
-  getCustomerFinancialAudit,
   createCustomerPayment,
   amendCustomerPayment,
   getCustomerPayments,
@@ -338,7 +337,7 @@ function sendDispatchDbError(res: Response, err: any) {
             code === 'RPC_AUTH_REQUIRED' ||
             code === 'REMOTE_REQUIRED'
           ? 503
-          : code === 'VALIDATION_ERROR' || code === 'EXPECTATION_REQUIRED' || code === 'REASON_REQUIRED'
+          : code === 'VALIDATION_ERROR' || code === 'EXPECTATION_REQUIRED'
             ? 400
             : code === 'DISPATCH_ALREADY_COMPLETED' ||
                 code === 'DISPATCH_CLOSED' ||
@@ -456,9 +455,7 @@ function sendDeliveryCorrectionError(res: Response, err: any) {
       ? 404
       : code === 'NOT_AUTHORIZED'
         ? 403
-        : code === 'REASON_REQUIRED'
-          ? 400
-          : code === 'VALIDATION_ERROR'
+        : code === 'VALIDATION_ERROR'
             ? 422
             : code === 'CANCEL_HISTORICAL_UNSUPPORTED' ||
                 code === 'DELIVERY_ALREADY_CANCELLED' ||
@@ -927,12 +924,12 @@ app.post('/api/purchases/:id/cancel', async (req, res) => {
     if (session.role !== 'admin' && existing.createdByUserId !== session.userId) {
       return res.status(403).json({ error: 'Yalnızca kendi alımınızı iptal edebilirsiniz.' });
     }
-    const purchase = await cancelPurchaseRecord(
+    const result = await cancelPurchaseRecord(
       existing.id,
       { id: session.userId, name: session.name },
       session.role === 'admin'
     );
-    res.json({ purchase });
+    res.json(result);
   } catch (err: any) {
     sendPurchaseError(res, err);
   }
@@ -1000,7 +997,6 @@ app.put('/api/customers/:id', requireAdmin, async (req, res) => {
     'clearDispensers',
     'expectedBalanceTL',
     'expectedEmptyDepositBalance',
-    'correctionReason',
   ]);
   const unknown = Object.keys(body).filter((key) => !allowedFields.has(key));
   if (unknown.length > 0) {
@@ -1067,8 +1063,7 @@ app.put('/api/customers/:id', requireAdmin, async (req, res) => {
               balance: hasBalance ? Number(body.expectedBalanceTL) : undefined,
               empty: hasEmpty ? body.expectedEmptyDepositBalance : undefined,
             },
-            { id: getAuthUser(req)!.userId, name: getAuthUser(req)!.name },
-            typeof body.correctionReason === 'string' ? body.correctionReason : undefined
+            { id: getAuthUser(req)!.userId, name: getAuthUser(req)!.name }
           )
         : await updateCustomer(req.params.id, updates);
 
@@ -1091,15 +1086,6 @@ app.get('/api/customers/:id/payments', requireAdmin, async (req, res) => {
 // ---------------------------------------------------------------------------
 // Teslimat dışı tahsilatlar — canlı akış, dağıtım ekranı ve düzeltme/iptal
 // ---------------------------------------------------------------------------
-
-function paymentCorrectionRequestId(raw: unknown): string | null {
-  if (raw === undefined || raw === null || raw === '') {
-    return `payfix_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  }
-  if (typeof raw !== 'string') return null;
-  const value = raw.trim();
-  return /^payfix_[A-Za-z0-9_-]{1,80}$/.test(value) ? value : null;
-}
 
 type PaymentCorrectionDenial = 'NOT_AUTHORIZED' | 'DISPATCH_CLOSED';
 
@@ -1237,7 +1223,8 @@ app.put('/api/payments/:id', requireAdminOrDriver, async (req, res) => {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const amount = Number(body.amount);
     const method = body.method;
-    const note = typeof body.note === 'string' ? body.note.slice(0, 500) : '';
+    const expectedAmount = Number(body.expectedAmount);
+    const expectedMethod = body.expectedMethod;
 
     if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({ error: 'Tahsilat tutarı sıfırdan büyük olmalıdır.' });
@@ -1245,21 +1232,36 @@ app.put('/api/payments/:id', requireAdminOrDriver, async (req, res) => {
     if (!['CASH', 'POS'].includes(method)) {
       return res.status(400).json({ error: 'Geçersiz ödeme yöntemi. Yalnızca nakit veya POS kabul edilir.' });
     }
-
-    const requestId = paymentCorrectionRequestId(body.requestId);
-    if (!requestId) {
-      return res.status(400).json({ error: 'Geçersiz işlem kimliği.' });
+    if (!Number.isFinite(expectedAmount) || !['CASH', 'POS'].includes(expectedMethod)) {
+      return res.status(400).json({
+        error: 'Uygulama güncellendi. Lütfen sayfayı yenileyip tekrar deneyin.',
+        code: 'EXPECTATION_REQUIRED',
+      });
     }
 
-    const result = await amendCustomerPayment({
-      requestId,
-      paymentId: existing.id,
-      mode: 'update',
-      amount,
-      method,
-      note,
-      actor: { id: session.userId, name: session.name },
-    });
+    let result;
+    try {
+      result = await amendCustomerPayment({
+        paymentId: existing.id,
+        mode: 'update',
+        amount: Math.round(amount * 100) / 100,
+        method,
+        expectedAmount: Math.round(expectedAmount * 100) / 100,
+        expectedMethod,
+        actor: { id: session.userId, name: session.name },
+      });
+    } catch (err: any) {
+      if (err?.code === 'PAYMENT_CHANGED') {
+        const current = await getCustomerPaymentById(existing.id);
+        return res.status(409).json({
+          error: err.message,
+          code: 'PAYMENT_CHANGED',
+          currentAmount: current?.amount ?? null,
+          currentMethod: current?.method ?? null,
+        });
+      }
+      throw err;
+    }
 
     const customer = (await getCustomers()).find((c) => c.id === existing.customerId);
     const payment = await getCustomerPaymentById(existing.id);
@@ -1321,14 +1323,7 @@ app.post('/api/payments/:id/cancel', requireAdminOrDriver, async (req, res) => {
       });
     }
 
-    const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const requestId = paymentCorrectionRequestId(body.requestId);
-    if (!requestId) {
-      return res.status(400).json({ error: 'Geçersiz işlem kimliği.' });
-    }
-
     const result = await amendCustomerPayment({
-      requestId,
       paymentId: existing.id,
       mode: 'cancel',
       actor: { id: session.userId, name: session.name },
@@ -1591,9 +1586,8 @@ app.get('/api/customers/:id/statement', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Gelecek bir tarih aralığı için ekstre alınamaz.' });
     }
 
-    const [deliveries, audits, payments] = await Promise.all([
+    const [deliveries, payments] = await Promise.all([
       getDeliveries({ customerId }),
-      getCustomerFinancialAudit(customerId),
       getCustomerPaymentsForStatement(customerId),
     ]);
 
@@ -1624,7 +1618,6 @@ app.get('/api/customers/:id/statement', requireAdmin, async (req, res) => {
         collectedAt: p.collectedAt,
         collectedByUserName: p.collectedByUserName,
       })),
-      audits,
       from,
       to,
     });
@@ -1848,8 +1841,8 @@ app.put('/api/dispatches/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// Yükleme iptali — yalnızca depo yöneticisi. Fiziksel silme + immutable
-// denetim kaydı DB fonksiyonunda tek transaction içinde yapılır.
+// Yükleme iptali — yalnızca depo yöneticisi. Fiziksel silme DB fonksiyonunda
+// tek transaction içinde yapılır.
 app.post('/api/dispatches/:id/cancel', requireAdmin, async (req, res) => {
   try {
     const allDispatches = await getDispatches();
@@ -1869,11 +1862,10 @@ app.post('/api/dispatches/:id/cancel', requireAdmin, async (req, res) => {
       status: existing.status,
       hasActiveDeliveries,
       hasLinkedPayments,
-      reason: req.body?.reason,
     });
     if (!validation.ok) return sendDispatchRuleError(res, validation);
 
-    await cancelDispatch(existing.id, validation.value!.reason, {
+    await cancelDispatch(existing.id, {
       id: session.userId,
       name: session.name,
     });
@@ -2247,14 +2239,6 @@ app.post('/api/deliveries', async (req, res) => {
 // 5b. Teslimat iptali (soft-cancel) — yalnızca teslimatı yapan şoför
 app.post('/api/deliveries/:id/cancel', async (req, res) => {
   const deliveryId = String(req.params.id || '');
-  const reason = String(req.body?.reason || '').trim();
-
-  if (reason.length < 3) {
-    return res.status(400).json({
-      error: 'İptal için en az 3 karakterlik bir gerekçe girin.',
-      code: 'REASON_REQUIRED',
-    });
-  }
 
   try {
     const session = getAuthUser(req);
@@ -2299,7 +2283,7 @@ app.post('/api/deliveries/:id/cancel', async (req, res) => {
       });
     }
 
-    const result = await cancelDeliveryAtomic(deliveryId, session.userId, reason);
+    const result = await cancelDeliveryAtomic(deliveryId, session.userId);
 
     if (!result.duplicate) {
       const actor = { id: session.userId, name: session.name };
@@ -2335,15 +2319,8 @@ app.post('/api/deliveries/:id/cancel', async (req, res) => {
 // 5c. Teslimat düzenlemesi — eski kayıt iptal + yeni kayıt tek transaction
 app.post('/api/deliveries/:id/replace', async (req, res) => {
   const deliveryId = String(req.params.id || '');
-  const reason = String(req.body?.reason || '').trim();
   const replacementId = String(req.body?.replacementId || '');
 
-  if (reason.length < 3) {
-    return res.status(400).json({
-      error: 'Düzenleme için en az 3 karakterlik bir gerekçe girin.',
-      code: 'REASON_REQUIRED',
-    });
-  }
   if (
     !/^(del_|offline_)[A-Za-z0-9_-]+$/.test(replacementId) ||
     replacementId.length > 100 ||
@@ -2374,6 +2351,20 @@ app.post('/api/deliveries/:id/replace', async (req, res) => {
       ]);
 
     if (!existing) {
+      // Orijinal teslimat daha önce silinmişse, aynı düzenleme kimliğinin
+      // yeni kaydı varsa işlem zaten uygulanmıştır.
+      const applied = await getDeliveryById(replacementId);
+      if (applied && applied.driverId === session.userId) {
+        const customer = allCustomers.find((c) => c.id === applied.customerId);
+        return res.json({
+          delivery: null,
+          replacement: applied,
+          updatedCustomer: customer
+            ? maskCustomerFinancialsForDriver(customer, session)
+            : null,
+          duplicate: true,
+        });
+      }
       return res.status(404).json({
         error: 'Teslimat bulunamadı.',
         code: 'DELIVERY_NOT_FOUND',
@@ -2396,12 +2387,10 @@ app.post('/api/deliveries/:id/replace', async (req, res) => {
     }
 
     if (existing.status === 'cancelled') {
-      if (existing.replacedByDeliveryId !== replacementId) {
-        return res.status(409).json({
-          error: 'Bu teslimat başka bir işlemle iptal edilmiş.',
-          code: 'DELIVERY_ALREADY_CANCELLED',
-        });
-      }
+      return res.status(409).json({
+        error: 'Bu teslimat başka bir işlemle iptal edilmiş.',
+        code: 'DELIVERY_ALREADY_CANCELLED',
+      });
     } else if (!isDispatchOpenForDelivery(dispatch.status)) {
       return res.status(409).json({
         error: 'Sefer kapatılmış. Düzeltme için yönetici seferi yeniden açmalıdır.',
@@ -2450,23 +2439,16 @@ app.post('/api/deliveries/:id/replace', async (req, res) => {
       replacementGivenSebil
     );
 
-    if (existing.status !== 'cancelled') {
-      const activeDeliveries = await getDeliveries({ dispatchId: dispatch.id });
-      assertVehicleStockAvailable(
-        replacement,
-        dispatch,
-        activeDeliveries,
-        existing.id,
-        replacement.stockOverride === true
-      );
-    }
-
-    const result = await replaceDeliveryAtomic(
-      deliveryId,
-      session.userId,
-      reason,
-      replacement
+    const activeDeliveries = await getDeliveries({ dispatchId: dispatch.id });
+    assertVehicleStockAvailable(
+      replacement,
+      dispatch,
+      activeDeliveries,
+      existing.id,
+      replacement.stockOverride === true
     );
+
+    const result = await replaceDeliveryAtomic(deliveryId, session.userId, replacement);
 
     if (!result.duplicate) {
       const actor = { id: session.userId, name: session.name };

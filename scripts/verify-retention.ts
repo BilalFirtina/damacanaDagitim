@@ -10,10 +10,10 @@
  *
  * Part B — server orchestration against a mock PostgREST endpoint:
  *   dry-run default, lock rejection, archive-failure abort, success counts,
- *   error recording, and the dry-run archive contract: p_dry_run=true writes
- *   ZERO retention_archive rows; a real run archives only non-empty tables.
+ *   error recording, and the archive contract: retention_archive hiç yazılmaz ve sayılmaz;
+ *   purged_retention_archive anahtarı yoktur; arşiv satırı silinmez.
  *
- * Part C — static guards on migration 20261022 (the SQL itself cannot run here).
+ * Part C — static guards on migration 20261124 (the SQL itself cannot run here).
  *
  * SAFETY: Supabase env is overwritten with a localhost mock before importing
  * the DB layer. `data_store.json` is backed up and restored, so the test never
@@ -405,47 +405,62 @@ async function partB() {
 // SQL contract is asserted on the source text as a regression guard).
 // ---------------------------------------------------------------------------
 function partC() {
-  console.log('\n3) Migration 20261109 guards (yukleme iptali + musteri verisi korunur)');
+  console.log('\n3) Migration 20261124 guards (denetim yok; temizlik retention_archive ve denetim tablolarına dokunmaz)');
 
   const mig = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
     '..',
     'migrations',
-    '20261109_dispatch_correction_and_reopen_removal.sql'
+    '20261124_remove_correction_audits_payments_purchases.sql'
   );
   const sql = fs.readFileSync(mig, 'utf-8');
-  const purgeSql = sql.slice(sql.indexOf('CREATE OR REPLACE FUNCTION public.purge_retention'));
+  const purgeSql = sql.slice(
+    sql.indexOf('CREATE OR REPLACE FUNCTION public.purge_retention'),
+    sql.indexOf('-- 6) RPC yetki denetimi')
+  );
 
   check('uses CREATE OR REPLACE FUNCTION', /CREATE OR REPLACE FUNCTION public\.purge_retention/.test(sql));
-  check('keeps SECURITY INVOKER', /SECURITY INVOKER/.test(sql));
-  check('keeps advisory lock', sql.includes('pg_try_advisory_xact_lock(620260102)'));
-  check('keeps batched deletes (LIMIT 500)', sql.includes('LIMIT 500'));
-  check('does not write to retention_archive', !/INSERT INTO public\.retention_archive/i.test(sql));
+  check('keeps SECURITY INVOKER', /SECURITY INVOKER/.test(purgeSql));
+  check('keeps advisory lock', purgeSql.includes('pg_try_advisory_xact_lock(620260102)'));
+  check('keeps batched deletes (LIMIT 500)', purgeSql.includes('LIMIT 500'));
+  check('does not write to retention_archive', !/retention_archive/i.test(purgeSql));
   check('does not restrict to completed status', !/status\s*=\s*'completed'/i.test(purgeSql));
   check('does not require closed_at', !/closed_at\s+IS\s+NOT\s+NULL/i.test(purgeSql));
   check('selects all dispatches older than cutoff', /d\.date < v_cutoff::text/.test(purgeSql));
-  check('reports archived_rows as 0', /'archived_rows',\s*v_arch/.test(purgeSql));
+  check('reports archived_rows as 0', /v_arch := 0;/.test(purgeSql) && /'archived_rows',\s*v_arch/.test(purgeSql));
   check('keeps dry-run gate', /IF NOT p_dry_run THEN/.test(purgeSql));
 
-  check('deletes old customer_payments', /DELETE FROM public\.customer_payments/i.test(sql));
-  check('deletes old customer_financial_audit', /DELETE FROM public\.customer_financial_audit/i.test(sql));
-  check('deletes old delivery_cancellation_audit', /DELETE FROM public\.delivery_cancellation_audit/i.test(sql));
-  check('deletes old dispatch_cancellation_audit', /DELETE FROM public\.dispatch_cancellation_audit/i.test(sql));
-  check('deletes old dispatch_loading_audit', /DELETE FROM public\.dispatch_loading_audit/i.test(sql));
-  check('drops empty dispatch_reopen_audit table', /DROP TABLE public\.dispatch_reopen_audit/i.test(sql));
-  check('removes reopen_dispatch function', /DROP FUNCTION IF EXISTS public\.reopen_dispatch/i.test(sql));
-  check('deletes old retention_archive', /DELETE FROM public\.retention_archive/i.test(sql));
-  check('deletes customer_operations when present', sql.includes('public.customer_operations'));
-  check('uses retention delete setting', sql.includes("set_config('app.retention_purge', 'on', true)"));
   check(
-    'grants delete for cancellation audit retention',
-    /GRANT SELECT, INSERT, DELETE ON TABLE public\.dispatch_cancellation_audit TO service_role/i.test(sql)
+    'does not touch audit tables (customer_financial/delivery_cancellation/dispatch_cancellation/dispatch_loading/dispatch_reopen/customer_payment/purchase)',
+    !/public\.(customer_financial_audit|delivery_cancellation_audit|dispatch_cancellation_audit|dispatch_loading_audit|dispatch_reopen_audit|customer_payment_audit|purchase_audit)\b/i.test(
+      purgeSql
+    )
+  );
+  check('does not touch customer_operations', !/customer_operations/i.test(purgeSql));
+  check(
+    'does not report removed purged_* keys',
+    !/'purged_(customer_financial_audit|delivery_cancellation_audit|dispatch_cancellation_audit|dispatch_loading_audit|customer_operations|retention_archive|purchase_audit)'/.test(
+      purgeSql
+    )
+  );
+  check(
+    'reports operational purged_* keys',
+    /'purged_dispatches'/.test(purgeSql) &&
+      /'purged_deliveries'/.test(purgeSql) &&
+      /'purged_customer_payments'/.test(purgeSql) &&
+      /'purged_purchases'/.test(purgeSql) &&
+      /'purged_purchase_items'/.test(purgeSql)
   );
 
-  check('does not delete customers', !/DELETE FROM public\.customers\b/i.test(sql));
-  check('does not delete customer_empty_balances', !/DELETE FROM public\.customer_empty_balances\b/i.test(sql));
-  check('does not delete customer_product_prices', !/DELETE FROM public\.customer_product_prices\b/i.test(sql));
-  check('does not delete customer_dispensers', !/DELETE FROM public\.customer_dispensers\b/i.test(sql));
+  check('deletes old customer_payments', /DELETE FROM public\.customer_payments/i.test(purgeSql));
+  check('deletes old purchases', /DELETE FROM public\.purchases WHERE purchased_at < v_cutoff_ts/.test(purgeSql));
+  check('uses retention delete setting', purgeSql.includes("set_config('app.retention_purge', 'on', true)"));
+
+  check('does not delete customers', !/DELETE FROM public\.customers\b/i.test(purgeSql));
+  check('does not delete customer_empty_balances', !/DELETE FROM public\.customer_empty_balances\b/i.test(purgeSql));
+  check('does not delete customer_product_prices', !/DELETE FROM public\.customer_product_prices\b/i.test(purgeSql));
+  check('does not delete customer_dispensers', !/DELETE FROM public\.customer_dispensers\b/i.test(purgeSql));
+  check('does not delete suppliers', !/DELETE FROM public\.suppliers\b/i.test(purgeSql));
 }
 
 partA();

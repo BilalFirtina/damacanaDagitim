@@ -706,7 +706,6 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       setCashAmountInput(String(cash));
       setPosAmountInput(String(pos));
       setNotes(editDelivery.notes || "");
-      setCorrectionReason("");
       setReplacementId(
         `del_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
       );
@@ -731,7 +730,6 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       setCashAmountInput("0");
       setPosAmountInput("0");
       setNotes("");
-      setCorrectionReason("");
       setReplacementId("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -817,7 +815,6 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
   const [cashAmountInput, setCashAmountInput] = useState<string>("0");
   const [posAmountInput, setPosAmountInput] = useState<string>("0");
   const [notes, setNotes] = useState("");
-  const [correctionReason, setCorrectionReason] = useState("");
   const [replacementId, setReplacementId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingCustomer, setIsSubmittingCustomer] = useState(false);
@@ -1216,19 +1213,6 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
       );
       return;
     }
-    if (isEdit && correctionReason.trim().length < 3) {
-      setErrorPersistent(true);
-      setErrorMsg("Düzenleme için en az 3 karakterlik bir gerekçe girin.");
-      window.requestAnimationFrame(() => {
-        const reasonEl = document.getElementById(
-          "delivery-correction-reason",
-        );
-        reasonEl?.scrollIntoView({ block: "center", behavior: "smooth" });
-        reasonEl?.focus();
-      });
-      return;
-    }
-
     if (stockWarnings.length > 0 && !stockOverrideConfirmedRef.current) {
       setShowStockOverrideConfirm(true);
       return;
@@ -1308,7 +1292,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
           replacementId ||
           `del_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
         if (!replacementId) setReplacementId(rid);
-        await replaceDelivery(editDelivery.id, rid, correctionReason.trim(), {
+        await replaceDelivery(editDelivery.id, rid, {
           deliveredItems,
           collectedPayment,
           emptyContainersReceived,
@@ -1483,10 +1467,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
               ? "Adım 4/4 — Tahsilat ve notları girin"
               : "Adım seçin veya kaydetmeye devam edin";
 
-  const isSubmitReady =
-    !!selectedCustomer &&
-    hasDeliveryContent &&
-    (!isEdit || correctionReason.trim().length >= 3);
+  const isSubmitReady = !!selectedCustomer && hasDeliveryContent;
 
   if (!isOpen) return null;
 
@@ -1560,26 +1541,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
               </p>
               <p>
                 Cari bakiye ve boş kap bakiyeleri net fark kadar düzeltilir.
-                İşlem değiştirilemez denetim kaydına yazılır.
               </p>
-              <div>
-                <label className="text-xs font-bold text-amber-800 block mb-1">
-                  Düzenleme Gerekçesi *
-                </label>
-                <textarea
-                  id="delivery-correction-reason"
-                  required
-                  minLength={3}
-                  rows={2}
-                  placeholder="Örn: Müşteriye 2 adet yerine 3 adet teslim edilmiş."
-                  value={correctionReason}
-                  onChange={(e) => setCorrectionReason(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-amber-300 text-xs bg-white text-slate-900 resize-y"
-                />
-                <p className="text-[11px] text-amber-800/80 mt-1">
-                  En az 3 karakter. Gerekçe denetim kaydında saklanır.
-                </p>
-              </div>
             </div>
           )}
 
@@ -2916,9 +2878,7 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
                   ? "Önce Müşteri Seçiniz"
                   : !hasDeliveryContent
                     ? "Ürün veya Boş Kap Giriniz"
-                    : isEdit && correctionReason.trim().length < 3
-                      ? "Düzenleme Gerekçesi Giriniz"
-                      : isEdit
+                    : isEdit
                         ? selectedCustomer.isAccountCustomer ||
                           totalCollectedVal === 0
                           ? "Düzenlemeyi Kaydet"
@@ -2967,8 +2927,8 @@ export const DeliveryModal: React.FC<DeliveryModalProps> = ({
               </div>
 
               <p className="text-[11px] text-slate-500">
-                Devam ederseniz teslimat stok aşımı olarak kaydedilecek, denetim
-                kaydına işlenecek ve gün sonunda ayrıca gösterilecektir.
+                Devam ederseniz teslimat stok aşımı olarak kaydedilecek ve gün
+                sonunda ayrıca gösterilecektir.
               </p>
 
               <div className="flex items-center gap-2 pt-1">

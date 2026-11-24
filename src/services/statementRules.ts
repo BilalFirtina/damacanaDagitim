@@ -26,15 +26,6 @@ export interface StatementDeliveryInput {
   }>;
 }
 
-export interface StatementAuditInput {
-  id?: string | number;
-  changedAt: string;
-  changedByUserName: string;
-  reason: string;
-  previousBalance: number | null;
-  newBalance: number | null;
-}
-
 export interface StatementPaymentInput {
   id: string;
   amount: number;
@@ -44,7 +35,7 @@ export interface StatementPaymentInput {
   collectedByUserName?: string;
 }
 
-export type StatementEntryType = 'sale' | 'payment' | 'adjustment';
+export type StatementEntryType = 'sale' | 'payment';
 
 export interface StatementEntry {
   id: string;
@@ -70,7 +61,6 @@ export interface CustomerStatementResult {
   closingBalance: number;
   totalSales: number;
   totalPayments: number;
-  totalAdjustments: number;
   entries: StatementEntry[];
 }
 
@@ -91,15 +81,6 @@ function isInRange(timestamp: string, from: string, to: string): boolean {
   return day >= from && day <= to;
 }
 
-// Eski sürümlerde tahsilatlar customer_financial_audit metni olarak yazılıyordu.
-// Ekstre artık aktif customer_payments tablosundan beslendiği için bu satırlar
-// yok sayılır; aksi hâlde aynı tahsilat iki kez sayılır.
-function isLegacyPaymentAudit(reason: string): boolean {
-  return /^(Tahsilat \((CASH|POS|TRANSFER)\)|Tahsilat iptali \(|Tahsilat düzeltmesi \()/i.test(
-    reason || ''
-  );
-}
-
 /**
  * Seçilen tarih aralığı için cari hesap ekstresi üretir.
  *
@@ -111,11 +92,10 @@ export function buildCustomerStatement(params: {
   currentBalance: number;
   deliveries: StatementDeliveryInput[];
   payments?: StatementPaymentInput[];
-  audits: StatementAuditInput[];
   from: string;
   to: string;
 }): CustomerStatementResult {
-  const { currentBalance, deliveries, payments = [], audits, from, to } = params;
+  const { currentBalance, deliveries, payments = [], from, to } = params;
 
   const allEntries: StatementEntry[] = [];
 
@@ -183,27 +163,6 @@ export function buildCustomerStatement(params: {
     });
   }
 
-  for (const audit of audits) {
-    if (audit.previousBalance === null || audit.newBalance === null) continue;
-    // Tahsilat kaynaklı eski denetim satırları artık aktif customer_payments
-    // üzerinden gösterilir; burada tekrar sayılmaz.
-    if (isLegacyPaymentAudit(audit.reason || '')) continue;
-    const delta = money(Number(audit.newBalance) - Number(audit.previousBalance));
-    if (Math.abs(delta) < EPSILON) continue;
-    allEntries.push({
-      id: `adjustment_${audit.id ?? audit.changedAt}`,
-      timestamp: audit.changedAt,
-      type: 'adjustment',
-      description: audit.reason || 'Yetkili bakiye düzeltmesi',
-      items: [],
-      debit: delta > 0 ? delta : 0,
-      credit: delta < 0 ? -delta : 0,
-      balanceDelta: delta,
-      balanceAfter: 0,
-      actor: audit.changedByUserName,
-    });
-  }
-
   allEntries.sort((a, b) => {
     const diff = new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
     if (diff !== 0) return diff;
@@ -221,15 +180,13 @@ export function buildCustomerStatement(params: {
   let running = openingBalance;
   let totalSales = 0;
   let totalPayments = 0;
-  let totalAdjustments = 0;
 
   for (const entry of allEntries) {
     if (!isInRange(entry.timestamp, from, to)) continue;
     running = money(running + entry.balanceDelta);
     entries.push({ ...entry, balanceAfter: running });
     if (entry.type === 'sale') totalSales += entry.debit;
-    else if (entry.type === 'payment') totalPayments += entry.credit - entry.debit;
-    else totalAdjustments += entry.balanceDelta;
+    else totalPayments += entry.credit - entry.debit;
   }
 
   return {
@@ -239,7 +196,6 @@ export function buildCustomerStatement(params: {
     closingBalance: money(running),
     totalSales: money(totalSales),
     totalPayments: money(totalPayments),
-    totalAdjustments: money(totalAdjustments),
     entries,
   };
 }

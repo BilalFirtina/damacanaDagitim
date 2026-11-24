@@ -1,6 +1,6 @@
 # MEMORY — damacanaDagitim
 
-> **Son güncelleme: 2026-11-04 (yeniden başlama incelemesi)**
+> **Son güncelleme: 2026-11-24 (denetim kaydı kaldırma kararı)**
 > Bu dosya, kaldığımız yeri, ürün kararlarını ve devam adımlarını saklar.
 > Yeni oturumda önce bunu, sonra `HANDOFF.md` ve `git log`u oku.
 
@@ -91,9 +91,8 @@ Bu komut implementasyonu geri getirir; `.gitignore` değişikliğine dokunmaz.
 - Eşikten eski **tüm sefer durumları** silinir:
   `pending_confirmation`, `in_transit`, `completed`.
 - **Silinir:** seferler, teslimatlar, teslimat kalemleri, boş kap hareketleri,
-  tahsilatlar (`customer_payments`), cari/boş kap denetimleri
-  (`customer_financial_audit`), iptal/yeniden açma/yükleme denetimleri,
-  müşteri işlem denetimleri (`customer_operations`) ve eski arşiv satırları.
+  tahsilatlar (`customer_payments`) ve diğer operasyonel kayıtlar.
+  Denetim tabloları yoktur (2.4); temizlik bunlara dokunmaz.
 - **Korunur:** müşteri kaydı (ad/telefon/adres/e-posta/not/tür), nihai cari
   bakiye (`current_balance_tl`), nihai iade edilebilir kalem adetleri
   (`customer_empty_balances`), son satış fiyatı (`customer_product_prices`) ve
@@ -101,6 +100,25 @@ Bu komut implementasyonu geri getirir; `.gitignore` değişikliğine dokunmaz.
 - Temizlik 23:00 **Türkiye saati** (UTC+3), otomatik çalışır.
 - Yöneticiye manuel **Temizlik ekranı yok**; ekran ve menü sekmesi kaldırıldı.
 - Canlıda `RETENTION_DRY_RUN=false`.
+
+### 2.4 Denetim kaydı kaldırma kararı (2026-11-24, kullanıcı onaylı)
+
+- Projede hiçbir denetim/düzeltme kaydı tutulmaz. Gerekçe/açıklama zorunluluğu
+  kalkar (teslimat iptali, teslimat düzeltmesi, yükleme iptali).
+- İptal edilen teslimat ve satın alım kayıtları fiziksel silinir.
+- Tahsilat düzeltmesi: not değişmez; mevcut tutar ile beklenen tutar kontrolüyle
+  yapılır, başka cihazda değiştiyse reddedilir; kayıt bırakmaz.
+- Manuel cari bakiye/boş kap düzeltmesi kalır ama geçmişi tutulmaz; cari
+  ekstrede düzeltme satırı ve "Düzeltme" özeti yoktur. Dönem kapanışı sapabilir (kabul edildi).
+- Denetim tabloları (`customer_financial_audit`, `customer_operations`,
+  `delivery_cancellation_audit`, `dispatch_cancellation_audit`,
+  `dispatch_loading_audit`, `dispatch_reopen_audit`, `customer_payment_audit`,
+  `purchase_audit`, `retention_archive`) için yazım yoktur; temizlik işlemez.
+  Tabloların kaldırılması kullanıcı onayına bağlıdır.
+- Operasyonel kayıtlar (driver_id, loaded_by, collected_by, tarihler, sefer ve
+  stok hareketleri) korunur; iş akışı değişmez.
+- Doküman güncellemeleri: `AGENTS.md`, `HANDOFF.md`, `MEMORY.md`, `README_SUPABASE.md`.
+  Kod, migration ve testler bu adımda değiştirilmedi.
 
 ---
 
@@ -233,7 +251,7 @@ Nakit/POS tahsilatları gerçek kasa hareketi olduğu için görünür kalır.
 - [ ] Günlük raporda teslimat dışı tahsilat + tahsil eden şoför.
 - [ ] Konsolide raporda tahsilat dökümü.
 - [ ] Gün sonu kasa/POS, sefere bağlı tahsilatları içeriyor.
-- [ ] 60 gün sonra sefer/teslimat, tahsilat ve denetim kayıtları siliniyor;
+- [ ] 60 gün sonra sefer/teslimat ve tahsilat kayıtları siliniyor;
       müşteri kaydı, nihai bakiye/emanet, son fiyat ve sebil detayları korunuyor.
 - [ ] Yönetici menüsünde Temizlik ekranı görünmüyor; otomatik temizlik çalışıyor.
 - [ ] Mobil 320–430px: yatay kaydırma yok.
@@ -260,7 +278,7 @@ Nakit/POS tahsilatları gerçek kasa hareketi olduğu için görünür kalır.
 | `HANDOFF.md` | Proje genel durumu (çalışma ağacı sürümü eski) |
 | `MEMORY.md` | Bu dosya; güncel kaldığımız yer |
 | `migrations/20261105_retention_no_archive.sql` | Arşivsiz 60 gün temizliği (önceki sürüm) |
-| `migrations/20261108_retention_purge_all_movements.sql` | Tüm günlük hareket/tahsilat/denetim temizliği |
+| `migrations/20261108_retention_purge_all_movements.sql` | Tüm günlük hareket/tahsilat temizliği |
 | `migrations/20261106_cash_customer_debt.sql` | Peşin borç (dalda, uygulanmadı) |
 | `migrations/20261107_customer_payment_dispatch.sql` | Tahsilatı sefere bağlama (dalda) |
 | `server.ts` | Rotalar, yetki, rapor filtreleri |

@@ -467,8 +467,6 @@ export interface Purchase {
   dispatchId: string | null;
   dispatchPlate: string | null;
   cancelledAt: string | null;
-  cancelledByUserId: string | null;
-  cancelledByUserName: string | null;
   createdAt: string;
   updatedAt: string;
   items: PurchaseItem[];
@@ -498,9 +496,6 @@ export interface CustomerPayment {
   collectedByUserName: string;
   collectedAt: string;
   status: CustomerPaymentStatus;
-  correctedAt?: string | null;
-  correctedByUserName?: string | null;
-  correctionCount?: number;
   /** Sunucu tarafından hesaplanır: aktif seferde kendi tahsilatı veya admin. */
   canCorrect?: boolean;
 }
@@ -626,10 +621,6 @@ export interface Delivery {
   isLateDelivery?: boolean;
   status?: 'active' | 'cancelled';
   cancelledAt?: string | null;
-  cancelledByUserId?: string | null;
-  cancelledByUserName?: string | null;
-  cancelReason?: string | null;
-  replacedByDeliveryId?: string | null;
 }
 
 export interface CleanupStatus {
@@ -653,15 +644,8 @@ export interface RetentionCounts {
   delivery_items: number;
   delivery_container_returns: number;
   customer_payments?: number;
-  customer_financial_audit?: number;
-  delivery_cancellation_audit?: number;
-  dispatch_cancellation_audit?: number;
-  dispatch_loading_audit?: number;
-  customer_operations?: number;
-  retention_archive?: number;
   purchases?: number;
   purchase_items?: number;
-  purchase_audit?: number;
   archived_rows: number;
 }
 

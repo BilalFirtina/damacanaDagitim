@@ -54,7 +54,6 @@ console.log('1) Tam ödeme — bakiye kapanır');
   const r = buildCustomerStatement({
     currentBalance: 0,
     deliveries: [delivery('d1', '2026-10-10', 1000, 1000)],
-    audits: [],
     from: '2026-10-01',
     to: '2026-10-31',
   });
@@ -70,7 +69,6 @@ console.log('2) Kısmi ödeme — kalan borç kapanışa yansır');
   const r = buildCustomerStatement({
     currentBalance: 300,
     deliveries: [delivery('d1', '2026-10-10', 1000, 700)],
-    audits: [],
     from: '2026-10-01',
     to: '2026-10-31',
   });
@@ -87,7 +85,6 @@ console.log('3) Aralık öncesi satış açılışa yansır, aralık içi tahsil
       delivery('d1', '2026-09-20', 500, 0),
       delivery('d2', '2026-10-05', 0, 0),
     ],
-    audits: [],
     from: '2026-10-01',
     to: '2026-10-31',
   });
@@ -101,7 +98,6 @@ console.log('4) Aralık dışı hareketler açılışta korunur');
   const r = buildCustomerStatement({
     currentBalance: 200,
     deliveries: [delivery('d1', '2026-10-10', 1000, 800)],
-    audits: [],
     from: '2026-10-11',
     to: '2026-10-31',
   });
@@ -109,52 +105,22 @@ console.log('4) Aralık dışı hareketler açılışta korunur');
   check('kapanış 200 (hareket aralık dışında)', r.closingBalance, 200);
 }
 
-console.log('5) Yetkili düzeltme bakiyeye yansır');
-{
-  const r = buildCustomerStatement({
-    currentBalance: 150,
-    deliveries: [delivery('d1', '2026-10-10', 1000, 1000)],
-    audits: [
-      {
-        id: 1,
-        changedAt: '2026-10-12T09:00:00.000Z',
-        changedByUserName: 'Depo Yöneticisi',
-        reason: 'Fatura düzeltmesi',
-        previousBalance: 0,
-        newBalance: 150,
-      },
-    ],
-    from: '2026-10-01',
-    to: '2026-10-31',
-  });
-  check('kapanış 150', r.closingBalance, 150);
-  check('düzeltme toplamı 150', r.totalAdjustments, 150);
-  check('3 hareket', r.entries.length, 3);
-  check(
-    'düzeltme açıklaması',
-    r.entries[2].description,
-    'Fatura düzeltmesi'
-  );
-}
-
-console.log('6) Sıfır tutarlı kayıt hareket üretmez');
+console.log('5) Sıfır tutarlı kayıt hareket üretmez');
 {
   const r = buildCustomerStatement({
     currentBalance: 0,
     deliveries: [delivery('d1', '2026-10-10', 0, 0)],
-    audits: [],
     from: '2026-10-01',
     to: '2026-10-31',
   });
   check('hareket yok', r.entries.length, 0);
 }
 
-console.log('7) Aynı anda satış tahsilattan önce gösterilir');
+console.log('6) Aynı anda satış tahsilattan önce gösterilir');
 {
   const r = buildCustomerStatement({
     currentBalance: 0,
     deliveries: [delivery('d1', '2026-10-10', 100, 100)],
-    audits: [],
     from: '2026-10-01',
     to: '2026-10-31',
   });
@@ -164,12 +130,11 @@ console.log('7) Aynı anda satış tahsilattan önce gösterilir');
   check('tahsilat sonrası bakiye 0', r.entries[1].balanceAfter, 0);
 }
 
-console.log('8) Müşteri avansı (negatif bakiye) korunur');
+console.log('7) Müşteri avansı (negatif bakiye) korunur');
 {
   const r = buildCustomerStatement({
     currentBalance: -250,
     deliveries: [delivery('d1', '2026-10-10', 500, 750)],
-    audits: [],
     from: '2026-10-01',
     to: '2026-10-31',
   });
@@ -178,7 +143,7 @@ console.log('8) Müşteri avansı (negatif bakiye) korunur');
   check('tahsilat 750', r.totalPayments, 750);
 }
 
-console.log('9) Teslimat dışı tahsilat, aktif tahsilat kaydından tahsilat olarak sınıflanır');
+console.log('8) Teslimat dışı tahsilat, aktif tahsilat kaydından tahsilat olarak sınıflanır');
 {
   const r = buildCustomerStatement({
     currentBalance: 300,
@@ -193,13 +158,11 @@ console.log('9) Teslimat dışı tahsilat, aktif tahsilat kaydından tahsilat ol
         collectedByUserName: 'Şoför',
       },
     ],
-    audits: [],
     from: '2026-10-01',
     to: '2026-10-31',
   });
   check('tahsilat türü', r.entries[1].type, 'payment');
   check('tahsilat toplamı 200', r.totalPayments, 200);
-  check('düzeltme toplamı 0', r.totalAdjustments, 0);
   check('kapanış 300', r.closingBalance, 300);
   check(
     'tahsilat açıklaması',
@@ -208,49 +171,7 @@ console.log('9) Teslimat dışı tahsilat, aktif tahsilat kaydından tahsilat ol
   );
 }
 
-console.log('10) Silinen tahsilat ve eski tahsilat denetim satırları ekstrede görünmez');
-{
-  const r = buildCustomerStatement({
-    currentBalance: 500,
-    deliveries: [delivery('d1', '2026-10-05', 500, 0)],
-    payments: [],
-    audits: [
-      {
-        id: 10,
-        changedAt: '2026-10-10T10:00:00.000Z',
-        changedByUserName: 'Şoför',
-        reason: 'Tahsilat (CASH): Geçen haftaki borç',
-        previousBalance: 500,
-        newBalance: 300,
-      },
-      {
-        id: 11,
-        changedAt: '2026-10-11T10:00:00.000Z',
-        changedByUserName: 'Depo Yöneticisi',
-        reason: 'Tahsilat düzeltmesi (CASH 200.00 TL -> CASH 100.00 TL)',
-        previousBalance: 300,
-        newBalance: 400,
-      },
-      {
-        id: 12,
-        changedAt: '2026-10-12T10:00:00.000Z',
-        changedByUserName: 'Depo Yöneticisi',
-        reason: 'Tahsilat iptali (CASH 100.00 TL)',
-        previousBalance: 400,
-        newBalance: 500,
-      },
-    ],
-    from: '2026-10-01',
-    to: '2026-10-31',
-  });
-  check('kapanış 500', r.closingBalance, 500);
-  check('net tahsilat 0', r.totalPayments, 0);
-  check('düzeltme toplamı 0', r.totalAdjustments, 0);
-  check('yalnızca satış hareketi', r.entries.length, 1);
-  check('hareket satış', r.entries[0].type, 'sale');
-}
-
-console.log('11) Aktif tahsilat ile eski denetim satırı çift sayılmaz');
+console.log('9) Aktif tahsilat tek kez sayılır');
 {
   const r = buildCustomerStatement({
     currentBalance: 300,
@@ -262,16 +183,6 @@ console.log('11) Aktif tahsilat ile eski denetim satırı çift sayılmaz');
         method: 'CASH',
         collectedAt: '2026-10-20T12:00:00.000Z',
         collectedByUserName: 'Şoför',
-      },
-    ],
-    audits: [
-      {
-        id: 20,
-        changedAt: '2026-10-20T12:00:00.000Z',
-        changedByUserName: 'Şoför',
-        reason: 'Tahsilat (CASH)',
-        previousBalance: 500,
-        newBalance: 300,
       },
     ],
     from: '2026-10-01',

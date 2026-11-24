@@ -313,15 +313,14 @@ export async function updatePurchase(
   return json.purchase;
 }
 
-export async function cancelPurchase(id: string): Promise<Purchase> {
+export async function cancelPurchase(id: string): Promise<{ deleted: true; id: string }> {
   const res = await apiFetch(`/api/purchases/${encodeURIComponent(id)}/cancel`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({}),
   });
   if (!res.ok) await throwServerError(res, 'Satın alım iptal edilemedi.');
-  const json = await res.json();
-  return json.purchase;
+  return res.json();
 }
 
 export async function deleteProduct(id: string): Promise<boolean> {
@@ -499,8 +498,8 @@ export async function fetchPayments(params?: {
 export interface PaymentCorrectionInput {
   amount: number;
   method: 'CASH' | 'POS';
-  note?: string;
-  requestId?: string;
+  expectedAmount: number;
+  expectedMethod: 'CASH' | 'POS';
 }
 
 export interface PaymentCorrectionResult {
@@ -508,6 +507,19 @@ export interface PaymentCorrectionResult {
   balance: number | null;
   balanceHidden?: boolean;
   message: string;
+}
+
+export class PaymentChangedError extends Error {
+  readonly code = 'PAYMENT_CHANGED';
+  readonly currentAmount: number | null;
+  readonly currentMethod: 'CASH' | 'POS' | null;
+
+  constructor(message: string, currentAmount: number | null, currentMethod: 'CASH' | 'POS' | null) {
+    super(message);
+    this.name = 'PaymentChangedError';
+    this.currentAmount = currentAmount;
+    this.currentMethod = currentMethod;
+  }
 }
 
 export async function updateCustomerPayment(
@@ -519,18 +531,26 @@ export async function updateCustomerPayment(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
+  if (res.status === 409) {
+    const json = await res.json().catch(() => ({}) as any);
+    if (json?.code === 'PAYMENT_CHANGED') {
+      throw new PaymentChangedError(
+        json.error || 'Bu tahsilat başka bir cihazda değiştirildi.',
+        typeof json.currentAmount === 'number' ? json.currentAmount : null,
+        json.currentMethod === 'POS' || json.currentMethod === 'CASH' ? json.currentMethod : null
+      );
+    }
+    throw new Error(json?.error || 'Tahsilat düzeltilemedi');
+  }
   if (!res.ok) await throwServerError(res, 'Tahsilat düzeltilemedi');
   return res.json();
 }
 
-export async function cancelCustomerPayment(
-  paymentId: string,
-  requestId?: string
-): Promise<PaymentCorrectionResult> {
+export async function cancelCustomerPayment(paymentId: string): Promise<PaymentCorrectionResult> {
   const res = await apiFetch(`/api/payments/${encodeURIComponent(paymentId)}/cancel`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(requestId ? { requestId } : {}),
+    body: JSON.stringify({}),
   });
   if (!res.ok) await throwServerError(res, 'Tahsilat iptal edilemedi');
   return res.json();
@@ -697,13 +717,12 @@ export async function closeDispatch(id: string, reconciliationData: any): Promis
 }
 
 export async function cancelDispatch(
-  id: string,
-  reason: string
+  id: string
 ): Promise<{ cancelled: boolean; dispatchId: string }> {
   const res = await apiFetch(`/api/dispatches/${id}/cancel`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason }),
+    body: JSON.stringify({}),
   });
   if (!res.ok) await throwServerError(res, 'Yükleme iptal edilemedi');
   return res.json();
@@ -898,10 +917,7 @@ export interface DeliveryCorrectionResponse {
 
 // İptal/düzenleme çevrimdışı kuyruğa ALINMAZ: stok ve cari bakiye
 // doğrulaması güncel sunucu verisiyle yapılmak zorundadır.
-export async function cancelDelivery(
-  deliveryId: string,
-  reason: string
-): Promise<DeliveryCorrectionResponse> {
+export async function cancelDelivery(deliveryId: string): Promise<DeliveryCorrectionResponse> {
   if (!navigator.onLine) {
     throw new Error(
       'Çevrimdışıyken teslimat iptal edilemez. Lütfen bağlantı kurulduktan sonra tekrar deneyin.'
@@ -910,7 +926,7 @@ export async function cancelDelivery(
   const res = await apiFetch(`/api/deliveries/${encodeURIComponent(deliveryId)}/cancel`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason }),
+    body: JSON.stringify({}),
   });
   if (!res.ok) await throwServerError(res, 'Teslimat iptal edilemedi.');
   return res.json();
@@ -919,7 +935,6 @@ export async function cancelDelivery(
 export async function replaceDelivery(
   deliveryId: string,
   replacementId: string,
-  reason: string,
   replacementData: {
     deliveredItems: any[];
     collectedPayment: any;
@@ -941,7 +956,6 @@ export async function replaceDelivery(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       replacementId,
-      reason,
       ...replacementData,
     }),
   });

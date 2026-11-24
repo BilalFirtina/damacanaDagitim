@@ -78,8 +78,6 @@ const purchases: Purchase[] = [
     dispatchId: null,
     dispatchPlate: null,
     cancelledAt: null,
-    cancelledByUserId: null,
-    cancelledByUserName: null,
     createdAt: '',
     updatedAt: '',
     items: [],
@@ -97,8 +95,6 @@ const purchases: Purchase[] = [
     dispatchId: null,
     dispatchPlate: null,
     cancelledAt: null,
-    cancelledByUserId: null,
-    cancelledByUserName: null,
     createdAt: '',
     updatedAt: '',
     items: [],
@@ -136,29 +132,38 @@ const schemaSql = fs.readFileSync(
   path.join(process.cwd(), 'migrations/20261114_purchases.sql'),
   'utf8'
 );
-const retentionSql = fs.readFileSync(
-  path.join(process.cwd(), 'migrations/20261114_purchases_retention.sql'),
-  'utf8'
-);
+const removalSql = fs
+  .readFileSync(
+    path.join(process.cwd(), 'migrations/20261124_remove_correction_audits_payments_purchases.sql'),
+    'utf8'
+  )
+  .replace(/--.*$/gm, '');
 check('suppliers tablosu var', /CREATE TABLE IF NOT EXISTS public\.suppliers/.test(schemaSql));
 check('purchases tablosu var', /CREATE TABLE IF NOT EXISTS public\.purchases/.test(schemaSql));
 check('purchase_items tablosu var', /CREATE TABLE IF NOT EXISTS public\.purchase_items/.test(schemaSql));
 check('purchase_audit tablosu var', /CREATE TABLE IF NOT EXISTS public\.purchase_audit/.test(schemaSql));
-check('create_purchase RPC var', /FUNCTION public\.create_purchase/.test(schemaSql));
-check('update_purchase RPC var', /FUNCTION public\.update_purchase/.test(schemaSql));
-check('cancel_purchase RPC var', /FUNCTION public\.cancel_purchase/.test(schemaSql));
+check('create_purchase RPC var', /FUNCTION public\.create_purchase/.test(removalSql));
+check('update_purchase RPC var', /FUNCTION public\.update_purchase/.test(removalSql));
+check('cancel_purchase RPC var', /FUNCTION public\.cancel_purchase/.test(removalSql));
 check(
-  '60 gün temizliği alımları siler',
-  /DELETE FROM public\.purchases WHERE purchased_at < v_cutoff_ts/.test(retentionSql)
+  'alım iptali fiziksel siler',
+  /DELETE FROM public\.purchases WHERE id = v_id/.test(removalSql)
 );
 check(
-  'temizlik alım kalemleri ve denetimini sayar',
-  /'purchase_items', v_pitem/.test(retentionSql) &&
-    /'purchase_audit', v_paudit/.test(retentionSql)
+  'alım oluşturma ve düzeltme denetim yazmaz',
+  !/purchase_audit/.test(removalSql)
+);
+check(
+  '60 gün temizliği alımları siler',
+  /DELETE FROM public\.purchases WHERE purchased_at < v_cutoff_ts/.test(removalSql)
+);
+check(
+  'temizlik alım kalemlerini sayar ve denetimi saymaz',
+  /'purchase_items', v_pitem/.test(removalSql) && !/'purchase_audit'/.test(removalSql)
 );
 check(
   'toptancı tanımları temizlikte silinmez',
-  !/DELETE FROM public\.suppliers/.test(retentionSql)
+  !/DELETE FROM public\.suppliers/.test(removalSql)
 );
 
 console.log(`\nSONUÇ: ${passed} geçti, ${failed} başarısız`);
