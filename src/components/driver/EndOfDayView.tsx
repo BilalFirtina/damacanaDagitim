@@ -26,6 +26,7 @@ import {
   fetchDispatchPayments,
   type DispatchPayment,
 } from '../../services/api';
+import { RecentEndOfDayReports } from './RecentEndOfDayReports';
 
 interface EndOfDayViewProps {
   dispatch: Dispatch | null;
@@ -133,23 +134,26 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
 
   if (!currentViewDispatch) {
     return (
-      <div className="bg-white  rounded-2xl border border-slate-200  p-12 text-center text-slate-400 text-xs space-y-3">
-        <Truck className="w-10 h-10 text-slate-300 mx-auto" />
-        <p className="text-sm font-semibold text-slate-700 ">
-          Bugün için tamamlanmış veya aktif bir araç seferi bulunmuyor.
-        </p>
-        <p className="text-xs text-slate-400">
-          Dağıtıma başlamak için önce araç yüklemesi yapılmalı ve sefer başlatılmalıdır.
-        </p>
-        {onNavigateTab && (
-          <button
-            onClick={() => onNavigateTab('delivery')}
-            className="mt-3 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs inline-flex items-center gap-1.5"
-          >
-            <span>Dağıtım & Yükleme Ekranına Git</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        )}
+      <div className="space-y-6 w-full max-w-full min-w-0">
+        <div className="bg-white  rounded-2xl border border-slate-200  p-12 text-center text-slate-400 text-xs space-y-3">
+          <Truck className="w-10 h-10 text-slate-300 mx-auto" />
+          <p className="text-sm font-semibold text-slate-700 ">
+            Bugün için tamamlanmış veya aktif bir araç seferi bulunmuyor.
+          </p>
+          <p className="text-xs text-slate-400">
+            Dağıtıma başlamak için önce araç yüklemesi yapılmalı ve sefer başlatılmalıdır.
+          </p>
+          {onNavigateTab && (
+            <button
+              onClick={() => onNavigateTab('delivery')}
+              className="mt-3 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs inline-flex items-center gap-1.5"
+            >
+              <span>Dağıtım & Yükleme Ekranına Git</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        <RecentEndOfDayReports dispatches={dispatches} products={products} />
       </div>
     );
   }
@@ -753,6 +757,8 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
           )}
         </div>
       </div>
+
+      <RecentEndOfDayReports dispatches={dispatches} products={products} />
     </div>
   );
 };
