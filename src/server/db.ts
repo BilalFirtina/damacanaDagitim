@@ -4132,14 +4132,16 @@ function parseCancellationDbError(e: any): DeliveryDbError {
 async function readCorrectionResult(
   deliveryId: string,
   replacementId: string | null,
-  duplicate: boolean
+  duplicate: boolean,
+  customerId?: string
 ): Promise<DeliveryCorrectionResult> {
   const delivery = await getDeliveryById(deliveryId);
   const replacement = replacementId ? await getDeliveryById(replacementId) : null;
   let updatedCustomer: Customer | null = null;
   try {
     const all = await getCustomers();
-    updatedCustomer = all.find((c) => c.id === delivery?.customerId) || null;
+    const resolvedCustomerId = customerId || delivery?.customerId || replacement?.customerId;
+    updatedCustomer = all.find((c) => c.id === resolvedCustomerId) || null;
   } catch (e) {
     console.error('[delivery correction customer refresh]', e);
   }
@@ -4160,7 +4162,8 @@ async function readCorrectionResult(
 
 export async function cancelDeliveryAtomic(
   deliveryId: string,
-  actorId: string
+  actorId: string,
+  customerId?: string
 ): Promise<DeliveryCorrectionResult> {
   const payload = {
     delivery_id: deliveryId,
@@ -4178,7 +4181,7 @@ export async function cancelDeliveryAtomic(
       console.error('[Supabase cancel_or_replace_delivery]', e);
       throw parseCancellationDbError(e);
     }
-    return readCorrectionResult(deliveryId, null, !!data?.duplicate);
+    return readCorrectionResult(deliveryId, null, !!data?.duplicate, customerId);
   }
 
   if (pgPool) {
@@ -4193,7 +4196,7 @@ export async function cancelDeliveryAtomic(
       console.error('[Postgres cancel_or_replace_delivery]', e);
       throw parseCancellationDbError(e);
     }
-    return readCorrectionResult(deliveryId, null, !!data?.duplicate);
+    return readCorrectionResult(deliveryId, null, !!data?.duplicate, customerId);
   }
 
   throw new DeliveryDbError(
@@ -4205,7 +4208,8 @@ export async function cancelDeliveryAtomic(
 export async function replaceDeliveryAtomic(
   deliveryId: string,
   actorId: string,
-  replacement: Delivery
+  replacement: Delivery,
+  customerId?: string
 ): Promise<DeliveryCorrectionResult> {
   const payload = {
     delivery_id: deliveryId,
@@ -4227,7 +4231,8 @@ export async function replaceDeliveryAtomic(
     return readCorrectionResult(
       deliveryId,
       replacement.id,
-      !!data?.duplicate
+      !!data?.duplicate,
+      customerId
     );
   }
 
@@ -4246,7 +4251,8 @@ export async function replaceDeliveryAtomic(
     return readCorrectionResult(
       deliveryId,
       replacement.id,
-      !!data?.duplicate
+      !!data?.duplicate,
+      customerId
     );
   }
 

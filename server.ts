@@ -2284,7 +2284,11 @@ app.post('/api/deliveries/:id/cancel', async (req, res) => {
 
     // Teslimat silinince boş kap satırları da gider; iade detayını önceden oku.
     const oldReturns = await getDeliverySebilDetails(existing.id);
-    const result = await cancelDeliveryAtomic(deliveryId, session.userId);
+    const result = await cancelDeliveryAtomic(
+      deliveryId,
+      session.userId,
+      existing.customerId
+    );
 
     if (!result.duplicate) {
       const actor = { id: session.userId, name: session.name };
@@ -2446,7 +2450,12 @@ app.post('/api/deliveries/:id/replace', async (req, res) => {
 
     // Teslimat silinince boş kap satırları da gider; iade detayını önceden oku.
     const oldReturns = await getDeliverySebilDetails(existing.id);
-    const result = await replaceDeliveryAtomic(deliveryId, session.userId, replacement);
+    const result = await replaceDeliveryAtomic(
+      deliveryId,
+      session.userId,
+      replacement,
+      existing.customerId
+    );
 
     if (!result.duplicate) {
       const actor = { id: session.userId, name: session.name };
