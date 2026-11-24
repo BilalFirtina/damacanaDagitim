@@ -124,6 +124,7 @@ async function resetTransactional(c: Client): Promise<void> {
     );
   }
   await c.query('DELETE FROM public.customer_empty_balances');
+  await c.query('DELETE FROM public.customer_dispensers');
   await c.query('DELETE FROM public.customer_product_prices');
   await c.query(
     "UPDATE public.customers SET current_balance_tl = 0, is_account_customer = true WHERE id = 'c1'"
@@ -561,6 +562,12 @@ async function scenarioCancel(c: Client): Promise<void> {
   await resetTransactional(c);
   await seedDispatch(c);
   await seedDelivery(c, { emptyDiff: 2, emptyBalance: 2 });
+  await c.query(`
+    INSERT INTO public.customer_dispensers
+      (id, customer_id, brand, model, quantity, source_delivery_id,
+       updated_by_user_id, updated_by_user_name)
+    VALUES ('CD_DEL1', 'c1', 'Test', 'Model', 1, 'DEL1', 'u_driver', 'Şoför')
+  `);
 
   const res = await callRpc(c, cancelPayload());
   check('iptal basarili', res.cancelled === true && res.duplicate === false);
@@ -571,6 +578,16 @@ async function scenarioCancel(c: Client): Promise<void> {
 
   check('teslimat fiziksel olarak silindi', !(await deliveryRow(c, 'DEL1')));
   check('teslimat kalemleri silindi', (await deliveryItemQty(c, 'DEL1')) === 0);
+  check(
+    'teslimatla verilen sebil detayi silindi',
+    Number(
+      (
+        await c.query(
+          "SELECT count(*)::int AS n FROM public.customer_dispensers WHERE id = 'CD_DEL1'"
+        )
+      ).rows[0]?.n
+    ) === 0
+  );
   check('musteri bakiyesi 0', (await balance(c)) === 0);
   check('denetim yazilmadi', (await auditTotal(c)) === 0);
 

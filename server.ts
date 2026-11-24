@@ -44,7 +44,6 @@ import {
   getCustomerPaymentsForReport,
   getCustomerPaymentById,
   applyCustomerDispenserReturns,
-  removeCustomerDispensersForDelivery,
   restoreCustomerDispenserReturns,
   getDeliverySebilDetails,
   saveDeliverySebilDetails,
@@ -2283,16 +2282,13 @@ app.post('/api/deliveries/:id/cancel', async (req, res) => {
       });
     }
 
+    // Teslimat silinince boş kap satırları da gider; iade detayını önceden oku.
+    const oldReturns = await getDeliverySebilDetails(existing.id);
     const result = await cancelDeliveryAtomic(deliveryId, session.userId);
 
     if (!result.duplicate) {
       const actor = { id: session.userId, name: session.name };
       try {
-        const oldReturns = await getDeliverySebilDetails(existing.id);
-        await removeCustomerDispensersForDelivery(
-          existing.customerId,
-          existing.id
-        );
         await restoreCustomerDispenserReturns(
           existing.customerId,
           oldReturns,
@@ -2448,16 +2444,13 @@ app.post('/api/deliveries/:id/replace', async (req, res) => {
       replacement.stockOverride === true
     );
 
+    // Teslimat silinince boş kap satırları da gider; iade detayını önceden oku.
+    const oldReturns = await getDeliverySebilDetails(existing.id);
     const result = await replaceDeliveryAtomic(deliveryId, session.userId, replacement);
 
     if (!result.duplicate) {
       const actor = { id: session.userId, name: session.name };
       try {
-        const oldReturns = await getDeliverySebilDetails(existing.id);
-        await removeCustomerDispensersForDelivery(
-          existing.customerId,
-          existing.id
-        );
         await restoreCustomerDispenserReturns(
           existing.customerId,
           oldReturns,

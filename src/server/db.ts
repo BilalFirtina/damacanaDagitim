@@ -5050,18 +5050,6 @@ export async function applyCustomerDispenserReturns(
 }
 
 /** Bir teslimatın verdiği sebil detaylarını kaynak bağlantısından siler. */
-export async function removeCustomerDispensersForDelivery(
-  customerId: string,
-  deliveryId: string
-): Promise<void> {
-  const rows = await listCustomerDispensers(customerId);
-  for (const row of rows) {
-    if (row.sourceDeliveryId === deliveryId) {
-      await deleteCustomerDispenser(customerId, row.id);
-    }
-  }
-}
-
 /** İptal/düzeltmede iade alınan sebil detaylarını müşteriye geri ekler. */
 export async function restoreCustomerDispenserReturns(
   customerId: string,
