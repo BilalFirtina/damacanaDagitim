@@ -28,6 +28,13 @@ import {
 } from '../../services/api';
 import { RecentEndOfDayReports } from './RecentEndOfDayReports';
 
+// Teslimat özetinde ürün adının parantez içi açıklamaları gösterilmez; ürün
+// kayıtlarına ve diğer ekranlara dokunulmaz.
+const formatSummaryProductName = (name: string): string => {
+  const shortened = name.replace(/\s*\([^)]*\)/g, '').replace(/\s{2,}/g, ' ').trim();
+  return shortened || name;
+};
+
 interface EndOfDayViewProps {
   dispatch: Dispatch | null;
   dispatches?: Dispatch[];
@@ -711,7 +718,7 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
                 const unit = product?.unit;
                 return {
                   key: `${del.id}-product-${item.productId}`,
-                  text: `${item.productName} - ${item.quantity}${unit ? ` ${unit}` : ''}`,
+                  text: `${formatSummaryProductName(item.productName)} - ${item.quantity}${unit ? ` ${unit}` : ''}`,
                   depositType: product?.depositType,
                 };
               });
