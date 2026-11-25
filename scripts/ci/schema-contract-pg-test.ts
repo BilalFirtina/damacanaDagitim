@@ -63,6 +63,7 @@ async function main() {
       'purchases',
       'purchase_items',
       'purchase_audit',
+      'fuel_entries',
     ];
 
     const tableRows = await client.query(
@@ -83,6 +84,12 @@ async function main() {
       ['purchases', 'status'],
       ['purchase_items', 'quantity'],
       ['purchase_items', 'unit_price'],
+      ['fuel_entries', 'entry_type'],
+      ['fuel_entries', 'plate'],
+      ['fuel_entries', 'entry_date'],
+      ['fuel_entries', 'liters'],
+      ['fuel_entries', 'amount_tl'],
+      ['fuel_entries', 'mileage_km'],
     ];
     const columnRows = await client.query(
       `select table_name, column_name from information_schema.columns
@@ -108,6 +115,7 @@ async function main() {
       'public.create_purchase(jsonb)',
       'public.update_purchase(jsonb)',
       'public.cancel_purchase(jsonb)',
+      'public.enforce_fuel_mileage_increasing()',
     ];
     const functionRows = await client.query(
       `select n.nspname as schema_name, p.oid::regprocedure::text as signature
@@ -125,6 +133,7 @@ async function main() {
     const triggers = [
       ['customer_payments', 'trg_customer_payments_no_update_delete'],
       ['customer_payments', 'trg_customer_payments_no_truncate'],
+      ['fuel_entries', 'trg_fuel_entries_mileage_increasing'],
     ];
     const triggerRows = await client.query(
       `select c.relname as table_name, t.tgname as trigger_name
@@ -147,6 +156,7 @@ async function main() {
       'purchases',
       'purchase_items',
       'purchase_audit',
+      'fuel_entries',
     ];
     const rlsRows = await client.query(
       `select c.relname as table_name, c.relrowsecurity

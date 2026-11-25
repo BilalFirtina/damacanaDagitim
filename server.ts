@@ -11,6 +11,7 @@ import {
   Customer,
   Dispatch,
   LoadedItem,
+  AUTHORIZED_VEHICLE_PLATES,
 } from './src/types/index.ts';
 import {
   getUsers,
@@ -55,6 +56,11 @@ import {
   createPurchaseRecord,
   updatePurchaseRecord,
   cancelPurchaseRecord,
+  listFuelEntries,
+  getFuelEntryById,
+  getLastFuelMileage,
+  createFuelEntry,
+  deleteFuelEntry,
   getDeliveryById,
   createDeliveryRecord,
   cancelDeliveryAtomic,
@@ -931,6 +937,163 @@ app.post('/api/purchases/:id/cancel', async (req, res) => {
     res.json(result);
   } catch (err: any) {
     sendPurchaseError(res, err);
+  }
+});
+
+// 3c. Yakıt — ortak litre bakiyesi, araç alımları ve tüketim grafiği
+function sendFuelError(res: Response, err: any): void {
+  const code = err?.code;
+  const status =
+    code === 'MILEAGE_NOT_INCREASING' || code === 'VALIDATION_ERROR'
+      ? 400
+      : code === 'FUEL_NOT_FOUND'
+        ? 404
+        : code === 'NOT_AUTHORIZED'
+          ? 403
+          : code === 'MIGRATION_REQUIRED' || code === 'REMOTE_REQUIRED'
+            ? 503
+            : 400;
+  res.status(status).json({
+    error: err?.message || 'Yakıt kaydı işlenemedi.',
+    code: code || 'FUEL_FAILED',
+  });
+}
+
+function fuelEntryId(raw: unknown): string {
+  const value = typeof raw === 'string' ? raw.trim() : '';
+  return /^fuel_[A-Za-z0-9_-]{1,80}$/.test(value)
+    ? value
+    : `fuel_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function fuelDate(raw: unknown): string | null {
+  const value = typeof raw === 'string' && raw.trim() ? raw.trim() : getTodayDateStr();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  if (value > getTodayDateStr()) return null;
+  return value;
+}
+
+app.get('/api/fuel', requireAdminOrDriver, async (req, res) => {
+  try {
+    const rawDate = typeof req.query.date === 'string' ? req.query.date : '';
+    if (rawDate && !/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+      return res.status(400).json({ error: 'Geçersiz tarih.' });
+    }
+    const entries = await listFuelEntries(rawDate ? { date: rawDate } : undefined);
+    res.json({ entries });
+  } catch (err: any) {
+    sendFuelError(res, err);
+  }
+});
+
+app.post('/api/fuel/credit', requireAdmin, async (req, res) => {
+  try {
+    const session = getAuthUser(req)!;
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const entryDate = fuelDate(body.date);
+    const liters = Number(body.liters);
+    const amountRaw = body.amountTl;
+    const amountTl =
+      amountRaw === undefined || amountRaw === null || amountRaw === ''
+        ? null
+        : Number(amountRaw);
+
+    if (!entryDate) {
+      return res.status(400).json({ error: 'Geçerli bir tarih girin.' });
+    }
+    if (!Number.isFinite(liters) || liters <= 0) {
+      return res.status(400).json({ error: 'Litre sıfırdan büyük olmalıdır.' });
+    }
+    if (amountTl !== null && (!Number.isFinite(amountTl) || amountTl <= 0)) {
+      return res.status(400).json({ error: 'Tutar sıfırdan büyük olmalıdır.' });
+    }
+
+    const { entry, duplicate } = await createFuelEntry({
+      id: fuelEntryId(body.id),
+      entryType: 'credit',
+      plate: null,
+      entryDate,
+      liters: Math.round(liters * 100) / 100,
+      amountTl: amountTl === null ? null : Math.round(amountTl * 100) / 100,
+      mileageKm: null,
+      note: typeof body.note === 'string' ? body.note.slice(0, 500) : null,
+      actor: { id: session.userId, name: session.name },
+    });
+    res.status(duplicate ? 200 : 201).json({ entry, duplicate });
+  } catch (err: any) {
+    sendFuelError(res, err);
+  }
+});
+
+app.post('/api/fuel/purchases', requireAdminOrDriver, async (req, res) => {
+  try {
+    const session = getAuthUser(req)!;
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const entryDate = fuelDate(body.date);
+    const plate = typeof body.plate === 'string' ? body.plate.trim() : '';
+    const liters = Number(body.liters);
+    const amountTl = Number(body.amountTl);
+    const mileageKm = Number(body.mileageKm);
+
+    if (!entryDate) {
+      return res.status(400).json({ error: 'Geçerli bir tarih girin.' });
+    }
+    if (!AUTHORIZED_VEHICLE_PLATES.includes(plate as any)) {
+      return res.status(400).json({ error: 'Geçersiz araç plakası.' });
+    }
+    if (!Number.isFinite(liters) || liters <= 0) {
+      return res.status(400).json({ error: 'Litre sıfırdan büyük olmalıdır.' });
+    }
+    if (!Number.isFinite(amountTl) || amountTl <= 0) {
+      return res.status(400).json({ error: 'Tutar sıfırdan büyük olmalıdır.' });
+    }
+    if (!Number.isInteger(mileageKm) || mileageKm <= 0) {
+      return res.status(400).json({ error: 'Kilometre pozitif tam sayı olmalıdır.' });
+    }
+
+    const lastMileage = await getLastFuelMileage(plate);
+    if (lastMileage !== null && mileageKm <= lastMileage) {
+      return res.status(400).json({
+        error: `Kilometre son kayıttan büyük olmalıdır. Son kayıt: ${lastMileage.toLocaleString('tr-TR')} km.`,
+        code: 'MILEAGE_NOT_INCREASING',
+      });
+    }
+
+    const { entry, duplicate } = await createFuelEntry({
+      id: fuelEntryId(body.id),
+      entryType: 'purchase',
+      plate,
+      entryDate,
+      liters: Math.round(liters * 100) / 100,
+      amountTl: Math.round(amountTl * 100) / 100,
+      mileageKm,
+      note: typeof body.note === 'string' ? body.note.slice(0, 500) : null,
+      actor: { id: session.userId, name: session.name },
+    });
+    res.status(duplicate ? 200 : 201).json({ entry, duplicate });
+  } catch (err: any) {
+    sendFuelError(res, err);
+  }
+});
+
+app.delete('/api/fuel/:id', requireAdminOrDriver, async (req, res) => {
+  try {
+    const session = getAuthUser(req)!;
+    const entry = await getFuelEntryById(req.params.id);
+    if (!entry) return res.json({ deleted: true, id: req.params.id });
+    if (
+      session.role === 'driver' &&
+      (entry.entryType !== 'purchase' || entry.createdByUserId !== session.userId)
+    ) {
+      return res.status(403).json({
+        error: 'Yalnızca kendi yakıt alımınızı iptal edebilirsiniz.',
+        code: 'NOT_AUTHORIZED',
+      });
+    }
+    await deleteFuelEntry(entry.id);
+    res.json({ deleted: true, id: entry.id });
+  } catch (err: any) {
+    sendFuelError(res, err);
   }
 });
 
@@ -2572,6 +2735,7 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
       customerName: customerNames.get(p.customerId) || p.customerId,
     }));
     const purchases = await listPurchases({ date, status: 'active' });
+    const fuelEntries = await listFuelEntries({ date });
     const totalStandaloneCash = customerPayments
       .filter((p) => p.method === 'CASH')
       .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
@@ -2642,6 +2806,7 @@ app.get('/api/reports/daily', requireAdmin, async (req, res) => {
       },
       customerPayments,
       purchases,
+      fuelEntries,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

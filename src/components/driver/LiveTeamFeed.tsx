@@ -1,11 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Customer, CustomerPayment, Delivery, Product, Purchase, User } from '../../types';
+import { Customer, CustomerPayment, Delivery, FuelEntry, Product, Purchase, User } from '../../types';
 import { getProductCategoryColor, sortItemsByProductCategory } from '../../types';
 import { isAccountCustomerDelivery } from '../../services/customerVisibility';
 import { todayUtcDateStr } from '../../services/dateWindow';
 import { POLL_INTERVAL_MS } from '../../services/polling';
-import { fetchPayments, fetchPurchases, getAuthToken } from '../../services/api';
+import { fetchFuelEntries, fetchPayments, fetchPurchases, getAuthToken } from '../../services/api';
+import { FUEL_GENERAL_PLATE_LABEL } from '../../services/fuelRules';
 import { PurchaseFeedCard } from '../purchases/PurchaseFeedCard';
+import { FuelFeedCard } from '../fuel/FuelFeedCard';
 import { PaymentFeedCard } from './PaymentFeedCard';
 import {
   Clock,
@@ -53,6 +55,15 @@ type LiveFeedItem =
       plate: string;
       searchText: string;
       payment: CustomerPayment;
+    }
+  | {
+      kind: 'fuel';
+      id: string;
+      at: number;
+      driverId: string;
+      plate: string;
+      searchText: string;
+      fuelEntry: FuelEntry;
     };
 
 // Ayırt edici şoför renk paletleri (Her şoför alt alta listelendiğinde belirgin şekilde ayrışır)
@@ -153,6 +164,7 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [payments, setPayments] = useState<CustomerPayment[]>([]);
+  const [fuelEntries, setFuelEntries] = useState<FuelEntry[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -173,6 +185,12 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
       } catch {
         // Tahsilat servisi erişilemezse mevcut akış korunur.
       }
+      try {
+        const list = await fetchFuelEntries({ date });
+        if (!cancelled) setFuelEntries(list);
+      } catch {
+        // Yakıt servisi erişilemezse mevcut akış korunur.
+      }
     };
     void load();
     const interval = window.setInterval(load, POLL_INTERVAL_MS);
@@ -190,10 +208,11 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
           ...deliveries.map((d) => d.vehiclePlate),
           ...purchases.map((p) => p.dispatchPlate || ''),
           ...payments.map((p) => p.dispatchPlate || ''),
+          ...fuelEntries.map((f) => f.plate || FUEL_GENERAL_PLATE_LABEL),
         ].filter(Boolean)
       )
     );
-  }, [deliveries, purchases, payments]);
+  }, [deliveries, purchases, payments, fuelEntries]);
 
   // Extract unique drivers present in the delivery feed with stats
   const activeDrivers = useMemo(() => {
@@ -277,8 +296,30 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
       });
     }
 
+    for (const fuelEntry of fuelEntries) {
+      const plate = fuelEntry.plate || FUEL_GENERAL_PLATE_LABEL;
+      items.push({
+        kind: 'fuel',
+        id: `fuel_${fuelEntry.id}`,
+        at: new Date(fuelEntry.createdAt).getTime(),
+        driverId: fuelEntry.createdByUserId,
+        plate,
+        searchText: [
+          fuelEntry.entryType === 'credit' ? 'Mazot Yüklemesi' : 'Yakıt Alımı',
+          plate,
+          fuelEntry.createdByUserName,
+          fuelEntry.note || '',
+          String(fuelEntry.liters),
+          fuelEntry.amountTl === null ? '' : String(fuelEntry.amountTl),
+        ]
+          .join(' ')
+          .toLowerCase(),
+        fuelEntry,
+      });
+    }
+
     return items.sort((a, b) => b.at - a.at);
-  }, [deliveries, purchases, payments]);
+  }, [deliveries, purchases, payments, fuelEntries]);
 
   const filteredFeed = feedItems.filter((item) => {
     const matchesPlate = filterPlate === 'all' || item.plate === filterPlate;
@@ -299,7 +340,7 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
             </h2>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Teslimatlar, satın alımlar ve teslimat dışı tahsilatlar en yeni üstte olacak şekilde tek akışta gösterilir. Her şoförün teslimatı kendi özel rengiyle ayırt edilir.
+            Teslimatlar, satın alımlar, yakıt hareketleri ve teslimat dışı tahsilatlar en yeni üstte olacak şekilde tek akışta gösterilir. Her şoförün teslimatı kendi özel rengiyle ayırt edilir.
           </p>
         </div>
 
@@ -400,7 +441,7 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
       <div className="space-y-3">
         {filteredFeed.length === 0 ? (
           <div className="p-12 text-center bg-white  rounded-2xl border border-slate-200  text-slate-400 text-xs">
-            Henüz bu kritere uyan bir teslimat, satın alım veya tahsilat kaydı bulunmuyor.
+            Henüz bu kritere uyan bir teslimat, satın alım, yakıt veya tahsilat kaydı bulunmuyor.
           </div>
         ) : (
           filteredFeed.map((feedItem) => {
@@ -412,6 +453,11 @@ export const LiveTeamFeed: React.FC<LiveTeamFeedProps> = ({
             if (feedItem.kind === 'payment') {
               return (
                 <PaymentFeedCard key={feedItem.id} payment={feedItem.payment} />
+              );
+            }
+            if (feedItem.kind === 'fuel') {
+              return (
+                <FuelFeedCard key={feedItem.id} entry={feedItem.fuelEntry} />
               );
             }
 

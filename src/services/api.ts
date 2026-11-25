@@ -14,6 +14,7 @@ import {
   Purchase,
   PurchaseInputItem,
   CustomerPayment,
+  FuelEntry,
 } from '../types';
 import {
   classifyDeliverySyncResponse,
@@ -320,6 +321,58 @@ export async function cancelPurchase(id: string): Promise<{ deleted: true; id: s
     body: JSON.stringify({}),
   });
   if (!res.ok) await throwServerError(res, 'Satın alım iptal edilemedi.');
+  return res.json();
+}
+
+export async function fetchFuelEntries(params?: { date?: string }): Promise<FuelEntry[]> {
+  const query = new URLSearchParams();
+  if (params?.date) query.set('date', params.date);
+  const suffix = query.toString() ? `?${query.toString()}` : '';
+  const res = await apiFetch(`/api/fuel${suffix}`);
+  if (!res.ok) await throwServerError(res, 'Yakıt kayıtları alınamadı.');
+  const json = await res.json();
+  return Array.isArray(json.entries) ? json.entries : [];
+}
+
+export async function createFuelCredit(input: {
+  id: string;
+  date: string;
+  liters: number;
+  amountTl?: number | null;
+  note?: string | null;
+}): Promise<{ entry: FuelEntry; duplicate: boolean }> {
+  const res = await apiFetch('/api/fuel/credit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) await throwServerError(res, 'Yakıt yüklemesi kaydedilemedi.');
+  return res.json();
+}
+
+export async function createFuelPurchase(input: {
+  id: string;
+  plate: string;
+  date: string;
+  liters: number;
+  amountTl: number;
+  mileageKm: number;
+  note?: string | null;
+}): Promise<{ entry: FuelEntry; duplicate: boolean }> {
+  const res = await apiFetch('/api/fuel/purchases', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) await throwServerError(res, 'Yakıt alımı kaydedilemedi.');
+  return res.json();
+}
+
+export async function cancelFuelEntry(id: string): Promise<{ deleted: true; id: string }> {
+  const res = await apiFetch(`/api/fuel/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) await throwServerError(res, 'Yakıt kaydı iptal edilemedi.');
   return res.json();
 }
 

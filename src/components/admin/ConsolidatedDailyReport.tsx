@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Customer, User, Product, Purchase } from '../../types';
+import { Customer, User, Product, Purchase, FuelEntry } from '../../types';
 import { fetchDailyReport } from '../../services/api';
 import { todayUtcDateStr, clampDateToToday } from '../../services/dateWindow';
+import { FUEL_GENERAL_PLATE_LABEL } from '../../services/fuelRules';
 import {
   buildConsolidatedReport,
   rowCash,
@@ -172,6 +173,7 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
   const isLoading = controlledLoading ?? internalLoading;
   const data = controlledReportData ?? internalReportData;
   const purchases: Purchase[] = Array.isArray(data?.purchases) ? data.purchases : [];
+  const fuelEntries: FuelEntry[] = Array.isArray(data?.fuelEntries) ? data.fuelEntries : [];
   const dispatchDriverById = new Map<string, string>(
     (Array.isArray(data?.dispatches) ? data.dispatches : []).map((dispatch: any) => [
       String(dispatch.id),
@@ -538,12 +540,13 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
           </table>
         </section>
 
-        {/* IV. Satın alınan ürünler — kayıt yoksa bölüm hiç basılmaz */}
-        {purchases.length > 0 && (
+        {/* IV. Satın alınan ürünler ve yakıt hareketleri — kayıt yoksa bölüm basılmaz */}
+        {(purchases.length > 0 || fuelEntries.length > 0) && (
           <section className="mb-6 print-avoid-break">
             <div className="print-keep-with-next text-xs font-black uppercase tracking-wider mb-2 border-b border-black pb-1">
               IV. Satın Alınan Ürünler
             </div>
+            {purchases.length > 0 && (
             <table className="w-full text-xs border border-black border-collapse text-center">
               <thead>
                 <tr className="border-b border-black bg-white">
@@ -600,13 +603,58 @@ export const ConsolidatedDailyReport: React.FC<ConsolidatedDailyReportProps> = (
                 ))}
               </tbody>
             </table>
+            )}
+
+            {fuelEntries.length > 0 && (
+              <div className="mt-3">
+                <div className="print-keep-with-next text-[11px] font-black uppercase tracking-wider mb-1 border-b border-black pb-1">
+                  Yakıt Alımları
+                </div>
+                <table className="w-full text-xs border border-black border-collapse text-center">
+                  <thead>
+                    <tr className="border-b border-black bg-white">
+                      <th className="p-0 border-r border-black text-center align-middle w-24">Plaka</th>
+                      <th className="p-0 border-r border-black text-center align-middle w-24">Şoför</th>
+                      <th className="p-0 border-r border-black text-center align-middle w-20">KM</th>
+                      <th className="p-0 border-r border-black text-center align-middle w-20">Litre</th>
+                      <th className="p-0 text-center align-middle w-24">Tutar</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fuelEntries.map((entry) => (
+                      <tr key={entry.id} className="border-b border-black align-middle">
+                        <td className="p-0 border-r border-black text-center align-middle font-bold break-words">
+                          {entry.entryType === 'credit'
+                            ? FUEL_GENERAL_PLATE_LABEL
+                            : entry.plate || '-'}
+                        </td>
+                        <td className="p-0 border-r border-black text-center align-middle break-words">
+                          {entry.createdByUserName || '-'}
+                        </td>
+                        <td className="p-0 border-r border-black text-center align-middle font-mono tabular-nums">
+                          {entry.mileageKm === null
+                            ? '—'
+                            : entry.mileageKm.toLocaleString('tr-TR')}
+                        </td>
+                        <td className="p-0 border-r border-black text-center align-middle font-mono tabular-nums">
+                          {entry.liters.toLocaleString('tr-TR')} L
+                        </td>
+                        <td className="p-0 text-center align-middle font-mono tabular-nums">
+                          {entry.amountTl === null ? '—' : money(entry.amountTl)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
         )}
 
         {/* V. Şoför bazında müşteri dökümü */}
         <section className="space-y-6">
           <div className="print-keep-with-next text-xs font-black uppercase tracking-wider mb-2 border-b border-black pb-1">
-            {purchases.length > 0 ? 'V' : 'IV'}. Şoför Bazında Müşteri Dökümü
+            {purchases.length > 0 || fuelEntries.length > 0 ? 'V' : 'IV'}. Şoför Bazında Müşteri Dökümü
           </div>
 
           {report.drivers.length === 0 ? (
