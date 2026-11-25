@@ -138,7 +138,7 @@ export const FuelView: React.FC<FuelViewProps> = ({ currentUser }) => {
               balance < 0 ? 'text-rose-600' : 'text-slate-900'
             }`}
           >
-            {literFmt.format(balance)} L
+            {literFmt.format(balance)} Litre
           </div>
         </div>
 
