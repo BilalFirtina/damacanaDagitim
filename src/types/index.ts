@@ -478,6 +478,22 @@ export interface PurchaseInputItem {
   unitPrice?: number | null;
 }
 
+export type FuelEntryType = 'credit' | 'purchase';
+
+export interface FuelEntry {
+  id: string;
+  entryType: FuelEntryType;
+  plate: string | null;
+  entryDate: string;
+  liters: number;
+  amountTl: number | null;
+  mileageKm: number | null;
+  note: string | null;
+  createdByUserId: string;
+  createdByUserName: string;
+  createdAt: string;
+}
+
 export type CustomerPaymentStatus = 'active' | 'cancelled';
 
 export interface CustomerPayment {

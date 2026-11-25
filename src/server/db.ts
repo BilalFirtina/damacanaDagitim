@@ -28,6 +28,8 @@ import {
   Supplier,
   Purchase,
   PurchaseItem,
+  FuelEntry,
+  FuelEntryType,
 } from '../types/index.ts';
 import {
   utcDayQueryWindow,
@@ -5879,4 +5881,229 @@ export async function cancelPurchaseRecord(
   }
 
   throw new DispatchDbError('REMOTE_REQUIRED', 'Satın alım özelliği merkezi veritabanı gerektirir.');
+}
+
+// =============================================================================
+// YAKIT KAYITLARI — ortak litre bakiyesi ve araç tüketim grafiği
+// =============================================================================
+
+function mapFuelEntry(row: any): FuelEntry {
+  return {
+    id: String(row.id),
+    entryType: row.entry_type === 'credit' ? 'credit' : 'purchase',
+    plate: row.plate ? String(row.plate) : null,
+    entryDate: String(row.entry_date || ''),
+    liters: Number(row.liters) || 0,
+    amountTl:
+      row.amount_tl === null || row.amount_tl === undefined
+        ? null
+        : Number(row.amount_tl),
+    mileageKm:
+      row.mileage_km === null || row.mileage_km === undefined
+        ? null
+        : Number(row.mileage_km),
+    note: row.note ? String(row.note) : null,
+    createdByUserId: String(row.created_by_user_id || ''),
+    createdByUserName: String(row.created_by_user_name || ''),
+    createdAt: String(row.created_at || ''),
+  };
+}
+
+export function parseFuelDbError(e: any, fallback: string): Error {
+  const raw = `${e?.message || ''} ${e?.details || ''} ${e?.hint || ''}`.trim();
+  if (/MILEAGE_NOT_INCREASING:(\d+)/i.test(raw)) {
+    const last = Number(raw.match(/MILEAGE_NOT_INCREASING:(\d+)/i)?.[1]);
+    return new DispatchDbError(
+      'MILEAGE_NOT_INCREASING',
+      `Kilometre son kayıttan büyük olmalıdır. Son kayıt: ${Number.isFinite(last) ? last.toLocaleString('tr-TR') : '-'} km.`
+    );
+  }
+  if (/relation .*fuel_entries.* does not exist|fuel_entries.* does not exist/i.test(raw)) {
+    return new DispatchDbError(
+      'MIGRATION_REQUIRED',
+      'Yakıt tablosu bulunamadı. Sunucu veritabanı güncellemesi eksik; sistem yöneticisine bildirin.'
+    );
+  }
+  if (/duplicate key|23505/i.test(raw)) {
+    return new DispatchDbError('FUEL_DUPLICATE', 'Bu yakıt kaydı zaten mevcut.');
+  }
+  return new DispatchDbError('FUEL_ERROR', toTurkishDbError(e, fallback));
+}
+
+export async function getFuelEntryById(id: string): Promise<FuelEntry | null> {
+  if (!id) return null;
+  if (isSupabaseOperational() && supabase) {
+    const { data, error } = await supabase
+      .from('fuel_entries')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw parseFuelDbError(error, 'Yakıt kaydı okunamadı.');
+    return data ? mapFuelEntry(data) : null;
+  }
+  if (pgPool) {
+    const res = await pgPool.query('SELECT * FROM public.fuel_entries WHERE id = $1', [id]);
+    return res.rows[0] ? mapFuelEntry(res.rows[0]) : null;
+  }
+  throw new DispatchDbError(
+    'REMOTE_REQUIRED',
+    'Yakıt kayıtları merkezi veritabanı bağlantısı gerektirir.'
+  );
+}
+
+export async function listFuelEntries(params?: { date?: string }): Promise<FuelEntry[]> {
+  if (isSupabaseOperational() && supabase) {
+    let query = supabase
+      .from('fuel_entries')
+      .select('*')
+      .order('entry_date', { ascending: true })
+      .order('created_at', { ascending: true });
+    if (params?.date) query = query.eq('entry_date', params.date);
+    const { data, error } = await query;
+    if (error) throw parseFuelDbError(error, 'Yakıt kayıtları alınamadı.');
+    return (data || []).map(mapFuelEntry);
+  }
+  if (pgPool) {
+    const res = params?.date
+      ? await pgPool.query(
+          'SELECT * FROM public.fuel_entries WHERE entry_date = $1 ORDER BY entry_date ASC, created_at ASC',
+          [params.date]
+        )
+      : await pgPool.query(
+          'SELECT * FROM public.fuel_entries ORDER BY entry_date ASC, created_at ASC'
+        );
+    return res.rows.map(mapFuelEntry);
+  }
+  throw new DispatchDbError(
+    'REMOTE_REQUIRED',
+    'Yakıt kayıtları merkezi veritabanı bağlantısı gerektirir.'
+  );
+}
+
+export async function getLastFuelMileage(plate: string): Promise<number | null> {
+  if (isSupabaseOperational() && supabase) {
+    const { data, error } = await supabase
+      .from('fuel_entries')
+      .select('mileage_km')
+      .eq('entry_type', 'purchase')
+      .eq('plate', plate)
+      .order('mileage_km', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw parseFuelDbError(error, 'Son kilometre okunamadı.');
+    return data?.mileage_km === null || data?.mileage_km === undefined
+      ? null
+      : Number(data.mileage_km);
+  }
+  if (pgPool) {
+    const res = await pgPool.query(
+      `SELECT MAX(mileage_km) AS last_km
+         FROM public.fuel_entries
+        WHERE entry_type = 'purchase' AND plate = $1`,
+      [plate]
+    );
+    const value = res.rows[0]?.last_km;
+    return value === null || value === undefined ? null : Number(value);
+  }
+  throw new DispatchDbError(
+    'REMOTE_REQUIRED',
+    'Yakıt kayıtları merkezi veritabanı bağlantısı gerektirir.'
+  );
+}
+
+export async function createFuelEntry(input: {
+  id: string;
+  entryType: FuelEntryType;
+  plate: string | null;
+  entryDate: string;
+  liters: number;
+  amountTl: number | null;
+  mileageKm: number | null;
+  note: string | null;
+  actor: { id: string; name: string };
+}): Promise<{ entry: FuelEntry; duplicate: boolean }> {
+  const payload = {
+    id: input.id,
+    entry_type: input.entryType,
+    plate: input.plate,
+    entry_date: input.entryDate,
+    liters: input.liters,
+    amount_tl: input.amountTl,
+    mileage_km: input.mileageKm,
+    note: input.note,
+    created_by_user_id: input.actor.id,
+    created_by_user_name: input.actor.name,
+  };
+
+  if (isSupabaseOperational() && supabase) {
+    const existing = await getFuelEntryById(input.id);
+    if (existing) return { entry: existing, duplicate: true };
+    const { data, error } = await supabase
+      .from('fuel_entries')
+      .insert(payload)
+      .select('*')
+      .maybeSingle();
+    if (error) throw parseFuelDbError(error, 'Yakıt kaydı oluşturulamadı.');
+    if (data) return { entry: mapFuelEntry(data), duplicate: false };
+    const after = await getFuelEntryById(input.id);
+    if (after) return { entry: after, duplicate: true };
+    throw new DispatchDbError('FUEL_FAILED', 'Yakıt kaydı oluşturulamadı.');
+  }
+
+  if (pgPool) {
+    try {
+      const res = await pgPool.query(
+        `INSERT INTO public.fuel_entries
+           (id, entry_type, plate, entry_date, liters, amount_tl, mileage_km,
+            note, created_by_user_id, created_by_user_name)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+         ON CONFLICT (id) DO NOTHING
+         RETURNING *`,
+        [
+          input.id,
+          input.entryType,
+          input.plate,
+          input.entryDate,
+          input.liters,
+          input.amountTl,
+          input.mileageKm,
+          input.note,
+          input.actor.id,
+          input.actor.name,
+        ]
+      );
+      if (res.rows[0]) return { entry: mapFuelEntry(res.rows[0]), duplicate: false };
+      const existing = await getFuelEntryById(input.id);
+      if (existing) return { entry: existing, duplicate: true };
+      throw new DispatchDbError('FUEL_FAILED', 'Yakıt kaydı oluşturulamadı.');
+    } catch (e: any) {
+      if (e instanceof DispatchDbError) throw e;
+      throw parseFuelDbError(e, 'Yakıt kaydı oluşturulamadı.');
+    }
+  }
+
+  throw new DispatchDbError(
+    'REMOTE_REQUIRED',
+    'Yakıt kayıtları merkezi veritabanı bağlantısı gerektirir.'
+  );
+}
+
+export async function deleteFuelEntry(id: string): Promise<{ deleted: true; id: string }> {
+  if (isSupabaseOperational() && supabase) {
+    const { error } = await supabase.from('fuel_entries').delete().eq('id', id);
+    if (error) throw parseFuelDbError(error, 'Yakıt kaydı iptal edilemedi.');
+    return { deleted: true, id };
+  }
+  if (pgPool) {
+    try {
+      await pgPool.query('DELETE FROM public.fuel_entries WHERE id = $1', [id]);
+      return { deleted: true, id };
+    } catch (e: any) {
+      throw parseFuelDbError(e, 'Yakıt kaydı iptal edilemedi.');
+    }
+  }
+  throw new DispatchDbError(
+    'REMOTE_REQUIRED',
+    'Yakıt kayıtları merkezi veritabanı bağlantısı gerektirir.'
+  );
 }

@@ -11,6 +11,7 @@ import {
   Package,
   FileText,
   ShoppingCart,
+  Fuel,
   AlertCircle,
   Bell,
   BellOff,
@@ -26,7 +27,7 @@ export function getFirstName(fullName: string, fallback: string): string {
 interface HeaderProps {
   currentUser: User;
   onLogout: () => void;
-  activeTab: 'delivery' | 'team_feed' | 'eod' | 'customers' | 'products' | 'purchases' | 'admin_loads' | 'reports';
+  activeTab: 'delivery' | 'team_feed' | 'eod' | 'customers' | 'products' | 'purchases' | 'fuel' | 'admin_loads' | 'reports';
   setActiveTab: (tab: any) => void;
   onRefreshData: () => void | Promise<boolean | void>;
   isRefreshing?: boolean;
@@ -120,6 +121,7 @@ export const Header: React.FC<HeaderProps> = ({
     { tab: 'purchases', label: 'Satın Alınanlar', ariaLabel: 'Toptancı Satın Alımları', icon: ShoppingCart, iconClass: 'text-rose-600', activeClass: 'bg-gradient-to-r from-rose-400 via-pink-400 to-red-400', activeTextClass: 'text-rose-950' },
     { tab: 'reports', label: 'Raporlar', ariaLabel: 'Raporlar & Gün Sonu Dökümü', icon: FileText, iconClass: 'text-blue-500', activeClass: 'bg-gradient-to-r from-blue-300 to-blue-400', activeTextClass: 'text-blue-950', adminOnly: true },
     { tab: 'admin_loads', label: 'Araç Yükleme Yetkisi', ariaLabel: 'Araç Yüklemeleri & Yetki', icon: ShieldCheck, iconClass: 'text-indigo-600', activeClass: 'bg-indigo-600', activeTextClass: 'text-white', adminOnly: true },
+    { tab: 'fuel', label: 'Yakıt Alımı', ariaLabel: 'Yakıt Alımı ve Tüketim Grafiği', icon: Fuel, iconClass: 'text-amber-600', activeClass: 'bg-gradient-to-r from-amber-300 via-orange-300 to-amber-400', activeTextClass: 'text-amber-950' },
   ];
 
   const visibleNavItems = mobileNavItems.filter((item) => !item.adminOnly || isAdmin);
@@ -260,7 +262,11 @@ export const Header: React.FC<HeaderProps> = ({
               aria-current={active ? 'page' : undefined}
               title={item.ariaLabel}
               className={`w-full min-w-0 min-h-[56px] py-1.5 rounded-lg text-[13px] font-semibold flex flex-col items-center justify-center gap-1 text-center transition-all cursor-pointer box-border px-1.5 ${
-                item.tab === 'admin_loads' || item.tab === 'purchases'
+                isAdmin && item.tab === 'fuel'
+                  ? 'col-span-3 min-[360px]:col-span-4'
+                  : ''
+              } ${
+                item.tab === 'admin_loads' || item.tab === 'purchases' || item.tab === 'fuel'
                   ? 'whitespace-normal'
                   : 'whitespace-nowrap'
               } ${
@@ -272,7 +278,7 @@ export const Header: React.FC<HeaderProps> = ({
               <Icon className={`w-5 h-5 shrink-0 ${active ? item.activeTextClass : item.iconClass}`} />
               <span
                 className={`leading-tight ${
-                  item.tab === 'admin_loads' || item.tab === 'purchases'
+                  item.tab === 'admin_loads' || item.tab === 'purchases' || item.tab === 'fuel'
                     ? 'whitespace-normal break-words'
                     : 'whitespace-nowrap'
                 }`}

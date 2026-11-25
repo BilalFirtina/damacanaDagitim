@@ -29,6 +29,7 @@ import { usePushNotifications } from './hooks/usePushNotifications';
 import { DriverView } from './components/driver/DriverView';
 import { LiveTeamFeed } from './components/driver/LiveTeamFeed';
 import { EndOfDayView } from './components/driver/EndOfDayView';
+import { FuelView } from './components/fuel/FuelView';
 import { DailyReportsView } from './components/admin/DailyReportsView';
 import { CustomersManagement } from './components/admin/CustomersManagement';
 import { ProductManagement } from './components/admin/ProductManagement';
@@ -45,6 +46,7 @@ type AppTab =
   | 'customers'
   | 'products'
   | 'purchases'
+  | 'fuel'
   | 'reports'
   | 'admin_loads';
 
@@ -474,6 +476,8 @@ export default function App() {
         {activeTab === 'purchases' && (
           <PurchasesView currentUser={currentUser} products={products} />
         )}
+
+        {activeTab === 'fuel' && <FuelView currentUser={currentUser} />}
 
         {activeTab === 'reports' && currentUser.role === 'admin' && (
           <DailyReportsView
