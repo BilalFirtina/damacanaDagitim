@@ -706,40 +706,84 @@ export const EndOfDayView: React.FC<EndOfDayViewProps> = ({
           ) : (
             dispatchDeliveries.map((del, index) => {
               const isAccount = isAccountCustomerDelivery(del, customers);
-              const deliveredParts = sortItemsByProductCategory(del.deliveredItems, products).map((i) => {
-                const unit = products.find((p) => p.id === i.productId)?.unit;
-                return `${i.productName} - ${i.quantity}${unit ? ` ${unit}` : ''}`;
+              const deliveryLines = sortItemsByProductCategory(del.deliveredItems, products).map((item) => {
+                const product = products.find((p) => p.id === item.productId);
+                const unit = product?.unit;
+                return {
+                  key: `${del.id}-product-${item.productId}`,
+                  text: `${item.productName} - ${item.quantity}${unit ? ` ${unit}` : ''}`,
+                  depositType: product?.depositType,
+                };
               });
-              const emptyReturnParts = [
-                del.emptyContainersReceived.damacana > 0
-                  ? `${del.emptyContainersReceived.damacana} Boş`
-                  : null,
-                (del.emptyContainersReceived.camDamacana || 0) > 0
-                  ? `${del.emptyContainersReceived.camDamacana} Boş Cam`
-                  : null,
-                (del.emptyContainersReceived.tupBuyuk || 0) > 0
-                  ? `${del.emptyContainersReceived.tupBuyuk} Büyük Boş Tüp`
-                  : null,
-                (del.emptyContainersReceived.tupKucuk || 0) > 0
-                  ? `${del.emptyContainersReceived.tupKucuk} Küçük Boş Tüp`
-                  : null,
-              ].filter((part): part is string => part !== null);
-              const deliverySummary = [...deliveredParts, ...emptyReturnParts].join(' · ');
+
+              // Boş iadeler ürün satırlarından bağımsız kaydedilir; burada yalnızca
+              // görünüm amacıyla aynı depozito türündeki ürün satırına eklenir.
+              const emptyReturnEntries: Array<{
+                depositType: Product['depositType'];
+                count: number;
+                shortLabel: string;
+                fullLabel: string;
+              }> = [
+                {
+                  depositType: 'damacana',
+                  count: del.emptyContainersReceived.damacana,
+                  shortLabel: 'Boş',
+                  fullLabel: 'Boş Damacana',
+                },
+                {
+                  depositType: 'cam_damacana',
+                  count: del.emptyContainersReceived.camDamacana || 0,
+                  shortLabel: 'Boş Cam',
+                  fullLabel: 'Boş Cam Damacana',
+                },
+                {
+                  depositType: 'tup_buyuk',
+                  count: del.emptyContainersReceived.tupBuyuk || 0,
+                  shortLabel: 'Büyük Boş Tüp',
+                  fullLabel: 'Büyük Boş Tüp',
+                },
+                {
+                  depositType: 'tup_kucuk',
+                  count: del.emptyContainersReceived.tupKucuk || 0,
+                  shortLabel: 'Küçük Boş Tüp',
+                  fullLabel: 'Küçük Boş Tüp',
+                },
+              ];
+              const returnLines: Array<{ key: string; text: string }> = [];
+              for (const entry of emptyReturnEntries) {
+                if (entry.count <= 0) continue;
+                const matchingLine = deliveryLines.find(
+                  (line) => line.depositType === entry.depositType
+                );
+                if (matchingLine) {
+                  matchingLine.text += ` - ${entry.count} ${entry.shortLabel}`;
+                } else {
+                  returnLines.push({
+                    key: `${del.id}-return-${entry.depositType}`,
+                    text: `${entry.count} ${entry.fullLabel}`,
+                  });
+                }
+              }
+              const summaryLines = [...deliveryLines, ...returnLines];
               return (
-                <div key={del.id} className="py-2.5 flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <div className="font-bold text-slate-900  flex items-center gap-2">
-                      <span>{index + 1}. {del.customerName}</span>
-                      <span className="text-[10px] text-slate-400">
+                <div key={del.id} className="py-2.5 flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <div className="font-bold text-slate-900  flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <span className="break-words">{index + 1}. {del.customerName}</span>
+                      <span className="shrink-0 text-[10px] text-slate-400">
                         {new Date(del.timestamp).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    <div className="text-[11px] text-slate-500">
-                      {deliverySummary}
+                    <div className="text-[11px] text-slate-500 space-y-0.5">
+                      {summaryLines.map((line) => (
+                        <div key={line.key} className="break-words leading-snug">
+                          {line.text}
+                        </div>
+                      ))}
                     </div>
                   </div>
 
-                  <div className="text-right">
+                  <div className="shrink-0 text-right">
                     {!isAccount && (
                       <div className="font-mono font-bold text-slate-900 ">
                         {del.deliveredGrandTotal.toLocaleString('tr-TR')} ₺
