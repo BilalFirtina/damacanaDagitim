@@ -47,7 +47,7 @@ export const FuelFeedCard: React.FC<{ entry: FuelEntry }> = ({ entry }) => {
           KM: {entry.mileageKm === null ? '—' : entry.mileageKm.toLocaleString('tr-TR')}
         </span>
         <span className="px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 font-semibold">
-          {literFmt.format(entry.liters)} L
+          {literFmt.format(entry.liters)} Litre
         </span>
         <span className="px-2 py-1 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-800 font-semibold">
           {entry.amountTl === null ? '—' : `${moneyFmt.format(entry.amountTl)} ₺`}

@@ -80,7 +80,7 @@ export const FuelEntryCard: React.FC<FuelEntryCardProps> = ({
         <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-2.5 min-w-0">
           <div className="text-[10px] text-emerald-700 uppercase font-semibold">Litre</div>
           <div className="font-mono font-bold text-emerald-800 mt-0.5 tabular-nums break-words">
-            {literFmt.format(entry.liters)} L
+            {literFmt.format(entry.liters)} Litre
           </div>
         </div>
         <div className="rounded-xl bg-indigo-50 border border-indigo-200 p-2.5 min-w-0">
