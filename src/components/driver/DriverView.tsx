@@ -473,7 +473,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
                             onClick={() => setPaymentEditTarget(payment)}
                             disabled={paymentActionId === payment.id}
                             title="Tahsilatı düzelt"
-                            className="min-h-8 px-2.5 py-1.5 rounded-lg bg-sky-100 hover:bg-sky-200 text-sky-800 border border-sky-300 text-[11px] font-bold flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="min-h-8 px-2.5 py-1.5 rounded-lg bg-sky-100 text-sky-800 border border-sky-300 shadow-[inset_0_1px_0_#f0f9ff,0_3px_0_#7dd3fc] hover:bg-sky-200 active:translate-y-[3px] active:bg-sky-200 active:shadow-[inset_0_1px_0_#f0f9ff,inset_0_-1px_0_#7dd3fc] text-[11px] font-bold flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed max-[426px]:h-6 max-[426px]:min-h-6! max-[426px]:py-px"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                             Düzelt
@@ -483,7 +483,7 @@ export const DriverView: React.FC<DriverViewProps> = ({
                             onClick={() => void handleCancelPayment(payment)}
                             disabled={paymentActionId === payment.id}
                             title="Tahsilatı iptal et"
-                            className="min-h-8 px-2.5 py-1.5 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 text-[11px] font-bold flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="min-h-8 px-2.5 py-1.5 rounded-lg bg-rose-100 text-rose-800 border border-rose-300 shadow-[inset_0_1px_0_#fff1f2,0_3px_0_#fda4af] hover:bg-rose-200 active:translate-y-[3px] active:bg-rose-200 active:shadow-[inset_0_1px_0_#fff1f2,inset_0_-1px_0_#fda4af] text-[11px] font-bold flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed max-[426px]:h-6 max-[426px]:min-h-6! max-[426px]:py-px"
                           >
                             <Ban className="w-3.5 h-3.5" />
                             İptal
