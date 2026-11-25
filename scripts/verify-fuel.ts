@@ -56,25 +56,25 @@ const purchase = (
 
 console.log('\n[yakıt bakiye ve tüketim]\n');
 
-check('başlangıç bakiyesi 431,56 L', INITIAL_FUEL_BALANCE_LITERS === 431.56);
+check('başlangıç bakiyesi 481,56 L', INITIAL_FUEL_BALANCE_LITERS === 481.56);
 check('genel yükleme etiketi', FUEL_GENERAL_PLATE_LABEL === 'Genel Yakıt Yüklemesi');
 
 const balanceEntries = [credit('c1', 100), purchase('p1', AUTHORIZED_VEHICLE_PLATES[0], '2026-11-25', 50, 1000)];
-check('bakiye = 431,56 + 100 - 50', computeFuelBalance(balanceEntries) === 481.56);
+check('bakiye = 481,56 + 100 - 50', computeFuelBalance(balanceEntries) === 531.56);
 check(
   'tüm kayıtlar silinince başlangıca döner',
-  computeFuelBalance([]) === 431.56
+  computeFuelBalance([]) === 481.56
 );
 check(
   'bakiye negatif olabilir',
-  computeFuelBalance([purchase('p2', AUTHORIZED_VEHICLE_PLATES[0], '2026-11-25', 500, 2000)]) === -68.44
+  computeFuelBalance([purchase('p2', AUTHORIZED_VEHICLE_PLATES[0], '2026-11-25', 500, 2000)]) === -18.44
 );
 check(
   'TL tutarı bakiyeye etki etmez',
   computeFuelBalance([
     credit('c2', 10, 999999),
     purchase('p3', AUTHORIZED_VEHICLE_PLATES[0], '2026-11-25', 5, 3000, 888888),
-  ]) === 436.56
+  ]) === 486.56
 );
 
 const plate = AUTHORIZED_VEHICLE_PLATES[0];

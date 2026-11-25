@@ -1,7 +1,7 @@
 import type { FuelEntry } from '../types';
 import { AUTHORIZED_VEHICLE_PLATES } from '../types';
 
-export const INITIAL_FUEL_BALANCE_LITERS = 431.56;
+export const INITIAL_FUEL_BALANCE_LITERS = 481.56;
 export const FUEL_GENERAL_PLATE_LABEL = 'Genel Yakıt Yüklemesi';
 
 const FUEL_PLATE_COLORS = ['#0ea5e9', '#10b981', '#f59e0b'];
