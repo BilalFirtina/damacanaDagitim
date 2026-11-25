@@ -1238,8 +1238,23 @@ app.put('/api/customers/:id', requireAdmin, async (req, res) => {
 
 app.get('/api/customers/:id/payments', requireAdmin, async (req, res) => {
   try {
-    const payments = await getCustomerPayments(req.params.id, 100);
-    res.json({ payments });
+    const session = getAuthUser(req)!;
+    const [payments, dispatches] = await Promise.all([
+      getCustomerPayments(req.params.id, 100),
+      getDispatches(),
+    ]);
+    const dispatchById = new Map(dispatches.map((d) => [d.id, d]));
+    res.json({
+      payments: payments.map((payment) => ({
+        ...payment,
+        canCorrect:
+          evaluatePaymentCorrection(
+            payment,
+            session,
+            payment.dispatchId ? dispatchById.get(payment.dispatchId)?.status : undefined
+          ) === null,
+      })),
+    });
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Tahsilat kayıtları okunamadı.' });
   }
@@ -1249,25 +1264,85 @@ app.get('/api/customers/:id/payments', requireAdmin, async (req, res) => {
 // Teslimat dışı tahsilatlar — canlı akış, dağıtım ekranı ve düzeltme/iptal
 // ---------------------------------------------------------------------------
 
-type PaymentCorrectionDenial = 'NOT_AUTHORIZED' | 'DISPATCH_CLOSED';
+type PaymentCorrectionDenial =
+  | 'NOT_AUTHORIZED'
+  | 'DISPATCH_CLOSED'
+  | 'CORRECTION_WINDOW_CLOSED';
 
-async function getPaymentCorrectionDenial(
-  payment: { status: string; collectedByUserId: string; dispatchId?: string | null },
-  session: { role: string; userId: string }
-): Promise<PaymentCorrectionDenial | null> {
+function paymentUtcDate(value: string | Date | null | undefined): string {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? '' : value.toISOString().slice(0, 10);
+  }
+  if (typeof value !== 'string') return '';
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? value.slice(0, 10)
+    : parsed.toISOString().slice(0, 10);
+}
+
+function evaluatePaymentCorrection(
+  payment: {
+    status: string;
+    collectedByUserId: string;
+    dispatchId?: string | null;
+    collectedAt: string | Date;
+  },
+  session: { role: string; userId: string },
+  dispatchStatus: string | null | undefined
+): PaymentCorrectionDenial | null {
   if (payment.status !== 'active') return 'NOT_AUTHORIZED';
 
-  // Sefere bağlı olmayan tahsilatlarda yalnızca yönetici düzeltme yapabilir.
-  if (!payment.dispatchId) return session.role === 'admin' ? null : 'NOT_AUTHORIZED';
+  // Yalnızca tahsilatı kaydeden kullanıcı düzeltebilir/iptal edebilir.
+  if (payment.collectedByUserId !== session.userId) return 'NOT_AUTHORIZED';
 
-  const dispatches = await getDispatches();
-  const dispatch = dispatches.find((d) => d.id === payment.dispatchId);
+  if (session.role === 'admin') {
+    // Yönetici kendi tahsilatını yalnızca aynı UTC gününde değiştirebilir.
+    if (paymentUtcDate(payment.collectedAt) !== getTodayDateStr()) {
+      return 'CORRECTION_WINDOW_CLOSED';
+    }
+    // Yönetici tahsilatı sefere bağlıysa kapanmış sefer koruması geçerlidir.
+    if (payment.dispatchId && dispatchStatus !== 'in_transit') return 'DISPATCH_CLOSED';
+    return null;
+  }
 
-  // Kapanmış veya henüz dağıtıma çıkmamış seferde tahsilat değiştirilemez.
-  if (!dispatch || dispatch.status !== 'in_transit') return 'DISPATCH_CLOSED';
+  if (session.role === 'driver') {
+    // Şoför yalnızca kendi aktif seferine bağlı tahsilatı değiştirebilir.
+    if (!payment.dispatchId) return 'NOT_AUTHORIZED';
+    if (dispatchStatus !== 'in_transit') return 'DISPATCH_CLOSED';
+    return null;
+  }
 
-  if (session.role === 'admin') return null;
-  return payment.collectedByUserId === session.userId ? null : 'NOT_AUTHORIZED';
+  return 'NOT_AUTHORIZED';
+}
+
+async function getPaymentCorrectionDenial(
+  payment: {
+    status: string;
+    collectedByUserId: string;
+    dispatchId?: string | null;
+    collectedAt: string | Date;
+  },
+  session: { role: string; userId: string }
+): Promise<PaymentCorrectionDenial | null> {
+  let dispatchStatus: string | null | undefined;
+  if (payment.dispatchId) {
+    const dispatches = await getDispatches();
+    dispatchStatus = dispatches.find((d) => d.id === payment.dispatchId)?.status;
+  }
+  return evaluatePaymentCorrection(payment, session, dispatchStatus);
+}
+
+function paymentCorrectionDenialResponse(denial: PaymentCorrectionDenial, action: 'düzeltme' | 'iptal') {
+  const error =
+    denial === 'DISPATCH_CLOSED'
+      ? 'Kapanmış seferde tahsilat iptal veya düzeltmesi yapılamaz.'
+      : denial === 'CORRECTION_WINDOW_CLOSED'
+        ? 'Tahsilat yalnızca kaydedildiği gün düzeltilebilir veya iptal edilebilir.'
+        : `Bu tahsilatı ${action} yetkiniz yok.`;
+  return {
+    status: denial === 'NOT_AUTHORIZED' ? 403 : 409,
+    body: { error, code: denial },
+  };
 }
 
 function sendPaymentCorrectionError(res: Response, err: any, fallback: string) {
@@ -1277,7 +1352,9 @@ function sendPaymentCorrectionError(res: Response, err: any, fallback: string) {
       ? 404
       : code === 'NOT_AUTHORIZED'
         ? 403
-        : code === 'PAYMENT_ALREADY_CANCELLED' || code === 'DISPATCH_CLOSED'
+        : code === 'PAYMENT_ALREADY_CANCELLED' ||
+            code === 'DISPATCH_CLOSED' ||
+            code === 'CORRECTION_WINDOW_CLOSED'
           ? 409
           : 400;
   res.status(status).json({
@@ -1335,13 +1412,11 @@ app.get('/api/payments', requireAdminOrDriver, async (req, res) => {
           ? dispatchById.get(payment.dispatchId)
           : null;
         const canCorrect =
-          payment.status === 'active' &&
-          (payment.dispatchId
-            ? Boolean(dispatch) &&
-              dispatch?.status === 'in_transit' &&
-              (session.role === 'admin' ||
-                payment.collectedByUserId === session.userId)
-            : session.role === 'admin');
+          evaluatePaymentCorrection(
+            payment,
+            session,
+            payment.dispatchId ? dispatch?.status : undefined
+          ) === null;
 
         return {
           ...payment,
@@ -1373,13 +1448,8 @@ app.put('/api/payments/:id', requireAdminOrDriver, async (req, res) => {
     }
     const denial = await getPaymentCorrectionDenial(existing, session);
     if (denial) {
-      return res.status(denial === 'DISPATCH_CLOSED' ? 409 : 403).json({
-        error:
-          denial === 'DISPATCH_CLOSED'
-            ? 'Kapanmış seferde tahsilat iptal veya düzeltmesi yapılamaz.'
-            : 'Bu tahsilatı düzeltme yetkiniz yok.',
-        code: denial,
-      });
+      const response = paymentCorrectionDenialResponse(denial, 'düzeltme');
+      return res.status(response.status).json(response.body);
     }
 
     const body = req.body && typeof req.body === 'object' ? req.body : {};
@@ -1476,13 +1546,8 @@ app.post('/api/payments/:id/cancel', requireAdminOrDriver, async (req, res) => {
 
     const denial = await getPaymentCorrectionDenial(existing, session);
     if (denial) {
-      return res.status(denial === 'DISPATCH_CLOSED' ? 409 : 403).json({
-        error:
-          denial === 'DISPATCH_CLOSED'
-            ? 'Kapanmış seferde tahsilat iptal veya düzeltmesi yapılamaz.'
-            : 'Bu tahsilatı iptal etme yetkiniz yok.',
-        code: denial,
-      });
+      const response = paymentCorrectionDenialResponse(denial, 'iptal');
+      return res.status(response.status).json(response.body);
     }
 
     const result = await amendCustomerPayment({
@@ -1572,6 +1637,14 @@ app.post('/api/customers/:id/payments', requireAdminOrDriver, async (req, res) =
       typeof body.dispatchId === 'string' ? body.dispatchId.trim() : '';
     let dispatchId: string | null = null;
 
+    // Yönetici hiçbir zaman sefere çıkmaz; tahsilatı sefere bağlanamaz.
+    if (session.role === 'admin' && requestedDispatchId) {
+      return res.status(400).json({
+        error: 'Yönetici tahsilatı bir dağıtım seferine bağlanamaz.',
+        code: 'DISPATCH_NOT_ALLOWED',
+      });
+    }
+
     // Idempotent retry: aynı kimlik daha önce kaydedildiyse sefer kapanmış
     // olsa bile başarı dönülür; bakiye ikinci kez düşürülmez.
     if (requestedId) {
@@ -1617,13 +1690,6 @@ app.post('/api/customers/:id/payments', requireAdminOrDriver, async (req, res) =
           });
         }
         dispatchId = dispatch.id;
-      } else if (requestedDispatchId) {
-        const dispatches = await getDispatches();
-        const dispatch = dispatches.find((d) => d.id === requestedDispatchId);
-        if (!dispatch) {
-          return res.status(400).json({ error: 'Geçersiz sefer bilgisi.' });
-        }
-        dispatchId = dispatch.status === 'completed' ? null : dispatch.id;
       }
     }
 

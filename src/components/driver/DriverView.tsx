@@ -466,7 +466,9 @@ export const DriverView: React.FC<DriverViewProps> = ({
                     </div>
 
                     <div className="text-left sm:text-right shrink-0 space-y-2">
-                      {payment.status === 'active' && payment.canCorrect && (
+                      {payment.status === 'active' &&
+                        payment.canCorrect &&
+                        payment.collectedByUserId === currentUser.id && (
                         <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:justify-end">
                           <button
                             type="button"

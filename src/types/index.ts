@@ -512,7 +512,7 @@ export interface CustomerPayment {
   collectedByUserName: string;
   collectedAt: string;
   status: CustomerPaymentStatus;
-  /** Sunucu tarafından hesaplanır: aktif seferde kendi tahsilatı veya admin. */
+  /** Sunucu tarafından hesaplanır: yalnızca kaydı giren kullanıcı düzeltebilir. */
   canCorrect?: boolean;
 }
 

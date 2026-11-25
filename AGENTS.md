@@ -71,7 +71,7 @@ Teslimat sırasında alınan ödemeler teslimat kaydına işlenir.
 Teslimat dışı (sonraki ziyaret) tahsilatlar ayrı kaydedilir; bakiye ve tahsilat kaydı tek işlemde güncellenir.
 Şoförün teslimat dışı tahsilatı yalnızca kendi aktif (Dağıtımda) seferi varken kaydedilebilir ve sefere bağlanır; sefer 60 gün sonra silinse bile aktif tahsilat kaydı korunur.
 Şoförün sefer ekranındaki tahsilat listesi yalnızca aktif sefere bağlı tahsilatları gösterir; önceki seferlerin tahsilatları yeni sefer listesine karışmaz.
-Aktif her tahsilat; tutar, yöntem (nakit/POS), tahsil eden kullanıcı, tarih, varsa not ve sefer referansı ile saklanır. Yetkili iptal işlemi tahsilatı fiziksel olarak siler ve bakiyeyi geri ekler; iptal için denetim kaydı veya açıklama tutulmaz. Tahsilat düzeltmesi, ekrandaki beklenen tutarın mevcut tutarla karşılaştırılmasıyla yapılır; kayıt başka cihazda değiştiyse reddedilir. Düzeltmede not değişmez ve düzeltme kaydı tutulmaz.
+Aktif her tahsilat; tutar, yöntem (nakit/POS), tahsil eden kullanıcı, tarih, varsa not ve sefer referansı ile saklanır. Bir tahsilatı yalnızca kaydeden kullanıcı düzeltebilir veya iptal edebilir; yönetici şoförün tahsilatını hiçbir koşulda değiştiremez, şoför de yöneticinin kaydına dokunamaz. Yönetici kendi tahsilatını yalnızca aynı UTC gününde, şoför kendi tahsilatını yalnızca bağlı sefer Dağıtımda iken değiştirebilir. Yetkili iptal işlemi tahsilatı fiziksel olarak siler ve bakiyeyi geri ekler; iptal için denetim kaydı veya açıklama tutulmaz. Tahsilat düzeltmesi, ekrandaki beklenen tutarın mevcut tutarla karşılaştırılmasıyla yapılır; kayıt başka cihazda değiştiyse reddedilir. Düzeltmede not değişmez ve düzeltme kaydı tutulmaz.
 Kapanmış seferde teslimat ve tahsilat iptali/düzeltmesi yönetici dahil yapılamaz; sunucu ve veritabanı bu işlemleri reddeder.
 Aynı tahsilat kimliğiyle tekrar gönderim, kayıt silinmemişse bakiyeyi ikinci kez düşürmez. Silinmiş bir tahsilat kimliğinin gecikmiş tekrarı yeni kayıt oluşturabilir; iptal kaydı tutulmadığı için bu durum kabul edilmiştir.
 Günlük raporlarda nakit kasa ve POS toplamları teslimat içi ve teslimat dışı tahsilatları birlikte kapsar; ayrı teslimat dışı tahsilat bölümü gösterilmez. Şoför filtresinde yalnızca o şoförün tahsilatları görünür.
@@ -574,7 +574,7 @@ Faturalı teslimatta birim fiyatı istemciden almak yerine ürün default fiyat�
 Tahsilatı idempotent kimlikle kaydetmek; kayıt silinmemişse aynı kimliğin bakiyeyi ikinci kez düşürmesini engellemek.
 Tahsilat ve bakiye değişikliğini tek veritabanı işleminde yazmak; iptalde tahsilat kaydını fiziksel olarak silmek ve bakiyeyi geri eklemek. İptal için denetim kaydı veya açıklama yazmamak.
 Tahsilat düzeltmesinde ekrandaki beklenen tutarı mevcut tutarla karşılaştırmak; eşleşmezse işlemi reddetmek.
-Kapanmış seferde teslimat ve tahsilat iptali/düzeltmesini yönetici dahil reddetmek; kapalı seferin kasa/POS ve actual toplamlarına yazmamak.
+Kapanmış seferde teslimat ve tahsilat iptali/düzeltmesini yönetici dahil reddetmek; kapalı seferin kasa/POS ve actual toplamlarına yazmamak. Tahsilat düzeltme/iptalinde kaydı giren kullanıcı sahipliğini zorunlu tutmak; yöneticiye yalnızca kendi tahsilatında aynı UTC günü, şoföre yalnızca kendi aktif seferi iznini vermek.
 
 Bir işlemi arayüzde gizlemek onu güvence altına almak için yeterli değildir. Yetkisiz istekler sunucu veya veritabanı tarafından da reddedilmelidir.
 
@@ -607,7 +607,7 @@ Müşteri borç bakiyeleri; kaydedilmiş satışlara, ödemelere ve yetkili manu
 Müşteri iade edilebilir kalem bakiyeleri müşteri ve kalem türü bazında ayrı takip edilmelidir.
 İade edilebilir kalem takibi yalnızca miktarlara dayanır. Parasal depozito ücretleri, iadeleri ve bakiyeleri uygulanmamalıdır.
 Müşterinin finansal borcu ve bekleyen iade edilebilir kalem miktarları asla tek bir bakiyede birleştirilmemelidir.
-Düzeltme ve iptal işlemleri için denetim kaydı tutulmaz; gerekçe veya açıklama zorunlu değildir. İptal edilen teslimat, yükleme ve satın alım kayıtları fiziksel olarak silinir; tahsilat iptali ve düzeltmesi de kayıt bırakmaz. Tahsilat düzeltmesi beklenen tutar kontrolüyle yapılır. Onaylanmış operasyonel kayıtlar sessizce üzerine yazılmaz.
+Düzeltme ve iptal işlemleri için denetim kaydı tutulmaz; gerekçe veya açıklama zorunlu değildir. İptal edilen teslimat, yükleme ve satın alım kayıtları fiziksel olarak silinir; tahsilat iptali ve düzeltmesi de kayıt bırakmaz. Tahsilat düzeltmesi beklenen tutar kontrolüyle yapılır. Bir tahsilatı yalnızca kaydeden kullanıcı değiştirebilir; yönetici şoförün tahsilatını değiştiremez, yönetici kendi tahsilatında aynı UTC günüyle, şoför kendi tahsilatında aktif seferle sınırlıdır. Onaylanmış operasyonel kayıtlar sessizce üzerine yazılmaz.
 Mobil cihazlarda uygulama, yatay sayfa kaydırması olmadan dikey kaydırmayla kullanılabilmelidir.
 Uygulama, desteklenen platformlarda PWA olarak kurulabilmelidir.
 Çevrimdışı işlem desteği, bir işlemin sunucu tarafından senkronize edildiğini veya onaylandığını asla yanlış bir şekilde belirtmemelidir.

@@ -212,7 +212,9 @@ async function main(): Promise<void> {
   try {
     await c.query(
       `INSERT INTO public.users (id, name, username, role, can_load_vehicle, pin)
-       VALUES ('u_driver_pay_ci', 'CI Şoför', 'ci_pay_driver', 'driver', true, '1234')
+       VALUES
+         ('u_driver_pay_ci', 'CI Şoför', 'ci_pay_driver', 'driver', true, '1234'),
+         ('u_admin', 'Yönetici', 'ci_pay_admin', 'admin', true, '0000')
        ON CONFLICT (id) DO NOTHING;`
     );
     await c.query(
@@ -248,6 +250,23 @@ async function main(): Promise<void> {
       `SELECT dispatch_id FROM ${TABLE} WHERE id = 'pay_linked_ci'`
     );
     check('tahsilat dispatch_id ile saklandi', linkedRow.rows[0]?.dispatch_id === 'D_PAY_CI');
+
+    const adminAmendDriver = await expectError(
+      c,
+      {
+        payment_id: 'pay_linked_ci',
+        mode: 'update',
+        amount: 90,
+        method: 'CASH',
+        expected_amount: 100,
+        expected_method: 'CASH',
+        actor_id: 'u_admin',
+        actor_name: 'Yönetici',
+      },
+      /NOT_AUTHORIZED/,
+      callAmend
+    );
+    check('yönetici şoförün tahsilatını düzenleyemez', adminAmendDriver);
 
     await callPayment(
       c,
@@ -328,6 +347,13 @@ async function main(): Promise<void> {
   await c.query('BEGIN');
   try {
     await c.query(
+      `INSERT INTO public.users (id, name, username, role, can_load_vehicle, pin)
+       VALUES
+         ('u_admin', 'Yönetici', 'ci_pay_admin', 'admin', true, '0000'),
+         ('u_driver_pay_ci', 'CI Şoför', 'ci_pay_driver', 'driver', true, '1234')
+       ON CONFLICT (id) DO NOTHING;`
+    );
+    await c.query(
       `INSERT INTO public.customers (id, name, current_balance_tl, is_account_customer)
        VALUES ($1, 'CI Düzeltme Müşterisi', 500, true)
        ON CONFLICT (id) DO UPDATE SET current_balance_tl = 500`,
@@ -365,6 +391,16 @@ async function main(): Promise<void> {
       actor_name: 'Yönetici',
       ...overrides,
     });
+
+    check(
+      'şoför başka kullanıcının tahsilatını düzenleyemez',
+      await expectError(
+        c,
+        amendBody({ actor_id: 'u_driver_pay_ci', actor_name: 'CI Şoför' }),
+        /NOT_AUTHORIZED/,
+        callAmend
+      )
+    );
 
     check(
       'beklenen tutar yoksa EXPECTATION_REQUIRED',
@@ -413,6 +449,34 @@ async function main(): Promise<void> {
         callAmend
       )
     );
+
+    await c.query(
+      `INSERT INTO public.customer_payments
+         (id, customer_id, amount, method, note, collected_by_user_id,
+          collected_by_user_name, collected_at)
+       VALUES
+         ('pay_old_admin_ci', $1, 25, 'CASH', 'Eski gün', 'u_admin', 'Yönetici',
+          now() - interval '1 day')`,
+      [CUSTOMER_ID]
+    );
+    check(
+      'yönetici önceki günün tahsilatını iptal edemez',
+      await expectError(
+        c,
+        {
+          payment_id: 'pay_old_admin_ci',
+          mode: 'cancel',
+          actor_id: 'u_admin',
+          actor_name: 'Yönetici',
+        },
+        /CORRECTION_WINDOW_CLOSED/,
+        callAmend
+      )
+    );
+    const oldRow = await c.query(
+      `SELECT count(*)::int AS n FROM ${TABLE} WHERE id = 'pay_old_admin_ci'`
+    );
+    check('önceki günün tahsilatı silinmedi', Number(oldRow.rows[0]?.n) === 1);
 
     const cancelled = await callAmend(c, {
       payment_id: 'pay_amend_1',

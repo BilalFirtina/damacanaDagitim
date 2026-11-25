@@ -252,6 +252,29 @@ async function main() {
     });
     const listedPayment = paymentList.body?.payments?.find((p: any) => p.id === paymentId);
     check('tahsilat listesinde kayıt var', paymentList.status === 200 && !!listedPayment);
+    check('şoför kendi tahsilatında canCorrect true', listedPayment?.canCorrect === true);
+
+    const adminAmendDriver = await request(`/api/payments/${paymentId}`, {
+      method: 'PUT',
+      token: adminToken,
+      body: { amount: 90, method: 'CASH', expectedAmount: 100, expectedMethod: 'CASH' },
+    });
+    check(
+      'yönetici şoförün tahsilatını düzenleyemez (403)',
+      adminAmendDriver.status === 403 &&
+        adminAmendDriver.body?.code === 'NOT_AUTHORIZED'
+    );
+
+    const adminPaymentList = await request(`/api/payments?date=${TODAY}`, {
+      token: adminToken,
+    });
+    const adminSeesDriverPayment = adminPaymentList.body?.payments?.find(
+      (p: any) => p.id === paymentId
+    );
+    check(
+      'yönetici şoför tahsilatında canCorrect false',
+      adminPaymentList.status === 200 && adminSeesDriverPayment?.canCorrect === false
+    );
 
     const paymentAmend = await request(`/api/payments/${paymentId}`, {
       method: 'PUT',
@@ -292,6 +315,65 @@ async function main() {
       paymentId,
     ]);
     check('iptalde tahsilat fiziksel silindi', paymentRow.rows[0]?.n === 0);
+
+    const adminLinkedPaymentId = `pay_api_admin_link_${Date.now()}`;
+    const adminLinkedPayment = await request('/api/customers/c_api_cash/payments', {
+      method: 'POST',
+      token: adminToken,
+      body: {
+        paymentId: adminLinkedPaymentId,
+        amount: 10,
+        method: 'CASH',
+        dispatchId: 'd_api_1',
+      },
+    });
+    check(
+      'yönetici tahsilatı sefere bağlanamaz (400)',
+      adminLinkedPayment.status === 400 &&
+        adminLinkedPayment.body?.code === 'DISPATCH_NOT_ALLOWED'
+    );
+
+    const adminPaymentId = `pay_api_admin_${Date.now()}`;
+    const adminPaymentCreate = await request('/api/customers/c_api_cash/payments', {
+      method: 'POST',
+      token: adminToken,
+      body: { paymentId: adminPaymentId, amount: 10, method: 'CASH', note: 'API admin CI' },
+    });
+    check('yönetici tahsilatı oluşturma 201', adminPaymentCreate.status === 201);
+
+    const adminCustomerPayments = await request('/api/customers/c_api_cash/payments', {
+      token: adminToken,
+    });
+    const adminOwnPayment = adminCustomerPayments.body?.payments?.find(
+      (p: any) => p.id === adminPaymentId
+    );
+    check(
+      'yönetici kendi tahsilatında canCorrect true',
+      adminCustomerPayments.status === 200 && adminOwnPayment?.canCorrect === true
+    );
+
+    const adminPaymentAmend = await request(`/api/payments/${adminPaymentId}`, {
+      method: 'PUT',
+      token: adminToken,
+      body: {
+        amount: 15,
+        method: 'POS',
+        expectedAmount: adminOwnPayment?.amount,
+        expectedMethod: adminOwnPayment?.method,
+      },
+    });
+    check(
+      'yönetici kendi tahsilatını aynı gün düzenler 200',
+      adminPaymentAmend.status === 200 &&
+        Number(adminPaymentAmend.body?.payment?.amount) === 15 &&
+        adminPaymentAmend.body?.payment?.method === 'POS'
+    );
+
+    const adminPaymentCancel = await request(`/api/payments/${adminPaymentId}/cancel`, {
+      method: 'POST',
+      token: adminToken,
+    });
+    check('yönetici kendi tahsilatını aynı gün iptal eder 200', adminPaymentCancel.status === 200);
 
     const noOverride = await request('/api/deliveries', {
       method: 'POST',

@@ -4663,6 +4663,18 @@ function paymentError(e: any, fallback: string): Error {
   if (/PAYMENT_ALREADY_CANCELLED/i.test(raw)) {
     return new DispatchDbError('PAYMENT_ALREADY_CANCELLED', 'İptal edilmiş tahsilat düzeltilemez.');
   }
+  if (/NOT_AUTHORIZED/i.test(raw)) {
+    return new DispatchDbError(
+      'NOT_AUTHORIZED',
+      'Bu tahsilatı yalnızca kaydeden kullanıcı düzeltebilir veya iptal edebilir.'
+    );
+  }
+  if (/CORRECTION_WINDOW_CLOSED/i.test(raw)) {
+    return new DispatchDbError(
+      'CORRECTION_WINDOW_CLOSED',
+      'Tahsilat yalnızca kaydedildiği gün düzeltilebilir veya iptal edilebilir.'
+    );
+  }
   if (/DISPATCH_CLOSED/i.test(raw)) {
     return new DispatchDbError(
       'DISPATCH_CLOSED',
@@ -4873,7 +4885,7 @@ export async function getCustomerPaymentsByDate(
     const { data, error } = await query;
     if (error) throw paymentError(error, 'Tahsilat kayıtları okunamadı.');
     return (data || [])
-      .filter((row: any) => isSameUtcDate(row.collected_at, date))
+      .filter((row: any) => isSameUtcDate(paymentTimestampIso(row.collected_at), date))
       .map(mapCustomerPayment);
   }
   if (pgPool) {
@@ -4884,7 +4896,7 @@ export async function getCustomerPaymentsByDate(
        ORDER BY collected_at DESC`,
       [window.lower, window.upper]
     );
-    return res.rows.filter((row: any) => isSameUtcDate(row.collected_at, date)).map(mapCustomerPayment);
+    return res.rows.filter((row: any) => isSameUtcDate(paymentTimestampIso(row.collected_at), date)).map(mapCustomerPayment);
   }
   return [];
 }
@@ -4972,6 +4984,11 @@ export async function getCustomerPaymentsForReport(
   );
 }
 
+function paymentTimestampIso(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  return typeof value === 'string' ? value : '';
+}
+
 function mapCustomerPayment(row: any): CustomerPaymentRow {
   return {
     id: row.id,
@@ -4982,7 +4999,7 @@ function mapCustomerPayment(row: any): CustomerPaymentRow {
     dispatchId: row.dispatch_id || null,
     collectedByUserId: row.collected_by_user_id,
     collectedByUserName: row.collected_by_user_name,
-    collectedAt: row.collected_at,
+    collectedAt: paymentTimestampIso(row.collected_at),
     status: row.status === 'cancelled' ? 'cancelled' : 'active',
   };
 }

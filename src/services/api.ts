@@ -522,8 +522,12 @@ export async function fetchCustomerPayments(customerId: string): Promise<
     amount: number;
     method: string;
     note: string;
+    dispatchId?: string | null;
+    collectedByUserId: string;
     collectedByUserName: string;
     collectedAt: string;
+    status: string;
+    canCorrect?: boolean;
   }>
 > {
   const res = await apiFetch(`/api/customers/${encodeURIComponent(customerId)}/payments`);

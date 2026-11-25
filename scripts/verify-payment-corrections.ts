@@ -27,6 +27,10 @@ const closedDispatchGuardMigration = fs.readFileSync(
   path.resolve('migrations/20261116_customer_payment_closed_dispatch_guard.sql'),
   'utf8'
 );
+const ownershipGuardMigration = fs.readFileSync(
+  path.resolve('migrations/20261125_payment_ownership_guard.sql'),
+  'utf8'
+);
 const dbSource = fs.readFileSync(path.resolve('src/server/db.ts'), 'utf8');
 const server = fs.readFileSync(path.resolve('server.ts'), 'utf8');
 const statementRules = fs.readFileSync(
@@ -129,21 +133,56 @@ check(
   /app\.post\('\/api\/payments\/:id\/cancel'/.test(server)
 );
 check(
-  'şoför yalnızca aktif seferde düzeltebilir',
-  /dispatch\.status !== 'in_transit'/.test(server) &&
-    /return payment\.collectedByUserId === session\.userId \? null : 'NOT_AUTHORIZED';/.test(
-      server
-    )
+  'tahsilatı yalnızca kaydeden kullanıcı düzeltebilir',
+  /payment\.collectedByUserId !== session\.userId/.test(server) &&
+    /evaluatePaymentCorrection\(/.test(server)
 );
 check(
-  'admin kapalı seferde tahsilatı düzeltemez',
-  /if \(!payment\.dispatchId\) return session\.role === 'admin' \? null : 'NOT_AUTHORIZED';/.test(
-    server
-  ) &&
-    /if \(!dispatch \|\| dispatch\.status !== 'in_transit'\) return 'DISPATCH_CLOSED';/.test(
-      server
-    ) &&
-    /getPaymentCorrectionDenial\(existing, session\)/.test(server)
+  'şoför yalnızca aktif seferde düzeltebilir',
+  /if \(!payment\.dispatchId\) return 'NOT_AUTHORIZED';/.test(server) &&
+    /if \(dispatchStatus !== 'in_transit'\) return 'DISPATCH_CLOSED';/.test(server)
+);
+check(
+  'yönetici kendi tahsilatını yalnızca aynı UTC gününde düzeltebilir',
+  /paymentUtcDate\(payment\.collectedAt\) !== getTodayDateStr\(\)/.test(server) &&
+    /CORRECTION_WINDOW_CLOSED/.test(server)
+);
+check(
+  'yönetici tahsilatı sefere bağlanamaz',
+  /session\.role === 'admin' && requestedDispatchId/.test(server) &&
+    /DISPATCH_NOT_ALLOWED/.test(server)
+);
+check(
+  'yönetici şoförün tahsilatını düzeltemez',
+  /payment\.collectedByUserId !== session\.userId/.test(server) &&
+    /paymentCorrectionDenialResponse/.test(server)
+);
+check(
+  'şoför görünümü yalnızca kendi tahsilatında düğme gösterir',
+  /payment\.collectedByUserId === currentUser\.id/.test(driverView)
+);
+check(
+  'sahiplik migration veritabanında zorunlu',
+  /v_existing\.collected_by_user_id IS DISTINCT FROM v_actor_id/.test(
+    ownershipGuardMigration
+  ) && /RAISE EXCEPTION 'NOT_AUTHORIZED'/.test(ownershipGuardMigration)
+);
+check(
+  'yönetici aynı gün kuralı migration içinde',
+  /CORRECTION_WINDOW_CLOSED/.test(ownershipGuardMigration) &&
+    /AT TIME ZONE 'UTC'/.test(ownershipGuardMigration)
+);
+check(
+  'sahiplik migration denetim kaydı yazmaz',
+  !/INSERT INTO public\.customer_payment_audit/i.test(ownershipGuardMigration) &&
+    !/INSERT INTO public\.customer_financial_audit/i.test(ownershipGuardMigration)
+);
+check(
+  'CORRECTION_WINDOW_CLOSED sunucu hatasına eşlenir',
+  /CORRECTION_WINDOW_CLOSED/.test(dbSource) &&
+    /Tahsilat yalnızca kaydedildiği gün düzeltilebilir veya iptal edilebilir/.test(
+      dbSource
+    )
 );
 check(
   'migration tek transaction içinde',
