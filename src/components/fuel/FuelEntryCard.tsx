@@ -25,16 +25,21 @@ export const FuelEntryCard: React.FC<FuelEntryCardProps> = ({
   onCancel,
 }) => {
   const isCredit = entry.entryType === 'credit';
+  const cardAccentClass = isCredit
+    ? 'border-amber-200 border-l-4 border-l-amber-500'
+    : 'border-sky-200 border-l-4 border-l-sky-500';
   return (
-    <article className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3 min-w-0">
+    <article
+      className={`bg-white rounded-2xl border p-4 shadow-xs space-y-3 min-w-0 ${cardAccentClass}`}
+    >
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 min-w-0">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold ${
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border ${
                 isCredit
-                  ? 'bg-amber-100 text-amber-800'
-                  : 'bg-sky-100 text-sky-800'
+                  ? 'bg-amber-100 text-amber-800 border-amber-300'
+                  : 'bg-sky-100 text-sky-800 border-sky-300'
               }`}
             >
               <Fuel className="w-3 h-3" />

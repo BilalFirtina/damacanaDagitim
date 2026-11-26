@@ -15,14 +15,21 @@ const literFmt = new Intl.NumberFormat('tr-TR', {
 
 export const FuelFeedCard: React.FC<{ entry: FuelEntry }> = ({ entry }) => {
   const isCredit = entry.entryType === 'credit';
+  const cardAccentClass = isCredit
+    ? 'border-amber-200 border-l-4 border-l-amber-500'
+    : 'border-sky-200 border-l-4 border-l-sky-500';
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-4 min-w-0 border-l-4 border-l-amber-400">
+    <div
+      className={`bg-white rounded-2xl border p-4 min-w-0 shadow-xs transition-all hover:shadow-md ${cardAccentClass}`}
+    >
       <div className="flex items-start justify-between gap-2 min-w-0">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold ${
-                isCredit ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800'
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border ${
+                isCredit
+                  ? 'bg-amber-100 text-amber-800 border-amber-300'
+                  : 'bg-sky-100 text-sky-800 border-sky-300'
               }`}
             >
               <Fuel className="w-3 h-3" />
